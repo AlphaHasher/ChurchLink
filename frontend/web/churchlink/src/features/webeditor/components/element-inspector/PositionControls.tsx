@@ -13,6 +13,7 @@ import {
 import { Node, SectionV2 } from '@/shared/types/pageV2';
 import { BuilderState } from '@/features/webeditor/state/BuilderState';
 import { makeVirtualTransform } from '@/features/webeditor/grid/virtualGrid';
+import { getDefaultHu, getDefaultWu } from '@/features/webeditor/utils/nodeDefaults';
 
 type PositionControlsProps = {
   node: Node;
@@ -38,7 +39,89 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
   );
   const cellPx = approximateTransform.cellPx;
 
+  const sectionRows = React.useMemo(() => Math.round(cols * aspect.den / aspect.num), [cols, aspect.den, aspect.num]);
+
+  const normalizeUnits = React.useCallback((target: Node) => {
+    const units = (target.layout?.units ?? {}) as Partial<{ xu: number; yu: number; wu: number; hu: number }>;
+    return {
+      xu: typeof units.xu === 'number' ? units.xu : 0,
+      yu: typeof units.yu === 'number' ? units.yu : 0,
+      wu: typeof units.wu === 'number' ? units.wu : getDefaultWu(target.type),
+      hu: typeof units.hu === 'number' ? units.hu : getDefaultHu(target.type),
+    };
+  }, []);
+
+  const rootParentUnits = React.useMemo(() => ({
+    xu: 0,
+    yu: 0,
+    wu: cols,
+    hu: sectionRows,
+  }), [cols, sectionRows]);
+
+  const resolveParentUnits = React.useCallback(() => {
+    const walk = (children: Node[] | undefined, parentUnits: { xu: number; yu: number; wu: number; hu: number }): { xu: number; yu: number; wu: number; hu: number } | null => {
+      if (!children) return null;
+      for (const child of children) {
+        if (child.id === node.id) {
+          return parentUnits;
+        }
+        const childUnits = normalizeUnits(child);
+        if (child.children && child.children.length) {
+          const found = walk(child.children, childUnits);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    return walk(section?.children, rootParentUnits) ?? rootParentUnits;
+  }, [section, node.id, normalizeUnits, rootParentUnits]);
+
   const prevUnitsRef = React.useRef<null | { xu?: number; yu?: number; wu?: number; hu?: number }>(null);
+  const prevDescendantsRef = React.useRef<
+    | null
+    | Array<{
+        id: string;
+        units: { xu?: number; yu?: number; wu?: number; hu?: number };
+      }>
+  >(null);
+
+  const snapshotDescendantUnits = React.useCallback((children?: Node[]): Array<{ id: string; units: { xu?: number; yu?: number; wu?: number; hu?: number } }> => {
+    if (!children || !children.length) return [];
+    const records: Array<{ id: string; units: { xu?: number; yu?: number; wu?: number; hu?: number } }> = [];
+    const walk = (nodes?: Node[]) => {
+      if (!nodes) return;
+      for (const child of nodes) {
+        const units = { ...(child.layout?.units ?? {}) };
+        records.push({ id: child.id, units });
+        if (child.children && child.children.length) {
+          walk(child.children);
+        }
+      }
+    };
+    walk(children);
+    return records;
+  }, []);
+
+  const shiftDescendantUnits = React.useCallback(
+    (children: Node[] | undefined, dxu: number, dyu: number): Node[] | undefined => {
+      if (!children || (dxu === 0 && dyu === 0)) return children;
+      return children.map((child) => {
+        const childUnits = { ...(child.layout?.units ?? {}) };
+        const shiftedUnits = {
+          ...childUnits,
+          xu: (childUnits.xu ?? 0) + dxu,
+          yu: (childUnits.yu ?? 0) + dyu,
+        };
+        return {
+          ...child,
+          layout: { units: shiftedUnits },
+          children: shiftDescendantUnits(child.children, dxu, dyu),
+        } as Node;
+      });
+    },
+    []
+  );
 
   const [xUnit, setXUnit] = React.useState<'units' | 'px' | 'rem'>('units');
   const [yUnit, setYUnit] = React.useState<'units' | 'px' | 'rem'>('units');
@@ -55,310 +138,201 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
     setYVal(yUnit === 'units' ? formatUnits(yu) : yUnit === 'px' ? formatPx(pxY) : formatRem(pxY));
   }, [xu, yu, cellPx, xUnit, yUnit]);
 
-  const commitX = (val: number) => {
+  const commitX = React.useCallback((val: number) => {
+    const nodeUnits = normalizeUnits(node);
     if (!prevUnitsRef.current) {
-      prevUnitsRef.current = { ...(node.layout?.units || {}) };
+      prevUnitsRef.current = { ...nodeUnits };
+      if (node.type === 'container') {
+        prevDescendantsRef.current = snapshotDescendantUnits(node.children);
+      }
     }
-    const nextXu = xUnit === 'units' 
+    const nextXu = xUnit === 'units'
       ? Math.max(0, Math.round(val))
       : xUnit === 'px'
       ? Math.max(0, Math.round(val / cellPx))
       : Math.max(0, Math.round((val * 16) / cellPx));
-    onUpdateNode((n) => ({
-      ...n,
-      layout: {
-        ...n.layout,
-        units: {
-          xu: nextXu,
-          yu: n.layout?.units?.yu ?? 0,
-          wu: n.layout?.units?.wu ?? 12,
-          hu: n.layout?.units?.hu ?? 8,
+    onUpdateNode((n) => {
+      const normalized = normalizeUnits(n);
+      const deltaXu = nextXu - normalized.xu;
+      const nextUnits = { ...normalized, xu: nextXu };
+      const nextChildren =
+        n.type === 'container' && (deltaXu !== 0)
+          ? shiftDescendantUnits(n.children, deltaXu, 0)
+          : n.children;
+      return {
+        ...n,
+        layout: {
+          ...n.layout,
+          units: nextUnits,
         },
-      },
-    } as Node));
-  };
+        children: nextChildren,
+      } as Node;
+    });
+  }, [cellPx, normalizeUnits, node, onUpdateNode, xUnit, shiftDescendantUnits, snapshotDescendantUnits]);
 
-  const commitY = (val: number) => {
+  const commitY = React.useCallback((val: number) => {
+    const nodeUnits = normalizeUnits(node);
     if (!prevUnitsRef.current) {
-      prevUnitsRef.current = { ...(node.layout?.units || {}) };
+      prevUnitsRef.current = { ...nodeUnits };
+      if (node.type === 'container') {
+        prevDescendantsRef.current = snapshotDescendantUnits(node.children);
+      }
     }
     const nextYu = yUnit === 'units'
       ? Math.max(0, Math.round(val))
       : yUnit === 'px'
       ? Math.max(0, Math.round(val / cellPx))
       : Math.max(0, Math.round((val * 16) / cellPx));
-    onUpdateNode((n) => ({
-      ...n,
-      layout: {
-        ...n.layout,
-        units: {
-          xu: n.layout?.units?.xu ?? 0,
-          yu: nextYu,
-          wu: n.layout?.units?.wu ?? 12,
-          hu: n.layout?.units?.hu ?? 8,
+    onUpdateNode((n) => {
+      const normalized = normalizeUnits(n);
+      const deltaYu = nextYu - normalized.yu;
+      const nextUnits = { ...normalized, yu: nextYu };
+      const nextChildren =
+        n.type === 'container' && (deltaYu !== 0)
+          ? shiftDescendantUnits(n.children, 0, deltaYu)
+          : n.children;
+      return {
+        ...n,
+        layout: {
+          ...n.layout,
+          units: nextUnits,
         },
-      },
-    } as Node));
-  };
+        children: nextChildren,
+      } as Node;
+    });
+  }, [cellPx, normalizeUnits, node, onUpdateNode, yUnit, shiftDescendantUnits, snapshotDescendantUnits]);
 
   const getStep = (unit: 'units' | 'px' | 'rem') => (unit === 'rem' ? REM_STEP : 1);
 
   const centerHorizontally = React.useCallback(() => {
-    const nodeId = node.id;
-    const sectionId = explicitSectionId;
-    console.log('[CenterH] start', { nodeId, sectionId });
-
-    const nodeContentEl = document.querySelector(`[data-node-id="${nodeId}"]`) as HTMLElement | null;
-    if (!nodeContentEl) {
-      console.warn('[CenterH] Could not find node element with data-node-id:', nodeId);
-      return;
-    }
-    console.log('[CenterH] nodeContentEl found', nodeContentEl);
-
-    let wrapperEl: HTMLElement | null = nodeContentEl.parentElement;
-    while (wrapperEl) {
-      const style = window.getComputedStyle(wrapperEl);
-      if (style.position === 'absolute') {
-        break;
-      }
-      wrapperEl = wrapperEl.parentElement;
-    }
-
-    if (!wrapperEl) {
-      console.warn('[CenterH] Could not find absolutely positioned wrapper for node:', nodeId);
-      return;
-    }
-    console.log('[CenterH] wrapperEl', wrapperEl, window.getComputedStyle(wrapperEl).position);
-
-
-    let parentEl: HTMLElement | null = null;
-    let parentWidth: number = 0;
-
-    const containerAncestor = wrapperEl.closest('[data-node-type="container"]') as HTMLElement | null;
-    const anyNodeAncestor = wrapperEl.closest('[data-node-id]') as HTMLElement | null;
-    const sectionAncestor = wrapperEl.closest('[id^="section-content-"]') as HTMLElement | null;
-    console.log('[CenterH] ancestors', { containerAncestor, anyNodeAncestor, sectionAncestor });
-    if (containerAncestor) {
-      parentEl = containerAncestor;
-    } else if (anyNodeAncestor && anyNodeAncestor.getAttribute('data-node-id') !== nodeId) {
-      parentEl = anyNodeAncestor;
-    } else if (sectionAncestor) {
-      parentEl = sectionAncestor;
-    }
-
-    if (parentEl) {
-      const rect = parentEl.getBoundingClientRect();
-      parentWidth = rect.width;
-    }
-
-    if (!parentEl || parentWidth === 0) {
-      console.warn('[CenterH] Could not find parent container or section content', { parentEl, parentWidth });
-      return;
-    }
-    console.log('[CenterH] parentEl', parentEl, 'parentWidth', parentWidth);
-
-    const contentEl = document.getElementById(`section-content-${explicitSectionId}`) as HTMLElement | null;
-    if (!contentEl) {
-      console.warn('[CenterH] Could not find section content element');
-      return;
-    }
-    const contentRect = contentEl.getBoundingClientRect();
-    const parentRect = parentEl.getBoundingClientRect();
-    const parentPx = {
-      x: parentRect.left - contentRect.left,
-      y: parentRect.top - contentRect.top,
-      w: parentRect.width,
-      h: parentRect.height,
-    };
-    const actualTransform = makeVirtualTransform(
-      { width: contentRect.width, height: contentRect.height },
-      cols,
-      aspect
-    );
-    const parentUnits = actualTransform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
-    
-    const elementWu = node.layout?.units?.wu;
-    let wu: number;
-    if (elementWu) {
-      wu = elementWu;
-    } else {
-      const wrapperRect = wrapperEl.getBoundingClientRect();
-      const wrapperPx = {
-        x: wrapperRect.left - contentRect.left,
-        y: wrapperRect.top - contentRect.top,
-        w: wrapperRect.width,
-        h: wrapperRect.height,
-      };
-      const wrapperUnits = actualTransform.toUnits({ ...wrapperPx, w: wrapperPx.w, h: wrapperPx.h });
-      wu = wrapperUnits.wu;
-    }
-    console.log('[CenterH] parentUnits', parentUnits, 'child wu', wu);
-
+    const parentUnits = resolveParentUnits();
+    const nodeUnits = normalizeUnits(node);
+    const available = parentUnits.wu - nodeUnits.wu;
     const minXu = parentUnits.xu;
-    const maxXu = parentUnits.xu + parentUnits.wu - wu;
-    const target = Math.round(parentUnits.xu + (parentUnits.wu - wu) / 2);
+    const maxXu = parentUnits.xu + Math.max(0, available);
+    const target = Math.round(parentUnits.xu + Math.max(0, available) / 2);
     const centerXu = Math.max(minXu, Math.min(target, maxXu));
-    console.log('[CenterH] centerXu(units)', centerXu, { minXu, maxXu, target });
+
+    if (centerXu === nodeUnits.xu) {
+      return;
+    }
 
     if (!prevUnitsRef.current) {
-      prevUnitsRef.current = { ...(node.layout?.units || {}) };
+      prevUnitsRef.current = { ...nodeUnits };
     }
     const prevUnits = { ...prevUnitsRef.current };
-    const nextUnits = {
-      xu: centerXu,
-      yu: node.layout?.units?.yu ?? 0,
-      wu: node.layout?.units?.wu,
-      hu: node.layout?.units?.hu,
-    };
-    console.log('[CenterH] prevUnits', prevUnits, 'nextUnits', nextUnits);
-    onUpdateNode((n) => ({
-      ...n,
-      layout: {
-        units: nextUnits,
-      },
-    } as Node));
-    let secId = explicitSectionId;
-    if (!secId) {
-      const sectionEl = nodeContentEl.closest('[id^="section-content-"]') as HTMLElement | null;
-      if (sectionEl && sectionEl.id.startsWith('section-content-')) {
-        secId = sectionEl.id.replace('section-content-', '');
+    const nextUnits = { ...nodeUnits, xu: centerXu };
+
+    const isContainer = node.type === 'container';
+    const prevChildrenLayouts = isContainer ? snapshotDescendantUnits(node.children) : null;
+
+    onUpdateNode((n) => {
+      const normalized = normalizeUnits(n);
+      const deltaXu = centerXu - normalized.xu;
+      const nextChildren =
+        n.type === 'container' && (deltaXu !== 0)
+          ? shiftDescendantUnits(n.children, deltaXu, 0)
+          : n.children;
+      return {
+        ...n,
+        layout: {
+          ...n.layout,
+          units: { ...normalized, xu: centerXu },
+        },
+        children: nextChildren,
+      } as Node;
+    });
+
+    const secId = explicitSectionId ?? section?.id ?? BuilderState.selection?.sectionId ?? null;
+    if (secId) {
+      BuilderState.pushLayout(secId, node.id, prevUnits, nextUnits);
+      const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+      const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
+      if (
+        isContainer &&
+        prevChildrenLayouts &&
+        prevChildrenLayouts.length &&
+        (deltaXu !== 0 || deltaYu !== 0)
+      ) {
+        for (const entry of prevChildrenLayouts) {
+          const prevChildUnits = { ...entry.units };
+          const nextChildUnits = {
+            ...entry.units,
+            xu: (entry.units.xu ?? 0) + deltaXu,
+            yu: (entry.units.yu ?? 0) + deltaYu,
+          };
+          BuilderState.pushLayout(secId, entry.id, prevChildUnits, nextChildUnits);
+        }
       }
     }
-    if (secId) {
-      console.log('[CenterH] pushLayout', { secId, nodeId, prevUnits, nextUnits });
-      BuilderState.pushLayout(secId, nodeId, prevUnits, nextUnits);
-    }
     prevUnitsRef.current = null;
-  }, [node, cols, aspect, onUpdateNode, explicitSectionId]);
+    prevDescendantsRef.current = null;
+  }, [resolveParentUnits, normalizeUnits, node, onUpdateNode, explicitSectionId, section?.id, shiftDescendantUnits, snapshotDescendantUnits]);
 
   const centerVertically = React.useCallback(() => {
-    const nodeId = node.id;
-    const sectionId = explicitSectionId;
-    console.log('[CenterV] start', { nodeId, sectionId });
-
-    const nodeContentEl = document.querySelector(`[data-node-id="${nodeId}"]`) as HTMLElement | null;
-    if (!nodeContentEl) {
-      console.warn('[CenterV] Could not find node element with data-node-id:', nodeId);
-      return;
-    }
-    console.log('[CenterV] nodeContentEl found', nodeContentEl);
-
-    let wrapperEl: HTMLElement | null = nodeContentEl.parentElement;
-    while (wrapperEl) {
-      const style = window.getComputedStyle(wrapperEl);
-      if (style.position === 'absolute') {
-        break;
-      }
-      wrapperEl = wrapperEl.parentElement;
-    }
-
-    if (!wrapperEl) {
-      console.warn('[CenterV] Could not find absolutely positioned wrapper for node:', nodeId);
-      return;
-    }
-    console.log('[CenterV] wrapperEl', wrapperEl, window.getComputedStyle(wrapperEl).position);
-
-    let parentEl: HTMLElement | null = null;
-    let parentHeight: number = 0;
-
-    const containerAncestor = wrapperEl.closest('[data-node-type="container"]') as HTMLElement | null;
-    const anyNodeAncestor = wrapperEl.closest('[data-node-id]') as HTMLElement | null;
-    const sectionAncestor = wrapperEl.closest('[id^="section-content-"]') as HTMLElement | null;
-    console.log('[CenterV] ancestors', { containerAncestor, anyNodeAncestor, sectionAncestor });
-    if (containerAncestor) {
-      parentEl = containerAncestor;
-    } else if (anyNodeAncestor && anyNodeAncestor.getAttribute('data-node-id') !== nodeId) {
-      parentEl = anyNodeAncestor;
-    } else if (sectionAncestor) {
-      parentEl = sectionAncestor;
-    }
-
-    if (parentEl) {
-      const rect = parentEl.getBoundingClientRect();
-      parentHeight = rect.height;
-    }
-
-    if (!parentEl || parentHeight === 0) {
-      console.warn('[CenterV] Could not find parent container or section content', { parentEl, parentHeight });
-      return;
-    }
-    console.log('[CenterV] parentEl', parentEl, 'parentHeight', parentHeight);
-
-    // Compute parent bounds in virtual units
-    const contentEl = document.getElementById(`section-content-${explicitSectionId}`) as HTMLElement | null;
-    if (!contentEl) {
-      console.warn('[CenterV] Could not find section content element');
-      return;
-    }
-    const contentRect = contentEl.getBoundingClientRect();
-    const parentRect = parentEl.getBoundingClientRect();
-    const parentPx = {
-      x: parentRect.left - contentRect.left,
-      y: parentRect.top - contentRect.top,
-      w: parentRect.width,
-      h: parentRect.height,
-    };
-    const actualTransform = makeVirtualTransform(
-      { width: contentRect.width, height: contentRect.height },
-      cols,
-      aspect
-    );
-    const parentUnits = actualTransform.toUnits({ ...parentPx, w: parentPx.w, h: parentPx.h });
-    
-    const elementHu = node.layout?.units?.hu;
-    let hu: number;
-    if (elementHu) {
-      hu = elementHu;
-    } else {
-      const wrapperRect = wrapperEl.getBoundingClientRect();
-      const wrapperPx = {
-        x: wrapperRect.left - contentRect.left,
-        y: wrapperRect.top - contentRect.top,
-        w: wrapperRect.width,
-        h: wrapperRect.height,
-      };
-      const wrapperUnits = actualTransform.toUnits({ ...wrapperPx, w: wrapperPx.w, h: wrapperPx.h });
-      hu = wrapperUnits.hu;
-    }
-    console.log('[CenterV] parentUnits', parentUnits, 'child hu', hu);
-
-    // Center relative to parent's origin, then clamp within parent bounds
+    const parentUnits = resolveParentUnits();
+    const nodeUnits = normalizeUnits(node);
+    const available = parentUnits.hu - nodeUnits.hu;
     const minYu = parentUnits.yu;
-    const maxYu = parentUnits.yu + parentUnits.hu - hu;
-    const targetY = Math.round(parentUnits.yu + (parentUnits.hu - hu) / 2);
-    const centerYu = Math.max(minYu, Math.min(targetY, maxYu));
-    console.log('[CenterV] centerYu(units)', centerYu, { minYu, maxYu, targetY });
+    const maxYu = parentUnits.yu + Math.max(0, available);
+    const target = Math.round(parentUnits.yu + Math.max(0, available) / 2);
+    const centerYu = Math.max(minYu, Math.min(target, maxYu));
+
+    if (centerYu === nodeUnits.yu) {
+      return;
+    }
 
     if (!prevUnitsRef.current) {
-      prevUnitsRef.current = { ...(node.layout?.units || {}) };
+      prevUnitsRef.current = { ...nodeUnits };
     }
     const prevUnits = { ...prevUnitsRef.current };
-    const nextUnits = {
-      xu: node.layout?.units?.xu ?? 0,
-      yu: centerYu,
-      wu: node.layout?.units?.wu,
-      hu: node.layout?.units?.hu,
-    };
-    console.log('[CenterV] prevUnits', prevUnits, 'nextUnits', nextUnits);
-    onUpdateNode((n) => ({
-      ...n,
-      layout: {
-        units: nextUnits,
-      },
-    } as Node));
-    let secId = explicitSectionId;
-    if (!secId) {
-      const sectionEl = nodeContentEl.closest('[id^="section-content-"]') as HTMLElement | null;
-      if (sectionEl && sectionEl.id.startsWith('section-content-')) {
-        secId = sectionEl.id.replace('section-content-', '');
+    const nextUnits = { ...nodeUnits, yu: centerYu };
+
+    const isContainer = node.type === 'container';
+    const prevChildrenLayouts = isContainer ? snapshotDescendantUnits(node.children) : null;
+
+    onUpdateNode((n) => {
+      const normalized = normalizeUnits(n);
+      const deltaYu = centerYu - normalized.yu;
+      const nextChildren =
+        n.type === 'container' && (deltaYu !== 0)
+          ? shiftDescendantUnits(n.children, 0, deltaYu)
+          : n.children;
+      return {
+        ...n,
+        layout: {
+          ...n.layout,
+          units: { ...normalized, yu: centerYu },
+        },
+        children: nextChildren,
+      } as Node;
+    });
+
+    const secId = explicitSectionId ?? section?.id ?? BuilderState.selection?.sectionId ?? null;
+    if (secId) {
+      BuilderState.pushLayout(secId, node.id, prevUnits, nextUnits);
+      const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+      const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
+      if (
+        isContainer &&
+        prevChildrenLayouts &&
+        prevChildrenLayouts.length &&
+        (deltaXu !== 0 || deltaYu !== 0)
+      ) {
+        for (const entry of prevChildrenLayouts) {
+          const prevChildUnits = { ...entry.units };
+          const nextChildUnits = {
+            ...entry.units,
+            xu: (entry.units.xu ?? 0) + deltaXu,
+            yu: (entry.units.yu ?? 0) + deltaYu,
+          };
+          BuilderState.pushLayout(secId, entry.id, prevChildUnits, nextChildUnits);
+        }
       }
     }
-    if (secId) {
-      console.log('[CenterV] pushLayout', { secId, nodeId, prevUnits, nextUnits });
-      BuilderState.pushLayout(secId, nodeId, prevUnits, nextUnits);
-    }
     prevUnitsRef.current = null;
-  }, [node, cols, aspect, onUpdateNode, explicitSectionId]);
+    prevDescendantsRef.current = null;
+  }, [resolveParentUnits, normalizeUnits, node, onUpdateNode, explicitSectionId, section?.id, shiftDescendantUnits, snapshotDescendantUnits]);
 
   return (
     <div className="rounded-lg border p-3 bg-muted/40">
@@ -385,14 +359,28 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
                   : xUnit === 'px'
                   ? Math.max(0, Math.round(xVal / cellPx))
                   : Math.max(0, Math.round((xVal * 16) / cellPx));
-                const nextUnits = {
-                  xu: nextXu,
-                  yu: node.layout?.units?.yu ?? 0,
-                  wu: node.layout?.units?.wu ?? 12,
-                  hu: node.layout?.units?.hu ?? 8,
-                };
+                const nodeUnits = normalizeUnits(node);
+                const nextUnits = { ...nodeUnits, xu: nextXu };
+                const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+                const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
                 BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
+                if (
+                  node.type === 'container' &&
+                  prevDescendantsRef.current &&
+                  (deltaXu !== 0 || deltaYu !== 0)
+                ) {
+                  for (const entry of prevDescendantsRef.current) {
+                    const prevChildUnits = { ...entry.units };
+                    const nextChildUnits = {
+                      ...entry.units,
+                      xu: (entry.units.xu ?? 0) + deltaXu,
+                      yu: (entry.units.yu ?? 0) + deltaYu,
+                    };
+                    BuilderState.pushLayout(sectionId, entry.id, prevChildUnits, nextChildUnits);
+                  }
+                }
                 prevUnitsRef.current = null;
+                prevDescendantsRef.current = null;
               }
             }}
             onBlur={() => {
@@ -405,14 +393,28 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
                   : xUnit === 'px'
                   ? Math.max(0, Math.round(xVal / cellPx))
                   : Math.max(0, Math.round((xVal * 16) / cellPx));
-                const nextUnits = {
-                  xu: nextXu,
-                  yu: node.layout?.units?.yu ?? 0,
-                  wu: node.layout?.units?.wu ?? 12,
-                  hu: node.layout?.units?.hu ?? 8,
-                };
+                const nodeUnits = normalizeUnits(node);
+                const nextUnits = { ...nodeUnits, xu: nextXu };
+                const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+                const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
                 BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
+                if (
+                  node.type === 'container' &&
+                  prevDescendantsRef.current &&
+                  (deltaXu !== 0 || deltaYu !== 0)
+                ) {
+                  for (const entry of prevDescendantsRef.current) {
+                    const prevChildUnits = { ...entry.units };
+                    const nextChildUnits = {
+                      ...entry.units,
+                      xu: (entry.units.xu ?? 0) + deltaXu,
+                      yu: (entry.units.yu ?? 0) + deltaYu,
+                    };
+                    BuilderState.pushLayout(sectionId, entry.id, prevChildUnits, nextChildUnits);
+                  }
+                }
                 prevUnitsRef.current = null;
+                prevDescendantsRef.current = null;
               }
             }}
             />
@@ -447,14 +449,28 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
                   : yUnit === 'px'
                   ? Math.max(0, Math.round(yVal / cellPx))
                   : Math.max(0, Math.round((yVal * 16) / cellPx));
-                const nextUnits = {
-                  xu: node.layout?.units?.xu ?? 0,
-                  yu: nextYu,
-                  wu: node.layout?.units?.wu ?? 12,
-                  hu: node.layout?.units?.hu ?? 8,
-                };
+                const nodeUnits = normalizeUnits(node);
+                const nextUnits = { ...nodeUnits, yu: nextYu };
+                const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+                const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
                 BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
+                if (
+                  node.type === 'container' &&
+                  prevDescendantsRef.current &&
+                  (deltaXu !== 0 || deltaYu !== 0)
+                ) {
+                  for (const entry of prevDescendantsRef.current) {
+                    const prevChildUnits = { ...entry.units };
+                    const nextChildUnits = {
+                      ...entry.units,
+                      xu: (entry.units.xu ?? 0) + deltaXu,
+                      yu: (entry.units.yu ?? 0) + deltaYu,
+                    };
+                    BuilderState.pushLayout(sectionId, entry.id, prevChildUnits, nextChildUnits);
+                  }
+                }
                 prevUnitsRef.current = null;
+                prevDescendantsRef.current = null;
               }
             }}
             onBlur={() => {
@@ -467,14 +483,28 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
                   : yUnit === 'px'
                   ? Math.max(0, Math.round(yVal / cellPx))
                   : Math.max(0, Math.round((yVal * 16) / cellPx));
-                const nextUnits = {
-                  xu: node.layout?.units?.xu ?? 0,
-                  yu: nextYu,
-                  wu: node.layout?.units?.wu ?? 12,
-                  hu: node.layout?.units?.hu ?? 8,
-                };
+                const nodeUnits = normalizeUnits(node);
+                const nextUnits = { ...nodeUnits, yu: nextYu };
+                const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
+                const deltaYu = (nextUnits.yu ?? 0) - (prevUnits.yu ?? 0);
                 BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
+                if (
+                  node.type === 'container' &&
+                  prevDescendantsRef.current &&
+                  (deltaXu !== 0 || deltaYu !== 0)
+                ) {
+                  for (const entry of prevDescendantsRef.current) {
+                    const prevChildUnits = { ...entry.units };
+                    const nextChildUnits = {
+                      ...entry.units,
+                      xu: (entry.units.xu ?? 0) + deltaXu,
+                      yu: (entry.units.yu ?? 0) + deltaYu,
+                    };
+                    BuilderState.pushLayout(sectionId, entry.id, prevChildUnits, nextChildUnits);
+                  }
+                }
                 prevUnitsRef.current = null;
+                prevDescendantsRef.current = null;
               }
             }}
             />

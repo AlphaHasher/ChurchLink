@@ -1,5 +1,5 @@
 // DraggableNode.tsx - Draggable node with grid snapping
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Node } from '@/shared/types/pageV2';
 import { BuilderState, ResizeHandle } from '@/features/webeditor/state/BuilderState';
 import { VirtualTransform } from './virtualGrid';
@@ -93,6 +93,70 @@ export function DraggableNode({
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [measuredOrigin, setMeasuredOrigin] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [autoScale, setAutoScale] = useState<number>(1);
+  const subscribeSelfEdgeContact = useCallback(
+    (listener: () => void) =>
+      BuilderState.onEdgeContactChange((payload) => {
+        if (!payload || payload.containerId === node.id) listener();
+      }),
+    [node.id]
+  );
+  const getSelfEdgeContactSnapshot = useCallback(
+    () => BuilderState.edgeContacts.get(node.id) ?? null,
+    [node.id]
+  );
+  const selfEdgeContact = useSyncExternalStore(
+    subscribeSelfEdgeContact,
+    getSelfEdgeContactSnapshot,
+    () => null
+  );
+  const subscribeParentEdgeContact = useCallback(
+    (listener: () => void) => {
+      if (!containerId) return () => {};
+      return BuilderState.onEdgeContactChange((payload) => {
+        if (!payload || payload.containerId === containerId) listener();
+      });
+    },
+    [containerId]
+  );
+  const getParentEdgeContactSnapshot = useCallback(
+    () => (containerId ? BuilderState.edgeContacts.get(containerId) ?? null : null),
+    [containerId]
+  );
+  const parentEdgeContact = useSyncExternalStore(
+    subscribeParentEdgeContact,
+    getParentEdgeContactSnapshot,
+    () => null
+  );
+  const hasSelfEdgeContact = Boolean(
+    selfEdgeContact && (selfEdgeContact.top || selfEdgeContact.right || selfEdgeContact.bottom || selfEdgeContact.left)
+  );
+  const hasParentEdgeContact = Boolean(
+    parentEdgeContact && (parentEdgeContact.top || parentEdgeContact.right || parentEdgeContact.bottom || parentEdgeContact.left)
+  );
+  useEffect(() => {
+    if (!containerId) return;
+    const parentEl = document.getElementById(containerId);
+    if (!parentEl) return;
+    if (parentEl.dataset?.draggable === 'true') return;
+    const prevOutline = parentEl.style.outline;
+    const prevOutlineOffset = parentEl.style.outlineOffset;
+    if (hasParentEdgeContact) {
+      parentEl.style.outline = '2px solid #ef4444';
+      parentEl.style.outlineOffset = '-1px';
+    } else {
+      parentEl.style.outline = prevOutline;
+      parentEl.style.outlineOffset = prevOutlineOffset;
+    }
+    return () => {
+      const activeEdges = BuilderState.edgeContacts.get(containerId);
+      const stillActive =
+        !!activeEdges && (activeEdges.top || activeEdges.right || activeEdges.bottom || activeEdges.left);
+      if (!stillActive) {
+        parentEl.style.outline = prevOutline;
+        parentEl.style.outlineOffset = prevOutlineOffset;
+      }
+    };
+  }, [containerId, hasParentEdgeContact]);
   const resizeRef = useRef<
     | null
     | {
@@ -109,8 +173,16 @@ export function DraggableNode({
 
   const activeEditing = BuilderState.editing;
   const isEditing = activeEditing?.sectionId === sectionId && activeEditing?.nodeId === node.id;
+  const draggingNodeId = useSyncExternalStore(
+    (listener) => BuilderState.subscribe(listener),
+    () => BuilderState.draggingNodeId,
+    () => BuilderState.draggingNodeId
+  );
 
   useLayoutEffect(() => {
+    if (containerId && draggingNodeId && draggingNodeId !== node.id) {
+      return;
+    }
     if (originPx) {
       setMeasuredOrigin(originPx);
       setAutoScale(1);
@@ -177,13 +249,14 @@ export function DraggableNode({
     });
     ro.observe(offsetParent);
     return () => ro.disconnect();
-  }, [sectionId, originPx, cssScale, transform]);
+  }, [sectionId, originPx, cssScale, transform, containerId, draggingNodeId, node.id]);
 
   // Continuously refresh origin so children visually track moving containers during drag
   // We keep this lightweight by only committing state when the computed origin actually changes.
   useLayoutEffect(() => {
     if (originPx) return;
     if (!containerId) return; // Only needed for nested nodes
+    if (containerId && draggingNodeId && draggingNodeId !== node.id) return;
     let raf = 0;
     let running = true;
     const tick = () => {
@@ -207,7 +280,7 @@ export function DraggableNode({
       running = false;
       if (raf) window.cancelAnimationFrame(raf);
     };
-  }, [sectionId, cssScale, containerId, originPx]);
+  }, [sectionId, cssScale, containerId, originPx, draggingNodeId, node.id]);
 
   const originX = originPx?.x ?? measuredOrigin.x;
   const originY = originPx?.y ?? measuredOrigin.y;
@@ -219,15 +292,6 @@ export function DraggableNode({
   const baseWidth = _gridPx.w;
   const baseHeight = _gridPx.h;
 
-  const applyParentOutline = useCallback((edges: { top: boolean; right: boolean; bottom: boolean; left: boolean } | null) => {
-    if (!containerId) return;
-    const parentEl = document.getElementById(containerId);
-    if (!parentEl) return;
-    const hasEdges = Boolean(edges && (edges.top || edges.right || edges.bottom || edges.left));
-    (parentEl.style as any).boxShadow = hasEdges ? 'inset 0 0 0 2px #ef4444' : '';
-  }, [containerId]);
-
-  // Convert a px-rect into fractional grid units (no rounding)
   const toUnitsFloat = useCallback((pxRect: { x: number; y: number; w: number; h: number }) => {
     const cell = transform.cellPx;
     const ox = transform.offsetX;
@@ -240,17 +304,6 @@ export function DraggableNode({
     };
   }, [transform.cellPx, transform.offsetX, transform.offsetY]);
 
-  // Persistently outline the movement constraint bounds whenever this node is selected.
-  useLayoutEffect(() => {
-    const targetId = isContainerNode ? node.id : containerId;
-    if (!targetId) return;
-    const targetEl = document.getElementById(targetId);
-    if (!targetEl) return;
-    return () => {
-      (targetEl.style as any).boxShadow = '';
-    };
-  }, [containerId, isContainerNode, node.id]);
-
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (disabled) return;
     if (isEditing) return; // Disable drag when editing text
@@ -261,9 +314,18 @@ export function DraggableNode({
     const parent = wrapper.offsetParent as HTMLElement | null;
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
+    const widthPx = innerRect.width;
+    const heightPx = innerRect.height;
     const pointerX = (e.clientX - rect.left) / scale;
     const pointerY = (e.clientY - rect.top) / scale;
-    startRef.current = { pointerX, pointerY, x0: x, y0: y, w0: innerRect.width / cssScale, h0: innerRect.height / cssScale };
+    startRef.current = {
+      pointerX,
+      pointerY,
+      x0: x,
+      y0: y,
+      w0: widthPx / cssScale,
+      h0: heightPx / cssScale,
+    };
     setTempSize(null);
     wrapper.setPointerCapture(e.pointerId);
     pressedRef.current = true;
@@ -312,8 +374,9 @@ export function DraggableNode({
                     w: parentRect.width / cssScale,
                     h: parentRect.height / cssScale,
                   }));
-          const parentWidthPx = (parentUnits?.wu ?? parentUnitsFloat.wu) * transform.cellPx;
-          const parentHeightPx = (parentUnits?.hu ?? parentUnitsFloat.hu) * transform.cellPx;
+          // Use live DOM size for visual outline alignment
+          const parentWidthPx = parentRect.width / cssScale;
+          const parentHeightPx = parentRect.height / cssScale;
           const parentPx = {
             w: parentWidthPx,
             h: parentHeightPx,
@@ -346,7 +409,6 @@ export function DraggableNode({
             bottom: (isSectionRoot ? transform.rows : parentUnitsFloat.hu) > nhu ? Math.abs(ny + nh - parentPx.h) <= tol : false,
           } as const;
           if (BuilderState.setEdgeContact) BuilderState.setEdgeContact(containerId, { top: edges.top, right: edges.right, bottom: edges.bottom, left: edges.left });
-          applyParentOutline(edges);
         }
       }
 
@@ -358,40 +420,53 @@ export function DraggableNode({
 
     const rawX = startRef.current.x0 + dx;
     const rawY = startRef.current.y0 + dy;
-
-    const tentativeUnits = transform.toUnits({ x: rawX + originX, y: rawY + originY, w: startRef.current.w0, h: startRef.current.h0 });
+    const rectPx = { x: rawX + originX, y: rawY + originY, w: startRef.current.w0, h: startRef.current.h0 };
+    const tentativeUnits = transform.toUnits(rectPx);
     let xu = tentativeUnits.xu;
     let yu = tentativeUnits.yu;
+    const widthUnitsRaw = startRef.current.w0 / transform.cellPx;
+    const heightUnitsRaw = startRef.current.h0 / transform.cellPx;
+    const widthUnitsForClamp = node.layout?.units?.wu ?? Math.round(widthUnitsRaw);
+    const heightUnitsForClamp = node.layout?.units?.hu ?? Math.round(heightUnitsRaw);
 
     if (containerId && startRef.current) {
       const parentEl = document.getElementById(containerId);
       if (parentEl) {
         const contentEl = document.getElementById(`section-content-${sectionId}`) || parentEl;
         const contentRect = contentEl.getBoundingClientRect();
-          const parentRect = parentEl.getBoundingClientRect();
-          const isSectionRoot = parentEl === contentEl;
-          const parentUnitsFloat = parentUnits
-            ? parentUnits
-            : (isSectionRoot
-                ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
-                : toUnitsFloat({
-                    x: ((parentRect.left - contentRect.left)) / cssScale,
-                    y: ((parentRect.top - contentRect.top)) / cssScale,
-                    w: parentRect.width / cssScale,
-                    h: parentRect.height / cssScale,
-                  }));
-        const parentWidthPx = (parentUnits?.wu ?? parentUnitsFloat.wu) * transform.cellPx;
-        const parentHeightPx = (parentUnits?.hu ?? parentUnitsFloat.hu) * transform.cellPx;
-        const wu = node.layout?.units?.wu ?? Math.round(startRef.current.w0 / transform.cellPx);
-        const hu = node.layout?.units?.hu ?? Math.round(startRef.current.h0 / transform.cellPx);
-        const minXu = parentUnits ? parentUnits.xu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.xu);
-        const minYu = parentUnits ? parentUnits.yu : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.yu);
+        const parentRect = parentEl.getBoundingClientRect();
+        const isSectionRoot = parentEl === contentEl;
+        const parentUnitsFloat = parentUnits
+          ? parentUnits
+          : (isSectionRoot
+              ? { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows }
+              : toUnitsFloat({
+                  x: ((parentRect.left - contentRect.left)) / cssScale,
+                  y: ((parentRect.top - contentRect.top)) / cssScale,
+                  w: parentRect.width / cssScale,
+                  h: parentRect.height / cssScale,
+                }));
+        // Use live DOM size for visual outline alignment
+        const parentWidthPx = parentRect.width / cssScale;
+        const parentHeightPx = parentRect.height / cssScale;
+        const wu = widthUnitsForClamp;
+        const hu = heightUnitsForClamp;
+        const minXu = parentUnits
+          ? parentUnits.xu
+          : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.xu);
+        const minYu = parentUnits
+          ? parentUnits.yu
+          : Math.ceil(isSectionRoot ? 0 : parentUnitsFloat.yu);
         const maxXu = parentUnits
           ? parentUnits.xu + parentUnits.wu - wu
-          : (isSectionRoot ? (transform.cols - wu) : Math.floor(parentUnitsFloat.xu + parentUnitsFloat.wu - wu));
+          : (isSectionRoot
+              ? (transform.cols - wu)
+              : Math.floor(parentUnitsFloat.xu + parentUnitsFloat.wu - wu));
         const maxYu = parentUnits
           ? parentUnits.yu + parentUnits.hu - hu
-          : (isSectionRoot ? (transform.rows - hu) : Math.floor(parentUnitsFloat.yu + parentUnitsFloat.hu - hu));
+          : (isSectionRoot
+              ? (transform.rows - hu)
+              : Math.floor(parentUnitsFloat.yu + parentUnitsFloat.hu - hu));
         xu = Math.max(minXu, Math.min(xu, maxXu));
         if ((isSectionRoot ? transform.rows : parentUnitsFloat.hu) > hu) {
           yu = Math.max(minYu, Math.min(yu, maxYu));
@@ -407,14 +482,14 @@ export function DraggableNode({
           bottom: ((parentUnits?.hu ?? parentUnitsFloat.hu) > hu) ? Math.abs((snappedPx.y - originY) + snappedPx.h! - parentHeightPx) <= tol : false,
         } as const;
         if (BuilderState.setEdgeContact) BuilderState.setEdgeContact(containerId, { top: edges.top, right: edges.right, bottom: edges.bottom, left: edges.left });
-        applyParentOutline(edges);
       }
     }
 
-    const snappedPx = transform.toPx({ xu, yu, wu: startRef.current.w0 / transform.cellPx, hu: startRef.current.h0 / transform.cellPx });
+    const snappedPxUnits = { xu, yu, wu: widthUnitsForClamp, hu: heightUnitsForClamp };
+    const snappedPx = transform.toPx(snappedPxUnits);
     setTempPos({ x: snappedPx.x - originX, y: snappedPx.y - originY });
     e.stopPropagation();
-  }, [dragging, transform, containerId, sectionId, disabled, applyParentOutline, node.layout?.units, originX, originY]);
+  }, [dragging, transform, containerId, sectionId, disabled, node.layout?.units, originX, originY]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     if (disabled) return;
@@ -425,8 +500,11 @@ export function DraggableNode({
       const ny = tempPos?.y ?? startRef.current.y0;
       const w = tempSize?.w ?? startRef.current.w0;
       const h = tempSize?.h ?? startRef.current.h0;
-      
-      let { xu, yu, wu, hu } = transform.toUnits({ x: nx + originX, y: ny + originY, w, h });
+
+      const rectPx = { x: nx + originX, y: ny + originY, w, h };
+      let { xu, yu, wu, hu } = transform.toUnits(rectPx);
+      wu = Math.max(1, Math.round(wu));
+      hu = Math.max(1, Math.round(hu));
 
       if (containerId) {
         const parentEl = document.getElementById(containerId);
@@ -462,6 +540,8 @@ export function DraggableNode({
         }
       }
 
+      xu = Math.round(xu);
+      yu = Math.round(yu);
       onCommitLayout(node.id, { xu, yu, wu, hu });
       resizeRef.current = null;
       setTempSize(null);
@@ -473,7 +553,6 @@ export function DraggableNode({
       BuilderState.stopDragging();
       if (containerId) {
         if (BuilderState.clearEdgeContact) BuilderState.clearEdgeContact(containerId);
-        applyParentOutline(null);
       }
       e.stopPropagation();
       return;
@@ -523,6 +602,8 @@ export function DraggableNode({
       }
     }
 
+    xu = Math.round(xu);
+    yu = Math.round(yu);
     onCommitLayout(node.id, { xu, yu });
     setDragging(false);
     setTempPos(null);
@@ -531,19 +612,19 @@ export function DraggableNode({
     BuilderState.stopDragging();
     if (containerId) {
       if (BuilderState.clearEdgeContact) BuilderState.clearEdgeContact(containerId);
-      applyParentOutline(null);
     }
     if (dragging) {
       e.preventDefault();
     }
     e.stopPropagation();
-  }, [dragging, transform, tempPos, tempSize, node.id, onCommitLayout, containerId, sectionId, disabled, applyParentOutline]);
+  }, [dragging, transform, tempPos, tempSize, node.id, onCommitLayout, containerId, sectionId, disabled]);
 
   // Position to render (during drag show temp, otherwise snap)
   const renderX = tempPos?.x ?? x;
   const renderY = tempPos?.y ?? y;
   const renderW = tempSize?.w ?? baseWidth ?? defaultSize?.w;
   const renderH = tempSize?.h ?? baseHeight ?? defaultSize?.h;
+  const shouldReadParentDragVars = Boolean(containerId && draggingNodeId && draggingNodeId !== containerId);
 
   // Propagate live container drag delta to its descendants via CSS variables so children visually track the card during drag.
   useLayoutEffect(() => {
@@ -552,10 +633,10 @@ export function DraggableNode({
     if (!el) return;
     const baseX = (_gridPx.x - originX);
     const baseY = (_gridPx.y - originY);
-    const dx = (tempPos?.x ?? x) - baseX;
-    const dy = (tempPos?.y ?? y) - baseY;
-    (el.style as any).setProperty('--drag-dx', `${dx}px`);
-    (el.style as any).setProperty('--drag-dy', `${dy}px`);
+    const localDx = (tempPos?.x ?? x) - baseX;
+    const localDy = (tempPos?.y ?? y) - baseY;
+    (el.style as any).setProperty('--drag-dx', `${localDx}px`);
+    (el.style as any).setProperty('--drag-dy', `${localDy}px`);
     return () => {
       // Reset on unmount or when this node stops being a container
       (el.style as any).setProperty('--drag-dx', `0px`);
@@ -587,13 +668,12 @@ export function DraggableNode({
       BuilderState.stopDragging();
       if (containerId) {
         if (BuilderState.clearEdgeContact) BuilderState.clearEdgeContact(containerId);
-        applyParentOutline(null);
       }
       return;
     }
     pressedRef.current = false;
     onPointerUp(e);
-  }, [dragging, onPointerUp, containerId, applyParentOutline]);
+  }, [dragging, onPointerUp, containerId]);
 
   const renderedContent = enforceChildFullSize ? enforceFullSize(render(node)) : render(node);
 
@@ -607,7 +687,7 @@ export function DraggableNode({
         width: renderW,
         height: renderH,
         // Children of containers read CSS vars --drag-dx/--drag-dy from their parent container element.
-        transform: `translateZ(0)${containerId ? ' translate(var(--drag-dx, 0px), var(--drag-dy, 0px))' : ''}`,
+        transform: `translateZ(0)${shouldReadParentDragVars ? ' translate(var(--drag-dx, 0px), var(--drag-dy, 0px))' : ''}`,
         zIndex: dragging ? 60 : (selected ? 50 : 10),
         pointerEvents: disabled ? 'auto' : undefined,
         cursor: disabled ? 'default' : undefined,
@@ -642,12 +722,35 @@ export function DraggableNode({
         {renderedContent}
       </div>
 
-      {selected && !isEditing && !isContainerNode && (
+      {!isContainerNode && selected && !isEditing && (
         <div className="absolute inset-0 border border-blue-500 pointer-events-none" />
       )}
+
+      {isContainerNode && ((selected && !isEditing) || dragging || hasSelfEdgeContact) && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            left: 0,
+            top: 0,
+            width: renderW,
+            height: renderH,
+            border: `2px solid ${hasSelfEdgeContact ? '#ef4444' : '#3b82f6'}`,
+            boxSizing: 'border-box',
+          }}
+        />
+      )}
+
       {/* Resize handles */}
       {selected && !isEditing && (
-        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+        <div
+          className="absolute pointer-events-none"
+          aria-hidden
+          style={
+            isContainerNode
+              ? { left: 0, top: 0, width: renderW, height: renderH }
+              : { left: 0, top: 0, right: 0, bottom: 0 }
+          }
+        >
           {['n','s','e','w','ne','nw','se','sw'].map((dir) => {
             const style: React.CSSProperties = {};
             let cursor = 'default';

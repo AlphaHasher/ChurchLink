@@ -139,6 +139,7 @@ export interface PageV2 {
     [key: string]: unknown;
   };
   sections: SectionV2[];
+	sectionsMobile?: SectionV2[];
   created_at?: string;
   updated_at?: string;
 }

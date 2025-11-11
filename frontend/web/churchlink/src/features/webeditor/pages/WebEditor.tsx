@@ -33,6 +33,8 @@ const WebEditor: React.FC = () => {
     setPage,
     sections,
     setSections: setPageSections,
+    sectionsMobile,
+    setSectionsMobile: setPageSectionsMobile,
     showHeader,
     setShowHeader,
     showFooter,
@@ -82,18 +84,28 @@ const WebEditor: React.FC = () => {
   // Font management
   const fontManager = useFontManager(page, setPage);
 
+  const [isMobileMode, setIsMobileMode] = React.useState(false);
+  const deepCloneSections = React.useCallback((list: SectionV2[]): SectionV2[] => {
+    return JSON.parse(JSON.stringify(list)) as SectionV2[];
+  }, []);
+
   // Sync sections between page manager and section manager
   React.useEffect(() => {
-    if (sections.length > 0 && managedSections.length === 0) {
-      setSections(sections);
+    const source = isMobileMode ? sectionsMobile : sections;
+    if (source.length > 0 && managedSections.length === 0) {
+      setSections(source);
     }
-  }, [sections, managedSections.length, setSections]);
+  }, [sections, sectionsMobile, isMobileMode, managedSections.length, setSections]);
 
   React.useEffect(() => {
     if (managedSections.length > 0) {
-      setPageSections(managedSections);
+      if (isMobileMode) {
+        setPageSectionsMobile(managedSections);
+      } else {
+        setPageSections(managedSections);
+      }
     }
-  }, [managedSections, setPageSections]);
+  }, [managedSections, isMobileMode, setPageSections, setPageSectionsMobile]);
 
   const [openInspector, setOpenInspector] = React.useState(false);
   const [openElementInspector, setOpenElementInspector] = React.useState(false);
@@ -492,6 +504,45 @@ const WebEditor: React.FC = () => {
                 }}
               />
             </div>
+            {/* Device toggle */}
+            <div className="flex items-center mr-2">
+              <div className="inline-flex rounded-md border border-input bg-background p-0.5">
+                <Button
+                  variant={isMobileMode ? "ghost" : "default"}
+                  className={`h-8 px-3 text-xs ${!isMobileMode ? "" : "bg-transparent"}`}
+                  onClick={() => {
+                    if (isMobileMode) {
+                      // switching to desktop: seed manager with desktop sections
+                      setIsMobileMode(false);
+                      setSections(sections.length ? sections : []);
+                    }
+                  }}
+                >
+                  Desktop
+                </Button>
+                <Button
+                  variant={isMobileMode ? "default" : "ghost"}
+                  className={`h-8 px-3 text-xs ${isMobileMode ? "" : "bg-transparent"}`}
+                  onClick={() => {
+                    if (!isMobileMode) {
+                      // switching to mobile: if empty or mismatched, clone from desktop to ensure 1:1 sections
+                      const needsSeed =
+                        !sectionsMobile.length || sectionsMobile.length !== sections.length;
+                      if (needsSeed) {
+                        const cloned = deepCloneSections(sections);
+                        setPageSectionsMobile(cloned);
+                        setSections(cloned);
+                      } else {
+                        setSections(sectionsMobile);
+                      }
+                      setIsMobileMode(true);
+                    }
+                  }}
+                >
+                  Mobile
+                </Button>
+              </div>
+            </div>
             {/* Save status badge */}
             <MultiStateBadge
               state={saveState}
@@ -573,6 +624,10 @@ const WebEditor: React.FC = () => {
               <NavBar />
             </div>
           )}
+          <div
+            className={`${isMobileMode ? "mx-auto" : ""}`}
+            style={isMobileMode ? { width: 390 } : undefined}
+          >
           {managedSections.map((s) => (
             <div
               id={`section-${s.id}`}
@@ -615,6 +670,7 @@ const WebEditor: React.FC = () => {
               />
             </div>
           ))}
+          </div>
           {showFooter && (
             <div className="border-t">
               <Footer />

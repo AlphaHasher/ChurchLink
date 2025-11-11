@@ -2,24 +2,55 @@ import { useState, useRef, useCallback } from "react";
 import { Node, SectionV2 } from "@/shared/types/pageV2";
 import { newId, defaultSection, createPresetSection } from "../utils/sectionHelpers";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
+import { getDefaultHu, getDefaultWu } from "../utils/nodeDefaults";
 
 type EditorSelection = { sectionId?: string; nodeId?: string } | null;
 
 // Add helper function to initialize layouts recursively
 const initializeLayouts = (nodes: Node[], parentYu = 0, isNested = false): Node[] => {
   let currentYu = parentYu;
+
   return nodes.map((node) => {
     const newNode = { ...node };
-    if (!newNode.layout) {
-      newNode.layout = { units: { xu: 0, yu: currentYu } };
-      currentYu += isNested ? 1 : 2; 
-    } else if (!newNode.layout.units) {
-      newNode.layout.units = { xu: 0, yu: currentYu };
+    const layout = { ...(newNode.layout ?? {}) };
+    const units = { ...(layout.units ?? {}) } as {
+      xu?: number;
+      yu?: number;
+      wu?: number;
+      hu?: number;
+    };
+
+    const hasYu = typeof units.yu === "number";
+    const hasXu = typeof units.xu === "number";
+    const hasWu = typeof units.wu === "number";
+    const hasHu = typeof units.hu === "number";
+
+    const defaultWu = getDefaultWu(newNode.type);
+    const defaultHu = getDefaultHu(newNode.type);
+
+    const assignedYu = hasYu ? (units.yu as number) : currentYu;
+    const assignedXu = hasXu ? (units.xu as number) : 0;
+    const assignedWu = hasWu ? (units.wu as number) : defaultWu;
+    const assignedHu = hasHu ? (units.hu as number) : defaultHu;
+
+    layout.units = {
+      ...units,
+      xu: assignedXu,
+      yu: assignedYu,
+      wu: assignedWu,
+      hu: assignedHu,
+    };
+
+    newNode.layout = layout;
+
+    if (!hasYu) {
       currentYu += isNested ? 1 : 2;
     }
+
     if (newNode.children && newNode.children.length > 0) {
-      newNode.children = initializeLayouts(newNode.children, 0, true);  // Reset yu for nested
+      newNode.children = initializeLayouts(newNode.children, 0, true); // Reset yu for nested
     }
+
     return newNode;
   });
 };

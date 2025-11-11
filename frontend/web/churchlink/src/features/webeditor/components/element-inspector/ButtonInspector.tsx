@@ -1,6 +1,7 @@
 import React from 'react';
 
 // import { Button } from '@/shared/components/ui/button';
+import { NumericDragInput } from '@/shared/components/NumericDragInput';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Node } from '@/shared/types/pageV2';
@@ -22,6 +23,15 @@ function resolveLocalized(node: Node, key: string, activeLocale?: string, defaul
 
 export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate, activeLocale, defaultLocale }) => {
   const prevRef = React.useRef<Node | null>(null);
+  const fontSize = typeof (node.style as any)?.fontSize === 'number' ? (node.style as any).fontSize : 1;
+  const commitChanges = React.useCallback(() => {
+    const sectionId = BuilderState.selection?.sectionId;
+    const nodeId = BuilderState.selection?.nodeId;
+    if (sectionId && nodeId && prevRef.current) {
+      BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
+      prevRef.current = null;
+    }
+  }, [node]);
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -43,14 +53,7 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
             });
           }}
           onFocus={() => { prevRef.current = { ...node }; }}
-          onBlur={() => {
-            const sectionId = BuilderState.selection?.sectionId;
-            const nodeId = BuilderState.selection?.nodeId;
-            if (sectionId && nodeId && prevRef.current) {
-              BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
-              prevRef.current = null;
-            }
-          }}
+          onBlur={() => commitChanges()}
           placeholder="Click me"
         />
       </div>
@@ -68,15 +71,36 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
             )
           }
           onFocus={() => { prevRef.current = { ...node }; }}
-          onBlur={() => {
-            const sectionId = BuilderState.selection?.sectionId;
-            const nodeId = BuilderState.selection?.nodeId;
-            if (sectionId && nodeId && prevRef.current) {
-              BuilderState.pushNode(sectionId, nodeId, prevRef.current, { ...node });
-              prevRef.current = null;
-            }
-          }}
+          onBlur={() => commitChanges()}
           placeholder="https://example.com"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="button-font-size">Font Size (rem)</Label>
+        <NumericDragInput
+          id="button-font-size"
+          min={0.5}
+          max={6}
+          step={0.125}
+          value={fontSize}
+          onChange={(val) =>
+            onUpdate((n) =>
+              n.type === 'button'
+                ? ({
+                    ...n,
+                    style: {
+                      ...(n.style || {}),
+                      fontSize: val,
+                    },
+                  } as Node)
+                : n
+            )
+          }
+          placeholder="1"
+          onFocus={() => { prevRef.current = { ...node }; }}
+          onBlur={() => commitChanges()}
+          onChangeEnd={commitChanges}
         />
       </div>
 

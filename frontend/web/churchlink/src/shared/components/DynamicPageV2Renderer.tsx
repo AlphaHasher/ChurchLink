@@ -687,13 +687,36 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
   const localize = useLocalize();
+  const [isMobile, setIsMobile] = React.useState<boolean>(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    return window.matchMedia("(max-width: 768px)").matches;
+  });
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    try {
+      mq.addEventListener("change", handler);
+    } catch {
+      // Safari
+      mq.addListener(handler);
+    }
+    return () => {
+      try {
+        mq.removeEventListener("change", handler);
+      } catch {
+        mq.removeListener(handler);
+      }
+    };
+  }, []);
 
   return (
     <div
       className="w-full min-h-full overflow-x-hidden max-w-full"
       style={fontFamily ? ({ fontFamily } as React.CSSProperties) : undefined}
     >
-      {page.sections.map((section: SectionV2) => {
+      {(isMobile && Array.isArray((page as any)?.sectionsMobile) && (page as any).sectionsMobile.length ? (page as any).sectionsMobile : page.sections).map((section: SectionV2) => {
         const bg = section.background?.className as string | undefined;
         const gridClass = section.grid?.className ?? "";
         const hasWidthClass = /(^|\s)w-/.test(gridClass);

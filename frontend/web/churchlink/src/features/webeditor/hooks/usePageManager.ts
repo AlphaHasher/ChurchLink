@@ -7,6 +7,7 @@ import { defaultSection } from "../utils/sectionHelpers";
 export function usePageManager(slug: string) {
   const [page, setPage] = useState<PageV2 | null>(null);
   const [sections, setSections] = useState<SectionV2[]>([]);
+  const [sectionsMobile, setSectionsMobile] = useState<SectionV2[]>([]);
   const [activeLocale, setActiveLocale] = useState<string>('en');
   const [showHeader, setShowHeader] = useState(false);
   const [showFooter, setShowFooter] = useState(false);
@@ -38,6 +39,7 @@ export function usePageManager(slug: string) {
         if (mounted) {
           setPage({ ...v2, defaultLocale, locales });
           setSections(v2.sections ?? []);
+          setSectionsMobile((v2 as any)?.sectionsMobile ?? []);
           setActiveLocale(defaultLocale);
         }
       } catch (e: any) {
@@ -53,6 +55,7 @@ export function usePageManager(slug: string) {
         };
         setPage(seeded);
         setSections(seeded.sections);
+        setSectionsMobile([]);
         setActiveLocale('en');
       }
     };
@@ -155,7 +158,7 @@ export function usePageManager(slug: string) {
     setSaveState((prev) => (prev === "processing" ? prev : "processing"));
     const t = setTimeout(async () => {
       try {
-        await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections });
+        await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections, sectionsMobile });
         setSaveState("success");
         // Briefly show success then idle
         setTimeout(() => setSaveState("custom"), 900);
@@ -165,14 +168,14 @@ export function usePageManager(slug: string) {
       }
     }, 800);
     return () => clearTimeout(t);
-  }, [slug, page, sections]);
+  }, [slug, page, sections, sectionsMobile]);
 
   const publish = async () => {
     if (!slug) return;
     if (publishState !== "custom") return;
     try {
       setPublishState("processing");
-      await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections });
+      await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections, sectionsMobile });
       await pageApi.publish(slug);
       try {
         const localesSet = new Set<string>();
@@ -271,6 +274,8 @@ export function usePageManager(slug: string) {
     setPage,
     sections,
     setSections,
+    sectionsMobile,
+    setSectionsMobile,
     activeLocale,
     setActiveLocale,
     showHeader,

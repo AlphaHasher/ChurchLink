@@ -621,25 +621,30 @@ const renderNode = (
     }
     case 'container': {
       const nodeStyleRaw = (node as any).style || {};
-      const maxWidth = (node as any).props?.maxWidth ?? 'xl';
-      const px = (node as any).props?.paddingX ?? 4;
-      const py = (node as any).props?.paddingY ?? 6;
-      const mwClass =
-        maxWidth === 'full'
-          ? 'w-full'
-          : maxWidth === '2xl'
-            ? 'max-w-7xl'
-            : maxWidth === 'xl'
-              ? 'max-w-6xl'
-              : maxWidth === 'lg'
-                ? 'max-w-5xl'
-                : maxWidth === 'md'
-                  ? 'max-w-3xl'
-                  : 'max-w-xl';
-      const pxClass =
-        px === 0 ? 'px-0' : px === 2 ? 'px-2' : px === 4 ? 'px-4' : px === 6 ? 'px-6' : 'px-4';
-      const pyClass =
-        py === 0 ? 'py-0' : py === 2 ? 'py-2' : py === 4 ? 'py-4' : py === 6 ? 'py-6' : 'py-6';
+      const maxWidthToken = (node as any).props?.maxWidth ?? 'xl';
+      const paddingXToken = (node as any).props?.paddingX ?? 4;
+      const paddingYToken = (node as any).props?.paddingY ?? 6;
+
+      const tailwindSpacingPx = (value: number) => value * 4;
+      const tailwindMaxWidthPx: Record<string, number | undefined> = {
+        full: undefined,
+        '2xl': 1280,
+        xl: 1152,
+        lg: 1024,
+        md: 768,
+      };
+
+      const innerMaxWidth = tailwindMaxWidthPx[maxWidthToken] ?? undefined;
+      const innerPaddingStyle: React.CSSProperties = {
+        width: '100%',
+        height: '100%',
+        paddingLeft: tailwindSpacingPx(paddingXToken),
+        paddingRight: tailwindSpacingPx(paddingXToken),
+        paddingTop: tailwindSpacingPx(paddingYToken),
+        paddingBottom: tailwindSpacingPx(paddingYToken),
+        ...(innerMaxWidth ? { maxWidth: innerMaxWidth, marginLeft: 'auto', marginRight: 'auto' } : {}),
+        ...(nodeFontFamily ? { fontFamily: nodeFontFamily } : {}),
+      };
       // Render container div with nested children wrapped in DraggableNode for absolute positioning
       const containerContent = (node.children ?? []).map((c) => {
         const childHasLayout = !!c.layout?.units;
@@ -684,8 +689,7 @@ const renderNode = (
             id={node.id}
             data-draggable="true"
             className={cn(
-              'mx-auto relative',
-              mwClass,
+              'relative',
               interactiveClass,
               outlineClass
             )}
@@ -701,14 +705,7 @@ const renderNode = (
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
           >
-            <div
-              className={cn(
-                pxClass,
-                pyClass,
-                nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
-              )}
-              style={{ width: '100%', height: '100%' }}
-            >
+            <div style={innerPaddingStyle}>
               {containerContent}
             </div>
           </div>

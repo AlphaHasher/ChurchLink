@@ -23,7 +23,7 @@ interface SectionInspectorProps {
 
 export const SectionInspector: React.FC<SectionInspectorProps> = ({
   section,
-  sections,
+  sections: _sections,
   setSections,
   page,
   fontManager,
@@ -31,6 +31,11 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
   onRequestDeleteSection,
 }) => {
   const [secBgOpen, setSecBgOpen] = React.useState(false);
+
+  const aspectNum = Math.max(1, Math.round(section.builderGrid?.aspect?.num ?? 16));
+  const aspectDen = Math.max(1, Math.round(section.builderGrid?.aspect?.den ?? 9));
+  const gridCols = section.builderGrid?.cols ?? 64;
+  const estimatedRows = Math.round((gridCols * aspectDen) / aspectNum);
 
   const handleSectionFontSelect = React.useCallback((fontFamily: string) => {
     setSections((prev) =>
@@ -131,10 +136,10 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
               min={1}
               max={32}
               step={1}
-              value={section.builderGrid?.aspect?.den ?? 9}
+              value={aspectDen}
               onChange={(e) => {
-                const den = Number(e.target.value);
-                const num = section.builderGrid?.aspect?.num ?? 16;
+                const den = Math.max(1, Math.min(32, Math.round(Number(e.target.value))));
+                const num = Math.max(1, Math.min(32, Math.round(section.builderGrid?.aspect?.num ?? 16)));
                 BuilderState.startAdjustingGrid(section.id);
                 setSections((prev) =>
                   prev.map((s) =>
@@ -162,7 +167,8 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                   min={1}
                   max={32}
                   step={1}
-                  value={section.builderGrid?.aspect?.num ?? 16}
+                  value={aspectNum}
+                  transformValue={(val) => Math.round(val)}
                   onFocus={() => {
                     BuilderState.startAdjustingGrid(section.id);
                   }}
@@ -170,7 +176,8 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                     BuilderState.startAdjustingGrid(section.id);
                   }}
                   onChange={(val) => {
-                    const den = section.builderGrid?.aspect?.den ?? 9;
+                    const nextNum = Math.max(1, Math.min(32, Math.round(val)));
+                    const den = Math.max(1, Math.min(32, Math.round(section.builderGrid?.aspect?.den ?? 9)));
                     setSections((prev) =>
                       prev.map((s) =>
                         s.id === section.id
@@ -178,7 +185,7 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                               ...s,
                               builderGrid: {
                                 cols: s.builderGrid?.cols ?? 64,
-                                aspect: { num: Math.max(1, Math.min(32, val)), den },
+                                aspect: { num: nextNum, den },
                                 showGrid: s.builderGrid?.showGrid ?? true,
                               },
                             }
@@ -208,7 +215,8 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                   min={1}
                   max={32}
                   step={1}
-                  value={section.builderGrid?.aspect?.den ?? 9}
+                  value={aspectDen}
+                  transformValue={(val) => Math.round(val)}
                   onFocus={() => {
                     BuilderState.startAdjustingGrid(section.id);
                   }}
@@ -216,7 +224,8 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                     BuilderState.startAdjustingGrid(section.id);
                   }}
                   onChange={(val) => {
-                    const num = section.builderGrid?.aspect?.num ?? 16;
+                    const nextDen = Math.max(1, Math.min(32, Math.round(val)));
+                    const num = Math.max(1, Math.min(32, Math.round(section.builderGrid?.aspect?.num ?? 16)));
                     setSections((prev) =>
                       prev.map((s) =>
                         s.id === section.id
@@ -224,7 +233,7 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                               ...s,
                               builderGrid: {
                                 cols: s.builderGrid?.cols ?? 64,
-                                aspect: { num, den: Math.max(1, Math.min(32, val)) },
+                                aspect: { num, den: nextDen },
                                 showGrid: s.builderGrid?.showGrid ?? true,
                               },
                             }
@@ -249,7 +258,7 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
               </div>
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              Aspect ratio: {section.builderGrid?.aspect?.num ?? 16}:{section.builderGrid?.aspect?.den ?? 9}
+              Aspect ratio: {aspectNum}:{aspectDen} (rows: {estimatedRows})
             </div>
           </div>
         </div>
@@ -323,67 +332,6 @@ export const SectionInspector: React.FC<SectionInspectorProps> = ({
                 className="w-full"
               />
               <div className="text-xs text-muted-foreground mt-1">Number of columns in virtual grid (16-128)</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Aspect Ratio</div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-xs">Width</Label>
-                  <NumericDragInput
-                    min={1}
-                    max={32}
-                    step={1}
-                    value={section.builderGrid?.aspect?.num ?? 16}
-                    onChange={(val) => {
-                      setSections((prev) =>
-                        prev.map((s) =>
-                          s.id === section.id
-                            ? { 
-                                ...s, 
-                                builderGrid: { 
-                                  cols: s.builderGrid?.cols ?? 64,
-                                  aspect: { num: val, den: s.builderGrid?.aspect?.den ?? 9 },
-                                  showGrid: s.builderGrid?.showGrid ?? true
-                                } 
-                              }
-                            : s
-                        )
-                      );
-                    }}
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Height</Label>
-                  <NumericDragInput
-                    min={1}
-                    max={32}
-                    step={1}
-                    value={section.builderGrid?.aspect?.den ?? 9}
-                    onChange={(val) => {
-                      setSections((prev) =>
-                        prev.map((s) =>
-                          s.id === section.id
-                            ? { 
-                                ...s, 
-                                builderGrid: { 
-                                  cols: s.builderGrid?.cols ?? 64,
-                                  aspect: { num: s.builderGrid?.aspect?.num ?? 16, den: val },
-                                  showGrid: s.builderGrid?.showGrid ?? true
-                                } 
-                              }
-                            : s
-                        )
-                      );
-                    }}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Aspect ratio: {section.builderGrid?.aspect?.num ?? 16}:{section.builderGrid?.aspect?.den ?? 9} 
-                {' '}(rows: {Math.round((section.builderGrid?.cols ?? 64) * (section.builderGrid?.aspect?.den ?? 9) / (section.builderGrid?.aspect?.num ?? 16))})
-              </div>
             </div>
           </div>
         </div>
