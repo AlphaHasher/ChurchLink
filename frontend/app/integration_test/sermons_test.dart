@@ -18,13 +18,15 @@ void main() {
   await $.pumpAndSettle();
 
   // Navigate to Sermons page
-  await $('Sermons').at(1).tap();
+  await $(Card).$('Sermons').tap();
   await $.pumpAndSettle();
 
   // Check header and message
-  expect(await $('No sermons available yet.').exists, isTrue);
+  expect(await $('No sermons').exists, isTrue);
 
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
  
  patrolTest('Opens and shows filter dialog on Sermons page', ($) async {
   final originalOnError = FlutterError.onError;
@@ -52,7 +54,9 @@ void main() {
   expect(await $('All ministries').exists, isTrue);
   expect(await $('Apply').exists, isTrue);
   expect(await $('Clear').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Filter dialog interaction works', ($) async {
   final originalOnError = FlutterError.onError;
@@ -81,7 +85,9 @@ void main() {
 
   // Verify filter closed (Apply should dismiss dialog)
   expect(await $('Filter Sermons').exists, isFalse);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Back arrow from Sermons page returns home', ($) async {
   final originalOnError = FlutterError.onError;
@@ -95,7 +101,7 @@ void main() {
   app.main();
   await $.pumpAndSettle();
 
-  await $('Sermons').at(1).tap();
+  await $(Card).$('Sermons').tap();
   await $.pumpAndSettle();
 
   await $(Icons.arrow_back).tap();
@@ -103,7 +109,9 @@ void main() {
 
   // Verify we're back on Home screen
   expect(await $('Join Live').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Dismiss filter dialog with close icon', ($) async {
   final originalOnError = FlutterError.onError;
@@ -128,5 +136,7 @@ void main() {
 
   // Verify dialog closed
   expect(await $('Filter Sermons').exists, isFalse);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 }

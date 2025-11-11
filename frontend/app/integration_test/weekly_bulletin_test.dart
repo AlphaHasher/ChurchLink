@@ -29,7 +29,9 @@ void main() {
   // Check for sample entries
   expect(await $('Test Service').exists, isTrue);
   expect(await $('Test Bulletin').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Can open and view service detail page', ($) async {
   final originalOnError = FlutterError.onError;
@@ -60,7 +62,9 @@ void main() {
 
   // Verify we’re back to the main bulletin list
   expect(await $('Weekly Bulletin').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Can open bulletin announcement modal', ($) async {
   final originalOnError = FlutterError.onError;
@@ -86,7 +90,9 @@ void main() {
   expect(await $('Test Bulletin').exists, isTrue);
   expect(await $('Test Ministry').exists, isTrue);
   expect(await $('Test Bulletin Desc').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Can open and close filter announcements modal', ($) async {
   final originalOnError = FlutterError.onError;
@@ -120,7 +126,9 @@ void main() {
 
   // Ensure filter closed
   expect(await $('Filter Announcements').exists, isFalse);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Can select a ministry from filter dropdown', ($) async {
   final originalOnError = FlutterError.onError;
@@ -149,7 +157,9 @@ void main() {
   await $.pumpAndSettle();
 
   expect(await $('Weekly Bulletin').exists, isTrue); // modal dismissed
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Back arrow returns to home from Weekly Bulletin', ($) async {
   final originalOnError = FlutterError.onError;
@@ -170,5 +180,7 @@ void main() {
   await $.pumpAndSettle();
 
   expect(await $('Join Live').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 }

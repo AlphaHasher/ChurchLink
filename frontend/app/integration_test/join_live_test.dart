@@ -23,7 +23,9 @@ void main() {
     // Verify offline message
     expect(await $('We are not currently live!').exists, isTrue);
 
-  });
+  },
+    timeout: Timeout(Duration(seconds: 30)),
+  );
 
  patrolTest('Join Live Go to Channel button works', ($) async {
   final originalOnError = FlutterError.onError;
@@ -47,7 +49,9 @@ void main() {
   // (If nothing changes visually, use mock handling for URL launcher)
   // Example fallback check:
   expect(true, isTrue, reason: 'Tapped Go to Channel successfully');
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
  
  patrolTest('Join Live back arrow navigates home', ($) async {
   final originalOnError = FlutterError.onError;
@@ -70,7 +74,9 @@ void main() {
 
   // Verify we're back on the home screen
   expect(await $('Join Live').exists, true); // back to home
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Join Live shows offline instead of video', ($) async {
   final originalOnError = FlutterError.onError;
@@ -90,5 +96,7 @@ void main() {
   final offlineMsg = $('We are not currently live!');
 
   expect(await offlineMsg.exists, true);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 }

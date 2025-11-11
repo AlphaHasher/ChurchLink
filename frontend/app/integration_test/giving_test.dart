@@ -25,7 +25,9 @@ void main() {
   expect(await $('Enter Amount').exists, isTrue);
   expect(await $('General').exists, isTrue);
   expect(await $('Give with PayPal').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
   patrolTest('Shows validation error for zero amount', ($) async {
   final originalOnError = FlutterError.onError;
@@ -47,7 +49,9 @@ void main() {
 
   // Verify validation message
   expect(await $('Please enter a valid giving amount (> 0).').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Accepts valid donation amount', ($) async {
   final originalOnError = FlutterError.onError;
@@ -77,7 +81,9 @@ void main() {
 
   // Since it opens PayPal externally, we can only verify app didn't crash
   expect(await $('Church Giving').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Can change giving purpose', ($) async {
   final originalOnError = FlutterError.onError;
@@ -104,7 +110,9 @@ void main() {
 
   // Verify selected value changed
   expect(await $('Building').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Can toggle recurring giving option', ($) async {
   final originalOnError = FlutterError.onError;
@@ -126,7 +134,9 @@ void main() {
 
   // Verify toggle reflects activation (can test with exists if it triggers text/visual change)
   expect(await $('Recurring giving').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
  patrolTest('Back arrow returns to home from Giving', ($) async {
   final originalOnError = FlutterError.onError;
@@ -148,5 +158,7 @@ void main() {
 
   // Verify back on Home screen
   expect(await $('Join Live').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 }

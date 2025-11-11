@@ -32,7 +32,9 @@ void main() {
   expect(await $('Language').exists, isTrue);
   expect(await $('Notifications').exists, isTrue);
   expect(await $('Terms & Policies').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
  patrolTest('Login or Signup opens authentication popup', ($) async {
   final originalOnError = FlutterError.onError;
   FlutterError.onError = (details) {
@@ -55,6 +57,8 @@ void main() {
   expect(await $('Sign in').exists, isTrue);
   expect(await $('Continue with Email').exists, isTrue);
   expect(await $('Continue with Google').exists, isTrue);
-});
+},
+  timeout: Timeout(Duration(seconds: 30)),
+);
 
 }
