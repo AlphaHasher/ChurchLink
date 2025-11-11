@@ -90,7 +90,7 @@ const Bulletins = () => {
         await loadBulletins();
     };
 
-    useEffect(() => { 
+    useEffect(() => {
         loadData(); 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -121,7 +121,7 @@ const Bulletins = () => {
                     <BulletinsTable 
                         bulletins={bulletins} 
                         permissions={perms} 
-                        onRefresh={async () => { await loadBulletins(); }}
+                        onRefresh={loadBulletins}
                         onReorder={handleReorderBulletins}
                     />
                 </TabsContent>
@@ -130,7 +130,7 @@ const Bulletins = () => {
                     <ServicesTable 
                         services={services} 
                         permissions={perms} 
-                        onRefresh={async () => { await loadServices(); }}
+                        onRefresh={loadServices}
                         onReorder={handleReorderServices}
                     />
                 </TabsContent>

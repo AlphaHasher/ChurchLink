@@ -23,7 +23,18 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const optionViolations = useMemo(() => !slug ? getOptionViolations(schema) : [], [schema, slug]);
   const zodSchema = schemaToZodObject(schema); // always create schema
-  const form = useForm({ resolver: zodResolver(zodSchema), defaultValues: {} }); // always init form hook
+  
+  const defaultValues = useMemo(() => {
+    const defaults: Record<string, any> = {};
+    for (const field of schema.data) {
+      if (field.type === 'switch' || field.type === 'checkbox') {
+        defaults[field.name] = false;
+      }
+    }
+    return defaults;
+  }, [schema.data]);
+  
+  const form = useForm({ resolver: zodResolver(zodSchema), defaultValues });
   const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
 
@@ -50,7 +61,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           // Remove timestamp from form data  
           const { _timestamp, ...formResponseData } = parsedData;
           console.log('Restoring form data on page load:', formResponseData);
-          form.reset(formResponseData);
+          form.reset({ ...defaultValues, ...formResponseData });
         } catch (e) {
           console.error('Failed to restore form data on page load:', e);
           localStorage.removeItem(savedFormDataKey);
@@ -371,7 +382,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
             });
             setSubmitState('success');
             setSubmitMessage('Thanks for your response! Please complete payment in-person as arranged.');
-            form.reset();
+            form.reset(defaultValues);
             sessionStorage.removeItem(globalSubmitKey);
             return;
           }
@@ -381,7 +392,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         await api.post(`/v1/forms/slug/${slug}/responses`, data);
         setSubmitState('success');
         setSubmitMessage('Thanks for your response! We have received it.');
-        form.reset();
+        form.reset(defaultValues);
       } catch (err: any) {
         console.error('Submit failed', err);
         const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Submit failed';

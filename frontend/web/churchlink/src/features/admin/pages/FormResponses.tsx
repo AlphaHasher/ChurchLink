@@ -344,6 +344,13 @@ const FormResponses = () => {
     }
 
     if (typeof rawValue === 'boolean') {
+      if (field?.type === 'switch') {
+        if (rawValue) {
+          return field.onText || 'Yes';
+        } else {
+          return field.offText || 'No';
+        }
+      }
       return rawValue ? 'Yes' : 'No';
     }
 

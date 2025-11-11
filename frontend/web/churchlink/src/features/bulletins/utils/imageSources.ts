@@ -34,7 +34,7 @@ const buildHostAssetUrl = (id: string, thumbnail: boolean): string | null => {
     }
 };
 
-const appendCandidate = (candidate: string | null | undefined, seen: Set<string>, output: string[]) => {
+const appendCandidate = (candidate: string | null, seen: Set<string>, output: string[]) => {
     const value = sanitize(candidate);
     if (!value) return;
     if (seen.has(value)) return;

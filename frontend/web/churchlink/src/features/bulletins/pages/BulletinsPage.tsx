@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
 import { fetchCombinedFeed, fetchCurrentWeek, ServerWeekInfo } from '@/features/bulletins/api/bulletinsApi';
 import BulletinList from '@/features/bulletins/components/BulletinList';
 import { ServiceCard } from '@/features/bulletins/components/ServiceCard';
@@ -31,7 +32,7 @@ const BulletinsPage = () => {
                     setServerWeek(weekInfo);
                     console.log(`[Bulletins Page] Server week: ${weekInfo.week_label} (${weekInfo.timezone})`);
                 }
-                
+
                 const weekStart = new Date(weekInfo.week_start);
                 const weekEnd = new Date(weekInfo.week_end);
                 
