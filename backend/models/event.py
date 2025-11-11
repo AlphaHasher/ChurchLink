@@ -394,7 +394,7 @@ def do_event_validation(event_data: dict, validate_date=True):
 
         # Valid max_published
         max_published = event_data.get("max_published", 1)
-        if max_published < 1 or max_published > 798:
+        if max_published < 1 or max_published > 7:
             return {"success": False, "msg": "Max events published has to be between 1 and 7 inclusive!"}
 
         # Validate that if an event is hidden it cant be registered for

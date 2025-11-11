@@ -24,6 +24,8 @@ import {
 } from "@/helpers/EventManagementHelper";
 import { localizationNameToCode } from "@/shared/dictionaries/LocalizationDicts";
 
+import { useCallback } from "react";
+
 type StatusOpt = "all" | "upcoming" | "passed";
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -64,7 +66,7 @@ export default function EventInstances() {
 
     const requestSeqRef = useRef(0);
 
-    const refresh = async (
+    const refresh = useCallback(async (
         overrides?: Partial<{
             page: number;
             limit: number;
@@ -72,6 +74,7 @@ export default function EventInstances() {
             sort_by_series_index_asc: boolean;
         }>
     ) => {
+
         if (!eventId) return;
         const seq = ++requestSeqRef.current;
         const preferredLangCode = localizationNameToCode[preferredLangName] || "en";
@@ -107,13 +110,13 @@ export default function EventInstances() {
         } finally {
             if (seq === requestSeqRef.current) setLoading(false);
         }
-    };
+    }, [eventId, page, pageSize, status, sortBySeriesIndexAsc, preferredLangName]);
 
     useEffect(() => {
         if (!eventId) return;
         setPage(1);
         refresh({ page: 1 });
-    }, [eventId]);
+    }, [eventId, refresh]);
 
     useEffect(() => {
         if (!eventId) return;

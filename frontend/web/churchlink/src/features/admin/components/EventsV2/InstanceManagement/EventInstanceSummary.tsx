@@ -89,7 +89,7 @@ export function EventInstanceSummary(props: {
                 { /* Card that displays how many users have registrations */}
                 <div className="rounded-md border p-3">
                     <div className="text-xs text-muted-foreground">Users with Registrations</div>
-                    <div className="text-xl font-semibold">{Object.keys(instance.registration_details).length}</div>
+                    <div className="text-xl font-semibold">{Object.keys(instance.registration_details || {}).length}</div>
                 </div>
 
                 { /* Card that displays cash value of processed payments */}

@@ -52,8 +52,6 @@ async def process_edit_event(event_id: str, event: EventUpdate, request:Request)
     # TODO: ADD MINISTRY LOCK TO ENSURE USER HAS ACCESS TO THIS EVENT
     
     success = await update_event(event_id, event)
-    if not success:
-        return {"success": False, "msg":"Error: Event update failed!"}
     if not success['success']:
         return success
     
@@ -85,8 +83,6 @@ async def process_delete_event(event_id:str, request:Request):
     
     # TODO ADD MINISTRY LOCK
     success = await delete_event(event_id)
-    if not success:
-        return {"success":False, "msg": "Event deletion failed due to an unknown error!"}
     if not success['success']:
         return success
     

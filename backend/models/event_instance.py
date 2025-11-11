@@ -1462,7 +1462,8 @@ async def get_sister_upcoming_identifiers(event_id: str, instance_id: str) -> Li
             {"$project": {
                 "_id": 1,
                 "scheduled_date": 1,
-                "overrides_date_updated_on": 1,   # needed for `updated_on`
+                "overrides_date_updated_on": 1,
+                "event_doc.date": 1,
             }},
         ]
 
@@ -1475,12 +1476,13 @@ async def get_sister_upcoming_identifiers(event_id: str, instance_id: str) -> Li
         for d in docs:
             scheduled = d.get("scheduled_date")
             updated_on = d.get("overrides_date_updated_on")
-            event_date = d.get("event_doc")
+            event_doc = d.get("event_doc") or {}
+            event_date = event_doc.get("date")
 
             # Stringify defensively
             date_str = scheduled.isoformat() if isinstance(scheduled, datetime) else str(scheduled)
             up_str = updated_on.isoformat() if isinstance(updated_on, datetime) else str(updated_on)
-            event_str = updated_on.isoformat() if isinstance(event_date, datetime) else str(event_date)
+            event_str = event_date.isoformat() if isinstance(event_date, datetime) else str(event_date)
 
             out.append(SisterInstanceIdentifier(
                 id=str(d["_id"]),
