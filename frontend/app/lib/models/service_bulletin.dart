@@ -13,6 +13,7 @@ class ServiceBulletin {
   final DateTime displayWeek; // Weekly anchor, normalized to Monday 00:00
   final int order; // Display order within the week
   final bool published;
+  final String visibilityMode; // 'always' or 'specific_weeks'
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -26,6 +27,7 @@ class ServiceBulletin {
     required this.displayWeek,
     required this.order,
     required this.published,
+    this.visibilityMode = 'specific_weeks',
     this.createdAt,
     this.updatedAt,
   });
@@ -41,6 +43,7 @@ class ServiceBulletin {
     final timeOfDayRaw = json['time_of_day'] ?? json['timeOfDay'];
     final displayWeekRaw = json['display_week'] ?? json['displayWeek'];
     final timelineNotesRaw = json['timeline_notes'] ?? json['timelineNotes'];
+    final visibilityModeRaw = json['visibility_mode'] ?? json['visibilityMode'];
     final createdAtRaw = json['created_at'] ?? json['createdAt'];
     final updatedAtRaw = json['updated_at'] ?? json['updatedAt'];
 
@@ -54,6 +57,7 @@ class ServiceBulletin {
       displayWeek: parseDate(displayWeekRaw) ?? DateTime.now(),
       order: json['order'] as int? ?? 0,
       published: json['published'] as bool? ?? false,
+      visibilityMode: visibilityModeRaw?.toString() ?? 'specific_weeks',
       createdAt: parseDate(createdAtRaw),
       updatedAt: parseDate(updatedAtRaw),
     );
@@ -71,6 +75,7 @@ class ServiceBulletin {
       'display_week': displayWeek.toIso8601String(),
       'order': order,
       'published': published,
+      'visibility_mode': visibilityMode,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
     };
@@ -88,14 +93,16 @@ class ServiceBulletin {
   }
 
   /// Format display week for UI (e.g., "Oct 6, 2025")
+  /// NOTE: This is now handled server-side via the current_week endpoint
+  /// to ensure synchronization. For displaying "For the week of" labels,
+  /// prefer using ServerWeekInfo.weekLabel from the server instead.
   String get formattedWeek {
     return DateFormat('MMM d, y').format(displayWeek);
   }
 
-  /// Check if service is upcoming (deprecated - services are now recurring weekly)
+  /// Check if service is upcoming
+  /// Services are recurring weekly, so this always returns true
   bool get isUpcoming {
-    // Services no longer have specific dates, they recur weekly
-    // This getter is kept for backward compatibility but always returns true
     return true;
   }
 
@@ -110,6 +117,7 @@ class ServiceBulletin {
     DateTime? displayWeek,
     int? order,
     bool? published,
+    String? visibilityMode,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -123,6 +131,7 @@ class ServiceBulletin {
       displayWeek: displayWeek ?? this.displayWeek,
       order: order ?? this.order,
       published: published ?? this.published,
+      visibilityMode: visibilityMode ?? this.visibilityMode,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

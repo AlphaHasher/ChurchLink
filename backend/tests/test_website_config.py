@@ -29,7 +29,7 @@ class TestWebsiteConfig:
         data = response.json()
         assert "title" in data
         assert "favicon_url" in data
-        assert data["title"] == "ChurchLink"
+        assert data["title"] == "Your Church Website"
         assert data["favicon_url"] == "/dove-favicon.svg"
     
     def test_update_website_title(self):

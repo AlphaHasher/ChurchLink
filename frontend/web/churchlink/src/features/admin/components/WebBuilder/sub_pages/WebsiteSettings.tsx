@@ -4,7 +4,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import { Save, Globe, Image } from 'lucide-react';
+import { Save, Globe, Image, Church, MapPin } from 'lucide-react';
 import { websiteConfigApi } from '@/api/api';
 import FaviconSelector from '../../../components/Website/FaviconSelector';
 
@@ -17,17 +17,34 @@ interface WebsiteConfig {
   updated_at?: string;
 }
 
+interface ChurchSettings {
+  CHURCH_NAME?: string;
+  CHURCH_ADDRESS?: string;
+  CHURCH_CITY?: string;
+  CHURCH_STATE?: string;
+  CHURCH_POSTAL_CODE?: string;
+}
+
 const WebsiteSettings: React.FC = () => {
   const [config, setConfig] = useState<WebsiteConfig>({
-    title: 'ChurchLink',
+    title: 'Your Church Website',
     favicon_url: null,
     favicon_asset_id: null,
   });
+  const [churchSettings, setChurchSettings] = useState<ChurchSettings>({
+    CHURCH_NAME: '',
+    CHURCH_ADDRESS: '',
+    CHURCH_CITY: '',
+    CHURCH_STATE: '',
+    CHURCH_POSTAL_CODE: '',
+  });
   const [loading, setLoading] = useState(false);
+  const [churchLoading, setChurchLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     loadConfig();
+    loadChurchSettings();
   }, []);
 
   const loadConfig = async () => {
@@ -42,12 +59,64 @@ const WebsiteSettings: React.FC = () => {
       
       // Fallback to defaults
       setConfig({
-        title: 'ChurchLink',
+        title: 'Your Church Website',
         favicon_url: null,
         favicon_asset_id: null,
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChurchSettings = async () => {
+    try {
+      setChurchLoading(true);
+      const data = await websiteConfigApi.getChurchSettings();
+      
+      if (data.success) {
+        const settings = data.settings;
+        setChurchSettings({
+          CHURCH_NAME: settings.CHURCH_NAME || '',
+          CHURCH_ADDRESS: settings.CHURCH_ADDRESS || '',
+          CHURCH_CITY: settings.CHURCH_CITY || '',
+          CHURCH_STATE: settings.CHURCH_STATE || '',
+          CHURCH_POSTAL_CODE: settings.CHURCH_POSTAL_CODE || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error loading church settings:', error);
+      setMessage({ type: 'error', text: 'Failed to load church settings. Please check your permissions.' });
+    } finally {
+      setChurchLoading(false);
+    }
+  };
+
+  const saveChurchSettings = async () => {
+    try {
+      setChurchLoading(true);
+      const data = await websiteConfigApi.updateChurchSettings(churchSettings);
+      
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Church settings saved successfully!' });
+      } else {
+        throw new Error(data.message || 'Failed to save church settings');
+      }
+    } catch (error: any) {
+      console.error('Error saving church settings:', error);
+      
+      let errorMessage = 'Failed to save church settings. Please try again.';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Unauthorized: Please check your permissions for web builder management';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Forbidden: You need web_builder_management permission to modify church settings';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setMessage({ type: 'error', text: errorMessage });
+    } finally {
+      setChurchLoading(false);
     }
   };
 
@@ -109,8 +178,8 @@ const WebsiteSettings: React.FC = () => {
       </div>
 
       {message && (
-        <Alert className={message.type === 'error' ? 'border-red-500 bg-red-50' : 'border-green-500 bg-green-50'}>
-          <AlertDescription className="flex justify-between items-center">
+        <Alert className={message.type === 'error' ? 'border-red-500 bg-red-50 dark:bg-red-950 dark:border-red-400' : 'border-green-500 bg-green-50 dark:bg-green-950 dark:border-green-400'}>
+          <AlertDescription className="flex justify-between items-center text-foreground">
             {message.text}
             <Button variant="ghost" size="sm" onClick={clearMessage}>
               ×
@@ -178,34 +247,136 @@ const WebsiteSettings: React.FC = () => {
         </Card>
       </div>
 
+      {/* Church Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Church className="h-5 w-5" />
+            Church Information
+          </CardTitle>
+          <CardDescription>
+            Basic church information displayed throughout your website
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="church-name">Church Name</Label>
+            <Input
+              id="church-name"
+              value={churchSettings.CHURCH_NAME}
+              onChange={(e) => setChurchSettings(prev => ({ ...prev, CHURCH_NAME: e.target.value }))}
+              placeholder="Enter church name"
+              disabled={churchLoading}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="church-address">Street Address</Label>
+            <Input
+              id="church-address"
+              value={churchSettings.CHURCH_ADDRESS}
+              onChange={(e) => setChurchSettings(prev => ({ ...prev, CHURCH_ADDRESS: e.target.value }))}
+              placeholder="Enter street address"
+              disabled={churchLoading}
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="church-city">City</Label>
+              <Input
+                id="church-city"
+                value={churchSettings.CHURCH_CITY}
+                onChange={(e) => setChurchSettings(prev => ({ ...prev, CHURCH_CITY: e.target.value }))}
+                placeholder="City"
+                disabled={churchLoading}
+              />
+            </div>
+            <div>
+              <Label htmlFor="church-state">State</Label>
+              <Input
+                id="church-state"
+                value={churchSettings.CHURCH_STATE}
+                onChange={(e) => setChurchSettings(prev => ({ ...prev, CHURCH_STATE: e.target.value }))}
+                placeholder="State"
+                disabled={churchLoading}
+              />
+            </div>
+            <div>
+              <Label htmlFor="church-postal-code">Postal Code</Label>
+              <Input
+                id="church-postal-code"
+                value={churchSettings.CHURCH_POSTAL_CODE}
+                onChange={(e) => setChurchSettings(prev => ({ ...prev, CHURCH_POSTAL_CODE: e.target.value }))}
+                placeholder="Postal Code"
+                disabled={churchLoading}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button 
+              onClick={saveChurchSettings} 
+              disabled={churchLoading}
+              className="flex items-center gap-2"
+            >
+              <MapPin className="h-4 w-4" />
+              {churchLoading ? 'Saving...' : 'Save Church Information'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Current Configuration Summary */}
       <Card>
         <CardHeader>
           <CardTitle>Current Configuration</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-2 text-sm">
-            <div>
-              <strong>Title:</strong> {config.title}
+          <div className="grid gap-4 md:grid-cols-2 text-sm">
+            <div className="space-y-2">
+              <h4 className="font-semibold">Website Settings</h4>
+              <div>
+                <strong>Title:</strong> {config.title}
+              </div>
+              <div>
+                <strong>Favicon URL:</strong> {config.favicon_url || 'Default favicon'}
+              </div>
+              {config.favicon_asset_id && (
+                <div>
+                  <strong>Favicon Asset ID:</strong> {config.favicon_asset_id}
+                </div>
+              )}
+              {config.updated_by && (
+                <div>
+                  <strong>Last Updated By:</strong> {config.updated_by}
+                </div>
+              )}
+              {config.updated_at && (
+                <div>
+                  <strong>Last Updated:</strong> {new Date(config.updated_at).toLocaleString()}
+                </div>
+              )}
             </div>
-            <div>
-              <strong>Favicon URL:</strong> {config.favicon_url || 'Default favicon'}
+            
+            <div className="space-y-2">
+              <h4 className="font-semibold">Church Information</h4>
+              <div>
+                <strong>Church Name:</strong> {churchSettings.CHURCH_NAME || 'Not set'}
+              </div>
+              <div>
+                <strong>Address:</strong> {churchSettings.CHURCH_ADDRESS || 'Not set'}
+              </div>
+              <div>
+                <strong>City:</strong> {churchSettings.CHURCH_CITY || 'Not set'}
+              </div>
+              <div>
+                <strong>State:</strong> {churchSettings.CHURCH_STATE || 'Not set'}
+              </div>
+              <div>
+                <strong>Postal Code:</strong> {churchSettings.CHURCH_POSTAL_CODE || 'Not set'}
+              </div>
             </div>
-            {config.favicon_asset_id && (
-              <div>
-                <strong>Favicon Asset ID:</strong> {config.favicon_asset_id}
-              </div>
-            )}
-            {config.updated_by && (
-              <div>
-                <strong>Last Updated By:</strong> {config.updated_by}
-              </div>
-            )}
-            {config.updated_at && (
-              <div>
-                <strong>Last Updated:</strong> {new Date(config.updated_at).toLocaleString()}
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

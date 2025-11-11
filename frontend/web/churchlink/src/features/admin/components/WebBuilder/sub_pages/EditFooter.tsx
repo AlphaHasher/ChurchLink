@@ -29,6 +29,15 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/shared/components/ui/Dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import MultiStateBadge from "@/shared/components/MultiStageBadge";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { AddLocaleDialog, collectTitles, translateMissingStrings } from "@/shared/utils/localizationUtils";
@@ -84,8 +93,8 @@ const FooterVisibilityToggle: React.FC<{ section: FooterSection; onToggle: (titl
                     <span
                         className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
                             section.visible
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
                         }`}
                     >
                         {section.visible ? "Visible" : "Hidden"}
@@ -107,7 +116,7 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
     return (
         <div ref={setNodeRef} style={style} className="border-b last:border-0">
             <div className="flex items-center">
-                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-gray-400">
+                <div {...attributes} {...listeners} className="cursor-grab p-2 mr-2 text-muted-foreground">
                     &#x2630;
                 </div>
                 <div className="flex-grow">
@@ -139,9 +148,12 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
     const [editTitle, setEditTitle] = useState("");
     const [editPlaceholder, setEditPlaceholder] = useState("");
 
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [sectionToDelete, setSectionToDelete] = useState<string | null>(null);
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [addTitleEn, setAddTitleEn] = useState("");
-    const [addItems, setAddItems] = useState<Array<{ titleEn: string; url: string }>>([]);
+    const [addItems, setAddItems] = useState<Array<{ id: string; titleEn: string; url: string }>>([]);
     const [addItemTitleEn, setAddItemTitleEn] = useState("");
     const [addItemUrl, setAddItemUrl] = useState("");
 
@@ -270,13 +282,18 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
             toast.error("Item title (English) is required");
             return;
         }
-        setAddItems((prev) => [...prev, { titleEn: addItemTitleEn, url: addItemUrl }]);
+        const newItem = {
+            id: `${Date.now()}-${Math.random()}`,
+            titleEn: addItemTitleEn,
+            url: addItemUrl
+        };
+        setAddItems((prev) => [...prev, newItem]);
         setAddItemTitleEn("");
         setAddItemUrl("");
     };
 
-    const handleRemoveAddItem = (index: number) => {
-        setAddItems((prev) => prev.filter((_, i) => i !== index));
+    const handleRemoveAddItem = (id: string) => {
+        setAddItems((prev) => prev.filter((item) => item.id !== id));
     };
 
     const handleAddSectionSubmit = async (e: React.FormEvent) => {
@@ -325,6 +342,37 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                 item.title === title ? { ...item, visible: !currentVisibility } : item
             );
             setFooter({ ...footer, items: newItems });
+        }
+    };
+
+    const handleRemoveSection = (title: string) => {
+        setSectionToDelete(title);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDeleteSection = async () => {
+        if (!sectionToDelete) return;
+
+        try {
+            await api.delete(`/v1/footer/${sectionToDelete}`);
+            toast.success(`"${sectionToDelete}" removed successfully`);
+
+            if (footer) {
+                // Update UI after successful deletion
+                const newItems = footer.items.filter(item => item.title !== sectionToDelete);
+                setFooter({ ...footer, items: newItems });
+            }
+
+            // Refresh data from server to ensure consistency
+            await fetchFooter();
+        } catch (err) {
+            console.error("Failed to remove footer section:", err);
+            toast.error(`Failed to remove "${sectionToDelete}"`);
+            // Refresh to revert any optimistic UI updates
+            await fetchFooter();
+        } finally {
+            setIsDeleteModalOpen(false);
+            setSectionToDelete(null);
         }
     };
 
@@ -456,18 +504,18 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
 
                                     {addItems.length > 0 ? (
                                         <ul className="mb-4 space-y-2">
-                                            {addItems.map((item, index) => (
-                                                <li key={`${item.titleEn}-${index}`} className="flex justify-between items-center p-2 bg-white border rounded">
+                                            {addItems.map((item) => (
+                                                <li key={item.id} className="flex justify-between items-center p-2 bg-card border rounded">
                                                     <div>
                                                         <div className="font-medium">{item.titleEn}</div>
-                                                        <div className="text-sm text-blue-600">{item.url}</div>
+                                                        <div className="text-sm text-primary">{item.url}</div>
                                                     </div>
                                                     <Button
                                                         type="button"
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() => handleRemoveAddItem(index)}
-                                                        className="text-red-500 hover:text-red-700"
+                                                        onClick={() => handleRemoveAddItem(item.id)}
+                                                        className="text-destructive hover:text-destructive/80"
                                                     >
                                                         Remove
                                                     </Button>
@@ -475,7 +523,7 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-gray-500 italic mb-4">No links</p>
+                                        <p className="text-muted-foreground italic mb-4">No links</p>
                                     )}
 
                                     <div className="border-t pt-3">
@@ -536,8 +584,8 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                                     <span className="font-medium">
                                                         {getDisplayTitle(item)}
                                                     </span>
-                                                    {('url' in item) && <span className="ml-2 text-sm text-gray-500">{(item as FooterItem).url}</span>}
-                                                    {('items' in item) && <span className="ml-2 text-sm text-gray-500">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
+                                                    {('url' in item) && <span className="ml-2 text-sm text-muted-foreground">{(item as FooterItem).url}</span>}
+                                                    {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} item{item.items.length == 1 ? "" : "s"}</span>}
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
@@ -550,6 +598,14 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                                                 >
                                                     Edit
                                                 </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleRemoveSection(item.title)}
+                                                    className="text-destructive hover:text-destructive/80"
+                                                >
+                                                    Remove
+                                                </Button>
                                             </div>
                                         </li>
                                     </SortableItem>
@@ -558,7 +614,7 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                         </SortableContext>
                     </DndContext>
                 ) : (
-                    <p className="text-gray-500">No sections yet. Click "Add Section" to create one.</p>
+                    <p className="text-muted-foreground">No sections yet. Click "Add Section" to create one.</p>
                 )}
             </div>
 
@@ -586,6 +642,23 @@ const EditFooter = ({ onFooterDataChange }: EditFooterProps = {}) => {
                     </form>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently remove the footer section "{sectionToDelete}" from your website.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={confirmDeleteSection} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {footer && footer.items.length > 0 && (
                 <div className="flex gap-4 justify-start mt-6">

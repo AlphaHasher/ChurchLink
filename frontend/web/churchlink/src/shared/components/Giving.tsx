@@ -1,7 +1,33 @@
 import { Button } from "@/shared/components/ui/button";
 import { ArrowRight, Mail, Home, CreditCard } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getChurchName, getChurchAddress } from "@/helpers/ChurchSettingsHelper";
 
 export default function Giving() {
+  const [churchName, setChurchName] = useState("Your Church Name");
+  const [churchAddress, setChurchAddress] = useState({
+    address: "123 Main Street",
+    city: "Your City",
+    state: "ST",
+    postalCode: "12345"
+  });
+
+  useEffect(() => {
+    const fetchChurchInfo = async () => {
+      try {
+        const [name, address] = await Promise.all([
+          getChurchName(),
+          getChurchAddress()
+        ]);
+        setChurchName(name);
+        setChurchAddress(address);
+      } catch (error) {
+        console.warn("Failed to fetch church info for giving page:", error);
+      }
+    };
+
+    fetchChurchInfo();
+  }, []);
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* Section 1: Hero Section with improved overlay and typography */}
@@ -45,9 +71,9 @@ export default function Giving() {
               <h3 className="text-xl font-bold text-gray-800 mb-3">In-Person</h3>
               <p className="text-gray-600 mb-6 flex-grow">
                 Bring your donation to the next service at:
-                <span className="font-medium block mt-2">Second Slavic Baptist Church</span>
-                <span className="block mt-1">6601 Watt Ave,</span>
-                <span className="block">North Highlands, CA 95660</span>
+                <span className="font-medium block mt-2">{churchName}</span>
+                <span className="block mt-1">{churchAddress.address},</span>
+                <span className="block">{churchAddress.city}, {churchAddress.state} {churchAddress.postalCode}</span>
               </p>
             </div>
           </div>
@@ -85,9 +111,9 @@ export default function Giving() {
             <div className="p-6 flex flex-col flex-grow">
               <h3 className="text-xl font-bold text-gray-800 mb-3">Mail a Check</h3>
               <p className="text-gray-600 mb-6 flex-grow">
-                Write a check payable to <strong>Second Slavic Baptist Church</strong>, and mail to:
-                <span className="font-medium block mt-2">6601 Watt Avenue</span>
-                <span className="block">North Highlands, CA 95660</span>
+                Write a check payable to <strong>{churchName}</strong>, and mail to:
+                <span className="font-medium block mt-2">{churchAddress.address}</span>
+                <span className="block">{churchAddress.city}, {churchAddress.state} {churchAddress.postalCode}</span>
               </p>
               <div className="mt-auto py-6"></div>
             </div>

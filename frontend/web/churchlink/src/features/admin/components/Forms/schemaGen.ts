@@ -331,6 +331,9 @@ export function fieldToZod(field: AnyField, enforceRequired: boolean = true): z.
     case "price": {
       return z.any().optional();
     }
+    case "pricelabel": {
+      return z.any().optional(); // Display-only field, no validation needed
+    }
     default:
       return z.any();
   }

@@ -33,9 +33,9 @@ import { DeleteImageDialog } from '../components/Media/DeleteImageDialog';
 import FolderTile from '../components/Media/FolderTile';
 import { ImagePreviewDialog } from '../components/Media/ImagePreviewDialog';
 import ImageTile from '../components/Media/ImageTile';
-import { NewFolderDialog } from '../components/Media/NewFolderDialog';
 import { RenameFolderDialog } from '../components/Media/RenameFolderDialog';
 import { DeleteFolderDialog } from '../components/Media/DeleteFolderDialog';
+import { NewFolderDialog } from '../components/Media/NewFolderDialog';
 
 type DragItem =
   | { kind: 'image'; id: string; fromFolder: string }
@@ -68,14 +68,13 @@ const MediaLibrary: React.FC<{
     })();
   }, []);
 
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [folderName, setFolderName] = useState('');
-  const [folderError, setFolderError] = useState<string | null>(null);
-
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<string>('');
   const [deleteFolderOpen, setDeleteFolderOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string>('');
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState<string>('');
+  const [createFolderError, setCreateFolderError] = useState<string | null>(null);
 
   const [erroredImages, setErroredImages] = useState<Set<string>>(new Set());
   const [selectedImage, setSelectedImage] = useState<ImageResponse | null>(null);
@@ -188,30 +187,6 @@ const MediaLibrary: React.FC<{
     return true;
   };
 
-  const handleCreateFolder = async () => {
-    if (!requireManage('create folders')) return;
-    if (!folderName.trim()) {
-      setFolderError('Folder name is required');
-      return;
-    }
-    try {
-      setFolderError(null);
-      setError(null);
-      const path = currentFolder ? `${currentFolder}/${folderName.trim()}` : folderName.trim();
-      const res = await createFolderHelper(path);
-      if (res?.details?.created === false && res?.details?.reason === 'duplicate') {
-        setFolderError('A folder with that name already exists here.');
-        return;
-      }
-      setNewFolderOpen(false);
-      setFolderName('');
-      fetchCurrentData();
-    } catch {
-      setFolderError('Failed to create folder');
-      setError('Failed to create folder');
-    }
-  };
-
   const handleUpload = async (files: FileList | null) => {
     if (!requireManage('upload images')) return;
     if (!files || files.length === 0) return;
@@ -277,6 +252,40 @@ const MediaLibrary: React.FC<{
     }
     setDragItem(null);
   };
+
+  const openCreateFolderDialog = () => {
+    if (!requireManage('create folders')) return;
+    setNewFolderName('');
+    setCreateFolderError(null);
+    setCreateFolderOpen(true);
+  };
+
+  const handleCreateFolder = async () => {
+    const trimmedName = newFolderName.trim();
+    
+    if (!trimmedName) {
+      setCreateFolderError('Folder name cannot be empty');
+      return;
+    }
+    
+    try {
+      setCreateFolderError(null);
+      const path = currentFolder ? `${currentFolder}/${trimmedName}` : trimmedName;
+      const res = await createFolderHelper(path);
+      
+      if (res?.details?.created === false && res?.details?.reason === 'duplicate') {
+        setCreateFolderError('A folder with that name already exists here.');
+        return;
+      }
+      
+      // Success - close dialog and refresh
+      setCreateFolderOpen(false);
+      setNewFolderName('');
+      fetchCurrentData();
+    } catch (err) {
+      setCreateFolderError('Failed to create folder. Please try again.');
+    }
+  };
   // ---------------------------------------------------------------------------
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -337,18 +346,16 @@ const MediaLibrary: React.FC<{
               </Select>
             </div>
 
+            {/* Upload button - only show when not in selection mode */}
             {!selectionMode && (
-              <>
-                <Button onClick={() => {
-                  if (!canManage) { window.alert('You do not have permission to upload images.'); return; }
-                  fileInputRef.current?.click();
-                }}>Upload</Button>
-                <Button onClick={() => {
-                  if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
-                  setNewFolderOpen(true);
-                }}>New Folder</Button>
-              </>
+              <Button onClick={() => {
+                if (!canManage) { window.alert('You do not have permission to upload images.'); return; }
+                fileInputRef.current?.click();
+              }}>Upload</Button>
             )}
+            
+            {/* New Folder button - always show regardless of selection mode */}
+            <Button onClick={openCreateFolderDialog}>New Folder</Button>
             <input
               ref={fileInputRef}
               type="file"
@@ -501,7 +508,11 @@ const MediaLibrary: React.FC<{
             <div className="mt-10 flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
               <Upload className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-base font-medium text-gray-900 mb-1">No items</h3>
-              <p className="text-xs text-muted-foreground mb-4">Right-click to create a folder or drag files here to upload.</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                {selectionMode 
+                  ? "Right-click to create a folder or use the 'New Folder' button above."
+                  : "Right-click to create a folder or drag files here to upload."}
+              </p>
               {!selectionMode && <Button onClick={() => {
                 if (!canManage) { window.alert('You do not have permission to upload images.'); return; }
                 fileInputRef.current?.click();
@@ -536,15 +547,19 @@ const MediaLibrary: React.FC<{
         </div>
       </div>
 
-      {/* New Folder */}
+      {/* Create Folder */}
       <NewFolderDialog
-        open={newFolderOpen}
-        folderName={folderName}
-        error={folderError}
+        open={createFolderOpen}
+        folderName={newFolderName}
+        error={createFolderError}
         canManage={canManage}
-        onOpenChange={setNewFolderOpen}
-        onChangeName={setFolderName}
-        onCancel={() => { setNewFolderOpen(false); setFolderError(null); setFolderName(''); }}
+        onOpenChange={setCreateFolderOpen}
+        onChangeName={setNewFolderName}
+        onCancel={() => {
+          setCreateFolderOpen(false);
+          setNewFolderName('');
+          setCreateFolderError(null);
+        }}
         onCreate={handleCreateFolder}
       />
 
@@ -653,8 +668,8 @@ const MediaLibrary: React.FC<{
         createPortal(
           (
             <div
-              className="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-              style={{ left: ctx.x, top: ctx.y }}
+              className="fixed z-[9999] min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              style={{ left: ctx.x, top: ctx.y, pointerEvents: 'auto' }}
               onPointerDown={(e) => e.stopPropagation()}
               onContextMenu={(e) => e.preventDefault()}
             >
@@ -690,8 +705,8 @@ const MediaLibrary: React.FC<{
         createPortal(
           (
             <div
-              className="fixed z-50 min-w-[220px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-              style={{ left: ctx.x, top: ctx.y }}
+              className="fixed z-[9999] min-w-[220px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              style={{ left: ctx.x, top: ctx.y, pointerEvents: 'auto' }}
               onPointerDown={(e) => e.stopPropagation()}
               onContextMenu={(e) => e.preventDefault()}
             >
@@ -740,8 +755,8 @@ const MediaLibrary: React.FC<{
         createPortal(
           (
             <div
-              className="fixed z-50 min-w-[160px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-              style={{ left: ctx.x, top: ctx.y }}
+              className="fixed z-[9999] min-w-[160px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+              style={{ left: ctx.x, top: ctx.y, pointerEvents: 'auto' }}
               onPointerDown={(e) => e.stopPropagation()}
               onContextMenu={(e) => e.preventDefault()}
             >
@@ -749,9 +764,7 @@ const MediaLibrary: React.FC<{
                 className="w-full text-left px-2 py-1.5 rounded hover:bg-accent"
                 onClick={() => {
                   setCtx({ open: false });
-                  if (!canManage) { window.alert('You do not have permission to create folders.'); return; }
-                  setFolderName('');
-                  setNewFolderOpen(true);
+                  openCreateFolderDialog();
                 }}
               >
                 Create folder…

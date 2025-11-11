@@ -109,7 +109,7 @@ const tiles: Tile[] = [
     requiresPermission: "forms_management",
   },
   {
-    title: "Weekly Bulletin",
+    title: "Bulletin Announcements",
     description: "Publish the weekly bulletin.",
     icon: Newspaper,
     to: "/admin/bulletins",

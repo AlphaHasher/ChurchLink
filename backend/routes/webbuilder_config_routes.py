@@ -1,9 +1,10 @@
 """
 Web Builder Configuration Routes
-Provides endpoints for managing website configuration like favicon, title, etc.
+Provides endpoints for managing website configuration like favicon, title, church settings, etc.
+Integrated church settings management for unified website configuration.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from typing import Dict, Any
 from helpers.WebbuilderConfigHelper import WebbuilderConfigHelper
 from models.website_app_config import WebsiteConfigUpdate, TitleUpdateRequest
@@ -27,6 +28,30 @@ async def get_website_config() -> Dict[str, Any]:
         Website configuration with title, favicon_url, etc.
     """
     return await WebbuilderConfigHelper.get_website_config()
+
+@webbuilder_config_public_router.get("/church/settings")
+async def get_church_settings_public() -> Dict[str, Any]:
+    """
+    Get church settings for public use (login page, etc.).
+    
+    Returns:
+        Church settings including name, address, etc.
+    """
+    try:
+        return await WebbuilderConfigHelper.get_church_settings()
+    except Exception as e:
+        # Return default values if there's an error
+        return {
+            "success": True,
+            "settings": {
+                "CHURCH_NAME": "Your Church Name",
+                "CHURCH_ADDRESS": "123 Main Street", 
+                "CHURCH_CITY": "Your City",
+                "CHURCH_STATE": "ST",
+                "CHURCH_POSTAL_CODE": "12345"
+            },
+            "message": "Default church settings"
+        }
 
 #
 # --- Private Routes (Admin/Website Builder) ---
@@ -108,3 +133,36 @@ async def get_admin_website_config() -> Dict[str, Any]:
         Complete website configuration with metadata
     """
     return await WebbuilderConfigHelper.get_website_config()
+
+#
+# --- Church Settings Routes (integrated into Web Builder) ---
+#
+
+@webbuilder_config_private_router.get("/church/settings")
+async def get_church_settings(request: Request) -> Dict[str, Any]:
+    """
+    Get church settings for website configuration.
+    
+    Returns:
+        Church settings including name, address, etc.
+    """
+    try:
+        return await WebbuilderConfigHelper.get_church_settings()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@webbuilder_config_private_router.put("/church/settings")
+async def update_church_settings(request: Request, settings: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Update church settings for website configuration.
+    
+    Args:
+        settings: Church settings to update (name, address, city, state, postal_code)
+        
+    Returns:
+        Success message and updated settings
+    """
+    try:
+        return await WebbuilderConfigHelper.update_church_settings(settings=settings)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

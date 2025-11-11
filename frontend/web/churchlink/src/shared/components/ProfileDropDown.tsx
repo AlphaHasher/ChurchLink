@@ -51,13 +51,13 @@ function ProfileDropDown({ className, isMod }: ProfileDropDownProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
-        className="w-56 bg-popover border border-border rounded-xl shadow-lg mt-2"
+        className="w-56 bg-popover border border-border rounded-xl shadow-lg mt-2 p-1 space-y-1"
         sideOffset={5}
       >
         <DropdownMenuItem asChild>
           <Link
             to="/profile"
-            className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg first:rounded-t-lg last:rounded-b-lg transition-colors duration-200"
           >
             <User className="h-4 w-4" />
             <span>Profile</span>
@@ -67,7 +67,7 @@ function ProfileDropDown({ className, isMod }: ProfileDropDownProps) {
           <DropdownMenuItem asChild>
             <Link
               to="/admin"
-              className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
+              className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg first:rounded-t-lg last:rounded-b-lg transition-colors duration-200"
               aria-label="Admin Panel"
               title="Admin Panel"
             >
@@ -81,7 +81,7 @@ function ProfileDropDown({ className, isMod }: ProfileDropDownProps) {
           onClick={() => {
             signOut(auth);
           }}
-          className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg mx-1 my-0.5 transition-colors duration-200"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg first:rounded-t-lg last:rounded-b-lg transition-colors duration-200"
         >
           <LogOut className="h-4 w-4" />
           <span>Log out</span>
