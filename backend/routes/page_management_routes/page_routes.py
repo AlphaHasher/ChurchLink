@@ -180,7 +180,8 @@ async def publish_staging_page(slug: str):
             raise HTTPException(status_code=404, detail="Staging page not found")
 
         # Build publish fields with sane defaults and include style tokens for v2
-        allowed_keys = ["title", "slug", "sections", "visible", "version", "styleTokens"]
+        # Include mobile sections if provided
+        allowed_keys = ["title", "slug", "sections", "sectionsMobile", "visible", "version", "styleTokens"]
         publish_fields = {k: staging.get(k) for k in allowed_keys if k in staging}
         publish_fields["slug"] = decoded
         publish_fields.setdefault("version", 2)
