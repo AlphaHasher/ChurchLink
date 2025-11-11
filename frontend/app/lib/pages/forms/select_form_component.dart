@@ -131,7 +131,7 @@ class SelectFormComponent extends StatelessWidget {
       initialValue: current?.isNotEmpty == true ? current : null,
       decoration: InputDecoration(
         labelText: label,
-        hintText: placeholder?.trim().isEmpty ?? true ? null : placeholder,
+        hintText: placeholder?.trim().isNotEmpty == true ? placeholder : 'Choose',
         helperText: helper,
       ),
       validator:

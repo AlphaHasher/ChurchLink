@@ -412,7 +412,7 @@ export function FieldRenderer({ field, control, error }: Props) {
               return (
                 <Select value={rhf.value} onValueChange={rhf.onChange}>
                   <SelectTrigger id={field.name}>
-                    <SelectValue placeholder={localizedPlaceholder} />
+                    <SelectValue placeholder={localizedPlaceholder || "Choose"} />
                   </SelectTrigger>
                   <SelectContent>
                     {safeOpts.map((o: any, idx: number) => (

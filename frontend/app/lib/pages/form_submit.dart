@@ -41,6 +41,19 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
     super.initState();
     _form = Map<String, dynamic>.from(widget.form);
     _setupLocales();
+    _initializeDefaultValues();
+  }
+
+  void _initializeDefaultValues() {
+    for (final field in _fields) {
+      final type = (field['type'] ?? 'text').toString();
+      final fieldName = (field['name'] ?? field['key'] ?? field['id'] ?? '').toString();
+      if (fieldName.isEmpty) continue;
+      
+      if (type == 'switch' || type == 'checkbox') {
+        _values.putIfAbsent(fieldName, () => false);
+      }
+    }
   }
 
   @override
@@ -347,6 +360,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
             _formInstanceId++;
             _isDirty = false;
             _setupLocales(preferredLocale: _activeLocale);
+            _initializeDefaultValues(); // Re-initialize default values after reload
           });
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
