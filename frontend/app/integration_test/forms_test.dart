@@ -82,31 +82,6 @@ void main() {
   timeout: Timeout(Duration(seconds: 30)),
 );
 
- /*patrolTest('Clicking Continue with Google triggers flow', ($) async {
-  final originalOnError = FlutterError.onError;
-  FlutterError.onError = (details) {
-    if (details.exception.toString().contains('No host specified in URI')) {
-      return;
-    }
-    originalOnError?.call(details);
-  };
-  
-  app.main();
-  await $.pumpAndSettle();
-  await $('Forms').tap();
-  await $.pumpAndSettle();
-  await $('Log In').tap();
-  await $.pumpAndSettle();
-  
-  // Just verify the button exists and tap it
-  expect($('Continue with Google').visible, isTrue);
-  await $('Continue with Google').tap();
-  
-  // Test passes if no exception thrown
-},
-  timeout: Timeout(Duration(seconds: 30)),
-);*/
-
  patrolTest('Back arrow from Forms returns to Home', ($) async {
   final originalOnError = FlutterError.onError;
   FlutterError.onError = (details) {
