@@ -62,10 +62,18 @@ export const AdminRoutes = () => {
         <Route path="/events" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
           <Events />
         </PermissionGuard>} />
-        <Route path="/events/discount-codes" element={<DiscountCodes />} />
-        <Route path="/events/:eventId" element={<EventInstances />} />
-        <Route path="/events/:eventId/instance_details/:instanceId" element={<EventInstancesDetails />} />
-        <Route path="/events/:eventId/instance_details/:instanceId/user_registrations/:userId" element={<ViewUserRegistration />} />
+        <Route path="/events/discount-codes" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+          <DiscountCodes />
+        </PermissionGuard>} />
+        <Route path="/events/:eventId" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+          <EventInstances />
+        </PermissionGuard>} />
+        <Route path="/events/:eventId/instance_details/:instanceId" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+          <EventInstancesDetails />
+        </PermissionGuard>} />
+        <Route path="/events/:eventId/instance_details/:instanceId/user_registrations/:userId" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+          <ViewUserRegistration />
+        </PermissionGuard>} />
         <Route path="/finance" element={<PermissionGuard requiredPermission="finance">
           <Finance />
         </PermissionGuard>} />
@@ -109,8 +117,8 @@ export const AdminRoutes = () => {
           <WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>
         </PermissionGuard>} />
         <Route path="webbuilder/footer" element={<PermissionGuard requiredPermission="web_builder_management">
-            <WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>
-          </PermissionGuard>
+          <WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>
+        </PermissionGuard>} />
         <Route path="/media-library" element={<MediaLibrary />} />
       </Route>
     </Routes>

@@ -138,7 +138,7 @@ const AdminDashboardSideBar = () => {
     },
 
     {
-      title: "Events", icon: CalendarFold, requiresPermission["event_management", "event_editing"] , children: [
+      title: "Events", icon: CalendarFold, requiresPermission: ["event_management", "event_editing"], children: [
         { title: "Manage Events", url: "/admin/events/" },
         { title: "Manage Discount Codes", url: "/admin/events/discount-codes" },
       ]
