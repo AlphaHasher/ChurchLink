@@ -115,7 +115,7 @@ export default function ViewEventDetails({
                     event_details: res?.event_details ?? null,
                     sister_details: res?.sister_details ?? [],
                     ministries: res?.ministries ?? [],
-                } as any);
+                });
                 if (res?.event_details) setIsFav(!!res.event_details.is_favorited);
             } catch (e: any) {
                 setError(e?.message ?? "Failed to load event");
