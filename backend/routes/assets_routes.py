@@ -1,6 +1,6 @@
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Any
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Query, Path, Body
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Query, Path, Body, Request
 from fastapi.responses import Response
 
 from controllers.assets_controller import (
@@ -83,6 +83,7 @@ async def api_delete_asset(id: str = Path(..., description="ObjectId string")):
 
 @public_assets_router.get("/public/id/{id}")
 async def serve_asset(
+    request: Request,
     id: str = Path(..., description="ObjectId string"),
     thumbnail: bool = Query(False),
     download: bool = Query(False),
@@ -92,7 +93,17 @@ async def serve_asset(
       - (bytes, media_type)
       - (bytes, media_type, suggested_filename)
     When ?download=1 is used, we set Content-Disposition with a friendly filename.
+    Supports browser caching via ETag and Cache-Control headers.
     """
+    # Generate ETag based on asset ID and thumbnail flag
+    etag = f'"{id}-{"thumb" if thumbnail else "full"}"'
+    
+    # Check if client has cached version
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match == etag:
+        # Client has current version, return 304 Not Modified
+        return Response(status_code=304, headers={"ETag": etag})
+    
     try:
         result: Any = await load_image_bytes_by_id(id, thumbnail=thumbnail)
     except Exception:
@@ -117,8 +128,12 @@ async def serve_asset(
     if data is None:
         raise HTTPException(status_code=404, detail="Asset not found")
 
+    headers = {
+        "ETag": etag,
+        "Cache-Control": "public, max-age=31536000, immutable",
+    }
+    
     # If download is requested and we don't already have a suggested filename, derive it.
-    headers = {}
     if download:
         if not suggested_name:
             # Pull from DB metadata
