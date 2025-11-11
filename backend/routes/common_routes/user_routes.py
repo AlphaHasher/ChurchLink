@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Query, Body, Request
 from models.user import ( PersonCreate, PersonUpdateRequest,
     add_family_member, get_family_members, get_family_member_by_id, update_family_member, delete_family_member, get_user_by_uid, get_user_by_id
 )
-from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id, delete_user_account, check_if_user_is_admin
+from controllers.users_functions import fetch_users, process_sync_by_uid, get_my_permissions, fetch_profile_info, update_profile, get_is_init, update_contact, search_users_paged, fetch_detailed_user, execute_patch_detailed_user, UsersSearchParams, search_logical_users_paged, MyPermsRequest, PersonalInfo, ContactInfo, DetailedUserInfo, fetch_users_with_role_id, delete_user_account, check_if_user_is_admin, process_fetch_all_people
 from mongo.database import DB
 
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
@@ -152,6 +152,12 @@ async def get_user_family_members_route(request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error fetching family members: {str(e)}")
+    
+# Private Router
+# Get all family members AND get your profile information.
+@user_private_router.get("/all-people")
+async def fetch_all_people(request: Request):
+    return await process_fetch_all_people(request)
 
 # Private Router
 # Get specific family member

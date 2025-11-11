@@ -29,7 +29,7 @@ import type {
 } from "@/shared/types/Event";
 import type { Ministry } from "@/shared/types/Ministry";
 
-// ----- helpers -----
+
 const paymentChoices: EventPaymentOption[] = ["paypal", "door"];
 const recurrences: EventRecurrence[] = ["never", "daily", "weekly", "monthly", "yearly"];
 
@@ -64,7 +64,6 @@ type Props = {
     allMinistries: Ministry[];
     disabled?: boolean;
 
-    // Preferred language code (e.g., "en", "ru")
     preferredLangCode?: string;
 };
 
@@ -83,7 +82,6 @@ export default function EventUpdateInputsV2({
         const base = { ...(initial as any), ...(baseIn as any) } as Partial<EventUpdate>;
         const baseLocs = toRecordFromMap(base.localizations);
 
-        // seed localizations with preferred lang if none present
         const pref = preferredLangCode || "en";
         const locs = Object.keys(baseLocs).length
             ? baseLocs
@@ -100,6 +98,7 @@ export default function EventUpdateInputsV2({
             rsvp_required: (base.rsvp_required ?? false),
             registration_opens: (base.registration_opens ?? null) as any,
             registration_deadline: (base.registration_deadline ?? null) as any,
+            automatic_refund_deadline: (base.automatic_refund_deadline ?? null) as any,
             ministries: (base.ministries ?? []),
             members_only: (base.members_only ?? false),
             max_spots: (base.max_spots ?? null),
@@ -109,10 +108,9 @@ export default function EventUpdateInputsV2({
             min_age: (base.min_age ?? null),
             max_age: (base.max_age ?? null),
             gender: (base.gender ?? "all") as EventGenderOption,
-            location_url: (base.location_url ?? null),
+            location_address: (base.location_address ?? null),
             image_id: (base.image_id ?? ""),
             payment_options: (base.payment_options ?? []),
-            refund_policy: (base.refund_policy ?? ""),
         };
     };
 
@@ -141,7 +139,6 @@ export default function EventUpdateInputsV2({
         });
     };
 
-    // ---------- Localization handling ----------
     const locRecord = toRecordFromMap(draft.localizations);
     const languageDisplayNames = useMemo(
         () => Object.keys(localizationNameToCode).sort((a, b) => a.localeCompare(b)),
@@ -193,12 +190,47 @@ export default function EventUpdateInputsV2({
                 ...draft,
                 registration_opens: null,
                 registration_deadline: null,
+                automatic_refund_deadline: null,
             });
         }
     }, [draft.rsvp_required]);
 
     const regOpensEnabled = !!draft.registration_opens;
     const regDeadlineEnabled = !!draft.registration_deadline;
+    const refundDeadlineEnabled = !!draft.automatic_refund_deadline;
+
+    // --- Calendar month control so popover opens to currently selected date, not "today"
+    // Event date
+    const [monthDateEvent, setMonthDateEvent] = useState<Date>(() => new Date(draft.date));
+    useEffect(() => {
+        setMonthDateEvent(new Date(draft.date));
+    }, [draft.date]);
+
+    // Opens
+    const [monthDateOpens, setMonthDateOpens] = useState<Date>(() =>
+        draft.registration_opens ? new Date(draft.registration_opens) : new Date(draft.date),
+    );
+    useEffect(() => {
+        setMonthDateOpens(draft.registration_opens ? new Date(draft.registration_opens) : new Date(draft.date));
+    }, [draft.registration_opens, draft.date]);
+
+    // Deadline
+    const [monthDateDeadline, setMonthDateDeadline] = useState<Date>(() =>
+        draft.registration_deadline ? new Date(draft.registration_deadline) : new Date(draft.date),
+    );
+    useEffect(() => {
+        setMonthDateDeadline(draft.registration_deadline ? new Date(draft.registration_deadline) : new Date(draft.date));
+    }, [draft.registration_deadline, draft.date]);
+
+    // Refund deadline
+    const [monthDateRefund, setMonthDateRefund] = useState<Date>(() =>
+        draft.automatic_refund_deadline ? new Date(draft.automatic_refund_deadline) : new Date(draft.date),
+    );
+    useEffect(() => {
+        setMonthDateRefund(
+            draft.automatic_refund_deadline ? new Date(draft.automatic_refund_deadline) : new Date(draft.date),
+        );
+    }, [draft.automatic_refund_deadline, draft.date]);
 
     // Ministry data assembly
     const ministryNameById = useMemo<Record<string, string>>(
@@ -211,10 +243,9 @@ export default function EventUpdateInputsV2({
         return names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
     }, [draft.ministries, ministryNameById]);
 
-    // ---------- UI ----------
     return (
         <div className="grid gap-8">
-            {/* Localization inputs*/}
+            {/* Localization inputs */}
             <section>
                 <h3 className="text-base font-semibold">Localized Text</h3>
                 <p className="text-sm text-muted-foreground">
@@ -292,12 +323,13 @@ export default function EventUpdateInputsV2({
                                 />
                             </div>
                             <div className="max-w-sm">
-                                <Label htmlFor="location">Location Info ({activeLang})</Label>
+                                <Label htmlFor="locationInfo">Location Info ({activeLang})</Label>
                                 <Input
-                                    id="location"
+                                    id="locationInfo"
                                     disabled={disabled}
                                     value={locRecord[activeLang]?.location_info ?? ""}
                                     onChange={(e) => setLocField(activeLang, "location_info", e.target.value)}
+                                    placeholder="e.g., Gymnasium / Room A; special parking info, etc."
                                 />
                             </div>
                         </div>
@@ -316,22 +348,26 @@ export default function EventUpdateInputsV2({
 
             <Separator />
 
-            {/* Location URL and Image Selection */}
+            {/* Location Address and Image Selection */}
             <section className="grid md:grid-cols-2 gap-6">
                 <div className="max-w-xl">
-                    <h3 className="text-base font-semibold">Location URL</h3>
-                    <p className="text-sm text-muted-foreground">Link to a map or venue page.</p>
+                    <h3 className="text-base font-semibold">Location Address</h3>
+                    <p className="text-sm text-muted-foreground">
+                        To get the best maps and wayfinding: open Google Maps, find your venue, then copy the venue
+                        <span className="font-medium"> name</span> and <span className="font-medium">address</span> exactly and paste as
+                        <span className="italic"> “Name, Address”</span>. Example:{" "}
+                        <span className="italic">“Civic Auditorium, 123 Main St, Springfield, IL 62701”</span>.
+                    </p>
                     <div className="mt-3 max-w-lg">
-                        <Label htmlFor="locUrl">Location URL</Label>
+                        <Label htmlFor="locAddr">Location Address</Label>
                         <Input
-                            id="locUrl"
-                            type="url"
+                            id="locAddr"
                             disabled={disabled}
-                            value={draft.location_url ?? ""}
+                            value={draft.location_address ?? ""}
                             onChange={(e) =>
-                                updateDraft({ ...draft, location_url: e.target.value || null })
+                                updateDraft({ ...draft, location_address: e.target.value || null })
                             }
-                            placeholder="https://maps.google.com/…"
+                            placeholder="Civic Auditorium, 123 Main St, Springfield, IL 62701"
                         />
                     </div>
                 </div>
@@ -370,6 +406,8 @@ export default function EventUpdateInputsV2({
                                 <PopoverContent className="w-auto p-3" align="start">
                                     <Calendar
                                         mode="single"
+                                        month={monthDateEvent}
+                                        onMonthChange={setMonthDateEvent}
                                         selected={new Date(draft.date)}
                                         onSelect={(d: Date | undefined) => {
                                             if (!d) return;
@@ -431,7 +469,7 @@ export default function EventUpdateInputsV2({
             <section className="max-w-5xl">
                 <h3 className="text-base font-semibold">Registration</h3>
                 <p className="text-sm text-muted-foreground">
-                    Windows follow recurrence offsets across instances.
+                    Registration windows and refund deadline propagate to instances using recurrence-aware offsets.
                 </p>
 
                 {/* RSVP required */}
@@ -446,12 +484,12 @@ export default function EventUpdateInputsV2({
                         <Label htmlFor="rsvpRequired">RSVP required</Label>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        If off, windows/capacity/pricing are cleared & disabled.
+                        If off, windows/capacity/pricing are cleared &amp; disabled.
                     </p>
                 </div>
 
                 {/* toggles */}
-                <div className="mt-4 grid md:grid-cols-2 gap-6">
+                <div className="mt-4 grid md:grid-cols-3 gap-6">
                     <div className="max-w-sm">
                         <div className="flex items-center gap-3">
                             <Switch
@@ -467,6 +505,9 @@ export default function EventUpdateInputsV2({
                             />
                             <Label htmlFor="opensEnabled">Registration opens</Label>
                         </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            When signups first become available.
+                        </p>
                     </div>
 
                     <div className="max-w-sm">
@@ -482,13 +523,38 @@ export default function EventUpdateInputsV2({
                                 }
                                 disabled={disabled || !draft.rsvp_required}
                             />
-                            <Label htmlFor="deadlineEnabled">Registration deadline</Label>
                         </div>
+                        <Label htmlFor="deadlineEnabled">Registration deadline</Label>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Last moment to register. Must be on/before the event date.
+                        </p>
+                    </div>
+
+                    <div className="max-w-sm">
+                        <div className="flex items-center gap-3">
+                            <Switch
+                                id="refundDeadlineEnabled"
+                                checked={refundDeadlineEnabled}
+                                onCheckedChange={(v) =>
+                                    updateDraft({
+                                        ...draft,
+                                        automatic_refund_deadline: v ? (draft.automatic_refund_deadline ?? new Date().toISOString()) : null,
+                                    })
+                                }
+                                disabled={disabled || !draft.rsvp_required}
+                            />
+                            <Label htmlFor="refundDeadlineEnabled">Automatic refund deadline</Label>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Latest time a paid registration is automatically eligible for refund. Must be{" "}
+                            <span className="font-medium">before</span> the event date, and on/after the opens/deadline windows.
+                        </p>
                     </div>
                 </div>
 
                 {/* datetime pickers */}
-                <div className="mt-3 grid md:grid-cols-2 gap-6">
+                <div className="mt-3 grid md:grid-cols-3 gap-6">
+                    {/* Opens at */}
                     <div className={`${!draft.rsvp_required || !regOpensEnabled ? "opacity-50 pointer-events-none" : ""} max-w-md`}>
                         <Label>Opens at</Label>
                         <div className="mt-2">
@@ -501,6 +567,8 @@ export default function EventUpdateInputsV2({
                                 <PopoverContent className="w-auto p-3" align="start">
                                     <Calendar
                                         mode="single"
+                                        month={monthDateOpens}
+                                        onMonthChange={setMonthDateOpens}
                                         selected={draft.registration_opens ? new Date(draft.registration_opens) : undefined}
                                         onSelect={(d: Date | undefined) => {
                                             if (!d) return;
@@ -532,8 +600,9 @@ export default function EventUpdateInputsV2({
                         </div>
                     </div>
 
+                    {/* Registration deadline */}
                     <div className={`${!draft.rsvp_required || !regDeadlineEnabled ? "opacity-50 pointer-events-none" : ""} max-w-md`}>
-                        <Label>Deadline</Label>
+                        <Label>Registration deadline</Label>
                         <div className="mt-2">
                             <Popover>
                                 <PopoverTrigger asChild>
@@ -544,6 +613,8 @@ export default function EventUpdateInputsV2({
                                 <PopoverContent className="w-auto p-3" align="start">
                                     <Calendar
                                         mode="single"
+                                        month={monthDateDeadline}
+                                        onMonthChange={setMonthDateDeadline}
                                         selected={draft.registration_deadline ? new Date(draft.registration_deadline) : undefined}
                                         onSelect={(d: Date | undefined) => {
                                             if (!d) return;
@@ -573,6 +644,63 @@ export default function EventUpdateInputsV2({
                                 </PopoverContent>
                             </Popover>
                         </div>
+                    </div>
+
+                    {/* Automatic refund deadline */}
+                    <div className={`${!draft.rsvp_required || !refundDeadlineEnabled ? "opacity-50 pointer-events-none" : ""} max-w-md`}>
+                        <Label>Automatic refund deadline</Label>
+                        <div className="mt-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="justify-start w-full">
+                                        {dateLabel(draft.automatic_refund_deadline)}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-3" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        month={monthDateRefund}
+                                        onMonthChange={setMonthDateRefund}
+                                        selected={draft.automatic_refund_deadline ? new Date(draft.automatic_refund_deadline) : undefined}
+                                        onSelect={(d: Date | undefined) => {
+                                            if (!d) return;
+                                            const current = draft.automatic_refund_deadline
+                                                ? new Date(draft.automatic_refund_deadline)
+                                                : new Date();
+                                            const next = new Date(d);
+                                            next.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                                            updateDraft({ ...draft, automatic_refund_deadline: next.toISOString() });
+                                        }}
+                                        disabled={disabled}
+                                        initialFocus
+                                    />
+                                    <div className="mt-3 w-48">
+                                        <Label htmlFor="refundDeadlineTime">Time</Label>
+                                        <Input
+                                            id="refundDeadlineTime"
+                                            type="time"
+                                            disabled={disabled}
+                                            value={
+                                                draft.automatic_refund_deadline
+                                                    ? new Date(draft.automatic_refund_deadline).toTimeString().slice(0, 5)
+                                                    : "17:00"
+                                            }
+                                            onChange={(e) => {
+                                                const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
+                                                const base = draft.automatic_refund_deadline
+                                                    ? new Date(draft.automatic_refund_deadline)
+                                                    : new Date();
+                                                base.setHours(hh || 0, mm || 0, 0, 0);
+                                                updateDraft({ ...draft, automatic_refund_deadline: base.toISOString() });
+                                            }}
+                                        />
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Used by the system to determine refund eligibility automatically after payment capture.
+                        </p>
                     </div>
                 </div>
 
@@ -604,7 +732,9 @@ export default function EventUpdateInputsV2({
                             onChange={(e) => updateDraft({ ...draft, price: Number(e.target.value || 0) })}
                             disabled={disabled || !draft.rsvp_required}
                         />
-                        <p className="mt-1 text-xs text-muted-foreground">If price &gt; 0, pick a payment option.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            If price &gt; 0, pick at least one payment option.
+                        </p>
                     </div>
                     <div className="max-w-xs">
                         <Label htmlFor="memberPrice">Members price</Label>
@@ -644,18 +774,12 @@ export default function EventUpdateInputsV2({
                             );
                         })}
                     </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        “Door” = pay at the door; “PayPal” = online checkout. You can enable both.
+                    </p>
                 </div>
 
-                <div className="mt-4 max-w-2xl">
-                    <Label htmlFor="refund">Refund policy (optional)</Label>
-                    <Textarea
-                        id="refund"
-                        disabled={disabled || !draft.rsvp_required}
-                        value={draft.refund_policy ?? ""}
-                        onChange={(e) => updateDraft({ ...draft, refund_policy: e.target.value })}
-                        placeholder="e.g., Full refund up to 7 days before event."
-                    />
-                </div>
+                {/* Refund policy removed */}
             </section>
 
             <Separator />
@@ -825,6 +949,9 @@ export default function EventUpdateInputsV2({
                         />
                         <div className="flex flex-col">
                             <Label htmlFor="regAllowed">Registration allowed</Label>
+                            <span className="text-xs text-muted-foreground">
+                                Turn this off to temporarily stop new signups without unpublishing.
+                            </span>
                         </div>
                     </div>
 
@@ -837,6 +964,9 @@ export default function EventUpdateInputsV2({
                         />
                         <div className="flex flex-col">
                             <Label htmlFor="hidden">Hidden</Label>
+                            <span className="text-xs text-muted-foreground">
+                                Hidden events are not listed publicly but remain accessible by direct link.
+                            </span>
                         </div>
                     </div>
                 </div>

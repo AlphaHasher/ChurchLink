@@ -19,7 +19,7 @@ mod_ministry_router = APIRouter(prefix="/ministries", tags=["Ministries"])
 
 
 @public_ministry_router.get("/ministry-names", summary="Get all unique ministry names")
-async def get_ministries_route():
+async def get_ministry_names_route():
     try:
         ministries = await list_ministries()
         return [m.name for m in ministries]

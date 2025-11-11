@@ -1,6 +1,9 @@
 from fastapi import Request
 from mongo.churchuser import UserHandler
 from models.event import get_event_doc_by_id
+from typing import List
+from models.ministry import list_ministries
+from models.event_instance import get_event_instance_for_read_by_id, get_sister_upcoming_identifiers
 
 async def process_add_favorite_event(request: Request, event_id: str):
 
@@ -35,4 +38,70 @@ async def process_remove_favorite_event(request:Request, event_id: str):
         return {'success':False, 'msg':f'Failed to apply updates to remove event with id {event_id} from favorite events!'}
     
     return {'success':True, 'msg':f'Successly removed event with id {event_id} from favorites!'}
+
+async def get_instance_details(instance_id: str, uid: str=None, favorite_events: List[str]=None):
+    """
+    Controller used by both public and private routes.
+    Returns:
+      {
+        "success": bool,
+        "msg": str,
+        "sister_details": SisterInstanceIdentifier | [],
+        "event_details": ReadEventInstance | None,
+        "ministries": List[dict]
+      }
+    """
+    try:
+        # Assemble single instance for read (parent + overrides + per-user annotations)
+        event_details = await get_event_instance_for_read_by_id(
+            instance_id,
+            uid=uid,
+            preferred_lang="en",  # could be parameterized later
+            favorites_event_ids=favorite_events or [],
+        )
+
+        if not event_details:
+            mins = await list_ministries()
+            return {
+                "success": False,
+                "msg": "Event instance not found or not available.",
+                "event_details": None,
+                "sister_details": [],
+                "ministries": mins,
+            }
+        
+        sister_details = await get_sister_upcoming_identifiers(event_details.get("event_id"), event_details.get("id"))
+
+        if not sister_details:
+            mins = await list_ministries()
+            return {
+                "success": True,
+                "msg": "OK",
+                "event_details": event_details,
+                "sister_details": [],
+                "ministries": mins,
+            }
+
+
+        mins = await list_ministries()
+        return {
+            "success": True,
+            "msg": "OK",
+            "event_details": event_details,
+            "sister_details": sister_details,
+            "ministries": mins,
+        }
+    except Exception as e:
+        mins = await list_ministries()
+        return {
+            "success": False,
+            "msg": f"Failed to fetch event instance details: {e}",
+            "event_details": None,
+            "sister_details": [],
+            "ministries": mins,
+        }
+
+
+
+
     

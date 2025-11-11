@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Query, Request
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
-from models.event_instance import search_upcoming_event_instances_for_read
-from controllers.event_controllers.user_event_controller import process_add_favorite_event, process_remove_favorite_event
+from models.event_instance import search_upcoming_event_instances_for_read, search_my_event_instances_for_read
+from controllers.event_controllers.user_event_controller import process_add_favorite_event, process_remove_favorite_event, get_instance_details
 
 
 public_event_router = APIRouter(prefix="/events", tags=["Events Public Routes"])
@@ -84,6 +84,51 @@ async def get_upcoming_events_for_authenticated_users(
         members_only_only=members_only_only,
         max_price=max_price,
     )
+
+@private_event_router.get(
+    "/search-my-events",
+    summary="Search a user's events (favorites and/or registrations)",
+)
+async def search_my_events(
+    request: Request,
+    type: Literal[
+        "favorites_and_registered",
+        "registered",
+        "registered_not_favorited",
+        "favorites",
+        "favorites_not_registered",
+    ] = Query("favorites_and_registered", description="Filter by relationship to user"),
+    date: Literal["upcoming", "history", "all"] = Query("upcoming", description="Time window"),
+    limit: int = Query(20, ge=1, le=100),
+    preferred_lang: Optional[str] = Query("en"),
+    cursor_scheduled_date: Optional[datetime] = Query(None),
+    cursor_id: Optional[str] = Query(None),
+):
+    """
+    Returns ReadEventInstance items for a user's Favorites/Registrations.
+    Pagination uses (scheduled_date, _id) cursor; respects effective 'hidden'.
+    """
+    favs = (getattr(request.state, "user", {}) or {}).get("favorite_events") or []
+
+    return await search_my_event_instances_for_read(
+        uid=request.state.uid,
+        preferred_lang=preferred_lang,
+        favorites_event_ids=favs,
+        type_filter=type,
+        date_filter=date,
+        limit=limit,
+        cursor_scheduled_date=cursor_scheduled_date,
+        cursor_id=cursor_id,
+    )
+
+@private_event_router.get("/private-event-instance-details/{instance_id}")
+async def get_private_instance_details(request: Request, instance_id:str):
+    return await get_instance_details(instance_id=instance_id, uid=request.state.uid, favorite_events=request.state.user.get("favorite_events"))
+
+
+@public_event_router.get("/public-event-instance-details/{instance_id}")
+async def get_public_instance_details(request: Request, instance_id:str):
+    return await get_instance_details(instance_id=instance_id, uid=None, favorite_events=None)
 
 @private_event_router.put("/add-favorite/{event_id}")
 async def add_favorite_event(request: Request, event_id: str):

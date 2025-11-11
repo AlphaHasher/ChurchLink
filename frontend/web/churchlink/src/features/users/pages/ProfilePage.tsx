@@ -6,7 +6,6 @@ import { PersonRail } from "@/features/users/components/Profile/PersonRail";
 import { DeleteAccountCard } from "@/features/users/components/Profile/DeleteAccountCard";
 import { PersonDetails } from "@/shared/types/Person";
 import { ProfileEditDialog } from "@/features/users/components/Profile/ProfileEditDialog";
-import { MyEventsSection } from "@/features/events/components/MyEventsSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import Layout from "@/shared/layouts/Layout";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -26,6 +25,7 @@ import MembershipRequestDialog from "../components/Profile/MembershipRequestDial
 import { readMembershipDetails } from "@/helpers/MembershipHelper";
 import type { MembershipDetails } from "@/shared/types/MembershipRequests";
 import { useLocalize } from "@/shared/utils/localizationUtils";
+import MyEventsPageV2 from "@/features/eventsV2/pages/MyEventsPageV2";
 
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
@@ -210,7 +210,7 @@ const ProfilePage: React.FC = () => {
                     </TabsContent>
 
                     <TabsContent value="events" className="min-h-[60vh]">
-                        <MyEventsSection />
+                        <MyEventsPageV2 />
                     </TabsContent>
                 </Tabs>
             </div>

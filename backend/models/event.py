@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from bson.objectid import ObjectId
 from pydantic import BaseModel, Field
 import logging
+from zoneinfo import ZoneInfo
+from pydantic import field_validator
 
 from mongo.database import DB
 from helpers.MongoHelper import serialize_objectid_deep
@@ -65,6 +67,10 @@ class EventCore(BaseModel):
     # Same logic and optionality as previous
     registration_deadline: Optional[datetime] = None
 
+    # The datetime where a user who paid with paypal can no longer get an automatic refund
+    # Same logic and optionality as previous
+    automatic_refund_deadline: Optional[datetime] = None
+
     # A list of strings as ObjectID regarding the associated ministries for this event
     ministries: List[str]
 
@@ -87,8 +93,8 @@ class EventCore(BaseModel):
     # Defines who is allowed to attend the event in regards to gender
     gender: Literal["all", "male", "female"]
 
-    # Optional location_url, supposed to point to a maps url so the user can find the event location on maps
-    location_url: Optional[str] = None
+    # Optional location_address, supposed to point to an Address accessible by maps so the user can find the event location on maps
+    location_address: Optional[str] = None
 
     # image_id the object id of image_data that is attched to this event
     image_id: str
@@ -96,7 +102,6 @@ class EventCore(BaseModel):
     # Payment processing fields
     # Note: keep string values but validate against the fixed set in do_event_validation
     payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
-    refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
 
     # Optionally define a members only price
     member_price: Optional[Annotated[float, Field(ge=0.0)]] = None
@@ -125,7 +130,7 @@ class Event(EventCore):
     # Define a list of object ID as str of discount codes applicable to this event
     discount_codes: List[str]
     # Datetime event was last updated on
-    updated_on: datetime = Field(default_factory=datetime.now)
+    updated_on: datetime = Field(default_factory=datetime.now(timezone.utc))
 
     # ONLY for database purposes
     # Suppose that a user changes a recurrence or origin date, they will also be forced to choose a new origin date
@@ -170,6 +175,9 @@ class EventUpdate(BaseModel):
     # The datetime where registration is closed
     # Same logic and optionality as previous
     registration_deadline: Optional[datetime] = None
+    # The datetime where a user who paid with paypal can no longer get an automatic refund
+    # Same logic and optionality as previous
+    automatic_refund_deadline: Optional[datetime] = None
     # A list of strings as ObjectID regarding the associated ministries for this event
     ministries: List[str]
     # Defines if only members are allowed to register for the event
@@ -189,13 +197,12 @@ class EventUpdate(BaseModel):
     max_age: Optional[int] = None
     # Defines who is allowed to attend the event in regards to gender
     gender: Literal["all", "male", "female"]
-    # Optional location_url, supposed to point to a maps url so the user can find the event location on maps
-    location_url: Optional[str] = None
+    # Optional location_address, supposed to point to an address accessible by maps so the user can find the event location on maps
+    location_address: Optional[str] = None
     # image_id the object id of image_data that is attched to this event
     image_id: str
     # Payment processing fields
     payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
-    refund_policy: Optional[str] = Field(default=None, description="Event-specific refund policy")
 
 
 class ReadModEvent(Event):
@@ -223,6 +230,7 @@ class ReadModEvent(Event):
 # ------------------------------
 # Validation
 # ------------------------------
+
 
 def _coerce_to_aware_utc(dt_val):
     # Accept ISO-8601 strings (e.g., "2025-10-16T21:41:00Z" or with offsets)
@@ -304,9 +312,8 @@ def do_event_validation(event_data: dict, validate_date=True):
             for lang, locale in localizations.items():
                 title = (locale.get("title") or "").strip()
                 description = (locale.get("description") or "").strip()
-                location_info = (locale.get("location_info") or "").strip()
-                if not title or not description or not location_info:
-                    return {"success": False, "msg": f"Error for localization {lang}: In each pre-set localization, a valid title, description, and location info must be set!"}
+                if not title or not description:
+                    return {"success": False, "msg": f"Error for localization {lang}: In each pre-set localization, a valid title and description must be set!"}
 
         # Optional: enforce future date
         result = validate_event_date_in_future(event_data, validate_date=validate_date)
@@ -330,14 +337,36 @@ def do_event_validation(event_data: dict, validate_date=True):
 
         # Temporal ordering of registration windows
         date = event_data.get("date")
+        if date:
+            date, err = _coerce_to_aware_utc(date)
         registration_opens = event_data.get("registration_opens")
+        if registration_opens:
+            registration_opens, err = _coerce_to_aware_utc(registration_opens)
         registration_deadline = event_data.get("registration_deadline")
+        if registration_deadline:
+            registration_deadline, err = _coerce_to_aware_utc(registration_deadline)
+        automatic_refund_deadline = event_data.get("automatic_refund_deadline")
+        if automatic_refund_deadline:
+            automatic_refund_deadline, err = _coerce_to_aware_utc(automatic_refund_deadline)
+
         if registration_opens and registration_deadline and registration_opens >= registration_deadline:
-            return {"success": False, "msg": "registration_opens must be before registration_deadline."}
+            return {"success": False, "msg": "The registration opening date must be before the registration deadline."}
         if date and registration_deadline and registration_deadline > date:
-            return {"success": False, "msg": "registration_deadline must be on or before the event date."}
+            return {"success": False, "msg": "The registration deadline must be on or before the event date."}
         if registration_opens and date and registration_opens > date:
-            return {"success": False, "msg": "registration_opens must be on or before the event date."}
+            return {"success": False, "msg": "The registration opening date must be on or before the event date."}
+        if automatic_refund_deadline:
+            if automatic_refund_deadline > date:
+                return {"success":False, "msg":"The automatic refund deadline must strictly be before the event date."}
+            if registration_deadline and automatic_refund_deadline < registration_deadline:
+                return {"success":False, "msg":"The automatic refund deadline must be on or after registration deadline!"}
+            if registration_opens and automatic_refund_deadline <= registration_opens:
+                return {"success":False, "msg":"The automatic refund deadline must after the registration opening date!"}
+            
+            if 'paypal' not in payment_options:
+                return {"success":False, "msg":"An automatic refund deadline can only be added if PayPal is an allowed payment method. If the user paid at the door, there would never be an automatically processing refund upon cancellation."}
+            if 'door' in payment_options:
+                return {'success':False, 'msg':'An automatic refund deadline can only be added if there is no option to pay at the door. Reasoning: If this were allowed, it would create a situation where door-payers are allowed to cancel early, but PayPal payers are not.'}
 
         # max_spots
         max_spots = event_data.get("max_spots")
@@ -352,7 +381,7 @@ def do_event_validation(event_data: dict, validate_date=True):
 
         # Valid max_published
         max_published = event_data.get("max_published", 1)
-        if max_published < 1 or max_published > 7:
+        if max_published < 1 or max_published > 798:
             return {"success": False, "msg": "Max events published has to be between 1 and 7 inclusive!"}
 
         # Validate that if an event is hidden it cant be registered for
@@ -360,6 +389,16 @@ def do_event_validation(event_data: dict, validate_date=True):
         registration_allowed = event_data.get("registration_allowed")
         if hidden and registration_allowed:
             return {'success':False, 'msg':'An event cannot be hidden and allow registration!'}
+        
+        # Validate that event must have image
+        image_id = event_data.get("image_id")
+        if not image_id:
+            return {'success':False, 'msg':'An event must have an image attached to it!'}
+        
+        # Validate that a location address exists
+        address = event_data.get("location_address")
+        if not address:
+            return {'success':False, 'msg':'An event must have an address!'}
 
         return {"success": True, "msg": "Event input successfully validated."}
     except Exception as e:
@@ -505,6 +544,49 @@ async def delete_event(event_id: str) -> bool:
     except Exception as e:
         logging.exception(f"Error deleting event {event_id}")
         return {'success':False, 'msg':f'Failed to delete event! Exception {e}'}
+    
+
+async def get_events_with_discount_code(
+    code_id: str,
+    preferred_lang: Optional[str] = None,
+) -> List[ReadModEvent]:
+    """
+    Return ALL events whose `discount_codes` contains `code_id`, assembled as ReadModEvent.
+    """
+    try:
+        # 1) Find matching events by discount code reference (stored as string IDs on Event)
+        cursor = DB.db["events"].find({"discount_codes": code_id}, projection={"_id": 1})
+        ids = [str(doc["_id"]) for doc in await cursor.to_list(length=None)]
+
+        # 2) Assemble each to ReadModEvent using existing helper
+        out: List[ReadModEvent] = []
+        for eid in ids:
+            ev = await get_readmod_event_by_id(eid, preferred_lang=preferred_lang)
+            if ev:
+                out.append(ev)
+        return out
+    except Exception:
+        logging.exception("get_events_with_discount_code failed")
+        return []
+    
+async def remove_discount_code_from_all_events(code_id: str) -> Dict[str, object]:
+    """
+    Pull the given discount code id (stored as str) from every event's discount_codes array.
+    Returns {success, msg, modified_count}
+    """
+    try:
+        result = await DB.db["events"].update_many(
+            {"discount_codes": code_id},
+            {"$pull": {"discount_codes": code_id}, "$set": {"updated_on": datetime.now(timezone.utc)}},
+        )
+        return {
+            "success": True,
+            "msg": f"Removed from {result.modified_count} event(s).",
+            "modified_count": int(result.modified_count),
+        }
+    except Exception as e:
+        logging.exception("Failed to pull discount code from events")
+        return {"success": False, "msg": f"Failed to update events: {e}", "modified_count": 0}
 
 
 # ------------------------------

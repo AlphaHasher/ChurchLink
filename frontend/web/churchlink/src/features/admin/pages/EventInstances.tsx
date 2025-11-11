@@ -17,7 +17,7 @@ import {
     CommandItem,
 } from "@/shared/components/ui/command";
 
-import EventInstancesTable from "../components/EventsV2/EventInstancesTable";
+import EventInstancesTable from "../components/EventsV2/InstanceManagement/EventInstancesTable";
 import {
     fetchAdminPanelEventById,
     fetchPagedAdminPanelEventInstances,

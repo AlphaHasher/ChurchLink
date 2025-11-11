@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
-    DialogTrigger, DialogFooter,
+    DialogTrigger, DialogFooter
 } from "@/shared/components/ui/Dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -81,7 +81,7 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md z-500">
                 <DialogHeader>
                     <DialogTitle>{localize("Delete Family Member")}</DialogTitle>
                     <DialogDescription>

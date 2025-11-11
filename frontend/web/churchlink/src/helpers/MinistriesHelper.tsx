@@ -17,8 +17,7 @@ export const buildMinistryNameMap = (ministries: Ministry[]): Record<string, str
     const map: Record<string, string> = {};
     for (const m of ministries || []) {
         if (!m || !m.id) continue;
-        // prefer explicit name, fall back to normalized_name if needed
-        const name = (m.name ?? m.normalized_name ?? "").toString().trim();
+        const name = (m.name ?? "").toString().trim();
         if (name) map[m.id] = name;
     }
     return map;

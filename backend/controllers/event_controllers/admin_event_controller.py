@@ -1,13 +1,19 @@
 from fastapi import HTTPException, status, Request
-from models.event import create_event, get_event_by_id, get_event_doc_by_id, update_event, delete_event, do_event_validation ,EventUpdate
-from models.event_instance import EventInstanceOverrides,override_groups, allowed_overrides,push_event_instances_by_event_id, recalculate_published_dates, delete_event_instances_from_event_id, get_instance_by_event_and_series_index
-from mongo.churchuser import UserHandler
-from mongo.roles import RoleHandler
+from models.event import create_event, get_event_by_id, get_event_doc_by_id, update_event, delete_event, do_event_validation ,EventUpdate, remove_discount_code_from_all_events
+from models.event_instance import EventInstanceOverrides,override_groups, allowed_overrides,push_event_instances_by_event_id, recalculate_published_dates, delete_event_instances_from_event_id, get_instance_by_event_and_series_index, overrides_allowed_none, get_event_instance_assembly_by_id, AssembledEventInstance
+from models.discount_code import delete_discount_code
+from models.user import get_person_dict
 from mongo.database import DB
 from bson import ObjectId
-from typing import Optional, Dict, Any
-import logging
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
+from pydantic import BaseModel
+
+class EventDiscountCodesUpdate(BaseModel):
+    event_id: str 
+    discount_codes: List[str] 
+
+allowed_override_args = allowed_overrides.copy()
 
 async def process_create_event(event: EventUpdate, request:Request):
     # Gather user perms
@@ -55,8 +61,8 @@ async def process_edit_event(event_id: str, event: EventUpdate, request:Request)
         recalculate = await recalculate_published_dates(event_id)
         if not recalculate['success']:
             return {'success':False, 'msg':f"Warning! Event update was successful, but we failed to recalculate the dates for event instances! Error: {recalculate['message']}"}
-    except:
-        return {'success':False, 'msg':f"Warning! Event update was successful, but we failed to recalculate the dates for event instances!"}
+    except Exception as e:
+        return {'success':False, 'msg':f"Warning! Event update was successful, but we failed to recalculate the dates for event instances! Exception: {e}"}
     
     try:
         published = await push_event_instances_by_event_id(event_id)
@@ -111,7 +117,6 @@ async def package_overrides(overrides: Dict[str, Any], old_event):
                 new_tracker[group_index] = True
                 break
         group_index += 1
-
     # For every override tracker
     flag_index = 0
     # If flag is true, then every override in that group needs to be defined
@@ -119,14 +124,22 @@ async def package_overrides(overrides: Dict[str, Any], old_event):
         # Define overrides
         if flag:
             for override in override_groups[flag_index]:
-                new_overrides[override] = overrides.get(override)
+                if override in overrides:
+                    new_overrides[override] = overrides.get(override)
+                else:
+                    new_overrides[override] = old_event.get(override) or None
         flag_index += 1
 
     # Assemble as override instance
-    assembled_overrides = EventInstanceOverrides.model_validate(new_overrides)
+    assembly = EventInstanceOverrides.model_validate(new_overrides)
 
-    # Return overrides and tracker
-    return {'overrides': assembled_overrides, 'tracker': new_tracker}
+    if assembly:
+        # Return overrides and tracker
+        return {'success':True, 'overrides': new_overrides, 'assembly':assembly, 'tracker': new_tracker}
+    else:
+        return {'success':False}
+    
+
 
 
 def _assemble_effective_event_for_instance(parent_event: Dict[str, Any],
@@ -157,16 +170,18 @@ def _assemble_effective_event_for_instance(parent_event: Dict[str, Any],
     # Preserve ministries/max_published/image/payment fields etc. from parent unless overridden
     # Apply overrides shallowly (except reg windows handled below)
     for k, v in overrides_dict.items():
-        if k not in ("registration_opens", "registration_deadline"):  # handle after delta calc
+        if k not in ("registration_opens", "registration_deadline", "automatic_refund_deadline"):  # handle after delta calc
             effective[k] = v
 
     # Compute registration window fields
     parent_date: Optional[datetime] = parent_event.get("date")
     parent_open: Optional[datetime] = parent_event.get("registration_opens")
     parent_deadline: Optional[datetime] = parent_event.get("registration_deadline")
+    parent_refund_deadline: Optional[datetime] = parent_event.get("automatic_refund_deadline")
 
     delta_open = (parent_open - parent_date) if (parent_open and parent_date) else None
     delta_deadline = (parent_deadline - parent_date) if (parent_deadline and parent_date) else None
+    delta_refund_deadline = (parent_refund_deadline - parent_date) if (parent_refund_deadline and parent_date) else None
 
     # If overrides explicitly provided (group 5), use them; else recompute via deltas
     if "registration_opens" in overrides_dict:
@@ -178,6 +193,11 @@ def _assemble_effective_event_for_instance(parent_event: Dict[str, Any],
         effective["registration_deadline"] = overrides_dict.get("registration_deadline")
     else:
         effective["registration_deadline"] = (instance_date + delta_deadline) if delta_deadline is not None else None
+
+    if "automatic_refund_deadline" in overrides_dict:
+        effective["automatic_refund_deadline"] = overrides_dict.get("automatic_refund_deadline")
+    else:
+        effective['automatic_refund_deadline'] = (instance_date + delta_refund_deadline) if delta_refund_deadline is not None else None
 
     # A couple of defensive defaults that the validator references
     # Ensure payment_options exist as list if not provided
@@ -202,7 +222,7 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
     # Validate valid overrides dictionary
     # Return success is False if it contains any keys not explicitly allowed
     for key, value in overrides.items():
-        if key not in allowed_overrides:
+        if key not in allowed_override_args:
             return {'success':False, 'msg':f'Overrides contains forbidden key: {key}'}
         
     # Fetch parent event
@@ -221,8 +241,25 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
 
     # Package overrides by groups
     package = await package_overrides(overrides, parent_event)
-    new_overrides_obj: EventInstanceOverrides = package["overrides"]
+    if not package['success']:
+        return {'success':False, 'msg':'Could not validate overrides!'}
+    
+    assembly_dict = package['assembly'].model_dump(exclude_none=True)
     tracker = package["tracker"]
+
+    # For every override tracker
+    flag_index = 0
+    # If flag is true, then every override in that group needs to be defined
+    for flag in tracker:
+        # Define overrides
+        if flag:
+            for override in override_groups[flag_index]:
+                if override not in assembly_dict:
+                    if override in overrides_allowed_none:
+                        assembly_dict[override] = None
+                    else:
+                        assembly_dict[override] = parent_event.get(override)
+        flag_index += 1
 
     # Fetch the target instance
     try:
@@ -235,9 +272,7 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
     if not instance_doc:
         return {"success": False, "msg": "Event instance not found for provided series_index."}
 
-    # Build an 'effective event' dict and validate
-    overrides_dict = new_overrides_obj.model_dump(exclude_none=True)
-    effective_event = _assemble_effective_event_for_instance(parent_event, instance_doc, overrides_dict)
+    effective_event = _assemble_effective_event_for_instance(parent_event, instance_doc, assembly_dict)
 
     date_check = False
     if 'date' in overrides:
@@ -253,7 +288,7 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
     # Persist the overrides + tracker on the instance
     update = {
         "$set": {
-            "overrides": overrides_dict,
+            "overrides": assembly_dict,
             "overrides_tracker": tracker,
             "overrides_date_updated_on": overrides_update_date,
             "scheduled_date": scheduled_date,
@@ -261,85 +296,151 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
     }
     await instance_coll.update_one({"_id": instance_doc["_id"]}, update)
 
-    return {"success": True, "msg": "Overrides updated successfully.", "overrides_applied": overrides_dict, "overrides_tracker": tracker}
+    return {"success": True, "msg": "Overrides updated successfully.", "overrides_applied": assembly_dict, "overrides_tracker": tracker}
 
 
-
-# TODO: I COMMENTED THIS TO LOOK AT IT LATER WHEN REGISTRATION IS READY!
-'''
-async def register_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, display_name: Optional[str] = None, scope: str = "series", payment_option: Optional[str] = None):
+async def fetch_admin_instance_assembly_by_id(instance_id: str, preferred_lang: Optional[str] = None):
     """
-    High-level action: RSVP an event *and* reflect it in the user's my_events.
-    scope: "series" for recurring registration, "occurrence" for one-time registration
-    payment_option: "paypal", "door", "free", or None
-    Returns: (success, reason)
+    Fetch a single assembled (admin) EventInstance payload by instance_id.
+    Returns a stable {success, msg, instance, preferred_lang} envelope for the router.
     """
-    # Convert person_id to ObjectId if provided
-    person_object_id = ObjectId(person_id) if person_id else None
-    
-    # Map payment option to payment status
-    payment_status = None
-    if payment_option == "door":
-        payment_status = "pending_door"
-    elif payment_option == "paypal":
-        payment_status = "awaiting_payment"
-    elif payment_option == "free":
-        payment_status = None  # Free events don't need payment status
-    # If payment_option is None, payment_status remains None (free registration)
-    
-    ok, reason = await rsvp_add_person(event_id, uid, person_object_id, display_name, kind="rsvp", scope=scope, payment_status=payment_status)
-    if not ok:
-        return False, reason
-
     try:
-        await UserHandler.add_to_my_events(
-            uid=uid,
-            event_id=ObjectId(event_id),
-            reason="rsvp",
-            scope=scope,
-            person_id=person_object_id
+        instance = await get_event_instance_assembly_by_id(
+            instance_id,
+            preferred_lang=preferred_lang,
         )
+        if not instance:
+            return {
+                "success": False,
+                "msg": "Event instance not found.",
+                "instance": None,
+                "preferred_lang": preferred_lang or "",
+            }
+        return {
+            "success": True,
+            "msg": "Instance returned successfully.",
+            "instance": instance,
+            "preferred_lang": preferred_lang or "",
+        }
     except Exception as e:
-        # Event RSVP succeeded, but user record failed
-        logging.warning(f"Warning: user my_events update failed: {e}")
-
-    return True, "success"
-
-
-async def cancel_rsvp(event_id: str, uid: str, person_id: Optional[str] = None, scope: Optional[str] = None):
-    """
-    High-level action: cancel RSVP from event + user my_events.
-    If scope is None, removes all registrations for this person (both occurrence and series).
-    If scope is specified, only removes that specific scope registration.
-    """
-    # Convert person_id to ObjectId if provided
-    person_object_id = ObjectId(person_id) if person_id else None
-    ok = await rsvp_remove_person(event_id, uid, person_object_id, kind="rsvp", scope=scope)
-    if not ok:
-        return False
-
-    try:
-        # Try to remove from my_events with the specified scope
-        removed = await UserHandler.remove_from_my_events(
-            uid=uid,
-            event_id=ObjectId(event_id),
-            reason="rsvp",
-            scope=scope,
-            person_id=person_object_id,
-        )
-        
-        if not removed and scope is not None:
-            # FALLBACK: Try the opposite scope if the specified one wasn't found
-            opposite_scope = 'occurrence' if scope == 'series' else 'series'
-            removed = await UserHandler.remove_from_my_events(
-                uid=uid,
-                event_id=ObjectId(event_id),
-                reason="rsvp",
-                scope=opposite_scope,
-                person_id=person_object_id,
-            )
-    except Exception as e:
-        logging.warning(f"Warning: user my_events cleanup failed: {e}")
+        return {
+            "success": False,
+            "msg": f"Failed to fetch instance assembly: {e}",
+            "instance": None,
+            "preferred_lang": preferred_lang or "",
+        }
     
-    return True
-'''
+async def process_set_event_discount_codes(payload: EventDiscountCodesUpdate):
+    """
+    Admin-only: Update the `discount_codes` list for an event.
+    - Validates that event exists
+    - Validates that each discount code ID exists
+    - Deduplicates provided IDs
+    """
+    # 1) Validate event exists
+    try:
+        event_oid = ObjectId(payload.event_id)
+    except Exception:
+        return {"success": False, "msg": "Invalid event_id."}
+
+    event_doc = await DB.db["events"].find_one({"_id": event_oid})
+    if not event_doc:
+        return {"success": False, "msg": "Event not found."}
+
+    # 2) Normalize & validate discount code ids
+    unique_ids: List[str] = list(dict.fromkeys(payload.discount_codes))  # preserve order, drop dups
+    code_oids = []
+    for s in unique_ids:
+        try:
+            code_oids.append(ObjectId(s))
+        except Exception:
+            return {"success": False, "msg": f"Invalid discount code id: {s}"}
+
+    if code_oids:
+        existing = await DB.db["discount_codes"].count_documents({"_id": {"$in": code_oids}})
+        if existing != len(code_oids):
+            return {"success": False, "msg": "One or more discount code IDs do not exist."}
+
+    # 3) Update event’s discount_codes (store as strings to match Event model)
+    #    Also bump updated_on to keep parity with other event updates.
+    str_ids = [str(x) for x in code_oids]
+    res = await DB.db["events"].update_one(
+        {"_id": event_oid},
+        {"$set": {"discount_codes": str_ids, "updated_on": datetime.now(timezone.utc)}},
+    )
+    if res.modified_count == 0:
+        # It might be a no-op (same values). Treat as success for idempotency.
+        pass
+
+    # 4) Return the updated event (assembled like other admin reads)
+    from models.event import get_event_by_id  # local import to avoid circulars
+    updated = await get_event_by_id(str(event_oid))
+    if not updated:
+        return {"success": False, "msg": "Event updated, but failed to re-fetch event."}
+
+    return {"success": True, "msg": "Discount codes updated for event!", "event": updated}
+
+async def process_delete_discount_code(code_id: str):
+    """
+    1) Remove the code id from all events' discount_codes
+    2) Delete the discount code document
+    Returns: {success, msg, affected_events}
+    """
+    # Step 1: pull from all events first (avoid dangling references if step 2 fails)
+    pulled = await remove_discount_code_from_all_events(code_id)
+    if not pulled.get("success"):
+        return {"success": False, "msg": pulled.get("msg", "Failed to update events."), "affected_events": 0}
+
+    # Step 2: delete the code
+    deleted = await delete_discount_code(code_id)
+    if not deleted.get("success"):
+        # Optional: If delete fails, you could re-add, but we keep it simple: references are already removed.
+        return {"success": False, "msg": deleted.get("msg", "Failed to delete code."), "affected_events": pulled.get("modified_count", 0)}
+
+    return {
+        "success": True,
+        "msg": f"Deleted discount code and removed it from {pulled.get('modified_count', 0)} event(s).",
+        "affected_events": pulled.get("modified_count", 0),
+    }
+
+async def get_user_registration_info(instance_id:str, user_id:str):
+    """
+    THIS FUNCTION RETURNS MANY THINGS!
+    THE PURPOSE OF THIS IS TO GET EVENT DETAILS + REGISTRATION DETAILS OF A PARTICULAR EVENT INSTANCE FROM A PARTICULAR USER!
+    """
+
+    # Try to get instance by ID
+    # NOTE: The full RegistrationDetails lives on the instance.
+    # Therefore, no particular additional search will be needed to get the details by a person
+    instance_doc = await get_event_instance_assembly_by_id(instance_id)
+
+    instance = AssembledEventInstance(**instance_doc)
+
+    # If we have no found instance, return an error
+    if instance is None:
+        return {'success':False, 'msg':f'Could not find the event instance with id {instance_id}', 'event_instance':None, 'person_dict': None}
+    
+
+    # NOTE: Based off the RegistrationDetails we only have IDs and raw SELF.
+    # This means that we would have no means of displaying names, gender, dob etc of these people just based off the instance details
+    # Thus, we need to do additional searches.
+
+    person_dict = await get_person_dict(user_id)
+
+    # Now, think about a particular case of viewing a past event and the person gets deleted or something like this.
+    # Or, if the person dict otherwise failed to get properly.
+    # To account for this, lets make it safer by including default values.
+    default_map = {'first_name':'UNKNOWN', 'last_name':'NAME', 'DOB':None, 'gender':None}
+
+    # Account for SELF not having details
+    if 'SELF' not in person_dict:
+        person_dict['SELF'] = default_map
+
+    # Account for each person not having details
+    if instance.registration_details is not None and user_id in instance.registration_details:
+        for family in instance.registration_details[user_id].family_registered:
+            if family not in person_dict:
+                person_dict[family] = default_map
+    
+    # Return all information
+    return {'success':True, 'msg':'Successfully returned user registration details!', 'event_instance':instance.model_dump(), 'person_dict':person_dict}

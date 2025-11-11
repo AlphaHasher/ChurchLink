@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import EventsTableV2 from "@/features/admin/components/EventsV2/EventsTableV2";
+import EventsTableV2 from "@/features/admin/components/EventsV2/EventManagement/EventsTableV2";
 import { fetchPagedAdminPanelEvents } from "@/helpers/EventManagementHelper";
 import { fetchMinistries } from "@/helpers/MinistriesHelper";
 import type {
@@ -21,7 +21,7 @@ import {
 import {
     Command, CommandInput, CommandEmpty, CommandList, CommandGroup, CommandItem,
 } from "@/shared/components/ui/command";
-import CreateEventDialogV2 from "@/features/admin/components/EventsV2/CreateEventDialogV2";
+import CreateEventDialogV2 from "@/features/admin/components/EventsV2/EventManagement/CreateEventDialogV2";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Filter } from "lucide-react";
 

@@ -1,22 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
 } from "@/shared/components/ui/Dialog";
 import { Switch } from "@/shared/components/ui/switch";
 import { Input } from "@/shared/components/ui/input";
-import { Textarea } from "@/shared/components/ui/textarea";
 import { Label } from "@/shared/components/ui/label";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Badge } from "@/shared/components/ui/badge";
 import {
-    Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
 } from "@/shared/components/ui/select";
 import {
-    Popover, PopoverTrigger, PopoverContent,
+    Popover,
+    PopoverTrigger,
+    PopoverContent,
 } from "@/shared/components/ui/popover";
 import {
-    Command, CommandInput, CommandEmpty, CommandList, CommandGroup, CommandItem,
+    Command,
+    CommandInput,
+    CommandEmpty,
+    CommandList,
+    CommandGroup,
+    CommandItem,
 } from "@/shared/components/ui/command";
 import { Calendar } from "@/shared/components/ui/calendar";
 import { Pencil } from "lucide-react";
@@ -37,7 +52,8 @@ import {
     updateEventInstanceOverrides,
 } from "@/helpers/EventManagementHelper";
 
-/** ----------------- Helpers ----------------- */
+import { localeEnUSToISOInAdminTz } from "@/helpers/TimeFormatter";
+
 
 function dateLabel(iso?: string | null) {
     if (!iso) return "Pick date";
@@ -58,16 +74,22 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
     const [draft, setDraft] = useState<AdminEventInstanceOverrides>({});
 
     // Group switches (1..7) derived from `instance.overrides_tracker`
-    // Bit tricky but it is an array of booleans that tracks which override groups are activated
     const [groupsOn, setGroupsOn] = useState<OverridesGroupsOn>({
-        1: false, 2: false, 3: false, 4: false, 5: false, 6: false, 7: false,
+        1: false,
+        2: false,
+        3: false,
+        4: false,
+        5: false,
+        6: false,
+        7: false,
     });
 
-    /** ---------- Localization (Map<string, EventLocalization>) ---------- */
+
     const localizationsMap = draft.localizations;
 
     const locKeys = useMemo<string[]>(
-        () => (localizationsMap instanceof Map ? Array.from(localizationsMap.keys()) : []),
+        () =>
+            localizationsMap instanceof Map ? Array.from(localizationsMap.keys()) : [],
         [localizationsMap]
     );
 
@@ -75,12 +97,19 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
 
     const setLocField = (
         lang: string,
-        field: keyof Pick<EventLocalization, "title" | "description" | "location_info">,
+        field: keyof Pick<
+            EventLocalization,
+            "title" | "description" | "location_info"
+        >,
         val: string
     ) => {
         if (!(draft.localizations instanceof Map)) return;
         const next = new Map(draft.localizations);
-        const prev = next.get(lang) ?? { title: "", description: "", location_info: "" };
+        const prev = next.get(lang) ?? {
+            title: "",
+            description: "",
+            location_info: "",
+        };
         next.set(lang, { ...prev, [field]: val });
         setDraft((d) => ({ ...d, localizations: next }));
     };
@@ -116,16 +145,27 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
         }
     };
 
-    /** ---------- Hydrate when opening ---------- */
-    useEffect(() => {
-        if (!open) return;
+    /** ---------- Month control so calendars open on the selected date ---------- */
+    const [monthDateEvent, setMonthDateEvent] = useState<Date | undefined>(
+        undefined
+    );
+    const [monthDateOpens, setMonthDateOpens] = useState<Date | undefined>(
+        undefined
+    );
+    const [monthDateDeadline, setMonthDateDeadline] = useState<
+        Date | undefined
+    >(undefined);
+    const [monthDateRefund, setMonthDateRefund] = useState<Date | undefined>(
+        undefined
+    );
 
+
+    const seedFromInstance = () => {
         // Normalize localizations from instance: accept Map or plain object
         const seededLocs = (() => {
             const src: any = (instance as any).localizations;
             if (!src) return undefined;
 
-            // Map -> clone to new Map<string, EventLocalization>
             if (src instanceof Map) {
                 return new Map<string, EventLocalization>(
                     Array.from(src.entries()).map(([k, v]) => [
@@ -135,11 +175,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                             description: v?.description ?? "",
                             location_info: v?.location_info ?? "",
                         },
-                    ]),
+                    ])
                 );
             }
 
-            // Plain object -> convert to Map<string, EventLocalization>
             if (typeof src === "object") {
                 return new Map<string, EventLocalization>(
                     Object.entries(src).map(([k, v]: any) => [
@@ -149,23 +188,24 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                             description: v?.description ?? "",
                             location_info: v?.location_info ?? "",
                         },
-                    ]),
+                    ])
                 );
             }
 
             return undefined;
         })();
 
+        // Hydrate draft from instance
         setDraft({
-            // Hydrate everything from the instance state
             localizations: seededLocs,
-            location_url: instance.location_url ?? null,
+            location_address: instance.location_address ?? null,
             image_id: instance.image_id ?? null,
-            date: (instance as any).date ?? instance.target_date ?? null,
+            date: localeEnUSToISOInAdminTz(instance.date) ?? instance.target_date ?? null,
             hidden: instance.hidden ?? null,
             registration_allowed: instance.registration_allowed ?? null,
-            registration_opens: instance.registration_opens ?? null,
-            registration_deadline: instance.registration_deadline ?? null,
+            registration_opens: localeEnUSToISOInAdminTz(instance.registration_opens) ?? null,
+            registration_deadline: localeEnUSToISOInAdminTz(instance.registration_deadline) ?? null,
+            automatic_refund_deadline: localeEnUSToISOInAdminTz(instance.automatic_refund_deadline) ?? null,
             members_only: instance.members_only ?? null,
             rsvp_required: instance.rsvp_required ?? null,
             max_spots: instance.max_spots ?? null,
@@ -175,7 +215,6 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
             max_age: instance.max_age ?? null,
             gender: instance.gender ?? null,
             payment_options: instance.payment_options ?? null,
-            refund_policy: instance.refund_policy ?? null,
         });
 
         // Set initial override tracker state
@@ -195,6 +234,47 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
             (seededLocs && Array.from(seededLocs.keys())[0]) ||
             (instance.default_localization || "en");
         setActiveLang(firstLang);
+
+        // Initialize calendar months so pickers open near current values
+        setMonthDateEvent(
+            (instance as any).date
+                ? new Date((instance as any).date)
+                : instance.target_date
+                    ? new Date(instance.target_date)
+                    : undefined
+        );
+        setMonthDateOpens(
+            instance.registration_opens
+                ? new Date(instance.registration_opens)
+                : (instance as any).date
+                    ? new Date((instance as any).date)
+                    : instance.target_date
+                        ? new Date(instance.target_date)
+                        : undefined
+        );
+        setMonthDateDeadline(
+            instance.registration_deadline
+                ? new Date(instance.registration_deadline)
+                : (instance as any).date
+                    ? new Date((instance as any).date)
+                    : instance.target_date
+                        ? new Date(instance.target_date)
+                        : undefined
+        );
+        setMonthDateRefund(
+            (instance as any).automatic_refund_deadline
+                ? new Date((instance as any).automatic_refund_deadline)
+                : (instance as any).date
+                    ? new Date((instance as any).date)
+                    : instance.target_date
+                        ? new Date(instance.target_date)
+                        : undefined
+        );
+    };
+
+    useEffect(() => {
+        if (!open) return;
+        seedFromInstance();
     }, [open, instance]);
 
     const toggleGroup = (n: number, on: boolean) =>
@@ -234,7 +314,15 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
 
     return (
         <>
-            <Button variant="ghost" size="icon" onClick={() => setOpen(true)} title="Edit instance">
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                    seedFromInstance();
+                    setOpen(true);
+                }}
+                title="Edit instance"
+            >
                 <Pencil className="h-4 w-4" />
             </Button>
 
@@ -259,7 +347,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">Override</span>
-                                    <Switch checked={!!groupsOn[1]} onCheckedChange={(v) => toggleGroup(1, !!v)} />
+                                    <Switch
+                                        checked={!!groupsOn[1]}
+                                        onCheckedChange={(v) => toggleGroup(1, !!v)}
+                                    />
                                 </div>
                             </div>
 
@@ -267,7 +358,9 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                 {/* Active locale chips */}
                                 <div className="mt-1 flex flex-wrap items-center gap-2">
                                     <div className="flex flex-wrap gap-2">
-                                        {locKeys.length === 0 && <Badge variant="destructive">No locales added</Badge>}
+                                        {locKeys.length === 0 && (
+                                            <Badge variant="destructive">No locales added</Badge>
+                                        )}
                                         {locKeys.map((code) => (
                                             <Badge
                                                 key={code}
@@ -298,7 +391,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                 Add locale
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="p-0 w-80" onWheel={(e) => e.stopPropagation()}>
+                                        <PopoverContent
+                                            className="p-0 w-80"
+                                            onWheel={(e) => e.stopPropagation()}
+                                        >
                                             <Command>
                                                 <CommandInput placeholder="Search languages…" />
                                                 <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
@@ -307,7 +403,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                         {Object.keys(localizationNameToCode)
                                                             .sort((a, b) => a.localeCompare(b))
                                                             .map((name) => (
-                                                                <CommandItem key={name} onSelect={() => addLocaleByName(name)}>
+                                                                <CommandItem
+                                                                    key={name}
+                                                                    onSelect={() => addLocaleByName(name)}
+                                                                >
                                                                     {name}
                                                                 </CommandItem>
                                                             ))}
@@ -325,25 +424,46 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                 <Label htmlFor="title">Title ({activeLang})</Label>
                                                 <Input
                                                     id="title"
-                                                    value={draft.localizations.get(activeLang)?.title ?? ""}
-                                                    onChange={(e) => setLocField(activeLang, "title", e.target.value)}
+                                                    value={
+                                                        draft.localizations.get(activeLang)?.title ?? ""
+                                                    }
+                                                    onChange={(e) =>
+                                                        setLocField(activeLang, "title", e.target.value)
+                                                    }
                                                 />
                                             </div>
                                             <div className="max-w-sm">
-                                                <Label htmlFor="locationInfo">Location Info ({activeLang})</Label>
+                                                <Label htmlFor="locationInfo">
+                                                    Location Info ({activeLang})
+                                                </Label>
                                                 <Input
                                                     id="locationInfo"
-                                                    value={draft.localizations.get(activeLang)?.location_info ?? ""}
-                                                    onChange={(e) => setLocField(activeLang, "location_info", e.target.value)}
+                                                    value={
+                                                        draft.localizations.get(activeLang)?.location_info ??
+                                                        ""
+                                                    }
+                                                    onChange={(e) =>
+                                                        setLocField(
+                                                            activeLang,
+                                                            "location_info",
+                                                            e.target.value
+                                                        )
+                                                    }
                                                 />
                                             </div>
                                         </div>
                                         <div className="max-w-2xl">
-                                            <Label htmlFor="description">Description ({activeLang})</Label>
-                                            <Textarea
+                                            <Label htmlFor="description">
+                                                Description ({activeLang})
+                                            </Label>
+                                            <Input
                                                 id="description"
-                                                value={draft.localizations.get(activeLang)?.description ?? ""}
-                                                onChange={(e) => setLocField(activeLang, "description", e.target.value)}
+                                                value={
+                                                    draft.localizations.get(activeLang)?.description ?? ""
+                                                }
+                                                onChange={(e) =>
+                                                    setLocField(activeLang, "description", e.target.value)
+                                                }
                                             />
                                         </div>
                                     </div>
@@ -354,7 +474,14 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                         {/* GROUP 2: Location */}
                         <section className="space-y-3 border rounded-md p-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-base font-semibold">Location</h3>
+                                <div>
+                                    <h3 className="text-base font-semibold">Location</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Use <span className="font-medium">Location Address</span> as{" "}
+                                        <i>Name, Address</i> (copy exact venue name and address from
+                                        Google Maps).
+                                    </p>
+                                </div>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">Override</span>
                                     <Switch
@@ -366,13 +493,14 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                             </div>
 
                             <div className={disabledClass(!!groupsOn[2])}>
-                                <Label htmlFor="locUrl">Location URL</Label>
+                                <Label htmlFor="locAddr">Location Address</Label>
                                 <Input
-                                    id="locUrl"
-                                    type="url"
-                                    value={draft.location_url ?? ""}
-                                    onChange={(e) => updateDraft("location_url", e.target.value || null)}
-                                    placeholder="https://maps.google.com/…"
+                                    id="locAddr"
+                                    value={draft.location_address ?? ""}
+                                    onChange={(e) =>
+                                        updateDraft("location_address", e.target.value || null)
+                                    }
+                                    placeholder="Civic Auditorium, 123 Main St, Springfield, IL 62701"
                                 />
                             </div>
                         </section>
@@ -405,7 +533,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                 <h3 className="text-base font-semibold">Date &amp; Time</h3>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">Override</span>
-                                    <Switch checked={!!groupsOn[4]} onCheckedChange={(v) => toggleGroup(4, !!v)} />
+                                    <Switch
+                                        checked={!!groupsOn[4]}
+                                        onCheckedChange={(v) => toggleGroup(4, !!v)}
+                                    />
                                 </div>
                             </div>
 
@@ -423,12 +554,23 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                 <PopoverContent className="w-auto p-3" align="start">
                                                     <Calendar
                                                         mode="single"
-                                                        selected={draft.date ? new Date(draft.date) : undefined}
+                                                        month={monthDateEvent}
+                                                        onMonthChange={setMonthDateEvent}
+                                                        selected={
+                                                            draft.date ? new Date(draft.date) : undefined
+                                                        }
                                                         onSelect={(d: Date | undefined) => {
                                                             if (!d) return;
-                                                            const current = draft.date ? new Date(draft.date) : new Date();
+                                                            const current = draft.date
+                                                                ? new Date(draft.date)
+                                                                : new Date();
                                                             const next = new Date(d);
-                                                            next.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                                                            next.setHours(
+                                                                current.getHours(),
+                                                                current.getMinutes(),
+                                                                0,
+                                                                0
+                                                            );
                                                             updateDraft("date", next.toISOString());
                                                         }}
                                                         initialFocus
@@ -438,10 +580,20 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                         <Input
                                                             id="eventTime"
                                                             type="time"
-                                                            value={draft.date ? new Date(draft.date).toTimeString().slice(0, 5) : "09:00"}
+                                                            value={
+                                                                draft.date
+                                                                    ? new Date(draft.date)
+                                                                        .toTimeString()
+                                                                        .slice(0, 5)
+                                                                    : "09:00"
+                                                            }
                                                             onChange={(e) => {
-                                                                const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
-                                                                const base = draft.date ? new Date(draft.date) : new Date();
+                                                                const [hh, mm] = e.target.value
+                                                                    .split(":")
+                                                                    .map((n) => parseInt(n, 10));
+                                                                const base = draft.date
+                                                                    ? new Date(draft.date)
+                                                                    : new Date();
                                                                 base.setHours(hh || 0, mm || 0, 0, 0);
                                                                 updateDraft("date", base.toISOString());
                                                             }}
@@ -455,13 +607,18 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                             </div>
                         </section>
 
-                        {/* GROUP 5: Registration & Pricing */}
+                        {/* GROUP 5: Registration & Pricing (now includes Automatic refund deadline) */}
                         <section className="space-y-3 border rounded-md p-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-base font-semibold">RSVP / Registration / Pricing</h3>
+                                <h3 className="text-base font-semibold">
+                                    RSVP / Registration / Pricing
+                                </h3>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">Override</span>
-                                    <Switch checked={!!groupsOn[5]} onCheckedChange={(v) => toggleGroup(5, !!v)} />
+                                    <Switch
+                                        checked={!!groupsOn[5]}
+                                        onCheckedChange={(v) => toggleGroup(5, !!v)}
+                                    />
                                 </div>
                             </div>
 
@@ -470,7 +627,9 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                     <Checkbox
                                         id="rsvpRequired"
                                         checked={!!draft.rsvp_required}
-                                        onCheckedChange={(v) => updateDraft("rsvp_required", !!v)}
+                                        onCheckedChange={(v) =>
+                                            updateDraft("rsvp_required", !!v)
+                                        }
                                     />
                                     <Label htmlFor="rsvpRequired">RSVP required</Label>
                                 </div>
@@ -478,14 +637,21 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                     If off, windows/capacity/pricing are disabled.
                                 </p>
 
-                                <div className="mt-4 grid md:grid-cols-2 gap-6">
+                                {/* Window toggles */}
+                                <div className="mt-4 grid md:grid-cols-3 gap-6">
                                     <div className="max-w-sm">
                                         <div className="flex items-center gap-3">
                                             <Switch
                                                 id="opensEnabled"
                                                 checked={!!draft.registration_opens}
                                                 onCheckedChange={(v) =>
-                                                    updateDraft("registration_opens", v ? (draft.registration_opens ?? new Date().toISOString()) : null)
+                                                    updateDraft(
+                                                        "registration_opens",
+                                                        v
+                                                            ? draft.registration_opens ??
+                                                            new Date().toISOString()
+                                                            : null
+                                                    )
                                                 }
                                                 disabled={!draft.rsvp_required}
                                             />
@@ -501,36 +667,89 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                 onCheckedChange={(v) =>
                                                     updateDraft(
                                                         "registration_deadline",
-                                                        v ? (draft.registration_deadline ?? new Date().toISOString()) : null
+                                                        v
+                                                            ? draft.registration_deadline ??
+                                                            new Date().toISOString()
+                                                            : null
                                                     )
                                                 }
                                                 disabled={!draft.rsvp_required}
                                             />
-                                            <Label htmlFor="deadlineEnabled">Registration deadline</Label>
+                                            <Label htmlFor="deadlineEnabled">
+                                                Registration deadline
+                                            </Label>
+                                        </div>
+                                    </div>
+
+                                    <div className="max-w-sm">
+                                        <div className="flex items-center gap-3">
+                                            <Switch
+                                                id="refundDeadlineEnabled"
+                                                checked={!!draft.automatic_refund_deadline}
+                                                onCheckedChange={(v) =>
+                                                    updateDraft(
+                                                        "automatic_refund_deadline",
+                                                        v
+                                                            ? draft.automatic_refund_deadline ??
+                                                            new Date().toISOString()
+                                                            : null
+                                                    )
+                                                }
+                                                disabled={!draft.rsvp_required}
+                                            />
+                                            <Label htmlFor="refundDeadlineEnabled">
+                                                Automatic refund deadline
+                                            </Label>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-3 grid md:grid-cols-2 gap-6">
-                                    <div className={`${!draft.rsvp_required || !draft.registration_opens ? "opacity-50 pointer-events-none" : ""} max-w-md`}>
+                                {/* Window pickers */}
+                                <div className="mt-3 grid md:grid-cols-3 gap-6">
+                                    {/* Opens at */}
+                                    <div
+                                        className={`${!draft.rsvp_required || !draft.registration_opens
+                                            ? "opacity-50 pointer-events-none"
+                                            : ""
+                                            } max-w-md`}
+                                    >
                                         <Label>Opens at</Label>
                                         <div className="mt-2">
                                             <Popover>
                                                 <PopoverTrigger asChild>
-                                                    <Button variant="outline" className="justify-start w-full">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="justify-start w-full"
+                                                    >
                                                         {dateLabel(draft.registration_opens as string)}
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-auto p-3" align="start">
                                                     <Calendar
                                                         mode="single"
-                                                        selected={draft.registration_opens ? new Date(draft.registration_opens) : undefined}
+                                                        month={monthDateOpens}
+                                                        onMonthChange={setMonthDateOpens}
+                                                        selected={
+                                                            draft.registration_opens
+                                                                ? new Date(draft.registration_opens)
+                                                                : undefined
+                                                        }
                                                         onSelect={(d: Date | undefined) => {
                                                             if (!d) return;
-                                                            const current = draft.registration_opens ? new Date(draft.registration_opens) : new Date();
+                                                            const current = draft.registration_opens
+                                                                ? new Date(draft.registration_opens)
+                                                                : new Date();
                                                             const next = new Date(d);
-                                                            next.setHours(current.getHours(), current.getMinutes(), 0, 0);
-                                                            updateDraft("registration_opens", next.toISOString());
+                                                            next.setHours(
+                                                                current.getHours(),
+                                                                current.getMinutes(),
+                                                                0,
+                                                                0
+                                                            );
+                                                            updateDraft(
+                                                                "registration_opens",
+                                                                next.toISOString()
+                                                            );
                                                         }}
                                                         initialFocus
                                                     />
@@ -541,14 +760,23 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                             type="time"
                                                             value={
                                                                 draft.registration_opens
-                                                                    ? new Date(draft.registration_opens).toTimeString().slice(0, 5)
+                                                                    ? new Date(draft.registration_opens)
+                                                                        .toTimeString()
+                                                                        .slice(0, 5)
                                                                     : "09:00"
                                                             }
                                                             onChange={(e) => {
-                                                                const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
-                                                                const base = draft.registration_opens ? new Date(draft.registration_opens) : new Date();
+                                                                const [hh, mm] = e.target.value
+                                                                    .split(":")
+                                                                    .map((n) => parseInt(n, 10));
+                                                                const base = draft.registration_opens
+                                                                    ? new Date(draft.registration_opens)
+                                                                    : new Date();
                                                                 base.setHours(hh || 0, mm || 0, 0, 0);
-                                                                updateDraft("registration_opens", base.toISOString());
+                                                                updateDraft(
+                                                                    "registration_opens",
+                                                                    base.toISOString()
+                                                                );
                                                             }}
                                                         />
                                                     </div>
@@ -557,25 +785,50 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                         </div>
                                     </div>
 
-                                    <div className={`${!draft.rsvp_required || !draft.registration_deadline ? "opacity-50 pointer-events-none" : ""} max-w-md`}>
+                                    {/* Registration deadline */}
+                                    <div
+                                        className={`${!draft.rsvp_required || !draft.registration_deadline
+                                            ? "opacity-50 pointer-events-none"
+                                            : ""
+                                            } max-w-md`}
+                                    >
                                         <Label>Deadline</Label>
                                         <div className="mt-2">
                                             <Popover>
                                                 <PopoverTrigger asChild>
-                                                    <Button variant="outline" className="justify-start w-full">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="justify-start w-full"
+                                                    >
                                                         {dateLabel(draft.registration_deadline as string)}
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-auto p-3" align="start">
                                                     <Calendar
                                                         mode="single"
-                                                        selected={draft.registration_deadline ? new Date(draft.registration_deadline) : undefined}
+                                                        month={monthDateDeadline}
+                                                        onMonthChange={setMonthDateDeadline}
+                                                        selected={
+                                                            draft.registration_deadline
+                                                                ? new Date(draft.registration_deadline)
+                                                                : undefined
+                                                        }
                                                         onSelect={(d: Date | undefined) => {
                                                             if (!d) return;
-                                                            const current = draft.registration_deadline ? new Date(draft.registration_deadline) : new Date();
+                                                            const current = draft.registration_deadline
+                                                                ? new Date(draft.registration_deadline)
+                                                                : new Date();
                                                             const next = new Date(d);
-                                                            next.setHours(current.getHours(), current.getMinutes(), 0, 0);
-                                                            updateDraft("registration_deadline", next.toISOString());
+                                                            next.setHours(
+                                                                current.getHours(),
+                                                                current.getMinutes(),
+                                                                0,
+                                                                0
+                                                            );
+                                                            updateDraft(
+                                                                "registration_deadline",
+                                                                next.toISOString()
+                                                            );
                                                         }}
                                                         initialFocus
                                                     />
@@ -586,20 +839,114 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                             type="time"
                                                             value={
                                                                 draft.registration_deadline
-                                                                    ? new Date(draft.registration_deadline).toTimeString().slice(0, 5)
+                                                                    ? new Date(draft.registration_deadline)
+                                                                        .toTimeString()
+                                                                        .slice(0, 5)
                                                                     : "17:00"
                                                             }
                                                             onChange={(e) => {
-                                                                const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
-                                                                const base = draft.registration_deadline ? new Date(draft.registration_deadline) : new Date();
+                                                                const [hh, mm] = e.target.value
+                                                                    .split(":")
+                                                                    .map((n) => parseInt(n, 10));
+                                                                const base = draft.registration_deadline
+                                                                    ? new Date(draft.registration_deadline)
+                                                                    : new Date();
                                                                 base.setHours(hh || 0, mm || 0, 0, 0);
-                                                                updateDraft("registration_deadline", base.toISOString());
+                                                                updateDraft(
+                                                                    "registration_deadline",
+                                                                    base.toISOString()
+                                                                );
                                                             }}
                                                         />
                                                     </div>
                                                 </PopoverContent>
                                             </Popover>
                                         </div>
+                                    </div>
+
+                                    {/* Automatic refund deadline */}
+                                    <div
+                                        className={`${!draft.rsvp_required || !draft.automatic_refund_deadline
+                                            ? "opacity-50 pointer-events-none"
+                                            : ""
+                                            } max-w-md`}
+                                    >
+                                        <Label>Automatic refund deadline</Label>
+                                        <div className="mt-2">
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="justify-start w-full"
+                                                    >
+                                                        {dateLabel(
+                                                            draft.automatic_refund_deadline as string
+                                                        )}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-3" align="start">
+                                                    <Calendar
+                                                        mode="single"
+                                                        month={monthDateRefund}
+                                                        onMonthChange={setMonthDateRefund}
+                                                        selected={
+                                                            draft.automatic_refund_deadline
+                                                                ? new Date(draft.automatic_refund_deadline)
+                                                                : undefined
+                                                        }
+                                                        onSelect={(d: Date | undefined) => {
+                                                            if (!d) return;
+                                                            const current = draft.automatic_refund_deadline
+                                                                ? new Date(draft.automatic_refund_deadline)
+                                                                : new Date();
+                                                            const next = new Date(d);
+                                                            next.setHours(
+                                                                current.getHours(),
+                                                                current.getMinutes(),
+                                                                0,
+                                                                0
+                                                            );
+                                                            updateDraft(
+                                                                "automatic_refund_deadline",
+                                                                next.toISOString()
+                                                            );
+                                                        }}
+                                                        initialFocus
+                                                    />
+                                                    <div className="mt-3 w-48">
+                                                        <Label htmlFor="refundDeadlineTime">Time</Label>
+                                                        <Input
+                                                            id="refundDeadlineTime"
+                                                            type="time"
+                                                            value={
+                                                                draft.automatic_refund_deadline
+                                                                    ? new Date(draft.automatic_refund_deadline)
+                                                                        .toTimeString()
+                                                                        .slice(0, 5)
+                                                                    : "17:00"
+                                                            }
+                                                            onChange={(e) => {
+                                                                const [hh, mm] = e.target.value
+                                                                    .split(":")
+                                                                    .map((n) => parseInt(n, 10));
+                                                                const base = draft.automatic_refund_deadline
+                                                                    ? new Date(draft.automatic_refund_deadline)
+                                                                    : new Date();
+                                                                base.setHours(hh || 0, mm || 0, 0, 0);
+                                                                updateDraft(
+                                                                    "automatic_refund_deadline",
+                                                                    base.toISOString()
+                                                                );
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Must be before the event date and not earlier than
+                                            registration opens/deadline.
+                                        </p>
                                     </div>
                                 </div>
 
@@ -611,10 +958,17 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                             type="number"
                                             min={0}
                                             value={draft.max_spots ?? ""}
-                                            onChange={(e) => updateDraft("max_spots", e.target.value === "" ? null : Number(e.target.value))}
+                                            onChange={(e) =>
+                                                updateDraft(
+                                                    "max_spots",
+                                                    e.target.value === "" ? null : Number(e.target.value)
+                                                )
+                                            }
                                             disabled={!draft.rsvp_required}
                                         />
-                                        <p className="mt-1 text-xs text-muted-foreground">Leave blank for unlimited capacity.</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Leave blank for unlimited capacity.
+                                        </p>
                                     </div>
 
                                     <div className="max-w-xs">
@@ -625,10 +979,14 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                             step="0.01"
                                             min={0}
                                             value={draft.price ?? 0}
-                                            onChange={(e) => updateDraft("price", Number(e.target.value || 0))}
+                                            onChange={(e) =>
+                                                updateDraft("price", Number(e.target.value || 0))
+                                            }
                                             disabled={!draft.rsvp_required}
                                         />
-                                        <p className="mt-1 text-xs text-muted-foreground">If price &gt; 0, pick a payment option.</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            If price &gt; 0, pick a payment option.
+                                        </p>
                                     </div>
 
                                     <div className="max-w-xs">
@@ -639,7 +997,12 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                             step="0.01"
                                             min={0}
                                             value={draft.member_price ?? ""}
-                                            onChange={(e) => updateDraft("member_price", e.target.value === "" ? null : Number(e.target.value))}
+                                            onChange={(e) =>
+                                                updateDraft(
+                                                    "member_price",
+                                                    e.target.value === "" ? null : Number(e.target.value)
+                                                )
+                                            }
                                             disabled={!draft.rsvp_required}
                                         />
                                     </div>
@@ -647,7 +1010,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
 
                                 <div className="mt-4">
                                     <Label>Payment options</Label>
-                                    <div className={`flex flex-wrap gap-4 mt-2 ${!draft.rsvp_required ? "opacity-50 pointer-events-none" : ""}`}>
+                                    <div
+                                        className={`flex flex-wrap gap-4 mt-2 ${!draft.rsvp_required ? "opacity-50 pointer-events-none" : ""
+                                            }`}
+                                    >
                                         {(["paypal", "door"] as EventPaymentOption[]).map((opt) => {
                                             const arr = draft.payment_options ?? [];
                                             const checked = arr.includes(opt);
@@ -670,26 +1036,22 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                     </div>
                                 </div>
 
-                                <div className="mt-4 max-w-2xl">
-                                    <Label htmlFor="refund">Refund policy (optional)</Label>
-                                    <Textarea
-                                        id="refund"
-                                        value={draft.refund_policy ?? ""}
-                                        onChange={(e) => updateDraft("refund_policy", e.target.value)}
-                                        disabled={!draft.rsvp_required}
-                                        placeholder="e.g., Full refund up to 7 days before event."
-                                    />
-                                </div>
+                                {/* refund_policy removed */}
                             </div>
                         </section>
 
                         {/* GROUP 6: Eligibility */}
                         <section className="space-y-3 border rounded-md p-4">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-base font-semibold">Who is allowed to attend</h3>
+                                <h3 className="text-base font-semibold">
+                                    Who is allowed to attend
+                                </h3>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">Override</span>
-                                    <Switch checked={!!groupsOn[6]} onCheckedChange={(v) => toggleGroup(6, !!v)} />
+                                    <Switch
+                                        checked={!!groupsOn[6]}
+                                        onCheckedChange={(v) => toggleGroup(6, !!v)}
+                                    />
                                 </div>
                             </div>
 
@@ -698,7 +1060,9 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                     <Checkbox
                                         id="membersOnly"
                                         checked={!!draft.members_only}
-                                        onCheckedChange={(v) => updateDraft("members_only", !!v)}
+                                        onCheckedChange={(v) =>
+                                            updateDraft("members_only", !!v)
+                                        }
                                     />
                                     <Label htmlFor="membersOnly">Members only</Label>
                                 </div>
@@ -708,7 +1072,9 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                     <div className="flex items-center gap-2">
                                         <Select
                                             value={draft.gender ?? undefined}
-                                            onValueChange={(v) => updateDraft("gender", (v as EventGenderOption) || undefined)}
+                                            onValueChange={(v) =>
+                                                updateDraft("gender", (v as EventGenderOption) || undefined)
+                                            }
                                         >
                                             <SelectTrigger className="w-56">
                                                 <SelectValue placeholder="All Allowed" />
@@ -730,7 +1096,12 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                             type="number"
                                             min={0}
                                             value={draft.min_age ?? ""}
-                                            onChange={(e) => updateDraft("min_age", e.target.value === "" ? null : Number(e.target.value))}
+                                            onChange={(e) =>
+                                                updateDraft(
+                                                    "min_age",
+                                                    e.target.value === "" ? null : Number(e.target.value)
+                                                )
+                                            }
                                         />
                                     </div>
                                     <div className="w-32">
@@ -740,7 +1111,12 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                             type="number"
                                             min={0}
                                             value={draft.max_age ?? ""}
-                                            onChange={(e) => updateDraft("max_age", e.target.value === "" ? null : Number(e.target.value))}
+                                            onChange={(e) =>
+                                                updateDraft(
+                                                    "max_age",
+                                                    e.target.value === "" ? null : Number(e.target.value)
+                                                )
+                                            }
                                         />
                                     </div>
                                 </div>
@@ -753,7 +1129,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                 <h3 className="text-base font-semibold">Visibility</h3>
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground">Override</span>
-                                    <Switch checked={!!groupsOn[7]} onCheckedChange={(v) => toggleGroup(7, !!v)} />
+                                    <Switch
+                                        checked={!!groupsOn[7]}
+                                        onCheckedChange={(v) => toggleGroup(7, !!v)}
+                                    />
                                 </div>
                             </div>
 
@@ -763,7 +1142,9 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                         <Checkbox
                                             id="regAllowed"
                                             checked={!!draft.registration_allowed}
-                                            onCheckedChange={(v) => updateDraft("registration_allowed", !!v)}
+                                            onCheckedChange={(v) =>
+                                                updateDraft("registration_allowed", !!v)
+                                            }
                                         />
                                         <Label htmlFor="regAllowed">Registration allowed</Label>
                                     </div>

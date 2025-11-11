@@ -196,24 +196,22 @@ const EventSection: React.FC<EventSectionProps> = ({
         try {
             setRefreshing(true);
             const res = await fetchUserEvents(
-                buildParams({ limit: Math.max(prevCount(items.length), DEFAULT_PARAMS.limit) })
+                buildParams({ limit: Math.max((items.length || 0), DEFAULT_PARAMS.limit || 12) })
             );
             setItems(res.items || []);
             setCursor(res.next_cursor ?? null);
         } catch (e: any) {
             console.error("Refresh after favorite failed", e);
-            // If it fails, we keep the optimistic state
         } finally {
             setRefreshing(false);
         }
     }
-    function prevCount(n: number) { return Number.isFinite(n) && n > 0 ? n : DEFAULT_PARAMS.limit!; }
 
     function buildMinistryNameMap(list: Ministry[]): Record<string, string> {
         const map: Record<string, string> = {};
         for (const m of list || []) {
             if (!m?.id) continue;
-            const name = (m.name ?? m.normalized_name ?? "").toString().trim();
+            const name = (m.name ?? "").toString().trim();
             if (name) map[m.id] = name;
         }
         return map;

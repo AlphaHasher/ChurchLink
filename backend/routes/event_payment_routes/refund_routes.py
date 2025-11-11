@@ -1,6 +1,3 @@
-# TODO: UNBORK THIS
-
-'''
 from fastapi import APIRouter, HTTPException, Request, Body, Query
 from typing import Optional, List, Dict, Any
 from models.refund_request import (
@@ -307,4 +304,3 @@ async def list_all_refund_requests_admin(
     except Exception as e:
         logging.error(f"Error listing refund requests: {e}")
         raise HTTPException(status_code=500, detail="Failed to list refund requests")
-'''

@@ -28,6 +28,14 @@ class DB:
             "indexes": []
         },
         {
+            "name": "event_instances",
+            "indexes": []
+        },
+        {
+            "name": "event_transactions",
+            "indexes": []
+        },
+        {
             "name": "ministries",
             "indexes": ["normalized_name"],
         },

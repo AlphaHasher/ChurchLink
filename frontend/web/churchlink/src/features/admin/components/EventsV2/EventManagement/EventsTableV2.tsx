@@ -12,6 +12,7 @@ import { CalendarClock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import EditEventDialogV2 from "./EditEventDialogV2";
 import DeleteEventDialogV2 from "./DeleteEventDialogV2";
+import AssignDiscountCodesDialog from "@/features/admin/components/EventsV2/DiscountCodes/AssignDiscountCodesDialog";
 
 type EventsTableV2Props = {
     rows: ReadAdminPanelEvent[];
@@ -52,23 +53,23 @@ function makeActionsRenderer(
                         title="View event instances"
                         className="p-2 rounded hover:bg-gray-100 border border-transparent"
                         onClick={() => {
-                            // Route to instances page with the current preferred language attached
                             navigate(`/admin/events/${row.id}?preferred_lang=${encodeURIComponent(preferredLangCode)}`);
                         }}
                     >
                         <CalendarClock size={16} />
                     </button>
+                    <AssignDiscountCodesDialog
+                        event={row}
+                        preferredLangCode={preferredLangCode}
+                        onSaved={onEdited}
+                    />
                     <EditEventDialogV2
                         event={row}
                         allMinistries={allMinistries}
                         preferredLangCode={preferredLangCode}
                         onEdited={onEdited}
                     />
-                    <DeleteEventDialogV2
-                        event={row}
-                        onDeleted={onEdited}
-                    />
-
+                    <DeleteEventDialogV2 event={row} onDeleted={onEdited} />
                 </div>
             </div>
         );
@@ -140,6 +141,11 @@ export default function EventsTableV2(props: EventsTableV2Props) {
             valueFormatter: (p) => formatGenderLabel(p.value),
             minWidth: 100,
             initialWidth: 120,
+        },
+        {  // Discount Codes count
+            headerName: "Discount Codes",
+            valueGetter: (p) => (Array.isArray(p.data?.discount_codes) ? p.data!.discount_codes.length : 0),
+            minWidth: 130, initialWidth: 140,
         },
         {
             // Ministries Display

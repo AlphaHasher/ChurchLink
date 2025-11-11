@@ -1,6 +1,4 @@
-# TODO: RECONCILE THIS BUSINESS
-
-'''# Bulk Registration Endpoint for Events with Combined Payment
+# Bulk Registration Endpoint for Events with Combined Payment
 
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Request, HTTPException, Body, Query
@@ -12,6 +10,8 @@ from helpers.audit_logger import get_client_ip, get_user_agent
 import json
 import os
 import traceback
+
+from models.event_instance import ChangeEventRegistration
 
 # Import refund functionality
 from models.refund_request import (
@@ -36,15 +36,12 @@ event_payment_router = AuthProtectedRouter(prefix="/events", tags=["Event Paymen
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
-@event_payment_router.post("/{event_id}/payment/create-bulk-order")
+@event_payment_router.post("/payment/create-bulk-order")
 async def create_bulk_event_payment_order(
-    event_id: str,
     request: Request,
-    bulk_data: Dict[str, Any] = Body(...)
+    details: ChangeEventRegistration = Body(...),
 ):
     """Create PayPal payment order for multiple event registrations"""
-    client_ip = get_client_ip(request)
-    user_agent = get_user_agent(request)
     
     return await event_payment_helper.create_bulk_payment_order(
         event_id=event_id,
@@ -52,7 +49,6 @@ async def create_bulk_event_payment_order(
         user=request.state.user,
         bulk_data=bulk_data,
         client_ip=client_ip,
-        user_agent=user_agent
     )
 
 
@@ -325,4 +321,3 @@ async def get_refund_request_details(
         logging.error(f"Error getting refund request {request_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve refund request")
     
-'''

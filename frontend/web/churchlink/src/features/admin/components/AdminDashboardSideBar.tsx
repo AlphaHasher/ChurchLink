@@ -82,7 +82,14 @@ const AdminDashboardSideBar = () => {
         { title: "Pages", url: "/admin/mobile-ui-pages" },
       ]
     },
-    { title: "Events", url: "/admin/events", icon: CalendarFold },
+
+    {
+      title: "Events", icon: CalendarFold, children: [
+        { title: "Mange Events", url: "/admin/events/" },
+        { title: "Manage Discount Codes", url: "/admin/events/discount-codes" },
+      ]
+    },
+
     {
       title: "Forms", icon: ClipboardList, children: [
         { title: "Manage Forms", url: "/admin/forms/manage-forms" },

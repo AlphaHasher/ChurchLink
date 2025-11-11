@@ -1,11 +1,9 @@
-#TODO: ACTUALLY UNCOMMENT AND HANDLE THIS STUFF
-
-'''import logging
+import logging
 import os
 import traceback
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from bson import ObjectId
 
 from models.event import get_event_by_id, get_event_payment_summary, rsvp_list, update_attendee_payment_status, generate_attendee_key
@@ -17,9 +15,14 @@ from mongo.database import DB
 from mongo.churchuser import UserHandler
 from helpers.audit_logger import payment_audit_logger, AuditEventType
 
+from controllers.event_controllers.event_registration_controller import do_registration_validation
 
+from models.event_instance import ChangeEventRegistration, get_event_instance_assembly_by_id, AssembledEventInstance
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+paypal_client_id = os.getenv("PAYPAL_CLIENT_ID")
+paypal_client_secret = os.getenv("PAYPAL_CLIENT_SECRET")
 
 class EventPaymentHelper:
     """Helper class for event payment and bulk registration operations"""
@@ -258,271 +261,7 @@ class EventPaymentHelper:
             self.logger.error(f"Error validating registration data: {str(e)}")
             return False, "Validation error"
 
-    # Main Business Logic Methods
-    async def create_bulk_payment_order(
-        self,
-        event_id: str,
-        user_uid: str,
-        user,
-        bulk_data: Dict[str, Any],
-        client_ip: Optional[str] = None,
-        user_agent: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Create PayPal payment order for multiple event registrations"""
-        try:
-            
-            # Parse bulk registration request
-            registrations = bulk_data.get("registrations", [])
-            message = bulk_data.get("message", "")
-            return_url = bulk_data.get("return_url", "")
-            cancel_url = bulk_data.get("cancel_url", "")
-            # Support donation-only flows where donation amount is provided at top-level
-            # If registrations don't include donation_amount but bulk_data has donation_amount
-            # and there's a single registration, assign the top-level donation to that registration.
-            top_level_donation = float(bulk_data.get("donation_amount", 0) or 0)
-            if top_level_donation > 0 and len(registrations) == 1:
-                reg = registrations[0]
-                # Only set if not already provided
-                if not reg.get("donation_amount"):
-                    reg["donation_amount"] = top_level_donation
-            
-            
-            if not registrations:
-                raise HTTPException(status_code=400, detail="No registrations provided")
-            
-            
-            # Calculate total amount for logging
-            total_amount = 0.0
-            for reg in registrations:
-                total_amount += float(reg.get("donation_amount", 0) or 0)
-                total_amount += float(reg.get("payment_amount_per_person", 0) or 0)
-            
-            # Log bulk payment request
-            payment_audit_logger.log_bulk_payment_request(
-                user_uid=user_uid,
-                event_id=event_id,
-                registration_count=len(registrations),
-                total_amount=total_amount,
-                validation_passed=False,  # Will update after validation
-                request_ip=client_ip
-            )
-            
-            # Validate bulk registration request for security limits
-            bulk_errors = await self.validate_bulk_registration_request(registrations, user_uid)
-            if bulk_errors:
-                payment_audit_logger.log_validation_failed(
-                    user_uid=user_uid,
-                    event_id=event_id,
-                    validation_errors=bulk_errors,
-                    validation_type="bulk_registration",
-                    request_ip=client_ip
-                )
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Bulk registration validation failed: {'; '.join(bulk_errors)}"
-                )
-            
-            # Check PayPal configuration first
-            paypal_client_id = os.getenv("PAYPAL_CLIENT_ID")
-            paypal_client_secret = os.getenv("PAYPAL_CLIENT_SECRET")
-            
-            if not paypal_client_id or not paypal_client_secret:
-                raise HTTPException(
-                    status_code=503, 
-                    detail="PayPal is not configured. Please contact the administrator to set up PayPal credentials."
-                )
-            
-            # Get the event
-            event = await get_event_by_id(event_id)
-            if not event:
-                raise HTTPException(status_code=404, detail="Event not found")
-            
-            
-            # Validate user access to event
-            access_valid, access_message = await self.validate_user_event_access(user_uid, event, user)
-            if not access_valid:
-                raise HTTPException(status_code=403, detail=access_message)
-            
-            # Process individual registration validations
-            validated_registrations = []
-            total_event_fee = 0.0
-            total_donation = 0.0
-            
-            for i, registration_data in enumerate(registrations):
-                # Validate individual registration
-                is_valid, validation_message = await self.validate_registration_data(registration_data, event, user_uid)
-                if not is_valid:
-                    self.logger.error(f"Registration {i+1} validation failed: {validation_message}")
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Registration {i+1} validation failed: {validation_message}"
-                    )
-                
-                # Calculate amounts with safety checks
-                try:
-                    donation_amount = float(registration_data.get("donation_amount", 0) or 0)
-                except (TypeError, ValueError):
-                    donation_amount = 0.0
-                
-                try:
-                    payment_amount_per_person = float(registration_data.get("payment_amount_per_person", 0) or 0)
-                except (TypeError, ValueError):
-                    payment_amount_per_person = 0.0
-                
-                total_donation += donation_amount
-                total_event_fee += payment_amount_per_person
-                
-                # Ensure email is populated from user profile if not provided
-                registration_email = registration_data.get("email")
-                if not registration_email:
-                    registration_email = user.get("email") if user else None
-                    if not registration_email:
-                        self.logger.error(f"Registration {i+1} - No email found in registration data or user profile")
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Registration {i+1} validation failed: No email available in user profile"
-                        )
-                
-                validated_registrations.append({
-                    **registration_data,
-                    "email": registration_email,
-                    "donation_amount": donation_amount,
-                    "payment_amount_per_person": payment_amount_per_person,
-                    "validation_status": "validated"
-                })
-            
-            # Create PayPal order
-            paypal_order_data = await self._create_paypal_order_data(
-                event=event,
-                event_id=event_id,
-                user_uid=user_uid,
-                validated_registrations=validated_registrations,
-                total_event_fee=total_event_fee,
-                total_donation=total_donation,
-                return_url=return_url,
-                cancel_url=cancel_url
-            )
-            
-            # Create the order
-            order_data = await create_order_from_data(paypal_order_data)
-            
-            # Check for errors in the response
-            if "error" in order_data:
-                status_code = order_data.get("status_code", 500)
-                error_msg = order_data.get("error", "Failed to create PayPal order")
-                self.logger.error(f"PayPal order creation failed: {error_msg}")
-                raise HTTPException(status_code=status_code, detail=error_msg)
-            
-            if not order_data or "payment_id" not in order_data:
-                raise HTTPException(status_code=500, detail="Failed to create PayPal order")
-            
-            payment_id = order_data["payment_id"]
-            
-            # Store registration data for completion
-            bulk_registration_data = {
-                "payment_id": payment_id,
-                "event_id": event_id,
-                "user_uid": user_uid,
-                "registrations": validated_registrations,
-                "total_event_fee": total_event_fee,
-                "total_donation": total_donation,
-                "message": message,
-                "created_at": datetime.now().isoformat(),
-                "status": "pending"
-            }
-            
-            # Store in database
-            await DB.insert_document("bulk_registrations", bulk_registration_data)
-            
-            # Log successful order creation
-            payment_audit_logger.log_payment_order_created(
-                user_uid=user_uid,
-                event_id=event_id,
-                registration_count=len(validated_registrations),
-                total_amount=total_event_fee + total_donation,
-                payment_method="paypal",
-                request_ip=client_ip
-            )
-            
-            # Check for existing transaction
-            existing_transaction = await Transaction.get_transaction_by_id(payment_id)
-            if existing_transaction and existing_transaction.event_id == event_id:
-                
-                # Extract registration preview for existing transaction too
-                existing_registration_preview = []
-                for registration in validated_registrations:
-                    person_preview = {
-                        "first_name": registration.get("first_name", ""),
-                        "last_name": registration.get("last_name", ""),
-                        "email": registration.get("email", ""),
-                        "payment_amount": round(float(registration.get("payment_amount_per_person", 0) or 0), 2),
-                        "donation_amount": round(float(registration.get("donation_amount", 0) or 0), 2)
-                    }
-                    # Create full name
-                    full_name = f"{person_preview['first_name']} {person_preview['last_name']}".strip()
-                    person_preview["full_name"] = full_name if full_name else "Unknown"
-                    existing_registration_preview.append(person_preview)
-                
-                return {
-                    "success": True,
-                    "order_id": payment_id,
-                    "payment_id": payment_id,  # Add payment_id for Flutter compatibility
-                    "approval_url": order_data.get("approval_url"),
-                    "total_amount": round(float(existing_transaction.amount or 0), 2),
-                    "currency": "USD",
-                    "registrations_count": len(validated_registrations),
-                    "registration_preview": existing_registration_preview,
-                    "existing_transaction": True
-                }
-            
-            # Ensure proper number formatting
-            total_amount = round(total_event_fee + total_donation, 2)
-            
-            # Extract registration preview with names
-            registration_preview = []
-            for registration in validated_registrations:
-                person_preview = {
-                    "first_name": registration.get("first_name", ""),
-                    "last_name": registration.get("last_name", ""),
-                    "email": registration.get("email", ""),
-                    "payment_amount": round(float(registration.get("payment_amount_per_person", 0) or 0), 2),
-                    "donation_amount": round(float(registration.get("donation_amount", 0) or 0), 2)
-                }
-                # Create full name
-                full_name = f"{person_preview['first_name']} {person_preview['last_name']}".strip()
-                person_preview["full_name"] = full_name if full_name else "Unknown"
-                registration_preview.append(person_preview)
-            
-            return {
-                "success": True,
-                "order_id": payment_id,
-                "payment_id": payment_id,  # Add payment_id for Flutter compatibility
-                "approval_url": order_data.get("approval_url"),
-                "total_amount": total_amount,
-                "currency": "USD",
-                "registrations_count": len(validated_registrations),
-                "registration_preview": registration_preview,
-                "registration_breakdown": {
-                    "total_event_fees": round(total_event_fee, 2),
-                    "total_donations": round(total_donation, 2)
-                }
-            }
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            self.logger.error(f"Unexpected error in bulk payment creation: {str(e)}")
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
-            payment_audit_logger.log_error(
-                event_type=AuditEventType.PAYMENT_ORDER_FAILED,
-                user_uid=user_uid,
-                event_id=event_id,
-                error_message=f"Unexpected error in payment creation: {str(e)}",
-                exception=e,
-                request_ip=client_ip
-            )
-            raise HTTPException(status_code=500, detail=f"Failed to create bulk payment order: {str(e)}")
-
+    
     def _extract_person_info_from_registrations(self, registrations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Extract standardized person info from registration data"""
         completed_people = []
@@ -988,79 +727,6 @@ class EventPaymentHelper:
             self.logger.error(f"Error updating payment status for registration {registration_key}: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to update payment status: {str(e)}")
 
-    # Private helper methods
-    async def _create_paypal_order_data(
-        self,
-        event,
-        event_id: str,
-        user_uid: str,
-        validated_registrations: List[Dict[str, Any]],
-        total_event_fee: float,
-        total_donation: float,
-        return_url: str,
-        cancel_url: str
-    ) -> Dict[str, Any]:
-        """Create PayPal order data structure"""
-        try:
-            items = []
-            total_amount = total_event_fee + total_donation
-            
-            if total_event_fee > 0:
-                items.append({
-                    "name": f"{event.name} - Event Registration ({len(validated_registrations)} people)",
-                    "quantity": "1",
-                    "unit_amount": {
-                        "currency_code": "USD",
-                        "value": f"{total_event_fee:.2f}"
-                    }
-                })
-            
-            if total_donation > 0:
-                items.append({
-                    "name": f"{event.name} - Donation",
-                    "quantity": "1",
-                    "unit_amount": {
-                        "currency_code": "USD",
-                        "value": f"{total_donation:.2f}"
-                    }
-                })
-            
-            paypal_order_data = {
-                "intent": "CAPTURE",
-                "purchase_units": [{
-                    "amount": {
-                        "currency_code": "USD",
-                        "value": f"{total_amount:.2f}",
-                        "breakdown": {
-                            "item_total": {
-                                "currency_code": "USD",
-                                "value": f"{total_amount:.2f}"
-                            }
-                        }
-                    },
-                    "items": items,
-                    "description": f"Event registration for {event.name} - {len(validated_registrations)} people - Event ID: {event_id} - User: {user_uid}"
-                }],
-                "application_context": {
-                    "return_url": return_url or f"{FRONTEND_URL}/events/{event.id}/payment/success",
-                    "cancel_url": cancel_url or f"{FRONTEND_URL}/events/{event.id}/payment/cancel",
-                    "brand_name": "Church Event Registration",
-                    "locale": "en-US",
-                    "landing_page": "BILLING",
-                    "user_action": "PAY_NOW"
-                }
-            }
-            
-            # Debug: Log the final URLs being sent to PayPal
-            final_return_url = return_url or f"{FRONTEND_URL}/events/{event.id}/payment/success"
-            final_cancel_url = cancel_url or f"{FRONTEND_URL}/events/{event.id}/payment/cancel"
-            
-            return paypal_order_data
-            
-        except Exception as e:
-            self.logger.error(f"Error creating PayPal order data: {str(e)}")
-            raise
-
     async def handle_paypal_success(
         self,
         event_id: str,
@@ -1359,4 +1025,4 @@ class EventPaymentHelper:
 
 
 # Create singleton instance for easy import
-event_payment_helper = EventPaymentHelper()'''
+event_payment_helper = EventPaymentHelper()

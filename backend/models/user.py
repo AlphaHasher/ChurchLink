@@ -384,3 +384,45 @@ async def delete_family_member(user_uid: str, person_id: str) -> bool:
         print(f"An error occurred deleting family member: {e}")
         return False
 
+async def get_person_dict(uid: str) -> Dict[str, dict]:
+    """
+    Build a map of people related to the user:
+      - Key 'SELF' => the primary user's details
+      - Key '<person_id>' => each family member's details (ObjectId as str)
+
+    Values contain: first_name, last_name, DOB, gender.
+    For the user, DOB comes from 'birthday'; for family members, from 'date_of_birth'.
+    """
+    try:
+        # Fetch only the fields we need from the user
+        user_doc = await DB.db["users"].find_one(
+            {"uid": uid},
+            {"first_name": 1, "last_name": 1, "birthday": 1, "gender": 1}
+        )
+        if not user_doc:
+            return {}
+
+        person_map: Dict[str, dict] = {
+            "SELF": {
+                "first_name": user_doc.get("first_name"),
+                "last_name": user_doc.get("last_name"),
+                "DOB": user_doc.get("birthday"),
+                "gender": user_doc.get("gender"),
+            }
+        }
+
+        # Pull embedded family members via the existing handler
+        people = await UserHandler.list_people(uid) or []
+        for person in people:
+            pid = str(person.get("_id"))
+            person_map[pid] = {
+                "first_name": person.get("first_name"),
+                "last_name": person.get("last_name"),
+                "DOB": person.get("date_of_birth"),
+                "gender": person.get("gender"),
+            }
+
+        return person_map
+    except Exception as e:
+        print(f"get_person_dict error for uid={uid}: {e}")
+        return {}

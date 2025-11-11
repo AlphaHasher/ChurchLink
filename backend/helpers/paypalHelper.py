@@ -1,6 +1,3 @@
-# TODO: UNCOMMENTING AND DEALING WITH THIS
-
-'''
 import os
 import paypalrestsdk
 import datetime
@@ -1736,4 +1733,3 @@ async def get_paypal_refund_details(refund_id: str) -> Dict[str, Any]:
     except Exception as e:
         return {"success": False, "error": str(e)}
     
-'''

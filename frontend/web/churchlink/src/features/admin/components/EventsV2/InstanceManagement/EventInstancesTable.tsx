@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 import { AgGridReact } from "ag-grid-react";
+import { useNavigate } from "react-router-dom";
 import {
     AllCommunityModule, ColDef, GridApi, ICellRendererParams, ModuleRegistry,
 } from "ag-grid-community";
@@ -8,6 +9,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 import EditEventInstanceDialog from "./EditEventInstanceDialog";
 import type { AdminEventInstance } from "@/shared/types/Event";
+import { ClipboardList } from "lucide-react";
 
 type Props = {
     rows: AdminEventInstance[];
@@ -36,6 +38,7 @@ function formatDate(value?: string | null) {
 
 export default function EventInstancesTable(props: Props) {
     const gridApi = useRef<GridApi<AdminEventInstance> | null>(null);
+    const navigate = useNavigate();
 
     const colDefs = useMemo<ColDef<AdminEventInstance>[]>(() => [
         { headerName: "Series Index", field: "series_index", minWidth: 120, flex: 1 },
@@ -52,6 +55,24 @@ export default function EventInstancesTable(props: Props) {
             minWidth: 200, flex: 2,
         },
         {
+            headerName: "RSVP Required",
+            field: "rsvp_required",
+            valueFormatter: (p) => (p.value ? "Yes" : "No"),
+            minWidth: 140, flex: 1.2,
+        },
+        {
+            headerName: "Seats Filled",
+            field: "seats_filled",
+            valueFormatter: (p) => (p.value ?? 0).toString(),
+            minWidth: 130, flex: 1.1,
+        },
+        {
+            headerName: "Max Capacity",
+            field: "max_spots",
+            valueFormatter: (p) => (p.value == null ? "Unlimited" : String(p.value)),
+            minWidth: 140, flex: 1.2,
+        },
+        {
             headerName: "Hidden",
             field: "hidden",
             valueFormatter: (p) => (p.value ? "Yes" : "No"),
@@ -66,13 +87,28 @@ export default function EventInstancesTable(props: Props) {
         {
             headerName: "Actions",
             cellRenderer: (p: ICellRendererParams<AdminEventInstance>) => (
-                <div className="w-full flex justify-end">
+                <div className="w-full flex justify-end gap-2">
+
+                    <button
+                        type="button"
+                        aria-label="View Instance Details"
+                        title="View Instance Details"
+                        className="p-2 rounded hover:bg-gray-100 border border-transparent"
+                        onClick={() => {
+                            // Route to instances page with the current preferred language attached
+                            navigate(`/admin/events/${p.data!.event_id}/instance_details/${p.data!.id}`);
+                        }}
+                    >
+                        <ClipboardList size={16} />
+                    </button>
+
+                    {/* Overrides editor */}
                     <EditEventInstanceDialog instance={p.data!} onSaved={props.onInstanceSaved} />
                 </div>
             ),
             pinned: "right",
-            minWidth: 120,
-            maxWidth: 140,
+            minWidth: 160,
+            maxWidth: 200,
         },
     ], [props.onInstanceSaved]);
 

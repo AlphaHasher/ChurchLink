@@ -7,7 +7,7 @@ import {
     Heart,
     Mars,
     Venus,
-    Shield,
+    IdCard,
     Church,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
@@ -17,6 +17,7 @@ import type { UserFacingEvent } from "@/shared/types/Event";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import { setFavorite } from "@/helpers/EventUserHelper";
+import ViewEventDetails from "@/features/eventsV2/components/ViewEventDetails";
 
 type Props = {
     event: UserFacingEvent;
@@ -55,7 +56,7 @@ function PriceBadge(ev: UserFacingEvent) {
     if (!paid) {
         return (
             <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Free
+                FREE
             </Badge>
         );
     }
@@ -72,7 +73,8 @@ function PriceBadge(ev: UserFacingEvent) {
                 </span>
                 <span className="opacity-60 px-1">&amp;</span>
                 <span className="whitespace-nowrap">
-                    {formatCurrency(member)} <span className="font-medium">Member Price</span>
+
+                    {(member === 0) ? "FREE" : formatCurrency(member)} <span className="font-medium">Member Price</span>
                 </span>
             </Badge>
         );
@@ -133,7 +135,7 @@ function MembersOnlyBadge(ev: UserFacingEvent) {
     if (!ev.members_only) return null;
     return (
         <Badge className="bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1">
-            <Shield className="h-3.5 w-3.5" />
+            <IdCard className="h-3.5 w-3.5" />
             Members Only
         </Badge>
     );
@@ -156,6 +158,7 @@ export const EventListTile: React.FC<Props> = ({
 
     const [isFav, setIsFav] = React.useState<boolean>(!!event.is_favorited);
     const [busy, setBusy] = React.useState<boolean>(false);
+    const [showDetails, setShowDetails] = React.useState<boolean>(false);
 
     React.useEffect(() => {
         setIsFav(!!event.is_favorited);
@@ -223,10 +226,10 @@ export const EventListTile: React.FC<Props> = ({
                 </div>
 
                 {/* Location */}
-                {event.default_location_info ? (
+                {event.location_address ? (
                     <div className="flex items-start gap-2 text-slate-700">
                         <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span className="text-sm line-clamp-1">{event.default_location_info}</span>
+                        <span className="text-sm break-words">{event.location_address}</span>
                     </div>
                 ) : null}
 
@@ -235,15 +238,9 @@ export const EventListTile: React.FC<Props> = ({
                     <div className="flex items-start gap-2 text-slate-700">
                         <Church className="h-4 w-4 mt-0.5 shrink-0" />
                         <span className="text-sm line-clamp-1">
-                            {(() => {
-                                const raw = event.ministries as string[];
-                                // Map IDs to names when possible; gracefully fall back to the raw value
-                                const names = raw.map((id) => (ministryNameMap?.[id] ?? id));
-                                const label = names.join(", ");
-                                return names.length === 1
-                                    ? `${label} Ministry`
-                                    : `${label} Ministries`;
-                            })()}
+                            {(event.ministries as string[])
+                                .map((id) => ministryNameMap?.[id] ?? id)
+                                .join(" • ")}
                         </span>
                     </div>
                 ) : null}
@@ -289,29 +286,27 @@ export const EventListTile: React.FC<Props> = ({
                                 {busy ? "Working…" : isFav ? "Remove from Favorites" : "Add to Favorites"}
                             </Button>
 
-                            {/* Default-colored Show Details (DOESN'T OPEN YET) */}
-                            <Button
-                                className="w-full h-11"
-                                onClick={() => {
-                                    // TODO: create new dialog or modal or whatever to view the details
-                                }}
-                            >
+                            {/* Default-colored Show Details */}
+                            <Button className="w-full h-11" onClick={() => setShowDetails(true)}>
                                 Show Details
                             </Button>
                         </>
                     ) : (
-                        // Not signed in: only Show Details (still not yet done :( )
-                        <Button
-                            className="w-full h-11"
-                            onClick={() => {
-                                // TODO: SEE ABOVE
-                            }}
-                        >
+                        // Not signed in: only Show Details
+                        <Button className="w-full h-11" onClick={() => setShowDetails(true)}>
                             Show Details
                         </Button>
                     )}
                 </div>
             </CardContent>
+
+            {/* Event Details Dialog (Show Details) */}
+            <ViewEventDetails
+                instanceId={event.id}
+                open={showDetails}
+                onOpenChange={setShowDetails}
+                onFavoriteChanged={onFavoriteChanged}
+            />
         </Card>
     );
 };

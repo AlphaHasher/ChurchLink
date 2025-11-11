@@ -22,6 +22,7 @@ from firebase.firebase_credentials import get_firebase_credentials
 from helpers.youtubeHelper import YoutubeHelper
 from helpers.EventPublisherLoop import EventPublisher
 from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
+from helpers.PayPalHelperV2 import PayPalHelperV2
 
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
@@ -57,6 +58,7 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 
 from routes.event_routes.admin_panel_event_routes import event_editing_router, mod_event_router
 from routes.event_routes.user_event_routes import public_event_router, private_event_router
+from routes.event_routes.event_registration_routes import event_registration_router
 
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
@@ -145,6 +147,12 @@ async def lifespan(app: FastAPI):
         await DatabaseManager.init_db()
         logger.info("MongoDB connected")
 
+        # Initialize PayPal helper (singleton) once on startup
+        paypal = await PayPalHelperV2.get_instance()
+        await paypal.start()
+        app.state.paypal = paypal
+        logger.info(f"PayPal helper initialized: {paypal.base_url}")
+
         # Run one-time migration to update header/footer items titles
         try:
             from datetime import datetime, timezone
@@ -186,10 +194,6 @@ async def lifespan(app: FastAPI):
         eventPublishingLoop = asyncio.create_task(EventPublisher.runEventPublishLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
         
-        # Start event and refund cleanup scheduler
-        from helpers.event_cleanup_scheduler import event_cleanup_loop
-        eventCleanupTask = asyncio.create_task(event_cleanup_loop(DatabaseManager.db))
-        
         # Initialize Bible Plan Notification System
         logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
@@ -204,6 +208,11 @@ async def lifespan(app: FastAPI):
         scheduledNotifTask.cancel()
         eventCleanupTask.cancel()
         DatabaseManager.close_db()
+
+        # Stop PayPal helper
+        if hasattr(app.state, "paypal") and app.state.paypal:
+            await app.state.paypal.stop()
+            
         logger.info("Shutdown complete")
 
     except Exception as e:
@@ -291,6 +300,7 @@ private_router.include_router(member_private_router)
 private_router.include_router(private_forms_router)
 private_router.include_router(private_event_router)
 private_router.include_router(private_bible_plan_router)
+private_router.include_router(event_registration_router)
 
 
 #####################################################

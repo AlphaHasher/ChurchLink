@@ -10,7 +10,6 @@ import type { Ministry } from "@/shared/types/Ministry";
 
 type CreateEventDialogV2Props = {
     allMinistries: Ministry[];
-    // Preferred language code coming from Filters (e.g., "en", "ru")
     preferredLangCode?: string;
     onCreated?: () => void;
 };
