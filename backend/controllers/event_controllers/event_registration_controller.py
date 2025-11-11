@@ -18,7 +18,8 @@ from helpers.PayPalHelperV2 import PayPalHelperV2
 from pydantic import BaseModel
 import math
 
-# NEW: transaction ledger imports
+import logging
+
 from models.event_transaction import (
     TransactionItem,
     create_preliminary_transaction,
@@ -245,22 +246,6 @@ async def process_change_event_registration(
 
     old_details = assembled.registration_details.get(request.state.uid) or None
 
-    if unregs:
-        refund_res = await _process_refunds_for_removals(
-            request=request,
-            instance=assembled,
-            old_details=old_details,
-            unregs=unregs,
-        )
-        if not refund_res["success"]:
-            return {"success": False, "msg": f"Refunds failed: {refund_res['msg']}"}
-
-    # NOTE: This path is used by free/door and also by PayPal AFTER capture.
-    # If payflow sends lineage_map, use that; otherwise (non-PayPal paths) it's None.
-    # (This line REPLACES the old "lineage_map = validation.get('lineage_map')".)
-    # lineage_map provided here wins; validation does not produce lineage.
-    # Create new RegistrationDetails with lineage baked into PaymentDetails for *added* people
-
     # Try to create proper EventDetails, return error if failure
     try:
         details = await create_new_reg_details(
@@ -278,6 +263,46 @@ async def process_change_event_registration(
     # Handle the final reg update
     res = await update_registration(assembled.id, request.state.uid, details, seat_delta, assembled.max_spots)
     res['details_map'] = validation['details_map']
+
+    if not res['success']:
+        return res
+
+    if unregs:
+        refund_res = await _process_refunds_for_removals(
+            request=request,
+            instance=assembled,
+            old_details=old_details,
+            unregs=unregs,
+        )
+        if not refund_res["success"]:
+            # Attempt rollback if old_details exist
+            rollback_succeeded = False
+            if old_details is not None:
+                rollback_delta = -seat_delta
+                rollback = await update_registration(
+                    assembled.id,
+                    request.state.uid,
+                    old_details,
+                    rollback_delta,
+                    assembled.max_spots,
+                )
+                if rollback and rollback.get('success'):
+                    res['seats_filled'] = rollback.get('seats_filled', res.get('seats_filled'))
+                    rollback_succeeded = True
+                else:
+                    # Log critical: rollback failed, database inconsistent
+                    logging.error(f"CRITICAL: Rollback failed for user {request.state.uid}, instance {assembled.id}")
+            
+            # Update res to reflect failure, preserving existing fields
+            res['success'] = False
+            if rollback_succeeded:
+                res['msg'] = f"Refunds failed, registration rolled back: {refund_res['msg']}"
+            elif old_details is None:
+                res['msg'] = f"Refunds failed (no prior registration to rollback): {refund_res['msg']}"
+            else:
+                res['msg'] = f"Refunds failed AND rollback failed (critical): {refund_res['msg']}"
+            
+            return res
 
     # If registration successful, inc code uses
     if res['success']:
