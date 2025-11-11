@@ -417,13 +417,12 @@ async def get_user_registration_info(instance_id:str, user_id:str):
     # Therefore, no particular additional search will be needed to get the details by a person
     instance_doc = await get_event_instance_assembly_by_id(instance_id)
 
-    instance = AssembledEventInstance(**instance_doc)
-
     # If we have no found instance, return an error
-    if instance is None:
+    if instance_doc is None:
         return {'success':False, 'msg':f'Could not find the event instance with id {instance_id}', 'event_instance':None, 'person_dict': None}
-    
 
+    instance = AssembledEventInstance(**instance_doc)
+    
     # NOTE: Based off the RegistrationDetails we only have IDs and raw SELF.
     # This means that we would have no means of displaying names, gender, dob etc of these people just based off the instance details
     # Thus, we need to do additional searches.
