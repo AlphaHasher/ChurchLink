@@ -21,6 +21,7 @@ import { BuilderState } from "@/features/webeditor/state/BuilderState";
 import { AddLocaleDialog, collectTranslatablePairs, ensurePageLocale, translateStrings } from "@/shared/utils/localizationUtils";
 import LocaleSelect from "@/shared/components/LocaleSelect";
 import { useLanguage } from "@/provider/LanguageProvider";
+import { Trash2 } from "lucide-react";
 
 const WebEditor: React.FC = () => {
   const { slug: encoded } = useParams();
@@ -110,6 +111,7 @@ const WebEditor: React.FC = () => {
   const [openInspector, setOpenInspector] = React.useState(false);
   const [openElementInspector, setOpenElementInspector] = React.useState(false);
   const [addLocaleOpen, setAddLocaleOpen] = React.useState(false);
+  const [clearPageDialogOpen, setClearPageDialogOpen] = React.useState(false);
 
 
   const computedLocales = useMemo(() => {
@@ -450,6 +452,21 @@ const WebEditor: React.FC = () => {
     setSidebarOpen(false);
   }, []);
 
+  const handleClearPage = React.useCallback(() => {
+    setSections([]);
+    setPageSections([]);
+    setPageSectionsMobile([]);
+    setSelection(null);
+    setSelectedSectionId(null);
+    setHighlightNodeId(null);
+    setHoveredNodeId(null);
+    setOpenInspector(false);
+    setOpenElementInspector(false);
+    BuilderState.clearSelection();
+    BuilderState.stopEditing();
+    setClearPageDialogOpen(false);
+  }, [setSections, setPageSections, setPageSectionsMobile, setSelection, setSelectedSectionId, setHighlightNodeId, setHoveredNodeId]);
+
   if (!page) return <div className="p-6">Loading...</div>;
 
   return (
@@ -466,6 +483,15 @@ const WebEditor: React.FC = () => {
         <div className="flex h-12 items-center justify-between px-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/admin/webbuilder')}>Back to Admin</Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setClearPageDialogOpen(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear Page
+            </Button>
             <div className="hidden sm:flex items-center gap-3 text-sm">
               <label className="flex items-center gap-2">
                 <Checkbox checked={showHeader} onCheckedChange={(v) => setShowHeader(Boolean(v))} />
@@ -758,6 +784,27 @@ const WebEditor: React.FC = () => {
               onClick={deleteNode}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Page Confirm */}
+      <AlertDialog open={clearPageDialogOpen} onOpenChange={setClearPageDialogOpen}>
+        <AlertDialogContent>
+          <ADHeader>
+            <AlertDialogTitle>Clear entire page?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all sections from the page and start from scratch. This action cannot be undone.
+            </AlertDialogDescription>
+          </ADHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setClearPageDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleClearPage}
+            >
+              Clear Page
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
