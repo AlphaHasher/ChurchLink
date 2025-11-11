@@ -37,7 +37,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
     return {
       id: `${newId()}-hero`,
       kind: "section",
-      heightPercent: 110,
+      heightPercent: 80,
       background: {
         className: "relative isolate overflow-hidden bg-slate-950 text-white",
         style: {
@@ -57,7 +57,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
         {
           id: `${newId()}-c1`, 
           type: "container", 
-          props: { maxWidth: "2xl", paddingX: 0, paddingY: 0 }, 
+          props: { maxWidth: "2xl", paddingX: 4, paddingY: 10 }, 
           style: {
             className: "relative h-full flex flex-col items-center justify-center gap-8 text-center",
           },
@@ -68,11 +68,11 @@ export const createPresetSection = (key: string): SectionV2 | null => {
               props: { variant: "lead", html: "WELCOME HOME", align: "center" },
               style: {
                 className: "uppercase tracking-[0.4em] text-indigo-200/80",
-                fontSize: 1,
+                fontSize: 0.875,
                 fontWeight: 600,
               },
               layout: {
-                units: { xu: 13, yu: 7, wu: 12, hu: 4 }
+                units: { xu: 20, yu: 10, wu: 24, hu: 3 }
               }
             } as Node,
             { 
@@ -81,12 +81,12 @@ export const createPresetSection = (key: string): SectionV2 | null => {
               props: { variant: "h1", html: "A Place to Gather, Grow, and Go.", align: "center" },
               style: {
                 className: "leading-tight text-balance drop-shadow-xl",
-                fontSize: 3.75,
+                fontSize: 2.5,
                 fontWeight: 700,
                 color: "#f8fafc",
               },
               layout: {
-                units: { xu: 0, yu: 13, wu: 40, hu: 10 }
+                units: { xu: 8, yu: 15, wu: 48, hu: 8 }
               }
             } as Node,
             { 
@@ -95,10 +95,10 @@ export const createPresetSection = (key: string): SectionV2 | null => {
               props: { variant: "p", html: "Join us Sundays at 9 &amp; 11 AM to worship, connect, and experience life-giving community.", align: "center" },
               style: {
                 className: "max-w-2xl mx-auto text-lg leading-relaxed text-slate-200/90",
-                fontSize: 1.125,
+                fontSize: 1,
               },
               layout: {
-                units: { xu: 8, yu: 25, wu: 22, hu: 7 }
+                units: { xu: 12, yu: 25, wu: 40, hu: 6 }
               }
             } as Node,
             {
@@ -108,12 +108,12 @@ export const createPresetSection = (key: string): SectionV2 | null => {
               style: {
                 // Apply inline gradient so inspector shows the real fill
                 // Matches brand hero blues/purples used in the section background
-                className: "px-8 py-3 rounded-full text-white font-semibold shadow-lg shadow-indigo-500/30 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
+                className: "px-6 py-2 rounded-full text-white font-semibold shadow-lg shadow-indigo-500/30 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
                 background: "linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%)",
                 customCss: "&:hover { opacity: 0.9; }",
               },
               layout: {
-                units: { xu: 7, yu: 35, wu: 12, hu: 4 }
+                units: { xu: 18, yu: 33, wu: 11, hu: 3 }
               }
             } as Node,
             {
@@ -121,16 +121,16 @@ export const createPresetSection = (key: string): SectionV2 | null => {
               type: "button", 
               props: { label: "Watch Online", href: "#" },
               style: {
-                className: "px-8 py-3 rounded-full bg-white/10 text-white font-semibold border border-white/20 transition backdrop-blur-sm",
+                className: "px-6 py-2 rounded-full bg-white/10 text-white font-semibold border border-white/20 transition backdrop-blur-sm",
                 customCss: "&:hover { background: rgba(255,255,255,0.20); }",
               },
               layout: {
-                units: { xu: 20, yu: 35, wu: 11, hu: 3 }
+                units: { xu: 31, yu: 33, wu: 10, hu: 3 }
               }
             } as Node,
           ],
           layout: {
-            units: { xu: 8, yu: 7, wu: 40, hu: 45 }
+            units: { xu: 0, yu: 0, wu: 64, hu: 36 }
           }
         } as Node,
       ],
