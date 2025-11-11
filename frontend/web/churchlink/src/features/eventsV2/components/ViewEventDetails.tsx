@@ -145,7 +145,11 @@ export default function ViewEventDetails({
     }
 
     const rawHost = import.meta.env.VITE_WEB_DOMAIN?.trim();
-    const sharableURL = `${rawHost}/sharable_events/${payload?.event_details?.id}`;
+    const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "";
+    const baseUrl = rawHost && rawHost.length > 0 ? rawHost : fallbackOrigin;
+    const sharableURL = baseUrl
+        ? `${baseUrl}/sharable_events/${payload?.event_details?.id}`
+        : "";
 
     return (
         <Dialog open={effectiveOpen} onOpenChange={handleOpenChange}>

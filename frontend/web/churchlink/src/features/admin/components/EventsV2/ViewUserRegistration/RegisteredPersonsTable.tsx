@@ -198,7 +198,11 @@ export default function RegisteredPersonsTable({
                 domLayout="autoHeight"
                 suppressCellFocus
                 animateRows
-                onGridReady={(ev) => (apiRef.current = ev.api)}
+                onGridReady={(ev) => {
+                    apiRef.current = ev.api;
+                    if (rows.length === 0) ev.api.showNoRowsOverlay();
+                    else ev.api.hideOverlay();
+                }}
                 enableCellTextSelection
                 overlayNoRowsTemplate="<span>No registered people.</span>"
             />

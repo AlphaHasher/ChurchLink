@@ -97,6 +97,7 @@ export default function EventInstanceDetails() {
                     setState({ kind: "loaded", instance });
                 }
             } catch (e: any) {
+                if (cancelled) return;
                 setState({ kind: "error", message: e?.message ?? "Failed to load instance." });
             }
         })();

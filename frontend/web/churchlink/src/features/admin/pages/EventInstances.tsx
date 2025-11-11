@@ -110,11 +110,15 @@ export default function EventInstances() {
     };
 
     useEffect(() => {
-        refresh();
+        if (!eventId) return;
+        setPage(1);
+        refresh({ page: 1 });
     }, [eventId]);
 
     useEffect(() => {
-        refresh();
+        if (!eventId) return;
+        setPage(1);
+        refresh({ page: 1 });
     }, [page, pageSize, status, sortBySeriesIndexAsc, preferredLangName]);
 
     // Set the title string depending on if event has loaded or not
@@ -204,7 +208,7 @@ export default function EventInstances() {
                             <Command>
                                 <CommandInput placeholder="Search languages…" />
                                 <CommandEmpty>No languages found.</CommandEmpty>
-                                <CommandList className="max-H-64 overflow-y-auto overscroll-contain">
+                                <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
                                     <CommandGroup>
                                         {languageDisplayNames.map((name) => (
                                             <CommandItem
@@ -238,7 +242,11 @@ export default function EventInstances() {
                     onToggleSeriesSort={(asc) => { setSortBySeriesIndexAsc(asc); setPage(1); }}
                     onPageChange={(p) => setPage(p)}
                     onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-                    onInstanceSaved={() => refresh()}
+                    onInstanceSaved={() => {
+                        if (!eventId) return;
+                        setPage(1);
+                        refresh({ page: 1 });
+                    }}
                 />
             </div>
         </div>

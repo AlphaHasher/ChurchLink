@@ -19,10 +19,11 @@ export function EventInstanceSummary(props: {
     const { instance, totals } = props;
 
     // Capacity text: show "X / Unlimited" when max_spots is null/undefined
-    const capacity = instance.max_spots ?? null;
-    const seatsText = capacity
-        ? `${totals.totalRegistrations} / ${capacity}`
-        : `${totals.totalRegistrations} / Unlimited`;
+    const capacity = instance.max_spots;
+    const seatsText =
+        capacity === null || capacity === undefined
+            ? `${totals.totalRegistrations} / Unlimited`
+            : `${totals.totalRegistrations} / ${capacity}`;
 
     const registrationOpenBadge = instance.registration_allowed ? (
         <Badge className="whitespace-nowrap">Registration Open</Badge>

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { MapPin, Map } from "lucide-react";
+import { MapPin, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -26,7 +26,7 @@ const EventMapCard: React.FC<Props> = ({ locationInfo, locationAddress, classNam
         <Card className={cn("px-5", className)}>
             {/* Match ViewEventDetails card header style */}
             <div className="flex items-center gap-2 font-semibold">
-                <Map className="h-4 w-4 text-muted-foreground" />
+                <MapIcon className="h-4 w-4 text-muted-foreground" />
                 Location
             </div>
 
