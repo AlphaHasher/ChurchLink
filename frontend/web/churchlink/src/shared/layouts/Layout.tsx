@@ -30,7 +30,6 @@ function Layout({
           <div className="lg:hidden!">
             <AppSidebar/>
           </div>
-          <NavBar />
           <main className="flex-grow bg-background overflow-x-hidden">{children}</main>
         </div>
         <Footer />

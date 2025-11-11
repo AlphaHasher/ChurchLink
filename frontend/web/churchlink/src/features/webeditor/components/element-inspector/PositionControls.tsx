@@ -30,14 +30,28 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
   
   const cols = section?.builderGrid?.cols ?? 64;
   const aspect = section?.builderGrid?.aspect ?? { num: 16, den: 9 };
-  const typicalContainerWidth = 1200; 
-  const typicalContainerHeight = typicalContainerWidth * aspect.den / aspect.num;
-  const approximateTransform = makeVirtualTransform(
-    { width: typicalContainerWidth, height: typicalContainerHeight },
-    cols,
-    aspect
-  );
-  const cellPx = approximateTransform.cellPx;
+  const [cellPxState, setCellPxState] = React.useState<number>(16);
+  const resolvedSectionId = explicitSectionId ?? section?.id ?? BuilderState.selection?.sectionId ?? null;
+  React.useEffect(() => {
+    if (!resolvedSectionId) return;
+    const el = document.getElementById(`section-content-${resolvedSectionId}`);
+    if (!el) return;
+    const compute = () => {
+      const rect = el.getBoundingClientRect();
+      const width = rect.width || 0;
+      if (width <= 0) return;
+      const virtualHeightPx = width * aspect.den / aspect.num;
+      const vt = makeVirtualTransform({ width, height: virtualHeightPx }, cols, aspect);
+      setCellPxState(vt.cellPx);
+    };
+    compute();
+    const ro = new ResizeObserver(() => compute());
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+    };
+  }, [resolvedSectionId, cols, aspect.den, aspect.num, aspect]);
+  const cellPx = cellPxState;
 
   const sectionRows = React.useMemo(() => Math.round(cols * aspect.den / aspect.num), [cols, aspect.den, aspect.num]);
 

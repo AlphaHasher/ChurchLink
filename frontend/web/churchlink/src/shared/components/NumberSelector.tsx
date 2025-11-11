@@ -81,7 +81,15 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
     const applyTransform = React.useCallback(
       (next: number) => {
         if (typeof transformValue === "function") {
-          return transformValue(next);
+          try {
+            const result = transformValue(next);
+            if (!Number.isFinite(result)) {
+              return next;
+            }
+            return result;
+          } catch {
+            return next;
+          }
         }
         return next;
       },

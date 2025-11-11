@@ -12,7 +12,7 @@ const initializeLayouts = (nodes: Node[], parentYu = 0, isNested = false): Node[
 
   return nodes.map((node) => {
     const newNode = { ...node };
-    const layout = { ...(newNode.layout ?? {}) };
+    const layout = { ...(newNode.layout ?? {}) } as NonNullable<Node["layout"]>;
     const units = { ...(layout.units ?? {}) } as {
       xu?: number;
       yu?: number;
@@ -210,7 +210,10 @@ export function useSectionManager() {
           for (const child of children) {
             const yu = child.layout?.units?.yu;
             if (typeof yu === "number") {
-              nextYu = Math.max(nextYu, yu + 1);
+              const huRaw = child.layout?.units?.hu;
+              const hu = typeof huRaw === "number" && !Number.isNaN(huRaw) ? huRaw : 1;
+              const bottom = yu + hu;
+              nextYu = Math.max(nextYu, bottom);
             }
           }
           return nextYu;

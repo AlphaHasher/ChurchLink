@@ -21,7 +21,7 @@ export const SimpleNodeInspector: React.FC<SimpleNodeInspectorProps> = ({
           <label className="text-sm">Text / HTML</label>
           <textarea
             className="w-full h-28 border rounded p-2"
-            defaultValue={(node as any).props?.html ?? ''}
+            value={(node as any).props?.html ?? ''}
             onChange={(e) =>
               onUpdateNode((n) => ({
                 ...n,
@@ -38,7 +38,7 @@ export const SimpleNodeInspector: React.FC<SimpleNodeInspectorProps> = ({
             <label className="text-sm">Button Label</label>
             <input
               className="w-full border rounded p-2"
-              defaultValue={(node as any).props?.label ?? ''}
+              value={(node as any).props?.label ?? ''}
               onChange={(e) =>
                 onUpdateNode((n) => ({
                   ...n,
@@ -51,7 +51,7 @@ export const SimpleNodeInspector: React.FC<SimpleNodeInspectorProps> = ({
             <label className="text-sm">Button Link</label>
             <input
               className="w-full border rounded p-2"
-              defaultValue={(node as any).props?.href ?? ''}
+              value={(node as any).props?.href ?? ''}
               onChange={(e) =>
                 onUpdateNode((n) => ({
                   ...n,

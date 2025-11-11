@@ -686,14 +686,23 @@ const renderNode = (
               onDoubleSelect={() => onNodeDoubleClick?.(sectionId, c.id)}
               render={() => childRendered}
               containerId={node.id}
-              parentUnits={node.layout?.units as any}
+              parentUnits={
+                (() => {
+                  const u = node.layout?.units;
+                  return u && typeof u.xu === 'number' && typeof u.yu === 'number' && typeof u.wu === 'number' && typeof u.hu === 'number'
+                    ? { xu: u.xu, yu: u.yu, wu: u.wu, hu: u.hu }
+                    : undefined;
+                })()
+              }
               enforceChildFullSize
               allowContentPointerEvents
             />
           );
         } else {
           // Fallback for missing layout or params - render without wrapper
-          if (!childHasLayout) console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
+          if (!childHasLayout && process.env.NODE_ENV === 'development') {
+            console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
+          }
           const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
           return <div key={c.id} className="relative">{childRendered}</div>;
         }
@@ -876,11 +885,21 @@ const SectionWithVirtualGrid: React.FC<{
   const updateTransform = useCallback(() => {
     if (!contentRef.current) return;
     const rect = contentRef.current.getBoundingClientRect();
-    const virtualHeightPx = rect.width * aspect.den / aspect.num;
+    const hasInvalidCols = typeof cols !== 'number' || cols <= 0 || Number.isNaN(cols);
+    const hasInvalidAspectNum = !aspect || typeof aspect.num !== 'number' || aspect.num <= 0 || Number.isNaN(aspect.num);
+    const safeCols = hasInvalidCols ? 1 : cols;
+    const safeAspectNum = hasInvalidAspectNum ? 1 : aspect.num;
+    if (hasInvalidCols || hasInvalidAspectNum) {
+      console.warn('SectionWithVirtualGrid: Invalid grid config detected; coercing to safe defaults.', {
+        cols,
+        aspect,
+      });
+    }
+    const virtualHeightPx = rect.width * aspect.den / safeAspectNum;
     const newTransform = makeVirtualTransform(
       { width: rect.width, height: virtualHeightPx },
-      cols,
-      aspect
+      safeCols,
+      { num: safeAspectNum, den: aspect.den }
     );
     setTransform(newTransform);
   }, [cols, aspect]);

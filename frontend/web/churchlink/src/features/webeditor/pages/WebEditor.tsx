@@ -513,8 +513,9 @@ const WebEditor: React.FC = () => {
                   onClick={() => {
                     if (isMobileMode) {
                       // switching to desktop: seed manager with desktop sections
-                      setIsMobileMode(false);
                       setSections(sections.length ? sections : []);
+                      BuilderState.resetForModeSwitch();
+                      setIsMobileMode(false);
                     }
                   }}
                 >
@@ -535,6 +536,7 @@ const WebEditor: React.FC = () => {
                       } else {
                         setSections(sectionsMobile);
                       }
+                      BuilderState.resetForModeSwitch();
                       setIsMobileMode(true);
                     }
                   }}
@@ -691,7 +693,6 @@ const WebEditor: React.FC = () => {
         setHighlightNodeId={setHighlightNodeId}
         updateSelectedNode={updateSelectedNode}
         page={page}
-        setPage={setPage}
         fontManager={fontManager}
         onRequestDeleteSection={setDeleteSectionId}
       />

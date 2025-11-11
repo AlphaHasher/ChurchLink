@@ -84,7 +84,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     return raw;
   }, [paramSlug, location.pathname, isPreviewMode, previewSlug]);
 
-  const [pageData, setPageData] = useState<Page | null>(null);
+  const [pageData, setPageData] = useState<PageV2 | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState<boolean>(false);
@@ -124,7 +124,6 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     return () => ctrl.abort();
   }, [slug, isPreviewMode]);
 
-  // In preview mode, don't check visibility; in public mode, check visibility
   const isEffectivelyPreview =
     isPreviewMode ||
     (new URLSearchParams(location.search).get("staging") === "1" ||
@@ -161,9 +160,9 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   const localeParam = searchParams.get('locale') || undefined;
   return (
     <DynamicPageV2Renderer
-      page={pageData as unknown as PageV2}
+      page={pageData}
       activeLocale={localeParam || ctxLocale}
-      defaultLocale={(pageData as any)?.defaultLocale}
+      defaultLocale={pageData?.defaultLocale}
     />
   );
 };

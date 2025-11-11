@@ -241,6 +241,25 @@ class BuilderStateClass {
   setNodePixelLayout(nodeId: string, layout: any) {
     this._nodePixelLayouts.set(nodeId, layout);
   }
+
+
+  resetForModeSwitch() {
+    this._undoStack = [];
+    this._redoStack = [];
+
+    this.setSelectionSilent(null);
+    this.stopEditing();
+    this.stopResizing();
+    this.stopDragging();
+    this.stopAdjustingGrid();
+
+    this.hidePaddingOverlay();
+    this.clearEdgeContact();
+
+    this._nodePixelLayouts.clear();
+
+    this.notify();
+  }
 }
 
 export const BuilderState = new BuilderStateClass();
