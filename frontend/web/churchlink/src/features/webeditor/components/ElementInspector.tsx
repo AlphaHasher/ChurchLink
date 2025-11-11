@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 import { Button } from "@/shared/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet";
@@ -50,7 +50,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   const skipBgCommitRef = React.useRef(false);
 
   // Close background popover without committing if selection changes while open
-  React.useEffect(() => {
+  useEffect(() => {
     const currentId = selectedNode?.id ?? null;
     const lastId = lastNodeIdRef.current;
     if (bgOpen && lastId && currentId && lastId !== currentId) {
@@ -62,7 +62,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
 
   // If the entire inspector closes while the background popover is open,
   // force-close the popover and skip committing any pending change to avoid loops.
-  React.useEffect(() => {
+  useEffect(() => {
     if (!open && bgOpen) {
       skipBgCommitRef.current = true;
       setBgOpen(false);

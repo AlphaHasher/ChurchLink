@@ -2,7 +2,7 @@
 
 import Color from 'color';
 import { PipetteIcon } from 'lucide-react';
-import { Slider } from "radix-ui";
+import * as Slider from "@radix-ui/react-slider";
 import {
   type ComponentProps,
   createContext,
@@ -64,6 +64,7 @@ export const ColorPicker = ({
   defaultValue = '#000000',
   onChange,
   className,
+  children,
   ...props
 }: ColorPickerProps) => {
   const selectedColor = Color(value);
@@ -135,7 +136,9 @@ export const ColorPicker = ({
         // Ensure pointer/text selection events reach inputs inside
         style={{ pointerEvents: 'auto', userSelect: 'text' }}
         {...props}
-      />
+      >
+        {children}
+      </div>
     </ColorPickerContext.Provider>
   );
 };
