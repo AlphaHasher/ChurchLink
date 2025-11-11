@@ -971,19 +971,8 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
     if not validation["success"]:
         return {"success": False, "msg": f"Error! Failed validation! Validation error message: {validation['msg']}"}
 
-    # 4) Refund removals FIRST (per-line), enforcing automatic_refund_deadline
-    if unregs:
-        refund_res = await _process_refunds_for_removals(
-            request=request,
-            instance=assembled,
-            old_details=old_details,
-            unregs=unregs,
-        )
-        if not refund_res["success"]:
-            return {"success": False, "msg": f"Refunds failed: {refund_res['msg']}"}
-
-    # 5) Build lineage ONLY for NEW ADDITIONS from the (now) captured ledger
-    tx = await get_transaction_by_order_id(order_id)  # refresh after refunds
+    # 4) Build lineage ONLY for NEW ADDITIONS from the (now) captured ledger
+    tx = await get_transaction_by_order_id(order_id)
     captured_by_person: Dict[str, Tuple[str, str]] = {}
     for it in (tx.items or []):
         if it.capture_id:
@@ -997,7 +986,7 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
         else:
             return {"success": False, "msg": f"Missing captured line for registrant {pid}. Aborting."}
 
-    # 6) Apply the change with lineage for additions
+    # 5) Apply the change with lineage for additions
     return await process_change_event_registration(request, change, lineage_map=lineage_map)
 
 
