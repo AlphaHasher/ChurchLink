@@ -339,21 +339,28 @@ def do_event_validation(event_data: dict, validate_date=True):
             date, err = _coerce_to_aware_utc(date)
             if err:
                 return {'success':False, 'msg':f'Error in reconciling event date! {err}'}
+            event_data['date'] = date
+
         registration_opens = event_data.get("registration_opens")
         if registration_opens:
             registration_opens, err = _coerce_to_aware_utc(registration_opens)
             if err:
                 return {'success':False, 'msg':f'Error in reconciling event registration opens date! {err}'}
+            event_data['registration_opens'] = registration_opens
+
         registration_deadline = event_data.get("registration_deadline")
         if registration_deadline:
             registration_deadline, err = _coerce_to_aware_utc(registration_deadline)
             if err:
                 return {'success':False, 'msg':f'Error in reconciling event registration deadline date! {err}'}
+            event_data['registration_deadline'] = registration_deadline
+
         automatic_refund_deadline = event_data.get("automatic_refund_deadline")
         if automatic_refund_deadline:
             automatic_refund_deadline, err = _coerce_to_aware_utc(automatic_refund_deadline)
             if err:
                 return {'success':False, 'msg':f'Error in reconciling event automatic refund date! {err}'}
+            event_data['automatic_refund_deadline'] = automatic_refund_deadline
 
         if registration_opens and registration_deadline and registration_opens >= registration_deadline:
             return {"success": False, "msg": "The registration opening date must be before the registration deadline."}
@@ -494,7 +501,7 @@ async def get_publishing_events() -> List[Event]:
         return []
 
 
-async def update_event(event_id: str, event: EventUpdate) -> bool:
+async def update_event(event_id: str, event: EventUpdate) -> Dict[str, Any]:
     """
     Updates an event by its ID.
     Implements Option 2: Any event with price > 0 requires payment.
