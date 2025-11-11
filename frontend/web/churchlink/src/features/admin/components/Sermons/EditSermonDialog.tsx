@@ -24,6 +24,7 @@ import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
 import { fetchMinistries } from "@/helpers/EventsHelper";
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface EditSermonProps {
     sermon: ChurchSermon;
@@ -62,7 +63,8 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
             handleDialogClose();
         } catch (err) {
             console.error("Failed to update sermon:", err);
-            alert("Failed to update sermon. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to update sermon");
+            alert(errorMessage);
         }
         setSaving(false);
     };
@@ -76,7 +78,8 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
             handleDialogClose();
         } catch (err) {
             console.error("Failed to delete sermon:", err);
-            alert("Failed to delete sermon. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to delete sermon");
+            alert(errorMessage);
         }
         setDeleting(false);
     };
@@ -121,28 +124,13 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium">Title (RU)</span>
-                            <input className="border p-2 rounded" value={sermon.ru_title || ''} onChange={(e) => setSermon({ ...sermon, ru_title: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Description</span>
                             <textarea className="border p-2 rounded" value={sermon.description} onChange={(e) => setSermon({ ...sermon, description: e.target.value })} />
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium">Description (RU)</span>
-                            <textarea className="border p-2 rounded" value={sermon.ru_description || ''} onChange={(e) => setSermon({ ...sermon, ru_description: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Speaker</span>
                             <input className="border p-2 rounded" value={sermon.speaker} onChange={(e) => setSermon({ ...sermon, speaker: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium">Speaker (RU)</span>
-                            <input className="border p-2 rounded" value={sermon.ru_speaker || ''} onChange={(e) => setSermon({ ...sermon, ru_speaker: e.target.value })} />
                         </label>
 
                         <label className="flex flex-col">

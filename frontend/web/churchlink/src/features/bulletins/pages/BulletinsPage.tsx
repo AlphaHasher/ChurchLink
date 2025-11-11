@@ -1,38 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
-import { fetchCombinedFeed } from '@/features/bulletins/api/bulletinsApi';
+import { fetchCombinedFeed, fetchCurrentWeek, ServerWeekInfo } from '@/features/bulletins/api/bulletinsApi';
 import BulletinList from '@/features/bulletins/components/BulletinList';
 import { ServiceCard } from '@/features/bulletins/components/ServiceCard';
 import { BulletinDetailsModal } from '@/features/bulletins/components/BulletinDetailsModal';
 import { BulletinsFilterDialog, DEFAULT_BULLETIN_FILTERS, BulletinFilters } from '@/features/bulletins/components/BulletinsFilterDialog';
 import { ChurchBulletin, ServiceBulletin, BulletinFilter, DEFAULT_BULLETIN_LIMIT } from '@/shared/types/ChurchBulletin';
 import { useAuth } from '@/features/auth/hooks/auth-context';
-
-/**
- * Get the Monday of the current week at 00:00:00
- * Used ONLY for filtering services by week (services still use week-based display_week)
- * Bulletins now use exact date filtering instead
- */
-const getCurrentWeekMonday = (): Date => {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Adjust Sunday to be 6 days from Monday
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - daysFromMonday);
-    monday.setHours(0, 0, 0, 0);
-    return monday;
-};
-
-/**
- * Get the Sunday of the current week at 23:59:59
- */
-const getCurrentWeekSunday = (): Date => {
-    const monday = getCurrentWeekMonday();
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
-    return sunday;
-};
 
 const BulletinsPage = () => {
     const [bulletinItems, setBulletinItems] = useState<ChurchBulletin[]>([]);
@@ -41,6 +14,7 @@ const BulletinsPage = () => {
     const [selectedBulletin, setSelectedBulletin] = useState<ChurchBulletin | null>(null);
     const [selectedService, setSelectedService] = useState<ServiceBulletin | null>(null);
     const [filters, setFilters] = useState<BulletinFilters>({ ...DEFAULT_BULLETIN_FILTERS });
+    const [serverWeek, setServerWeek] = useState<ServerWeekInfo | null>(null);
     const { user, loading: authLoading } = useAuth();
 
     // Load data whenever filters change
@@ -51,10 +25,15 @@ const BulletinsPage = () => {
             try {
                 console.log(`[Bulletins Page] Loading feed with filters at ${new Date().toISOString()}`, filters);
                 
-                // Get current week boundaries for service filtering ONLY
-                // Services still use week-based display_week, bulletins use exact dates
-                const weekStart = getCurrentWeekMonday();
-                const weekEnd = getCurrentWeekSunday();
+                // Fetch server-localized week info
+                const weekInfo = await fetchCurrentWeek();
+                if (isMounted) {
+                    setServerWeek(weekInfo);
+                    console.log(`[Bulletins Page] Server week: ${weekInfo.week_label} (${weekInfo.timezone})`);
+                }
+                
+                const weekStart = new Date(weekInfo.week_start);
+                const weekEnd = new Date(weekInfo.week_end);
                 
                 console.log(`[Bulletins Page] Filtering services for week: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`);
                 
@@ -171,19 +150,23 @@ const BulletinsPage = () => {
                 <div className="mb-8">
                     <div className="mb-4">
                         <h2 className="text-xl font-bold">
-                            {serviceItems.length > 0 ? `For the week of ${format(serviceItems[0].display_week, 'MMM d, yyyy')}` : 'Services'}
+                            {serverWeek ? serverWeek.week_label : 'Services'}
                         </h2>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="flex flex-wrap justify-center gap-6">
                         {serviceItems.map((service) => (
-                            <ServiceCard
+                            <div
                                 key={service.id}
-                                service={service}
-                                onClick={() => {
-                                    console.log(`[Service Click] User clicked service "${service.title}" (ID: ${service.id}) at ${new Date().toISOString()}`);
-                                    setSelectedService(service);
-                                }}
-                            />
+                                className="flex w-full sm:w-[320px] md:w-[360px] lg:w-[380px]"
+                            >
+                                <ServiceCard
+                                    service={service}
+                                    onClick={() => {
+                                        console.log(`[Service Click] User clicked service "${service.title}" (ID: ${service.id}) at ${new Date().toISOString()}`);
+                                        setSelectedService(service);
+                                    }}
+                                />
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -193,15 +176,15 @@ const BulletinsPage = () => {
             <div>
                 {serviceItems.length > 0 && (
                     <div className="mb-4 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                        </svg>
-                        <h2 className="text-xl font-bold">Bulletin Announcements</h2>
+                        <span
+                            className="text-2xl text-black/60"
+                            style={{ fontVariantEmoji: 'text', fontFamily: '"Segoe UI Symbol","Noto Sans Symbols","Noto Sans",sans-serif' }}
+                            role="img"
+                            aria-hidden="true"
+                        >
+                            {'\u{1F4E2}\uFE0E'}
+                        </span>
+                        <h2 className="text-xl font-bold">Announcements</h2>
                     </div>
                 )}
                 <BulletinList items={filteredBulletins} onItemClick={setSelectedBulletin} />
@@ -269,8 +252,7 @@ const BulletinsPage = () => {
                             )}
 
                             {selectedService.timeline_notes && selectedService.timeline_notes.trim() !== '' && (
-                                <div className="mt-6 p-4 bg-gray-50 border-l-4 border-black rounded-r">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-3">Service Timeline</h3>
+                                <div className="mt-6 p-4 bg-gray-50 border-l-4 border-blue-900 rounded-r">
                                     <div className="prose prose-sm max-w-none text-gray-700 space-y-0">
                                         {selectedService.timeline_notes.split('\n').map((line, index, array) => {
                                             const trimmedLine = line.trim();

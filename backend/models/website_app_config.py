@@ -77,9 +77,9 @@ class WebsiteAppConfig(BaseModel):
         use_enum_values=True,
         json_schema_extra={
             "example": {
-                "title": "Grace Community Church",
+                "title": "Your Church Website",
                 "favicon_url": "/church-favicon.ico",
-                "meta_description": "Welcome to Grace Community Church - A place of worship, fellowship, and spiritual growth.",
+                "meta_description": "Welcome to our church - A place of worship, fellowship, and spiritual growth.",
                 "updated_by": "admin",
                 "updated_at": "2024-01-01T12:00:00.000Z",
                 "created_at": "2024-01-01T12:00:00.000Z",
@@ -90,7 +90,7 @@ class WebsiteAppConfig(BaseModel):
     
     # Core configuration fields
     title: str = Field(
-        default="ChurchLink",
+        default="Your Church Website",
         min_length=1,
         max_length=60,
         description="Website title that appears in browser tabs and search results"
@@ -232,8 +232,8 @@ class WebsiteConfigUpdate(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "title": "Updated Church Name",
-                "meta_description": "Updated description for the church website"
+                "title": "Your Updated Website Name",
+                "meta_description": "Updated description for your church website"
             }
         }
     )

@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:app/helpers/api_client.dart';
 import 'package:app/models/bulletin.dart';
 import 'package:app/models/service_bulletin.dart';
+import 'package:app/models/server_week.dart';
 
 /// Response model for combined bulletin feed containing services and bulletins
 class BulletinFeedResponse {
@@ -35,7 +36,29 @@ class BulletinsService {
 
   final Dio _client;
 
-  /// Fetch combined feed with services and bulletins (new unified endpoint)
+  /// Fetch current week info from server (server-localized)
+  Future<ServerWeekInfo> fetchCurrentWeek() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        '/v1/bulletins/current_week',
+      );
+
+      if (response.data != null) {
+        return ServerWeekInfo.fromJson(response.data!);
+      }
+      
+      // Fallback to client-side calculation
+      return ServerWeekInfo.clientFallback();
+    } on FormatException {
+      // If date parsing fails, use client-side fallback
+      return ServerWeekInfo.clientFallback();
+    } on DioException {
+      // If server endpoint fails, use client-side fallback
+      return ServerWeekInfo.clientFallback();
+    }
+  }
+
+  /// Fetch combined feed with services and bulletins (unified endpoint)
   Future<BulletinFeedResponse> fetchCombinedFeed(BulletinFilter filter) async {
     try {
       final queryParams = filter.toQueryParams();
@@ -52,23 +75,14 @@ class BulletinsService {
         return BulletinFeedResponse.fromJson(data);
       }
 
-      // Fallback: if response is just a list (old format), return empty services
-      if (data is List) {
-        final bulletins =
-            data
-                .whereType<Map<String, dynamic>>()
-                .map(Bulletin.fromJson)
-                .toList();
-        return BulletinFeedResponse(services: [], bulletins: bulletins);
-      }
-
+      // If unexpected format, return empty data
       return const BulletinFeedResponse(services: [], bulletins: []);
     } on DioException catch (error) {
       throw Exception('Failed to load bulletin feed: ${error.message}');
     }
   }
 
-  /// Fetch paginated bulletins using the provided filter (legacy endpoint)
+  /// Fetch paginated bulletins using the provided filter (bulletins only, no services)
   Future<List<Bulletin>> fetchBulletins(BulletinFilter filter) async {
     try {
       final response = await _client.get<dynamic>(

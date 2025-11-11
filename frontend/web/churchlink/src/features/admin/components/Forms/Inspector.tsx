@@ -15,6 +15,7 @@ import { TranslationsPanel } from "./TranslationsPanel";
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
   const field = useBuilderStore((s) => s.schema.data.find((f) => f.id === s.selectedId));
+  const allFields = useBuilderStore((s) => s.schema.data);
   const update = useBuilderStore((s) => s.updateField);
   const updateOptions = useBuilderStore((s) => s.updateOptions);
 
@@ -40,64 +41,66 @@ export function Inspector() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(sel.options || []).map((o, idx) => (
-              <TableRow key={idx}>
-                <TableCell>
-                  <Input
-                    placeholder="Label"
-                    value={o.label}
-                    onChange={(e) => {
-                      const next = [...sel.options];
-                      next[idx] = { ...next[idx], label: e.target.value };
-                      updateOptions(field.id, next);
-                    }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    placeholder="Value"
-                    value={o.value}
-                    onChange={(e) => {
-                      const next = [...sel.options];
-                      next[idx] = { ...next[idx], value: e.target.value };
-                      updateOptions(field.id, next);
-                    }}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={(o as any).price ?? ""}
-                    onChange={(e) => {
-                      const next = [...sel.options];
-                      const price = e.target.value === "" ? undefined : Number(e.target.value);
-                      next[idx] = { ...next[idx], price } as any;
-                      updateOptions(field.id, next);
-                    }}
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const next = sel.options.filter((_, i) => i !== idx);
-                      updateOptions(field.id, next);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {(sel.options || []).map((o, idx) => {
+              return (
+                <TableRow key={idx}>
+                  <TableCell>
+                    <Input
+                      placeholder="Label"
+                      value={o.label ?? ""}
+                      onChange={(e) => {
+                        const next = [...sel.options];
+                        next[idx] = { ...next[idx], label: e.target.value };
+                        updateOptions(field.id, next);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      placeholder="Value"
+                      value={o.value ?? ""}
+                      onChange={(e) => {
+                        const next = [...sel.options];
+                        next[idx] = { ...next[idx], value: e.target.value };
+                        updateOptions(field.id, next);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={(o as any).price ?? ""}
+                      onChange={(e) => {
+                        const next = [...sel.options];
+                        const price = e.target.value === "" ? undefined : Number(e.target.value);
+                        next[idx] = { ...next[idx], price } as any;
+                        updateOptions(field.id, next);
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const next = sel.options.filter((_, i) => i !== idx);
+                        updateOptions(field.id, next);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         <div>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => updateOptions(field.id, [...(sel.options || []), { label: "New option", value: `value${(sel.options?.length || 0) + 1}` }])}
+            onClick={() => updateOptions(field.id, [...(sel.options || []), { label: `Option ${(sel.options?.length || 0) + 1}`, value: `option${(sel.options?.length || 0) + 1}` }])}
           >
             Add option
           </Button>
@@ -181,7 +184,7 @@ export function Inspector() {
             <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} placeholder="Enter placeholder text" />
           </div>
         )}
-      {field.type !== 'price' && (
+      {field.type !== 'price' && field.type !== 'pricelabel' && (
         <div className="space-y-1">
           <Label>Component Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
@@ -191,9 +194,60 @@ export function Inspector() {
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Amount</Label>
-            <Input type="number" value={(field as any).amount ?? 0}
-              onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
-            <p className="text-xs text-muted-foreground">This field does not render; it only adds to the total when visible.</p>
+            {(() => {
+              // Calculate total from pricelabel fields
+              const pricelabelFields = allFields.filter(f => f.type === 'pricelabel') as any[];
+              const calculatedTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
+              const hasPricelabelFields = pricelabelFields.length > 0;
+              
+              if (hasPricelabelFields) {
+                return (
+                  <div className="space-y-2">
+                    <div className="p-3 bg-muted rounded-md">
+                      <div className="text-sm font-medium text-muted-foreground mb-2">
+                        Calculated from price components:
+                      </div>
+                      <div className="text-2xl font-bold text-primary">
+                        ${calculatedTotal.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                        <div>{pricelabelFields.length} price component{pricelabelFields.length === 1 ? '' : 's'} found:</div>
+                        {pricelabelFields.map((pf, idx) => (
+                          <div key={pf.id} className="flex justify-between text-xs">
+                            <span>• {pf.label || `Component ${idx + 1}`}</span>
+                            <span>${(pf.amount || 0).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        onChange({ amount: calculatedTotal } as any);
+                      }}
+                    >
+                      Apply Calculated Total (${calculatedTotal.toFixed(2)})
+                    </Button>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="space-y-2">
+                    <Input 
+                      type="number" 
+                      value={(field as any).amount ?? 0}
+                      onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} 
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Manual entry mode - no price components found. Add price components for automatic calculation.
+                    </p>
+                  </div>
+                );
+              }
+            })()}
           </div>
 
           <div className="space-y-2">
@@ -250,7 +304,19 @@ export function Inspector() {
           </div>
         </div>
       )}
-      {field.type !== 'price' && (
+
+      {field.type === "pricelabel" && (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Amount</Label>
+            <Input type="number" value={(field as any).amount ?? 0}
+              onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
+            <p className="text-xs text-muted-foreground">This is a display field that shows an individual price component.</p>
+          </div>
+        </div>
+      )}
+
+      {field.type !== 'price' && field.type !== 'pricelabel' && (
         <>
           <div className="space-y-1">
             <Label>Width</Label>
@@ -264,18 +330,20 @@ export function Inspector() {
               </SelectContent>
             </Select>
           </div>
-          <ToggleGroup
-            type="single"
-            value={field.required ? "required" : ""}
-            onValueChange={(value) => {
-              onChange({ required: value === "required" });
-            }}
-            className="w-full justify-start"
-          >
-            <ToggleGroupItem value="required" aria-label="Required" size="sm">
-              Required
-            </ToggleGroupItem>
-          </ToggleGroup>
+          {field.type !== 'static' && (
+            <ToggleGroup
+              type="single"
+              value={field.required ? "required" : ""}
+              onValueChange={(value) => {
+                onChange({ required: value === "required" });
+              }}
+              className="w-full justify-start"
+            >
+              <ToggleGroupItem value="required" aria-label="Required" size="sm">
+                Required
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
           {(field.type === "checkbox" || field.type === "switch") && (
             <div className="space-y-1">
               <Label>Price when selected</Label>
@@ -439,9 +507,9 @@ export function Inspector() {
                     <CircleHelp className="h-4 w-4" />
                   </button>
                 </HoverCardTrigger>
-                <HoverCardContent className="w-96" align="start">
+                <HoverCardContent className="w-[420px] max-w-[90vw]" align="start">
                   <div className="space-y-2 text-sm">
-                    <p>Show this field only when a simple condition on another field is true.</p>
+                    <p>Show this field only when conditions on other fields are true. Chain as many conditions as needed.</p>
                     <p>Syntax: <code>Component Name op value</code></p>
                     <ul className="list-disc pl-5 space-y-1">
                       <li><strong>Component Name</strong>: another field's name</li>
@@ -449,21 +517,23 @@ export function Inspector() {
                       <li><strong>value</strong>: number, boolean (<code>true</code>/<code>false</code>), or string (wrap in quotes)</li>
                     </ul>
                     <div className="space-y-1">
-                      <p className="font-medium">Examples</p>
-                      <pre className="rounded bg-muted p-2 text-xs">staff == true</pre>
-                      <pre className="rounded bg-muted p-2 text-xs">age &gt;= 12</pre>
-                      <pre className="rounded bg-muted p-2 text-xs">country == "US"</pre>
+                      <p className="font-medium">Single condition examples</p>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">staff == true</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">age &gt;= 18</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">country == "USA"</pre>
                     </div>
                     <div className="space-y-1">
-                      <p className="font-medium">Multiple conditions</p>
-                      <p>Chain with <code>&amp;&amp;</code> (AND) or <code>||</code> (OR). Only first condition is parsed today; support for chaining is planned. For now, prefer one condition per field.</p>
-                      <pre className="rounded bg-muted p-2 text-xs">subscribe == true &amp;&amp; age &gt;= 18</pre>
+                      <p className="font-medium">Multiple conditions (unlimited chaining)</p>
+                      <p>Chain with <code>&amp;&amp;</code> (AND) or <code>||</code> (OR). AND has higher precedence:</p>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">age &gt;= 18 &amp;&amp; subscribe == true</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">country == "USA" || country == "Canada" || country == "Mexico"</pre>
+                      <pre className="rounded bg-muted p-2 text-xs overflow-x-auto">age &gt;= 18 &amp;&amp; member == true || admin == true</pre>
                     </div>
                   </div>
                 </HoverCardContent>
               </HoverCard>
             </div>
-            <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age > 12' />
+            <Input value={field.visibleIf || ""} onChange={(e) => onChange({ visibleIf: e.target.value })} placeholder='e.g. age >= 18 && subscribe == true' />
           </div>
         </>
       )}

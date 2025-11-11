@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import type { FormEvent, MouseEvent } from "react";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -10,12 +11,28 @@ import { useAuth } from "../hooks/auth-context";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Dove from "@/assets/Dove";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
+import { getAuthErrorMessage } from "../utils/errorMessages";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/components/ui/Dialog";
+import { getChurchName } from "@/helpers/ChurchSettingsHelper";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetEmail, setResetEmail] = useState<string>("");
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
+  const [resetError, setResetError] = useState<string>("");
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
+  const [churchName, setChurchName] = useState("Your Church Name");
+
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -39,27 +56,81 @@ function Login() {
     }
   }, [user]);
 
-  const handleForgotPassword = async (e: React.MouseEvent) => {
+  // Fetch church name on component mount
+  useEffect(() => {
+    const fetchChurchName = async () => {
+      try {
+        const name = await getChurchName();
+        setChurchName(name);
+      } catch (error) {
+        console.warn("Failed to fetch church name for login page:", error);
+        // Keep default value
+      }
+    };
+
+    fetchChurchName();
+  }, []);
+
+  // Cleanup timeout on component unmount to prevent stale state updates
+  useEffect(() => {
+    return () => {
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+        resetTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  const handleForgotPassword = (e: MouseEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError("Please enter your email address first");
+    // Clear any existing timeout to prevent stale timers
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
+    }
+    setResetEmail(email); // Pre-fill with email from login form if available
+    setShowResetModal(true);
+    setResetError("");
+    setResetEmailSent(false);
+  };
+
+  const handlePasswordReset = async () => {
+    if (!resetEmail) {
+      setResetError("Please enter your email address");
       return;
     }
+
+    setResetLoading(true);
+    setResetError("");
+
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, resetEmail);
       setResetEmailSent(true);
-      setError("");
+      setResetError("");
+      // Clear any existing timeout before setting a new one
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
+      // Close modal after 2 seconds and store the timeout ID
+      resetTimeoutRef.current = setTimeout(() => {
+        setShowResetModal(false);
+        setResetEmail("");
+        resetTimeoutRef.current = null;
+      }, 2000);
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setResetError(getAuthErrorMessage(err.message));
       } else {
-        setError("An unknown error occurred");
+        setResetError("An error occurred. Please try again.");
       }
+    } finally {
+      setResetLoading(false);
     }
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: FormEvent) => {
     e.preventDefault();
+    setError(""); // Clear any existing errors
     try {
       await signInWithEmailAndPassword(auth, email, password);
 
@@ -68,14 +139,15 @@ function Login() {
       navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError(getAuthErrorMessage(err.message));
       } else {
-        setError("An unknown error occurred");
+        setError("An error occurred. Please try again.");
       }
     }
   };
 
   const handleGoogleLogin = async () => {
+    setError(""); // Clear any existing errors
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
@@ -85,9 +157,9 @@ function Login() {
       navigate(getRedirectTo(), { replace: true });
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError(getAuthErrorMessage(err.message));
       } else {
-        setError("An unknown error occurred");
+        setError("An error occurred. Please try again.");
       }
     }
   };
@@ -104,7 +176,7 @@ function Login() {
 
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
         <div className="text-gray-600 mb-6">
-          The Second Slavic Baptist Church welcomes you back! Please enter your
+          {churchName} welcomes you back! Please enter your
           credentials below.
         </div>
 
@@ -144,24 +216,18 @@ function Login() {
           </div>
 
           <div className="flex justify-end">
-            <a
-              href="#"
+            <button
+              type="button"
               onClick={handleForgotPassword}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-all"
             >
               Forgot your password?
-            </a>
+            </button>
           </div>
-
-          {resetEmailSent && (
-            <div className="bg-green-50 text-green-600 p-3 rounded-lg mb-6">
-              Password reset email sent! Please check your inbox.
-            </div>
-          )}
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg"
           >
             Sign In
           </button>
@@ -179,7 +245,7 @@ function Login() {
         <button
           onClick={handleGoogleLogin}
           type="button"
-          className="w-full bg-white border-2 border-gray-400 hover:bg-gray-50 !text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-white border-2 border-gray-400 hover:bg-gray-50 !text-gray-800 font-semibold py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -209,6 +275,85 @@ function Login() {
           </Link>
         </div>
       </div>
+
+      {/* Password Reset Modal */}
+      <Dialog 
+        open={showResetModal} 
+        onOpenChange={(open) => {
+          // Clear timeout when modal is closed
+          if (!open && resetTimeoutRef.current) {
+            clearTimeout(resetTimeoutRef.current);
+            resetTimeoutRef.current = null;
+          }
+          setShowResetModal(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Your Password</DialogTitle>
+            <DialogDescription>
+              Enter your email address and we'll send you a link to reset your password.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !resetLoading) {
+                    handlePasswordReset();
+                  }
+                }}
+                placeholder="Enter your email address"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                autoFocus
+              />
+            </div>
+
+            {resetError && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+                {resetError}
+              </div>
+            )}
+
+            {resetEmailSent && (
+              <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm">
+                Password reset email sent! Please check your inbox.
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  // Clear timeout when manually closing modal
+                  if (resetTimeoutRef.current) {
+                    clearTimeout(resetTimeoutRef.current);
+                    resetTimeoutRef.current = null;
+                  }
+                  setShowResetModal(false);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={resetLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePasswordReset}
+                disabled={resetLoading || resetEmailSent}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
+              >
+                {resetLoading ? "Sending..." : "Send Reset Email"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import AdminLayout from "../shared/layouts/AdminLayout";
 import WebBuilderLayout from "../features/admin/components/WebBuilder/layout/WebBuilderLayout";
+import PermissionGuard from "../features/auth/guards/PermissionGuard";
 
 // Lazy load admin components
 const AdminDashboard = lazy(() => import("../features/admin/pages/AdminDashboard"));
@@ -37,30 +38,126 @@ export const AdminRoutes = () => {
     <Routes>
       <Route path="/" element={<AdminLayout></AdminLayout>}>
         <Route index element={<AdminDashboard />} />
-        <Route path="/webbuilder" element={<WebBuilder />} />
-        <Route path="/users/manage-users" element={<Users />} />
-        <Route path="/users/membership-requests" element={<MembershipRequests />} />
-        <Route path="/permissions" element={<Permissions />} />
-        <Route path="/notifications" element={<Notification />} />
-        <Route path="/ministries" element={<Ministries />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/events/:eventId" element={<EventDetails />} />
-        <Route path="/finance" element={<Finance />} />
-        <Route path="/finance/refunds" element={<RefundManagement />} />
-        <Route path="/sermons" element={<Sermons />} />
-        <Route path="/bible-plans/manage-plans" element={<ManageBiblePlans />} />
-        <Route path="/bible-plans/plan-builder" element={<BiblePlanBuilder />} />
-        <Route path="/bulletins" element={<Bulletins />} />
-        <Route path="/mobile-ui-tab" element={<MobileUITab />} />
-        <Route path="/mobile-ui-pages" element={<MobileUIPages />} />
-        <Route path="forms/form-builder" element={<FormBuilder />} />
-        <Route path="forms/manage-forms" element={<ManageForms />} />
-        <Route path="forms/responses" element={<FormResponses />} />
-        <Route path="webbuilder/edit/:slug" element={<EditPage />} />
-        <Route path="webbuilder/preview/:slug" element={<AdminPagePreview />} />
-        <Route path="webbuilder/header" element={<WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>} />
-        <Route path="webbuilder/footer" element={<WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>} />
-        <Route path="/media-library" element={<MediaLibrary />} />
+        <Route path="/webbuilder" element={
+          <PermissionGuard requiredPermission="web_builder_management">
+            <WebBuilder />
+          </PermissionGuard>
+        } />
+        <Route path="/users/manage-users" element={
+          <PermissionGuard requiredPermission="permissions_management">
+            <Users />
+          </PermissionGuard>
+        } />
+        <Route path="/users/membership-requests" element={
+          <PermissionGuard requiredPermission="permissions_management">
+            <MembershipRequests />
+          </PermissionGuard>
+        } />
+        <Route path="/permissions" element={
+          <PermissionGuard requiredPermission="permissions_management">
+            <Permissions />
+          </PermissionGuard>
+        } />
+        <Route path="/notifications" element={
+          <PermissionGuard requiredPermission="notification_management">
+            <Notification />
+          </PermissionGuard>
+        } />
+        <Route path="/ministries" element={
+          <PermissionGuard requiredPermission="ministries_management">
+            <Ministries />
+          </PermissionGuard>
+        } />
+        <Route path="/events" element={
+          <PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+            <Events />
+          </PermissionGuard>
+        } />
+        <Route path="/events/:eventId" element={
+          <PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+            <EventDetails />
+          </PermissionGuard>
+        } />
+        <Route path="/finance" element={
+          <PermissionGuard requiredPermission="finance">
+            <Finance />
+          </PermissionGuard>
+        } />
+        <Route path="/finance/refunds" element={
+          <PermissionGuard requiredPermission="finance">
+            <RefundManagement />
+          </PermissionGuard>
+        } />
+        <Route path="/sermons" element={
+          <PermissionGuard requiredPermission="sermon_editing">
+            <Sermons />
+          </PermissionGuard>
+        } />
+        <Route path="/bible-plans/manage-plans" element={
+          <PermissionGuard requiredPermission="bible_plan_management">
+            <ManageBiblePlans />
+          </PermissionGuard>
+        } />
+        <Route path="/bible-plans/plan-builder" element={
+          <PermissionGuard requiredPermission="bible_plan_management">
+            <BiblePlanBuilder />
+          </PermissionGuard>
+        } />
+        <Route path="/bulletins" element={
+          <PermissionGuard requiredPermission="bulletin_editing">
+            <Bulletins />
+          </PermissionGuard>
+        } />
+        <Route path="/mobile-ui-tab" element={
+          <PermissionGuard requiredPermission="mobile_ui_management">
+            <MobileUITab />
+          </PermissionGuard>
+        } />
+        <Route path="/mobile-ui-pages" element={
+          <PermissionGuard requiredPermission="mobile_ui_management">
+            <MobileUIPages />
+          </PermissionGuard>
+        } />
+        <Route path="forms/form-builder" element={
+          <PermissionGuard requiredPermission="forms_management">
+            <FormBuilder />
+          </PermissionGuard>
+        } />
+        <Route path="forms/manage-forms" element={
+          <PermissionGuard requiredPermission="forms_management">
+            <ManageForms />
+          </PermissionGuard>
+        } />
+        <Route path="forms/responses" element={
+          <PermissionGuard requiredPermission="forms_management">
+            <FormResponses />
+          </PermissionGuard>
+        } />
+        <Route path="webbuilder/edit/:slug" element={
+          <PermissionGuard requiredPermission="web_builder_management">
+            <EditPage />
+          </PermissionGuard>
+        } />
+        <Route path="webbuilder/preview/:slug" element={
+          <PermissionGuard requiredPermission="web_builder_management">
+            <AdminPagePreview />
+          </PermissionGuard>
+        } />
+        <Route path="webbuilder/header" element={
+          <PermissionGuard requiredPermission="web_builder_management">
+            <WebBuilderLayout type="header"><EditHeader /></WebBuilderLayout>
+          </PermissionGuard>
+        } />
+        <Route path="webbuilder/footer" element={
+          <PermissionGuard requiredPermission="web_builder_management">
+            <WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>
+          </PermissionGuard>
+        } />
+        <Route path="/media-library" element={
+          <PermissionGuard requiredPermission="media_management">
+            <MediaLibrary />
+          </PermissionGuard>
+        } />
       </Route>
     </Routes>
   );

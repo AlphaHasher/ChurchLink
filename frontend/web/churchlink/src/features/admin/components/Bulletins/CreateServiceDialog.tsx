@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/shared/components/ui/button";
+import { Label } from "@/shared/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
     Dialog,
     DialogContent,
@@ -15,6 +17,8 @@ import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createService } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
+import { Switch } from "@/shared/components/ui/switch";
 
 interface CreateServiceDialogProps {
     onSave: () => Promise<void>;
@@ -29,12 +33,8 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
         description: "",
         timeline_notes: "",
         display_week: new Date(),
-        order: 0,
         published: false,
         visibility_mode: 'specific_weeks',
-        ru_title: "",
-        ru_description: "",
-        ru_timeline_notes: "",
     };
 
     const [service, setService] = useState<Partial<ServiceBulletin>>(initial);
@@ -62,12 +62,8 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                 description: service.description || "",
                 timeline_notes: service.timeline_notes || "",
                 display_week: service.display_week ? service.display_week.toISOString() : new Date().toISOString(),
-                order: service.order || 0,
                 published: service.published ?? false,
                 visibility_mode: service.visibility_mode || 'specific_weeks',
-                ru_title: service.ru_title || "",
-                ru_description: service.ru_description || "",
-                ru_timeline_notes: service.ru_timeline_notes || "",
             };
 
             console.log(`[Service Create] Attempting to create service "${payload.title}" at ${new Date().toISOString()}`);
@@ -77,7 +73,8 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
             handleDialogClose();
         } catch (err) {
             console.error("[Service Create Error]", err);
-            alert("Failed to create service. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to create service");
+            alert(errorMessage);
         } finally {
             setSaving(false);
         }
@@ -114,7 +111,10 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
         <>
             <Button
                 variant="outline"
-                className="!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600"
+                className={cn(
+                    "!bg-blue-500 text-white border border-blue-600 shadow-sm hover:bg-blue-600",
+                    "dark:!bg-blue-600 dark:border-blue-500 dark:text-white dark:hover:bg-blue-700"
+                )}
                 onClick={handleDialogOpen}
                 disabled={checkingPerms}
             >
@@ -122,17 +122,26 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
             </Button>
 
             <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
-                <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-y-auto">
+                <DialogContent
+                    className={cn(
+                        "sm:max-w-[700px] max-h-[80vh] overflow-y-auto",
+                        "bg-white dark:bg-gray-800 text-black dark:text-white",
+                        "border border-gray-200 dark:border-gray-600"
+                    )}
+                >
                     <DialogHeader>
-                        <DialogTitle>New Service</DialogTitle>
-                        <DialogDescription className="pt-4">
+                        <DialogTitle className="text-black dark:text-white">New Service</DialogTitle>
+                        <DialogDescription className="pt-6 text-muted-foreground dark:text-muted-foreground/80">
                             Create a new service for the bulletin timeline.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-4 py-4">
+                    <div className={cn(
+                        "grid gap-4 py-4",
+                        "bg-white dark:bg-gray-800"
+                    )}>
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Title *</span>
+                            <span className="text-sm font-medium">Title *</span>
                             <input 
                                 className="border p-2 rounded" 
                                 placeholder="Title"
@@ -142,17 +151,7 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600 mb-1">Title (RU)</span>
-                            <input 
-                                className="border p-2 rounded" 
-                                placeholder="Title (RU)"
-                                value={service.ru_title || ''} 
-                                onChange={(e) => setService({ ...service, ru_title: e.target.value })} 
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Day of Week *</span>
+                            <span className="text-sm font-medium">Day of Week *</span>
                             <select
                                 className="border p-2 rounded" 
                                 value={service.day_of_week || 'Sunday'}
@@ -169,7 +168,7 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Time of Day *</span>
+                            <span className="text-sm font-medium">Time of Day *</span>
                             <input 
                                 type="time"
                                 className="border p-2 rounded" 
@@ -185,7 +184,7 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Visibility Mode *</span>
+                            <span className="text-sm font-medium">Visibility Mode *</span>
                             <select 
                                 className="border p-2 rounded" 
                                 value={service.visibility_mode || 'always'}
@@ -204,7 +203,7 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
 
                         {service.visibility_mode === 'specific_weeks' && (
                             <label className="flex flex-col">
-                                <span className="text-sm font-medium mb-1">Display Week *</span>
+                                <span className="text-sm font-medium">Display Week *</span>
                                 <input 
                                     type="date" 
                                     className="border p-2 rounded" 
@@ -224,7 +223,7 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                         )}
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Description</span>
+                            <span className="text-sm font-medium">Description</span>
                             <textarea 
                                 className="border p-2 rounded" 
                                 rows={3}
@@ -235,18 +234,7 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600 mb-1">Description (RU)</span>
-                            <textarea 
-                                className="border p-2 rounded" 
-                                rows={3}
-                                placeholder="Description (RU)"
-                                value={service.ru_description || ''} 
-                                onChange={(e) => setService({ ...service, ru_description: e.target.value })} 
-                            />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Timeline Notes</span>
+                            <span className="text-sm font-medium">Timeline Notes</span>
                             <textarea 
                                 className="border p-2 rounded font-mono text-sm" 
                                 rows={8}
@@ -259,42 +247,22 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                             </span>
                         </label>
 
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-600 mb-1">Timeline Notes (RU)</span>
-                            <textarea 
-                                className="border p-2 rounded font-mono text-sm" 
-                                rows={8}
-                                placeholder="Timeline Notes (RU)"
-                                value={service.ru_timeline_notes || ''} 
-                                onChange={(e) => setService({ ...service, ru_timeline_notes: e.target.value })} 
-                            />
-                            <span className="text-xs text-gray-500 mt-1">
-                                Timeline
-                            </span>
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium mb-1">Order</span>
-                            <input 
-                                type="number"
-                                min="0"
-                                className="border p-2 rounded" 
-                                value={service.order ?? 0} 
-                                onChange={(e) => setService({ ...service, order: parseInt(e.target.value) || 0 })} 
-                            />
-                            <span className="text-xs text-gray-500 mt-1">
-                                Lower numbers appear first (can also be reordered via drag-and-drop)
-                            </span>
-                        </label>
-
-                        <label className="flex items-center space-x-2">
-                            <input 
-                                type="checkbox" 
-                                checked={service.published ?? false} 
-                                onChange={(e) => setService({ ...service, published: e.target.checked })} 
-                            />
-                            <span className="text-sm font-medium">Published</span>
-                        </label>
+                        <div className="rounded border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-800/60">
+                            <div className="flex flex-wrap items-center gap-6">
+                                <div className="flex flex-col">
+                                    <Label htmlFor="create-service-published" className="mb-1 text-sm">Published</Label>
+                                    <div className="flex items-center gap-2">
+                                        <Switch
+                                            id="create-service-published"
+                                            checked={Boolean(service.published)}
+                                            onCheckedChange={(checked) => setService({ ...service, published: checked })}
+                                            className="!bg-gray-300 data-[state=checked]:!bg-blue-500 !ring-0 !outline-none"
+                                        />
+                                        <span className="text-sm">{service.published ? "Yes" : "No"}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <DialogFooter>
@@ -302,8 +270,14 @@ export function CreateServiceDialog({ onSave }: CreateServiceDialogProps) {
                             Cancel
                         </Button>
                         <Button onClick={handleSave} disabled={saving}>
-                            {saving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
-                            Create Service
+                            {saving ? (
+                                <>
+                                    <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                    Saving...
+                                </>
+                            ) : (
+                                "Create Service"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

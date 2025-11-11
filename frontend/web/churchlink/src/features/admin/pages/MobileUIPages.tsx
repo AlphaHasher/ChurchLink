@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Save, ArrowUp, ArrowDown, Image } from "lucide-react";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { AspectRatio } from "@/shared/components/ui/aspect-ratio";
+import { getPublicUrl } from "@/helpers/MediaInteraction";
 import DashboardImageSelector from "@/features/admin/components/AppConfig/DashboardImageSelector";
 import {
   getDashboardPages,
   saveDashboardPageConfiguration,
   DashboardPage,
-  updateDashboardPage,
   deleteDashboardPage
 } from "../../../helpers/PagesHelper";
 
@@ -17,7 +18,6 @@ interface EditingPage extends DashboardPage {
 const ALLOWED_PAGES = [
   { pageName: "join live", displayName: "Join Live" },
   { pageName: "events", displayName: "Events" },
-  { pageName: "ministries", displayName: "Ministries" },
   { pageName: "sermons", displayName: "Sermons" },
   { pageName: "giving", displayName: "Giving" },
   { pageName: "weekly bulletin", displayName: "Weekly Bulletin" },
@@ -43,7 +43,14 @@ const DashboardPagesManager = () => {
     try {
       const pageData = await getDashboardPages();
       const processedPages = [...pageData];
-      processedPages.forEach((page, index) => (page.index = index));
+      // Normalize page names using ALLOWED_PAGES as source of truth
+      processedPages.forEach((page, index) => {
+        page.index = index;
+        const allowedPage = ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === page.pageName.toLowerCase());
+        if (allowedPage) {
+          page.pageName = allowedPage.pageName;
+        }
+      });
       setPages(processedPages);
     } catch (err) {
       setError("Failed to load dashboard pages");
@@ -155,41 +162,56 @@ const DashboardPagesManager = () => {
     setPages(newPages);
   };
 
-    const handleSaveEdit = async () => {
-      if (!editingPage || !editingPage.pageName || !editingPage.displayName) {
-        setError("Page name and Display Name are required");
-        return;
-      }
+  const handleSaveEdit = async () => {
+    // Page Name is required (internal identifier), Display Name is optional
+    if (!editingPage || !editingPage.pageName) {
+      setError("Page Name is required");
+      return;
+    }
 
-      try {
-        let newPages;
-        if (editingPage.isNew) {
+    try {
+      // Normalize page name using ALLOWED_PAGES as source of truth
+      const allowedPage = ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === editingPage.pageName.toLowerCase());
+      const normalizedEditingPage = {
+        ...editingPage,
+        pageName: allowedPage?.pageName || editingPage.pageName.toLowerCase(),
+        isNew: undefined
+      };
+
+      let newPages;
+      if (editingPage.isNew) {
         const exists = pages.some(
           (p) =>
-            p.pageName.toLowerCase() === editingPage.pageName.toLowerCase() ||
-            p.index === editingPage.index
+            p.pageName.toLowerCase() === normalizedEditingPage.pageName.toLowerCase() ||
+            p.index === normalizedEditingPage.index
         );
         if (exists) {
           setError("Page name or index already exists");
           return;
         }
 
-        newPages = [...pages, { ...editingPage, isNew: undefined }].sort(
+        // Add, then normalize order (sort and reindex)
+        newPages = [...pages, normalizedEditingPage].sort(
           (a, b) => a.index - b.index
         );
+        newPages.forEach((p, idx) => (p.index = idx));
         setPages(newPages);
         const success = await saveDashboardPageConfiguration(newPages);
         if (!success) throw new Error("Failed to create new page");
 
       } else {
+        // Update the matching page by pageName to be resilient to index changes
         newPages = pages.map((p) =>
-          p.index === editingPage.index
-            ? { ...editingPage, isNew: undefined }
-             : p
+          p.pageName.toLowerCase() === normalizedEditingPage.pageName.toLowerCase()
+            ? normalizedEditingPage
+            : p
         );
+        // Normalize order (sort by index and reindex) to persist ordering changes
+        newPages = [...newPages].sort((a, b) => a.index - b.index);
+        newPages.forEach((p, idx) => (p.index = idx));
         setPages(newPages);
 
-        const success = await updateDashboardPage(editingPage.index, editingPage);
+        const success = await saveDashboardPageConfiguration(newPages);
         if (!success) throw new Error("Failed to update page");
       }
 
@@ -287,42 +309,99 @@ const DashboardPagesManager = () => {
                 <label className="block text-sm font-medium mb-1">Index</label>
                 <input
                   type="number"
+                  min={0}
+                  max={editingPage.isNew ? pages.length : Math.max(0, pages.length - 1)}
+                  step={1}
                   value={editingPage.index}
-                  disabled
-                  className="border border-input bg-muted text-foreground rounded px-3 py-2 w-full"
+                  onChange={(e) => {
+                    const num = parseInt(e.target.value, 10);
+                    const max = editingPage.isNew ? pages.length : Math.max(0, pages.length - 1);
+                    const clamped = isNaN(num) ? 0 : Math.min(Math.max(0, num), max);
+                    setEditingPage({ ...editingPage, index: clamped });
+                  }}
+                  className="border border-input bg-background rounded px-3 py-2 w-full"
                 />
+                <small className="text-xs text-muted-foreground">Lower numbers appear first.</small>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Page Name</label>
                 <input
                   type="text"
-                  value={editingPage.pageName}
+                  value={ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === editingPage.pageName.toLowerCase())?.pageName || editingPage.pageName}
+                  readOnly
                   disabled
-                  className="border border-input bg-muted text-foreground rounded px-3 py-2 w-full"
+                  className="border border-input bg-muted rounded px-3 py-2 w-full cursor-not-allowed"
                 />
+                <small className="text-xs text-muted-foreground">Internal identifier from allowed pages.</small>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Display Name</label>
+                <label className="block text-sm font-medium mb-1">Display Name (optional)</label>
                 <input
                   type="text"
                   value={editingPage.displayName}
                   onChange={(e) =>
                     setEditingPage({ ...editingPage, displayName: e.target.value })
                   }
+                  placeholder="Leave blank to use only image"
                   className="border border-input bg-background rounded px-3 py-2 w-full"
                 />
               </div>
 
-              <div>
-                <DashboardImageSelector
-                  value={editingPage.imageId || ""}
-                  onChange={(id) => setEditingPage({ ...editingPage, imageId: id })}
-                  label="Page Image"
-                  helperText="Select or upload an image for this dashboard page."
-               />
-             </div>
+              {/* Live Preview */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-2">Preview</label>
+                <div className="flex items-start gap-4">
+                  <div className="border border-border rounded-md overflow-hidden bg-muted/40 w-full max-w-[420px]">
+                    <AspectRatio ratio={16 / 6} className="relative">
+                      {editingPage.imageId ? (
+                        <>
+                          <img
+                            src={getPublicUrl(editingPage.imageId)}
+                            alt="Dashboard banner preview"
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                          {/* Gradient overlay like the app when an image is present */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                          {/* Only render title when Display Name is not empty (matches mobile behavior) */}
+                          {editingPage.displayName?.trim() ? (
+                            <div className="absolute inset-0 flex items-center justify-center px-4">
+                              <div
+                                className="text-white text-lg font-semibold text-center drop-shadow"
+                                style={{
+                                  fontFamily:
+                                    "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, 'Apple Color Emoji', 'Segoe UI Emoji'",
+                                }}
+                              >
+                                {editingPage.displayName}
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                          No image selected
+                        </div>
+                      )}
+                    </AspectRatio>
+                  </div>
+                  <div className="shrink-0">
+                    <DashboardImageSelector
+                      value={editingPage.imageId || ""}
+                      onChange={(id) => setEditingPage({ ...editingPage, imageId: id })}
+                      hidePreview
+                      hideLabel
+                      hideHelperText
+                      buttonOrientation="vertical"
+                      removeVariant="destructive"
+                    />
+                  </div>
+                </div>
+                <small className="text-xs text-muted-foreground block mt-2">
+                  This preview approximates the mobile dashboard banner (wide image, center‑cropped). Titles are hidden when Display Name is blank.
+                </small>
+              </div>
             </div>
 
             <div className="flex gap-2 mt-4">
@@ -373,11 +452,11 @@ const DashboardPagesManager = () => {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Page Name</div>
-                  <div className="font-medium">{page.pageName}</div>
+                  <div className="font-medium">{ALLOWED_PAGES.find(p => p.pageName.toLowerCase() === page.pageName.toLowerCase())?.pageName || page.pageName || "—"}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Display Name</div>
-                  <div className="font-medium">{page.displayName}</div>
+                  <div className="font-medium">{page.displayName || "—"}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground flex items-center gap-1">

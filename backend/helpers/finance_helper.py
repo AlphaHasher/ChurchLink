@@ -846,7 +846,7 @@ class FinanceHelper:
                 request_ip=request_ip
             )
             
-            settings = await DB.get_paypal_settings()
+            settings = await DB.get_combined_paypal_church_settings()
             return {"success": True, "settings": settings}
             
         except Exception as e:
@@ -879,10 +879,10 @@ class FinanceHelper:
             # Define which keys can be updated in the database
             # Credentials (PAYPAL_MODE, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
             # are kept in .env file and cannot be updated through the API
+            # Church settings are now handled separately in website settings
             allowed_keys = [
                 "PAYPAL_PLAN_NAME", 
                 "PAYPAL_PLAN_DESCRIPTION", 
-                "CHURCH_NAME",
                 "ALLOWED_FUNDS"
             ]
             

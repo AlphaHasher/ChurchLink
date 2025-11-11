@@ -1,27 +1,55 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:app/models/bulletin.dart';
 import 'package:app/providers/bulletins_provider.dart';
+import 'package:app/widgets/bulletin_media_image.dart';
 
-class BulletinDetailSheet extends StatelessWidget {
+class BulletinDetailSheet extends StatefulWidget {
   const BulletinDetailSheet({super.key, required this.bulletinId});
 
   final String bulletinId;
 
   @override
+  State<BulletinDetailSheet> createState() => _BulletinDetailSheetState();
+}
+
+class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
+  double? _contentHeight;
+
+  void _handleContentSizeChange(Size size) {
+    final next = size.height.isFinite ? size.height : null;
+    if (next == null) {
+      return;
+    }
+
+    if (_contentHeight == null || (next - _contentHeight!).abs() > 1) {
+      setState(() => _contentHeight = next);
+    }
+  }
+
+  double _computeExtent(double maxHeight) {
+    if (_contentHeight == null || maxHeight <= 0) {
+      return 0.6;
+    }
+
+    final fraction = _contentHeight! / maxHeight;
+    return fraction.clamp(0.3, 0.95);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxHeight = constraints.maxHeight * 0.95;
-
         return Consumer<BulletinsProvider>(
           builder: (context, provider, _) {
             Bulletin? bulletin;
             try {
               bulletin = provider.items.firstWhere(
-                (item) => item.id == bulletinId,
+                (item) => item.id == widget.bulletinId,
               );
             } catch (_) {
               bulletin = provider.selected;
@@ -34,167 +62,37 @@ class BulletinDetailSheet extends StatelessWidget {
             final current = bulletin;
             final mediaQuery = MediaQuery.of(context);
             final bottomPadding = 24.0 + mediaQuery.padding.bottom;
+            final imageSources = current.imageSources;
 
-            return Align(
-              alignment: Alignment.bottomCenter,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: maxHeight,
-                  maxWidth: constraints.maxWidth,
-                ),
-                child: Container(
-                  width: double.infinity,
+            final maxHeight = constraints.maxHeight;
+            final extentFraction = _computeExtent(maxHeight);
+            final maxChildFraction = 0.95;
+            final clampedExtent = math.min(extentFraction, maxChildFraction);
+
+            return DraggableScrollableSheet(
+              key: ValueKey<double>(clampedExtent),
+              expand: false,
+              initialChildSize: clampedExtent,
+              minChildSize: clampedExtent,
+              maxChildSize: maxChildFraction,
+              builder:
+                  (BuildContext context, ScrollController scrollController) {
+                return Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(24),
                     ),
                   ),
-                  child: SafeArea(
-                    top: false,
-                    bottom: false,
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPadding),
-                      physics: const BouncingScrollPhysics(),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Align(
-                            child: Container(
-                              width: 60,
-                              height: 6,
-                              margin: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                          ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        if (current.isUpcoming)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blue.shade100,
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.schedule,
-                                                  size: 14,
-                                                  color: Colors.blue.shade900,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  'UPCOMING',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.blue.shade900,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      current.headline,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              Chip(
-                                label: Text(current.formattedWeek),
-                                avatar: const Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                ),
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withAlpha(12),
-                                side: BorderSide.none,
-                              ),
-                              ...current.ministries.map(
-                                (ministry) => Chip(
-                                  label: Text(ministry),
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withAlpha(15),
-                                  side: BorderSide.none,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            current.body,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          if (current.attachments.isNotEmpty) ...[
-                            const SizedBox(height: 24),
-                            Text(
-                              'Attachments',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 12),
-                            ...current.attachments.map(
-                              (attachment) => Card(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                child: ListTile(
-                                  title: Text(attachment.title),
-                                  trailing: IconButton(
-                                    icon: Icon(
-                                      Icons.open_in_new,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                    ),
-                                    onPressed:
-                                        () => _openAttachment(
-                                          context,
-                                          attachment.url,
-                                        ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
+                  child: _buildSheetBody(
+                    context: context,
+                    controller: scrollController,
+                    bulletin: current,
+                    imageSources: imageSources,
+                    bottomPadding: bottomPadding,
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         );
@@ -221,5 +119,188 @@ class BulletinDetailSheet extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _buildSheetBody({
+    required BuildContext context,
+    required ScrollController controller,
+    required Bulletin bulletin,
+    required List<String> imageSources,
+    required double bottomPadding,
+  }) {
+    return SingleChildScrollView(
+      controller: controller,
+      child: _MeasureSize(
+        onChange: _handleContentSizeChange,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 60,
+                    height: 6,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+              if (imageSources.isNotEmpty) ...[
+                BulletinMediaImage(
+                  urls: imageSources,
+                  borderRadius: BorderRadius.circular(12),
+                  aspectRatio: 16 / 9,
+                ),
+                const SizedBox(height: 16),
+              ],
+              if (bulletin.isUpcoming)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withAlpha(32),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Upcoming',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (bulletin.isUpcoming) const SizedBox(height: 12),
+              Text(
+                bulletin.headline,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Chip(
+                    label: Text(bulletin.formattedWeek),
+                    avatar: const Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                    ),
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha(28),
+                    side: BorderSide.none,
+                  ),
+                  ...bulletin.ministries.map(
+                    (ministry) => Chip(
+                      label: Text(ministry),
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withAlpha(20),
+                      side: BorderSide.none,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              SelectableText(
+                bulletin.body,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              if (bulletin.attachments.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text(
+                  'Attachments',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                ...bulletin.attachments.map(
+                  (attachment) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      title: Text(attachment.title),
+                      trailing: IconButton(
+                        icon: Icon(
+                          Icons.open_in_new,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        onPressed: () => _openAttachment(
+                          context,
+                          attachment.url,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MeasureSize extends StatefulWidget {
+  const _MeasureSize({required this.onChange, required this.child});
+
+  final ValueChanged<Size> onChange;
+  final Widget child;
+
+  @override
+  State<_MeasureSize> createState() => _MeasureSizeState();
+}
+
+class _MeasureSizeState extends State<_MeasureSize> {
+  Size _oldSize = Size.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final contextSize = context.size;
+      if (contextSize == null) return;
+      if (contextSize != _oldSize) {
+        _oldSize = contextSize;
+        widget.onChange(contextSize);
+      }
+    });
+
+    return widget.child;
   }
 }

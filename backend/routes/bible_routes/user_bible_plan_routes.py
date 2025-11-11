@@ -17,6 +17,8 @@ from models.bible_plan_tracker import (
     find_user_plan,
     reset_user_bible_plan,
 )
+from models.bible_plan import _convert_plan_doc_to_out, ReadingPlanOut
+from pydantic import BaseModel
 
 # Auth-protected router for user Bible plan operations
 auth_bible_plan_router = APIRouter(prefix="/my-bible-plans", tags=["User Bible Plans"])
@@ -68,10 +70,58 @@ def _next_sequential_day(
 
 @auth_bible_plan_router.get("/", response_model=List[UserBiblePlanSubscription])
 async def get_my_bible_plans(request: Request) -> List[UserBiblePlanSubscription]:
-    """Get all Bible plans the current user is subscribed to"""
+    """
+    Retrieve the current user's Bible plan subscriptions.
+    
+    Returns:
+        List[UserBiblePlanSubscription]: The user's subscribed Bible plans.
+    """
     uid = request.state.uid
     subscriptions = await get_user_bible_plans(uid)
     return subscriptions
+
+
+class _UserPlanWithDetails(BaseModel):
+    plan: ReadingPlanOut
+    subscription: UserBiblePlanSubscription
+
+
+@auth_bible_plan_router.get("/with-details", response_model=List[_UserPlanWithDetails])
+async def get_my_bible_plans_with_details(request: Request) -> List[_UserPlanWithDetails]:
+    """
+    List the current user's subscribed Bible plans that are accessible to them, with each subscription paired with its plan details.
+    
+    Subscriptions with invalid plan IDs, missing plan documents, or other per-plan errors are skipped. A plan is included only if the requesting user is the plan owner or the plan is marked visible.
+    
+    Returns:
+        List[_UserPlanWithDetails]: A list of objects combining the plan's output representation and the user's subscription data.
+    """
+    uid = request.state.uid
+    subscriptions = await get_user_bible_plans(uid)
+
+    results: List[_UserPlanWithDetails] = []
+    for sub in subscriptions:
+        try:
+            try:
+                plan_object_id = ObjectId(sub.plan_id)
+            except InvalidId:
+                # Skip invalid ids silently
+                continue
+
+            doc = await DB.db.bible_plans.find_one({"_id": plan_object_id})
+            if not doc:
+                # Skip missing plans silently
+                continue
+
+            # Allow if owner or visible (published)
+            if doc.get("user_id") == uid or doc.get("visible", False):
+                plan_out = _convert_plan_doc_to_out(doc)
+                results.append(_UserPlanWithDetails(plan=plan_out, subscription=sub))
+        except Exception:
+            # Skip any problematic plan records without failing the whole list
+            continue
+
+    return results
 
 
 @auth_bible_plan_router.post("/subscribe")
@@ -82,7 +132,28 @@ async def subscribe_to_bible_plan(
     notification_time: Optional[str] = Body(None),
     notification_enabled: bool = Body(True)
 ):
-    """Subscribe the current user to a Bible plan"""
+    """
+    Subscribe the current authenticated user to a Bible reading plan.
+    
+    Validates the provided plan ID and published status, prevents duplicate subscriptions,
+    creates a new subscription record with the provided start date and notification settings,
+    and schedules notifications if a notification time is supplied.
+    
+    Parameters:
+        plan_id (str): The string ID of the Bible plan to subscribe to.
+        start_date (datetime): The date when the subscription should begin.
+        notification_time (Optional[str]): Local time string for daily notifications (e.g., "08:00"), or None to disable scheduling.
+        notification_enabled (bool): Whether notifications are enabled for this subscription.
+    
+    Returns:
+        dict: {"success": True, "message": "Successfully subscribed to Bible plan"} on success.
+    
+    Raises:
+        HTTPException: with status 400 if the plan_id is not a valid ObjectId.
+        HTTPException: with status 404 if the plan does not exist or is not published.
+        HTTPException: with status 409 if the user is already subscribed to the plan.
+        HTTPException: with status 500 if creating the subscription (or persisting related updates) fails.
+    """
     uid = request.state.uid
     # Check if plan exists
     try:
@@ -143,7 +214,25 @@ async def update_plan_progress(
     completed_passages: List[str] = Body(...),
     is_completed: bool = Body(False)
 ):
-    """Update progress for a specific day in a Bible plan"""
+    """
+    Update the user's progress for a specific day of a Bible reading plan.
+    
+    Updates or inserts the progress entry for the given day, enforcing allowed sequential advancement and plan boundaries.
+    
+    Parameters:
+        plan_id (str): ID of the Bible plan to update.
+        day (int): Day number in the plan to update; must be 1 or greater.
+        completed_passages (List[str]): List of passage identifiers marked completed for the day.
+        is_completed (bool): Whether the day's readings are marked fully completed.
+    
+    Returns:
+        dict: {"success": True, "message": "Progress updated successfully"} on success.
+    
+    Raises:
+        HTTPException: 404 if the user is not subscribed to the plan or the plan does not exist.
+        HTTPException: 400 if `plan_id` is invalid, `day` is less than 1, or the requested day exceeds the next allowed day.
+        HTTPException: 500 if persisting the updated progress fails.
+    """
     uid = request.state.uid
     existing = await find_user_plan(uid, plan_id)
     if not existing:
@@ -185,10 +274,8 @@ async def update_plan_progress(
     )
     
     if day_progress_index is not None:
-        # Update existing progress
         progress[day_progress_index] = new_progress.model_dump()
     else:
-        # Add new progress
         progress.append(new_progress.model_dump())
 
     progress.sort(key=lambda entry: entry.get("day", 0))
@@ -201,6 +288,130 @@ async def update_plan_progress(
     return {"success": True, "message": "Progress updated successfully"}
 
 
+@auth_bible_plan_router.put("/progress-batch/{plan_id}")
+async def update_plan_progress_batch(
+    request: Request,
+    plan_id: str,
+    day_updates: List[Dict[str, Any]] = Body(..., embed=True)
+):
+    """
+    Apply multiple daily progress updates to the user's subscribed Bible plan.
+    
+    Validates each update entry, enforces the sequential update constraint, persists the combined progress list, and returns a success message on completion.
+    
+    Parameters:
+        request (Request): FastAPI request with authenticated user in request.state.uid.
+        plan_id (str): ID of the Bible plan to update.
+        day_updates (List[Dict[str, Any]]): List of day update objects. Each object must include:
+            - "day" (int): Day number (integer >= 1).
+            - "completed_passages" (List[str], optional): List of completed passage identifiers.
+            - "is_completed" (bool, optional): Whether the day is marked complete.
+    
+    Returns:
+        dict: {"success": True, "message": "<human-readable message>"} on successful update.
+    
+    Raises:
+        HTTPException: For authentication/subscription issues, invalid plan ID, missing plan,
+                       invalid update payloads, attempts to update days beyond the allowed next day,
+                       or internal persistence errors.
+    """
+    try:
+        uid = request.state.uid
+        existing = await find_user_plan(uid, plan_id)
+        if not existing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not subscribed to this plan")
+        
+        try:
+            plan_object_id = ObjectId(plan_id)
+        except InvalidId:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Bible plan ID")
+
+        plan_doc = await DB.db.bible_plans.find_one({"_id": plan_object_id})
+        if not plan_doc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bible plan not found")
+
+        progress = existing.get("progress", [])
+        readings_by_day = plan_doc.get("readings", {})
+        plan_duration = plan_doc.get("duration", 0) or len(readings_by_day)
+
+        # Combine duplicate day updates so the last provided entry for a given day wins,
+        # then process in ascending day order.
+        combined_updates: Dict[int, Dict[str, Any]] = {}
+        for upd in day_updates:
+            day_val = upd.get("day")
+            if not isinstance(day_val, int) or day_val < 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Each update must have a valid day (integer >= 1)"
+                )
+            combined_updates[day_val] = upd
+
+        days_sorted = sorted(combined_updates.keys())
+
+        progress_by_day = {entry.get("day"): i for i, entry in enumerate(progress)}
+        applied_days: List[int] = []
+        skipped_days: List[int] = []
+
+        for day in days_sorted:
+            update = combined_updates[day]
+
+            allowed_day = _next_sequential_day(progress, readings_by_day, plan_duration)
+            if day > allowed_day:
+                skipped_days.append(day)
+                continue
+
+            completed_passages = update.get("completed_passages", [])
+            if not isinstance(completed_passages, list):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="completed_passages must be a list of strings"
+                )
+
+            is_completed = update.get("is_completed", False)
+            if not isinstance(is_completed, bool):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="is_completed must be a boolean"
+                )
+
+            new_progress = UserBiblePlanProgress(
+                day=day,
+                completed_passages=completed_passages,
+                is_completed=is_completed
+            )
+
+            if day in progress_by_day:
+                idx = progress_by_day[day]
+                progress[idx] = new_progress.model_dump()
+            else:
+                progress.append(new_progress.model_dump())
+                progress_by_day[day] = len(progress) - 1
+
+            applied_days.append(day)
+
+        progress.sort(key=lambda entry: entry.get("day", 0))
+        
+        updated = await update_user_bible_plan_progress(uid, plan_id, progress)
+
+        if not updated:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update progress")
+        
+        # Return details so clients can optionally reconcile if needed
+        return {
+            "success": True,
+            "message": "Batch progress updated",
+            "applied_days": applied_days,
+            "skipped_days": skipped_days,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing batch update: {str(e)}"
+        )
+
+
 @auth_bible_plan_router.put("/notification-settings/{plan_id}")
 async def update_notification_settings(
     request: Request,
@@ -208,7 +419,19 @@ async def update_notification_settings(
     notification_time: Optional[str] = Body(None),
     notification_enabled: bool = Body(True)
 ):
-    """Update notification settings for a Bible plan subscription"""
+    """
+    Update notification time and enablement for the current user's subscription to the specified reading plan.
+    
+    Uses the LOCAL_TIMEZONE environment variable (default "America/Los_Angeles") to interpret the provided notification_time.
+    
+    Parameters:
+        plan_id (str): Identifier of the reading plan subscription to update.
+        notification_time (Optional[str]): Local time string for daily notifications (e.g., "07:30"), or None to clear the time.
+        notification_enabled (bool): Whether notifications should be enabled for the subscription.
+    
+    Returns:
+        dict: {"success": True, "message": "Notification settings updated successfully"} on success.
+    """
     uid = request.state.uid
     existing = await find_user_plan(uid, plan_id)
     if not existing:

@@ -13,7 +13,11 @@ class ServiceDetailPage extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(service.title), elevation: 0),
+      appBar: AppBar(
+        title: Text(service.title),
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,27 +37,31 @@ class ServiceDetailPage extends StatelessWidget {
               ),
               padding: const EdgeInsets.all(20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Service Time
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 20,
-                        color: colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 20,
+                          color: colorScheme.primary,
+                        ),
+                        Text(
                           service.formattedServiceTime,
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: colorScheme.onSurface,
                           ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   // Description (if provided)
@@ -66,6 +74,7 @@ class ServiceDetailPage extends StatelessWidget {
                         color: colorScheme.onSurface.withValues(alpha: 0.8),
                         height: 1.5,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ],
@@ -80,24 +89,7 @@ class ServiceDetailPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.list_alt,
-                          color: colorScheme.primary,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Service Timeline',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                     _buildTimelineContent(context, service.timelineNotes!),
                   ],
                 ),
@@ -176,7 +168,7 @@ class ServiceDetailPage extends StatelessWidget {
               Expanded(
                 child: Text(
                   line.replaceFirst(RegExp(r'^[\d\.\-\*•]\s*'), ''),
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     color: colorScheme.onSurface,
                     height: 1.5,
                   ),
@@ -192,10 +184,11 @@ class ServiceDetailPage extends StatelessWidget {
           padding: const EdgeInsets.only(top: 16, bottom: 8),
           child: Text(
             headerText,
-            style: theme.textTheme.titleMedium?.copyWith(
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: colorScheme.onSurface,
             ),
+            textAlign: TextAlign.left,
           ),
         );
       } else {
@@ -204,7 +197,7 @@ class ServiceDetailPage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Text(
             line,
-            style: theme.textTheme.bodyLarge?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
               color: colorScheme.onSurface.withValues(alpha: 0.9),
               height: 1.5,
             ),
@@ -214,22 +207,6 @@ class ServiceDetailPage extends StatelessWidget {
 
       timelineWidgets.add(lineWidget);
 
-      // Add subtle divider line between items (but not after the last item)
-      if (i < lines.length - 1 && line.isNotEmpty) {
-        // Check if next line is also not empty (don't add divider before spacing)
-        if (i + 1 < lines.length && lines[i + 1].trim().isNotEmpty) {
-          timelineWidgets.add(
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Divider(
-                height: 1,
-                thickness: 0.5,
-                color: colorScheme.onSurface.withValues(alpha: 0.08),
-              ),
-            ),
-          );
-        }
-      }
     }
 
     return Column(

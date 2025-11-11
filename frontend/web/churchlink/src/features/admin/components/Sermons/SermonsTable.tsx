@@ -43,7 +43,6 @@ export function SermonsTable({ data, permData: _permData, onSave }: SermonsTable
                     <TableHeader>
                         <TableRow>
                             <TableHead>Title</TableHead>
-                            <TableHead>Title (RU)</TableHead>
                             <TableHead>Speaker</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Published</TableHead>
@@ -56,7 +55,6 @@ export function SermonsTable({ data, permData: _permData, onSave }: SermonsTable
                             filtered.map((s) => (
                                 <TableRow key={s.id}>
                                     <TableCell>{s.title}</TableCell>
-                                    <TableCell>{s.ru_title ?? ''}</TableCell>
                                     <TableCell>{s.speaker}</TableCell>
                                     <TableCell>{s.date_posted ? format(new Date(s.date_posted), 'MMM dd, yyyy') : ''}</TableCell>
                                     <TableCell>
