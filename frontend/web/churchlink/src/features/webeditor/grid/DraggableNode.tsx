@@ -4,10 +4,24 @@ import { Node } from '@/shared/types/pageV2';
 import { BuilderState, ResizeHandle } from '@/features/webeditor/state/BuilderState';
 import { VirtualTransform } from './virtualGrid';
 
+/**
+ * Combine multiple class name values into a single space-separated string.
+ *
+ * @param classes - One or more class name values; falsy values (undefined, null, false, empty string) are ignored
+ * @returns The concatenated class names separated by single spaces
+ */
 function mergeClassNames(...classes: Array<string | undefined | null | false>) {
   return classes.filter(Boolean).join(' ');
 }
 
+/**
+ * Ensure a React node occupies the full width and height of its container.
+ *
+ * When given a Fragment, applies full-size classes/styles to element children and wraps them in a full-size container; when given a non-element value, wraps it in a full-size container; when given a React element, returns a cloned element with width/height set to 100% and full-size utility classes merged with existing classes.
+ *
+ * @param content - The React node to enforce full-size on
+ * @returns A React node guaranteed to render with 100% width and height (preserving and merging existing `className` and `style`)
+ */
 function enforceFullSize(content: React.ReactNode): React.ReactNode {
   if (React.isValidElement(content) && (content as any).type === React.Fragment) {
     const children = React.Children.toArray((content as any).props?.children ?? []);
@@ -68,6 +82,31 @@ type DragNodeProps = {
   cssScale?: number; // when parent canvas is CSS-scaled (e.g., slide-scaling), compensate pointer math
 };
 
+/**
+ * Render an interactive, grid-aware draggable and resizable node inside a section.
+ *
+ * Renders the node at its transformed position and size, provides pointer handlers for click, drag and resize,
+ * enforces container bounds and optional child full-size behavior, and reports finalized layout changes
+ * via `onCommitLayout`.
+ *
+ * @param sectionId - ID of the section that contains this node.
+ * @param node - The node data to render (position, size, type, id).
+ * @param transform - VirtualTransform used to convert between grid units and pixels and to obtain grid metrics.
+ * @param onCommitLayout - Callback invoked with final layout ({ xu, yu, wu?, hu? }) when a drag or resize completes.
+ * @param defaultSize - Fallback size (pixels) used when the node has no layout.
+ * @param selected - Whether the node is currently selected (affects outlines and handles).
+ * @param render - Function that receives `node` and returns the node's React content.
+ * @param onSelect - Optional callback invoked when the node is selected (click).
+ * @param onDoubleSelect - Optional callback invoked on double-click (also triggers editing).
+ * @param containerId - Optional parent container element ID; used to clamp movement/resizing and to compute edge contacts.
+ * @param parentUnits - Optional integer unit bounds of the parent container to use instead of reading live DOM.
+ * @param originPx - Optional origin offset in pixels to override measured origin (useful for fixed origins or tests).
+ * @param enforceChildFullSize - When true, wraps child content so it always fills the node's width/height.
+ * @param allowContentPointerEvents - When true allows pointer events on the node's content even when not editing.
+ * @param disabled - When true disables dragging, resizing, and editing interactions.
+ * @param cssScale - CSS scale factor applied to the canvas; used to compensate pointer math and sizing.
+ * @returns A JSX element that renders the node with interactive drag/resize behavior and visual indicators.
+ */
 export function DraggableNode({
   sectionId,
   node,

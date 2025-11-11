@@ -1,6 +1,20 @@
 // GridOverlay.tsx - Translucent grid overlay with rounded squares
 import { useEffect, useMemo, useState } from 'react';
 
+/**
+ * Render a tiled rounded-square SVG grid overlay sized by `cellPx` and positioned by the given offsets.
+ *
+ * The overlay uses a repeating SVG background of rounded squares with a subtle shadow and stroke. It starts fully transparent on first render to avoid a visual flash, then transitions opacity when mounted and when `active` changes.
+ *
+ * @param cols - Number of columns (currently unused; included for API symmetry).
+ * @param rows - Number of rows (currently unused; included for API symmetry).
+ * @param cellPx - Size in pixels of each grid cell (controls pattern tile size and square dimensions).
+ * @param offsetX - Horizontal background offset in pixels.
+ * @param offsetY - Vertical background offset in pixels.
+ * @param opacity - Fill opacity for each rounded square (default 0.12).
+ * @param active - Whether the overlay is visible (transitions opacity; default true).
+ * @returns A React element that renders the grid overlay as a repeating background.
+ */
 export function GridOverlay({
   cols,
   rows,

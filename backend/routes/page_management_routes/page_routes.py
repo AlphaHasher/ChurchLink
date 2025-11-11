@@ -167,7 +167,20 @@ async def delete_staging_page(slug: str):
 
 @mod_page_router.post("/publish/{slug:path}")
 async def publish_staging_page(slug: str):
-    """Publish staging page to live collection by slug, replacing or creating live page. Removes staging copy afterwards."""
+    """
+    Publish a staging page into the live pages collection by slug.
+    
+    Normalizes the provided slug, loads the corresponding staging document (with a root '/' fallback to 'home'), upserts a curated set of fields into the live pages collection, and removes the staging copy after successful publish.
+    
+    Parameters:
+        slug (str): Raw slug or path identifying the page to publish; it will be normalized/decoded before use.
+    
+    Returns:
+        dict: `{'published': True}` when the publish completes successfully.
+    
+    Raises:
+        HTTPException: If the staging page cannot be found (404) or if an internal error occurs during publishing (500).
+    """
     try:
         # Normalize and safely decode slug to mirror preview/get behavior
         decoded = _normalize_slug(slug)
