@@ -230,7 +230,7 @@ class BuilderStateClass {
     return action;
   }
 
-  clearNodePixelLayout(sectionId: string, nodeId: string) {
+  clearNodePixelLayout(nodeId: string) {
     this._nodePixelLayouts.delete(nodeId);
   }
 

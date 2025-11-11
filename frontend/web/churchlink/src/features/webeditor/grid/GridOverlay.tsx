@@ -16,16 +16,12 @@ import { useEffect, useMemo, useState } from 'react';
  * @returns A React element that renders the grid overlay as a repeating background.
  */
 export function GridOverlay({
-  cols,
-  rows,
   cellPx,
   offsetX,
   offsetY,
   opacity = 0.12,
   active = true,
 }: {
-  cols: number;
-  rows: number;
   cellPx: number;
   offsetX: number;
   offsetY: number;

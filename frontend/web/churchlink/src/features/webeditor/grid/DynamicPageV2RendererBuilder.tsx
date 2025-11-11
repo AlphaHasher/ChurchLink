@@ -939,8 +939,6 @@ const SectionWithVirtualGrid: React.FC<{
       {gridEnabled && transform && (
         <div className="pointer-events-none absolute inset-0">
           <GridOverlay
-            cols={transform.cols}
-            rows={transform.rows}
             cellPx={transform.cellPx}
             offsetX={transform.offsetX}
             offsetY={transform.offsetY}

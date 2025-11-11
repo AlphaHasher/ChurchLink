@@ -284,7 +284,7 @@ const WebEditor: React.FC = () => {
               const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
                 if (n.id === action.nodeId) {
                   const target = isRedo ? action.next : action.prev;
-                  BuilderState.clearNodePixelLayout(action.sectionId, action.nodeId);
+                  BuilderState.clearNodePixelLayout(action.nodeId);
                   return { ...n, layout: { units: { ...target } } } as Node;
                 }
                 if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;
@@ -324,7 +324,7 @@ const WebEditor: React.FC = () => {
               if (s.id !== action.sectionId) return s;
               const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
                 if (n.id === action.nodeId) {
-                  BuilderState.clearNodePixelLayout(action.sectionId, action.nodeId);
+                  BuilderState.clearNodePixelLayout(action.nodeId);
                   return { ...n, layout: { units: { ...action.next } } } as Node;
                 }
                 if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;

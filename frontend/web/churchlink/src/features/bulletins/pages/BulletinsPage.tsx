@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { format } from 'date-fns';
 import { fetchCombinedFeed, fetchCurrentWeek, ServerWeekInfo } from '@/features/bulletins/api/bulletinsApi';
 import BulletinList from '@/features/bulletins/components/BulletinList';
 import { ServiceCard } from '@/features/bulletins/components/ServiceCard';
@@ -25,7 +24,7 @@ const BulletinsPage = () => {
             setLoading(true);
             try {
                 console.log(`[Bulletins Page] Loading feed with filters at ${new Date().toISOString()}`, filters);
-                
+
                 // Fetch server-localized week info
                 const weekInfo = await fetchCurrentWeek();
                 if (isMounted) {
@@ -35,9 +34,9 @@ const BulletinsPage = () => {
 
                 const weekStart = new Date(weekInfo.week_start);
                 const weekEnd = new Date(weekInfo.week_end);
-                
+
                 console.log(`[Bulletins Page] Filtering services for week: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`);
-                
+
                 // Convert filters to API format
                 // IMPORTANT: week_start/week_end are sent to the API but the backend will IGNORE them for bulletins
                 // when upcoming_only=true. The backend uses week filters ONLY for services.
@@ -258,7 +257,7 @@ const BulletinsPage = () => {
                                         {selectedService.timeline_notes.split('\n').map((line, index, array) => {
                                             const trimmedLine = line.trim();
                                             if (!trimmedLine) return <div key={index} className="h-2" />;
-                                            
+
                                             return (
                                                 <div key={index}>
                                                     <div className="py-2 leading-relaxed">

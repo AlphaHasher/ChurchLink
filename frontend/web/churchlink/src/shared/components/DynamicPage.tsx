@@ -45,9 +45,6 @@ export interface Page {
 export interface DynamicPageProps {
   isPreviewMode?: boolean;
   previewSlug?: string;
-  showPreviewHeader?: boolean;
-  onEditClick?: () => void;
-  onBackClick?: () => void;
 }
 
 const DEFAULT_HOME_SLUG = "/";
@@ -55,10 +52,7 @@ const OPTIONAL_BASE = "pages";
 
 const DynamicPage: React.FC<DynamicPageProps> = ({
   isPreviewMode = false,
-  previewSlug,
-  showPreviewHeader = false,
-  onEditClick,
-  onBackClick
+  previewSlug
 }) => {
   const { slug: paramSlug } = useParams();
   const location = useLocation();
