@@ -15,10 +15,6 @@ import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/my_events_page.dart';
 import 'package:app/theme/theme_controller.dart';
-
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:app/helpers/backend_helper.dart';
-
 import 'package:app/widgets/change_email_sheet.dart';
 
 class UserSettings extends StatefulWidget {
