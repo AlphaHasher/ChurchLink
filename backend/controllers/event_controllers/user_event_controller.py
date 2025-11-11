@@ -26,7 +26,7 @@ async def process_add_favorite_event(request: Request, event_id: str):
 async def process_remove_favorite_event(request:Request, event_id: str):
     
     # Validate that a particular event is actually already favorited
-    favorite_events = request.state.user.get("favorite_events")
+    favorite_events = list(request.state.user.get("favorite_events") or [])
     if event_id not in favorite_events:
         return {'success':True, 'msg':'This event was already not in your favorites, but consider result accomplished.'}
     
