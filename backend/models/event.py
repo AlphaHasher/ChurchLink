@@ -543,7 +543,7 @@ async def update_event(event_id: str, event: EventUpdate) -> Dict[str, Any]:
         return {'success':False, 'msg':f'Error updating event! Exception {e}'}
 
 
-async def delete_event(event_id: str) -> bool:
+async def delete_event(event_id: str) -> Dict[str, Any]:
     """
     Deletes an event by its ID.
     (Uses delete_one directly to target specific _id)

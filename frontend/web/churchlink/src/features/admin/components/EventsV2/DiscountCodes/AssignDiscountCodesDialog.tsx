@@ -96,6 +96,7 @@ export default function AssignDiscountCodesDialog({ event, onSaved }: Props) {
                 variant="ghost"
                 size="icon"
                 title="Assign discount codes"
+                aria-label="Assign discount codes"
                 onClick={() => setOpen(true)}
             >
                 <Tag className="h-4 w-4" />

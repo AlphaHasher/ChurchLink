@@ -21,6 +21,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 import type { ReadAdminPanelEvent } from "@/shared/types/Event";
 import { fetchAdminEventsUsingDiscount } from "@/helpers/EventManagementHelper";
+import { AlertCircle } from "lucide-react";
 
 type Props = {
     codeId: string;
@@ -38,6 +39,7 @@ export default function ViewEventsWithDiscount({
     const [open, setOpen] = useState(false);
     const [rows, setRows] = useState<ReadAdminPanelEvent[]>([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -50,9 +52,12 @@ export default function ViewEventsWithDiscount({
         let mounted = true;
         (async () => {
             setLoading(true);
+            setError(null);
             try {
                 const items = await fetchAdminEventsUsingDiscount(codeId);
                 if (mounted) setRows(items ?? []);
+            } catch (err) {
+                if (mounted) setError(err instanceof Error ? err.message : "Failed to load events");
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -138,63 +143,88 @@ export default function ViewEventsWithDiscount({
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="ag-theme-quartz" style={{ width: "100%", height: "60vh", display: "flex", flexDirection: "column" }}>
-                        <div style={{ flex: "1 1 auto" }}>
-                            <AgGridReact<ReadAdminPanelEvent>
-                                rowData={pageRows}
-                                columnDefs={colDefs}
-                                defaultColDef={{ sortable: false, resizable: true, suppressHeaderMenuButton: true }}
-                                suppressCellFocus
-                                animateRows
-                                overlayNoRowsTemplate="No events use this discount"
-                                onGridReady={(e) => {
-                                    gridApi.current = e.api;
-                                    // show initial state
-                                    if (loading) e.api.showLoadingOverlay();
-                                    else if (rows.length === 0) e.api.showNoRowsOverlay();
-                                    else e.api.hideOverlay();
-                                }}
-                            />
+                    {/* Error banner */}
+                    {error && (
+                        <div
+                            role="alert"
+                            className="mb-3 flex items-start gap-3 rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900"
+                        >
+                            <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                            <div className="flex-1">
+                                <div className="font-medium">Unable to load events</div>
+                                <div className="mt-0.5">{error}</div>
+                            </div>
+                            <button
+                                type="button"
+                                className="ml-2 text-rose-900/70 hover:text-rose-900"
+                                onClick={() => setError(null)}
+                                aria-label="Dismiss error"
+                                title="Dismiss"
+                            >
+                                ×
+                            </button>
                         </div>
+                    )}
 
-                        {/* Pager footer (client-side) */}
-                        <div className="flex items-center justify-between py-2 text-sm">
-                            <div className="text-muted-foreground">
-                                {loading ? "Loading…" : `Showing ${from}-${to} of ${total}`}
+                    {/* Grid + pager (hidden when error) */}
+                    {!error && (
+                        <div className="ag-theme-quartz" style={{ width: "100%", height: "60vh", display: "flex", flexDirection: "column" }}>
+                            <div style={{ flex: "1 1 auto" }}>
+                                <AgGridReact<ReadAdminPanelEvent>
+                                    rowData={pageRows}
+                                    columnDefs={colDefs}
+                                    defaultColDef={{ sortable: false, resizable: true, suppressHeaderMenuButton: true }}
+                                    suppressCellFocus
+                                    animateRows
+                                    overlayNoRowsTemplate="No events use this discount"
+                                    onGridReady={(e) => {
+                                        gridApi.current = e.api;
+                                        if (loading) e.api.showLoadingOverlay();
+                                        else if (rows.length === 0) e.api.showNoRowsOverlay();
+                                        else e.api.hideOverlay();
+                                    }}
+                                />
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <button
-                                    className="px-2 py-1 border rounded disabled:opacity-50"
-                                    onClick={() => setPage(Math.max(1, safePage - 1))}
-                                    disabled={loading || !canPrev}
-                                >
-                                    Prev
-                                </button>
+                            {/* Pager footer (client-side) */}
+                            <div className="flex items-center justify-between py-2 text-sm">
+                                <div className="text-muted-foreground">
+                                    {loading ? "Loading…" : `Showing ${from}-${to} of ${total}`}
+                                </div>
 
-                                <span>Page {safePage} of {totalPages}</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        className="px-2 py-1 border rounded disabled:opacity-50"
+                                        onClick={() => setPage(Math.max(1, safePage - 1))}
+                                        disabled={loading || !canPrev}
+                                    >
+                                        Prev
+                                    </button>
 
-                                <button
-                                    className="px-2 py-1 border rounded disabled:opacity-50"
-                                    onClick={() => setPage(Math.min(totalPages, safePage + 1))}
-                                    disabled={loading || !canNext}
-                                >
-                                    Next
-                                </button>
+                                    <span>Page {safePage} of {totalPages}</span>
 
-                                <select
-                                    className="ml-2 border rounded px-2 py-1"
-                                    value={pageSize}
-                                    onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
-                                    disabled={loading}
-                                >
-                                    {[10, 25, 50, 100].map((s) => (
-                                        <option key={s} value={s}>{s}/page</option>
-                                    ))}
-                                </select>
+                                    <button
+                                        className="px-2 py-1 border rounded disabled:opacity-50"
+                                        onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+                                        disabled={loading || !canNext}
+                                    >
+                                        Next
+                                    </button>
+
+                                    <select
+                                        className="ml-2 border rounded px-2 py-1"
+                                        value={pageSize}
+                                        onChange={(e) => setPageSize(parseInt(e.target.value, 10))}
+                                        disabled={loading}
+                                    >
+                                        {[10, 25, 50, 100].map((s) => (
+                                            <option key={s} value={s}>{s}/page</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setOpen(false)}>

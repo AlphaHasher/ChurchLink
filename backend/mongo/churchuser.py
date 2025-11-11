@@ -43,7 +43,6 @@ class UserHandler:
                 "Live Stream Alerts": True
             },
             "people": [],
-            "my_events": [],
             "sermon_favorites": [],
             "createdOn": datetime.now(),
         }
