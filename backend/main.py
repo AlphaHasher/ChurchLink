@@ -206,7 +206,6 @@ async def lifespan(app: FastAPI):
         youtubeSubscriptionCheck.cancel()
         eventPublishingLoop.cancel()
         scheduledNotifTask.cancel()
-        eventCleanupTask.cancel()
         DatabaseManager.close_db()
 
         # Stop PayPal helper

@@ -12,7 +12,7 @@ async def process_add_favorite_event(request: Request, event_id: str):
     if not event_doc:
         return {'success':False, 'msg':f'Could not add event to favorites! Error: Could not find event with id {event_id}'}
     
-    favorite_events = request.state.user.get("favorite_events")
+    favorite_events = list(request.state.user.get("favorite_events") or [])
     if event_id not in favorite_events:
         favorite_events.append(event_id)
 

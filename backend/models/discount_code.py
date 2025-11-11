@@ -223,21 +223,7 @@ async def get_discount_code_by_code(raw_code: str) -> Optional[DiscountCode]:
     except Exception:
         logging.exception("Error fetching discount code by code=%r", raw_code)
         return None
-    
-async def get_discount_code_by_id(code_id: str) -> Optional[DiscountCode]:
-    """
-    Get a single discount code by ID. Returns None if not found.
-    """
-    try:
-        doc = await DB.db["discount_codes"].find_one({"_id": ObjectId(code_id)})
-        if not doc:
-            return None
-        doc["id"] = str(doc.pop("_id"))
-        doc.setdefault("usage_history", {})
-        return DiscountCode(**doc)
-    except Exception:
-        logging.exception(f"Error fetching discount code id={code_id}")
-        return None
+
 
 
 async def get_all_discount_codes() -> List[DiscountCode]:

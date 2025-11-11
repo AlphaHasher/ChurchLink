@@ -201,7 +201,7 @@ async def process_fetch_all_people(request: Request):
 
     family_members = await get_family_members(request.state.uid)
 
-    if not family_members:
+    if family_members is None:
         return {"success":False, "msg":"Failed to get family members due to an unknown error!"}
     
     return {"success":True, "msg":"Successfully fetched family members and profile info!", "profile_info":profile_info, "family_members":family_members}

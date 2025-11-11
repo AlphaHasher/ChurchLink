@@ -564,7 +564,7 @@ def _assemble_event_instance_for_admin(
     parent_refund_deadline = event_doc.get("automatic_refund_deadline")
     delta_open = (parent_open - parent_date) if (parent_open and parent_date) else None
     delta_deadline = (parent_deadline - parent_date) if (parent_deadline and parent_date) else None
-    delta_refund_deadline = (parent_refund_deadline - parent_date) if (parent_deadline and parent_date) else None
+    delta_refund_deadline = (parent_refund_deadline - parent_date) if (parent_refund_deadline and parent_date) else None
     assembled["registration_opens"] = (scheduled_date + delta_open) if delta_open is not None else None
     assembled["registration_deadline"] = (scheduled_date + delta_deadline) if delta_deadline is not None else None
     assembled['automatic_refund_deadline'] = (scheduled_date + delta_refund_deadline) if delta_refund_deadline is not None else None
