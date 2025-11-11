@@ -40,29 +40,29 @@ export function EventPaymentSettings({
     }
 
     return (
-        <div className="space-y-6 p-4 border rounded-lg bg-gray-50">
-            <h3 className="text-lg font-semibold text-gray-800">Payment Settings</h3>
+        <div className="space-y-6 p-4 border rounded-lg bg-muted">
+            <h3 className="text-lg font-semibold text-foreground">Payment Settings</h3>
             
             {/* Status Display */}
             <div className="space-y-3">
                 {isFreeEvent ? (
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg bg-green-50 border-green-200">
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg bg-muted">
                         <div className="flex-1">
-                            <Label className="font-medium text-green-800">
+                            <Label className="font-medium text-green-600">
                                 🆓 Free Event
                             </Label>
-                            <p className="text-sm text-green-700 mt-1">
+                            <p className="text-sm text-green-600 mt-1">
                                 Event price is $0 - payment options are optional
                             </p>
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-start space-x-3 p-3 border rounded-lg bg-amber-50 border-amber-200">
+                    <div className="flex items-start space-x-3 p-3 border rounded-lg bg-muted">
                         <div className="flex-1">
-                            <Label className="font-medium text-amber-800">
+                            <Label className="font-medium text-red-700 dark:text-red-400">
                                 💳 Paid Event
                             </Label>
-                            <p className="text-sm text-amber-700 mt-1">
+                            <p className="text-sm text-red-700 dark:text-red-400 mt-1">
                                 Price: <strong>${price.toFixed(2)}</strong> - at least one payment option required
                             </p>
                         </div>
@@ -77,7 +77,7 @@ export function EventPaymentSettings({
                     
                     <div className="space-y-3">
                         {/* PayPal Option */}
-                        <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-white transition-colors">
+                        <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
                             <Checkbox
                                 id="paypal"
                                 checked={payment_options?.includes('paypal') || false}
@@ -87,14 +87,14 @@ export function EventPaymentSettings({
                                 <Label htmlFor="paypal" className="font-medium cursor-pointer">
                                     Pay with PayPal
                                 </Label>
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-sm text-muted-foreground mt-1">
                                     Accept payments through PayPal
                                 </p>
                             </div>
                         </div>
                         
                         {/* Pay at Door Option */}
-                        <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-white transition-colors">
+                        <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
                             <Checkbox
                                 id="door"
                                 checked={payment_options?.includes('door') || false}
@@ -104,7 +104,7 @@ export function EventPaymentSettings({
                                 <Label htmlFor="door" className="font-medium cursor-pointer">
                                     Pay at Door
                                 </Label>
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-sm text-muted-foreground mt-1">
                                     Allow payment at the event location
                                 </p>
                             </div>
@@ -113,8 +113,8 @@ export function EventPaymentSettings({
                     
                     {/* Validation Message */}
                     {isPaidEvent && (payment_options?.length || 0) === 0 && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p className="text-sm text-red-700">
+                        <div className="p-3 bg-muted border rounded-lg">
+                            <p className="text-sm text-red-700 dark:text-red-400">
                                 ⚠️ Paid events must have at least one payment option selected
                             </p>
                         </div>
@@ -125,8 +125,8 @@ export function EventPaymentSettings({
             {/* Free Event Message */}
             {isFreeEvent && (
                 <div className="space-y-4">
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-700">
+                    <div className="p-3 bg-muted border rounded-lg">
+                        <p className="text-sm text-blue-500">
                             💡 This is a free event. Payment options are not required, but you can optionally enable PayPal for donations.
                         </p>
                     </div>
@@ -134,7 +134,7 @@ export function EventPaymentSettings({
                     {/* Optional PayPal for donations on free events */}
                     <div className="space-y-3">
                         <Label className="text-sm font-medium">Optional Donation Settings</Label>
-                        <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-white transition-colors">
+                        <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-accent transition-colors">
                             <Checkbox
                                 id="paypal-donations"
                                 checked={payment_options?.includes('paypal') || false}
@@ -144,7 +144,7 @@ export function EventPaymentSettings({
                                 <Label htmlFor="paypal-donations" className="font-medium cursor-pointer">
                                     Accept Donations via PayPal
                                 </Label>
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-sm text-muted-foreground mt-1">
                                     Allow attendees to make optional donations
                                 </p>
                             </div>

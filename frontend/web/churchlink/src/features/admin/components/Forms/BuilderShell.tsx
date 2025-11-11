@@ -21,8 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { Save as SaveIcon, MoreHorizontal, Upload, Download, Trash, Maximize2, Minimize2 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
+import { Alert } from '@/shared/components/ui/alert';
 import { Skeleton } from '@/shared/components/ui/skeleton';
+import PreviewUnavailableAlert from './PreviewUnavailableAlert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -513,12 +514,7 @@ export function BuilderShell() {
         <div className="flex h-full w-full flex-col overflow-auto p-6">
           <div className="mx-auto w-full max-w-6xl">
             <ErrorBoundary>
-              <PreviewRendererClient applyFormWidth={true} />
-            </ErrorBoundary>
-          </div>
-          <div className="mx-auto w-full max-w-6xl">
-            <ErrorBoundary>
-              <PreviewRendererClient instanceId="expanded" />
+              <PreviewRendererClient applyFormWidth={true} instanceId="expanded" />
             </ErrorBoundary>
           </div>
         </div>
@@ -717,19 +713,13 @@ export function BuilderShell() {
             </Alert>
           )}
           {hasInvalidBounds && (
-            <Alert variant="warning">
-              <AlertTitle>Resolve field bounds</AlertTitle>
-              <AlertDescription>
-                <p className="mb-1">Fix the min/max conflicts below before saving:</p>
-                <ul className="list-disc pl-5 space-y-1">
-                  {boundsViolations.map((issue) => (
-                    <li key={issue.fieldId}>
-                      <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
+            <PreviewUnavailableAlert title="Resolve field bounds" message="Fix the min/max conflicts below before saving:">
+              {boundsViolations.map((issue) => (
+                <li key={issue.fieldId}>
+                  <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                </li>
+              ))}
+            </PreviewUnavailableAlert>
           )}
           <div className="space-y-3">
             <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} />
@@ -891,7 +881,7 @@ export function BuilderShell() {
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="secondary"
                   size="icon"
                   className="rounded-full"
                   onClick={() => { if (!hasInvalidBounds) setPreviewExpanded(true); }}
@@ -924,20 +914,16 @@ export function BuilderShell() {
               </div>
               <ErrorBoundary>
                 {hasInvalidBounds ? (
-                  <Alert variant="warning">
-                    <AlertTitle>Preview unavailable</AlertTitle>
-                    <AlertDescription>
-                      <p className="mb-2">Resolve the min/max conflicts below to restore the live preview:</p>
-                      <ul className="list-disc pl-5 space-y-1">
-                        {boundsViolations.map((issue) => (
-                          <li key={issue.fieldId}>
-                            <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
-                          </li>
-                        ))}
-                      </ul>
-                      <p className="mt-3 text-xs text-muted-foreground">The rest of the builder remains active so you can adjust values.</p>
-                    </AlertDescription>
-                  </Alert>
+                  <div>
+                    <PreviewUnavailableAlert>
+                      {boundsViolations.map((issue) => (
+                        <li key={issue.fieldId}>
+                          <span className="font-medium">{issue.fieldLabel || issue.fieldName}</span>: {issue.message}
+                        </li>
+                      ))}
+                    </PreviewUnavailableAlert>
+                    <p className="mt-3 text-xs text-muted-foreground">The rest of the builder remains active so you can adjust values.</p>
+                  </div>
                 ) : status?.message && typeof status.message === 'string' && status.message.toLowerCase().includes('load') ? (
                   <div className="space-y-2">
                     <Skeleton className="h-6 w-1/3" />

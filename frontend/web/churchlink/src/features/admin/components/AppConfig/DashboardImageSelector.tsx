@@ -11,13 +11,23 @@ interface DashboardImageSelectorProps {
   onChange: (imageId: string) => void;
   label?: string;
   helperText?: string;
+  hidePreview?: boolean;
+  hideLabel?: boolean;
+  hideHelperText?: boolean;
+  buttonOrientation?: "horizontal" | "vertical";
+  removeVariant?: "ghost" | "destructive";
 }
 
 export function DashboardImageSelector({
   value,
   onChange,
   label = "Dashboard Page Image",
-  helperText = "Choose an image from the media library. The image’s ID will be stored for this dashboard page."
+  helperText = "Choose an image from the media library. The image’s ID will be stored for this dashboard page.",
+  hidePreview = false,
+  hideLabel = false,
+  hideHelperText = false,
+  buttonOrientation = "horizontal",
+  removeVariant = "ghost",
 }: DashboardImageSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -34,41 +44,58 @@ export function DashboardImageSelector({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="dashboard-image">{label}</Label>
-      <small className="text-gray-500 text-xs block mb-1">{helperText}</small>
+      {!hideLabel && <Label htmlFor="dashboard-image">{label}</Label>}
+      {!hideHelperText && (
+        <small className="text-gray-500 text-xs block mb-1">{helperText}</small>
+      )}
 
-      <div className="flex items-center gap-3">
-        {value ? (
-          <a
-            href={fullUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="block w-[96px] h-[72px] shrink-0 overflow-hidden rounded border border-gray-200 bg-gray-50"
-            title="Open full image"
-          >
-            <img
-              src={thumbUrl}
-              alt="Dashboard image preview"
-              className="w-full h-full object-cover"
-            />
-          </a>
-        ) : (
-          <div className="w-[96px] h-[72px] shrink-0 rounded border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400">
-            No image
-          </div>
-        )}
-
-        <div className="flex gap-2">
+      {/* Preview + Buttons layout */}
+      {hidePreview ? (
+        // Buttons only (compact mode)
+        <div className={`flex ${buttonOrientation === "vertical" ? "flex-col" : "flex-row"} gap-2`}>
           <Button type="button" variant="outline" onClick={() => setIsOpen(true)}>
             {value ? "Change image…" : "Select image…"}
           </Button>
           {value && (
-            <Button type="button" variant="ghost" onClick={clearSelection}>
+            <Button type="button" variant={removeVariant} onClick={clearSelection}>
               Remove
             </Button>
           )}
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          {value ? (
+            <a
+              href={fullUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="block w-[96px] h-[72px] shrink-0 overflow-hidden rounded border border-gray-200 bg-gray-50"
+              title="Open full image"
+            >
+              <img
+                src={thumbUrl}
+                alt="Dashboard image preview"
+                className="w-full h-full object-cover"
+              />
+            </a>
+          ) : (
+            <div className="w-[96px] h-[72px] shrink-0 rounded border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400">
+              No image
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(true)}>
+              {value ? "Change image…" : "Select image…"}
+            </Button>
+            {value && (
+              <Button type="button" variant={removeVariant} onClick={clearSelection}>
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] p-0">

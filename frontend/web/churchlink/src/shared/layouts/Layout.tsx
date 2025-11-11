@@ -13,17 +13,15 @@ function Layout({
       defaultOpen={false}
       style={
         {
-          "--sidebar-width-mobile": "100%",
-          "--sidebar-width": "100%",
+          "--sidebar-width-mobile": "min(320px, 85vw)",
+          "--sidebar-width": "min(320px, 85vw)",
         } as React.CSSProperties
       }
     >
-      <div className="flex flex-col min-h-screen w-full bg-background">
+      <div className="flex flex-col min-h-screen w-full bg-background relative">
+        <NavBar />
         <div className="flex flex-col flex-grow w-full">
-          <div className="lg:hidden!">
-            <AppSidebar/>
-          </div>
-          <NavBar />
+          <AppSidebar/>
           <main className="flex-grow bg-background">{children}</main>
         </div>
         <Footer />

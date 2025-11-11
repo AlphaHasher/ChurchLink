@@ -34,8 +34,13 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         sermon_editing: false,
         bulletin_editing: false,
         media_management: false,
-        layout_management: false,
+        web_builder_management: false,
+        mobile_ui_management: false,
         finance: false,
+        ministries_management: false,
+        forms_management: false,
+        bible_plan_management: false,
+        notification_management: false,
     }
 
     const initialEditorPermissions: PermMask = {
@@ -45,9 +50,14 @@ export function CreatePermDialog({ onSave }: CreatePermDialogProps) {
         event_management: false,
         sermon_editing: false,
         media_management: false,
-        layout_management: false,
+        web_builder_management: false,
+        mobile_ui_management: false,
         bulletin_editing: false,
         finance: false,
+        ministries_management: false,
+        forms_management: false,
+        bible_plan_management: false,
+        notification_management: false,
     }
 
 

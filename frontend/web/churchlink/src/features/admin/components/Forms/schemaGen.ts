@@ -2,6 +2,7 @@ import { z } from "zod";
 import validator from "validator";
 import { format } from "date-fns";
 import { normalizeDateOnly } from '@/helpers/DateHelper'
+import { evaluateVisibility } from './visibilityUtils';
 import type { AnyField, CheckboxField, DateField, NumberField, SelectField, TextField, FormSchema, EmailField, PasswordField, UrlField, TelField } from "./types";
 
 const trimString = (val: unknown): unknown => (typeof val === "string" ? val.trim() : val);
@@ -63,7 +64,7 @@ const formatNumberValue = (n: number): string => {
   return Number.isInteger(n) ? n.toFixed(0) : n.toString();
 };
 
-export function fieldToZod(field: AnyField): z.ZodTypeAny {
+export function fieldToZod(field: AnyField, enforceRequired: boolean = true): z.ZodTypeAny {
   switch (field.type) {
     case "text":
     case "textarea": {
@@ -75,7 +76,7 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       if (f.maxLength != null) base = base.max(f.maxLength);
       if (f.pattern) base = base.regex(new RegExp(f.pattern));
 
-      if (f.required) {
+      if (f.required && enforceRequired) {
         return base.min(1, { message: `${label} is required` });
       }
 
@@ -84,13 +85,13 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
     case "email": {
       let s = z.string().email({ message: "Invalid email address" });
       const f = field as EmailField;
-      if (!f.required) s = s.optional() as any;
+      if (!f.required || !enforceRequired) s = s.optional() as any;
       return s;
     }
     case "password": {
       let s = z.string();
       const f = field as PasswordField;
-      if (f.required) s = s.min(1, { message: `${field.label || field.name} is required` });
+      if (f.required && enforceRequired) s = s.min(1, { message: `${field.label || field.name} is required` });
       if (f.minLength != null) s = s.min(f.minLength);
       if (f.maxLength != null) s = s.max(f.maxLength);
       if (f.requireUpper) s = s.regex(/[A-Z]/, { message: "Must include an uppercase letter" });
@@ -111,7 +112,7 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         allow_trailing_dot: false,
       };
 
-      if (f.required) {
+      if (f.required && enforceRequired) {
         return z.preprocess(
           trimString,
           z
@@ -138,7 +139,7 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       const label = field.label || field.name || "Phone";
       const phoneMessage = "Invalid phone number";
 
-      if (f.required) {
+      if (f.required && enforceRequired) {
         return z.preprocess(
           (val) => {
             const digits = normalizePhoneDigits(trimString(val));
@@ -177,7 +178,7 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
           return;
         }
         if (val === undefined) {
-          if (f.required) {
+          if (f.required && enforceRequired) {
             ctx.addIssue({ code: z.ZodIssueCode.custom, message: `${label} is required` });
           }
           return;
@@ -197,16 +198,16 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         }
       });
     }
-    
+
     case "checkbox": {
       const f = field as CheckboxField;
-      if (f.required) {
+      if (f.required && enforceRequired) {
         return z.literal(true, { message: `${field.label || field.name} must be checked` } as any);
       }
       return z.boolean().optional();
     }
     case "switch": {
-      if (field.required) {
+      if (field.required && enforceRequired) {
         return z.literal(true, { message: `${field.label || field.name} must be enabled` } as any);
       }
       return z.boolean().optional();
@@ -214,18 +215,18 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
     case "select": {
       const f = field as SelectField;
       if (f.multiple) {
-        if (f.required) {
+        if (f.required && enforceRequired) {
           return z.array(z.string()).min(1, `${field.label || field.name} is required`);
         }
         return z.array(z.string()).optional();
       }
       let s: z.ZodType<string | undefined> = z.string().optional();
-      if (f.required) s = z.string().min(1, `${field.label || field.name} is required`);
+      if (f.required && enforceRequired) s = z.string().min(1, `${field.label || field.name} is required`);
       return s;
     }
     case "radio": {
       let s: z.ZodType<string | undefined> = z.string().optional();
-      if (field.required) s = z.string().min(1, `${field.label || field.name} is required`);
+      if (field.required && enforceRequired) s = z.string().min(1, `${field.label || field.name} is required`);
       return s;
     }
     case "date": {
@@ -241,19 +242,19 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
           })
           .optional();
 
-  // If required, both from and to must be provided
-        if (f.required) {
+        // If required, both from and to must be provided (only if enforceRequired)
+        if (f.required && enforceRequired) {
           s = s.refine((v) => !!v && !!v.from && !!v.to, {
             message: `${label} is required`,
           });
         }
 
-  // Order check when both present: from <= to
+        // Order check when both present: from <= to
         s = s.refine((v) => !v || !v.from || !v.to || v.to.getTime() >= v.from.getTime(), {
           message: `${label} end date must be on or after start date`,
         });
 
-  // Min/Max checks for whichever endpoints exist
+        // Min/Max checks for whichever endpoints exist
         const min = normalizeDateOnly(f.minDate);
         if (min) {
           const message = `${label} must be on or after ${describeDate(f.minDate)}`;
@@ -278,9 +279,9 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
         return s;
       }
 
-  // Single-date mode: value is a Date or undefined
+      // Single-date mode: value is a Date or undefined
       let s: z.ZodType<Date | undefined> = z.date().optional();
-      if (f.required) s = z.date();
+      if (f.required && enforceRequired) s = z.date();
       const min = normalizeDateOnly(f.minDate);
       if (min)
         s = s.refine((v: Date | undefined) => {
@@ -303,10 +304,10 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
       // Store as string HH:MM, validate range if provided
       let s: z.ZodType<string | undefined> = z
         .string()
-        .regex(/^([01]\d|2[0-3]):([0-5]\d)$/,{ message: "Invalid time (HH:MM)" })
+        .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: "Invalid time (HH:MM)" })
         .optional();
       const f: any = field as any;
-      if (f.required) s = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/,{ message: "Invalid time (HH:MM)" });
+      if (f.required && enforceRequired) s = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, { message: "Invalid time (HH:MM)" });
       const toMinutes = (t: string) => {
         const [h, m] = t.split(":").map(Number);
         return h * 60 + m;
@@ -320,7 +321,7 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
     case "color": {
       // simple #RRGGBB or #RGB pattern
       let s: z.ZodType<string | undefined> = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, { message: "Invalid color" }).optional();
-      if (field.required) s = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, { message: "Invalid color" });
+      if (field.required && enforceRequired) s = z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, { message: "Invalid color" });
       return s;
     }
     case "static": {
@@ -330,6 +331,9 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
     case "price": {
       return z.any().optional();
     }
+    case "pricelabel": {
+      return z.any().optional(); // Display-only field, no validation needed
+    }
     default:
       return z.any();
   }
@@ -337,20 +341,81 @@ export function fieldToZod(field: AnyField): z.ZodTypeAny {
 
 export function schemaToZodObject(schema: FormSchema) {
   const shape: Record<string, z.ZodTypeAny> = {};
+
+  // Create validators without enforcing required validation
+  // (all required validation will be handled in superRefine with visibility awareness)
   for (const f of schema.data) {
-    shape[f.name] = fieldToZod(f);
-    
+    const fieldZod = fieldToZod(f, false); // Don't enforce required in base validators
+    shape[f.name] = fieldZod;
+
     // Add payment method field for price fields that allow both payment methods
     if (f.type === "price") {
       const priceField = f as any;
       const allowPayPal = priceField.paymentMethods?.allowPayPal !== false;
       const allowInPerson = priceField.paymentMethods?.allowInPerson !== false;
-      
+
       // Only add payment method field if both methods are enabled (user needs to choose)
       if (allowPayPal && allowInPerson) {
         shape[`${f.name}_payment_method`] = z.enum(['paypal', 'in-person']).default('paypal');
       }
     }
   }
-  return z.object(shape);
+
+  // Create object with base schema, then apply visibility-aware validation
+  let zodObj = z.object(shape);
+
+  // Apply visibility-aware validation: required fields should only be validated if visible
+  zodObj = zodObj.superRefine((data, ctx) => {
+    for (const field of schema.data) {
+      // Skip non-required fields
+      if (!field.required) continue;
+
+      // Determine if field is visible
+      const isVisible = evaluateVisibility(field.visibleIf, data);
+
+      // Only validate required constraint if field is visible
+      if (isVisible) {
+        const value = (data as any)[field.name];
+
+        // Check for emptiness based on field type
+        let isEmpty = false;
+
+        if (field.type === 'checkbox' || field.type === 'switch') {
+          // For boolean fields, required means must be true
+          isEmpty = value !== true;
+        } else if (field.type === 'select' && (field as SelectField).multiple) {
+          // For multi-select, check if array is empty
+          isEmpty = !Array.isArray(value) || value.length === 0;
+        } else if (field.type === 'date' && (field as DateField).mode === 'range') {
+          // For date range, both from and to must be present
+          isEmpty = !value || !value.from || !value.to;
+        } else {
+          // For all other types, check standard emptiness
+          isEmpty = value === undefined || value === null || value === '' ||
+            (Array.isArray(value) && value.length === 0) ||
+            (typeof value === 'object' && value !== null && Object.keys(value).length === 0);
+        }
+
+        if (isEmpty) {
+          const label = field.label || field.name;
+          let message = `${label} is required`;
+
+          // Customize message for specific field types
+          if (field.type === 'checkbox') {
+            message = `${label} must be checked`;
+          } else if (field.type === 'switch') {
+            message = `${label} must be enabled`;
+          }
+
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [field.name],
+            message,
+          });
+        }
+      }
+    }
+  });
+
+  return zodObj;
 }

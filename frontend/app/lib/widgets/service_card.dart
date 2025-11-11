@@ -35,38 +35,35 @@ class ServiceCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Header row with service indicator
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        service.title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onSurface,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                Text(
+                  service.title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
 
                 const SizedBox(height: 12),
 
                 // Service time
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 16,
-                      color: colorScheme.onSurface.withAlpha(60),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
+                Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: colorScheme.onSurface.withAlpha(60),
+                      ),
+                      Text(
                         _formatServiceTime(
                           service.dayOfWeek,
                           service.timeOfDay,
@@ -75,9 +72,10 @@ class ServiceCard extends StatelessWidget {
                           color: colorScheme.onSurface.withAlpha(80),
                           fontWeight: FontWeight.w500,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 // Description (if provided)
@@ -91,6 +89,7 @@ class ServiceCard extends StatelessWidget {
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ],

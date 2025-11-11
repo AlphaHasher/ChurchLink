@@ -1,5 +1,7 @@
 // ignore_for_file: no_leading_underscores_for_local_identifiers
 
+const _undefined = Object();
+
 class SermonFilter {
   final int skip;
   final int limit;
@@ -26,23 +28,23 @@ class SermonFilter {
   SermonFilter copyWith({
     int? skip,
     int? limit,
-    String? ministry,
-    String? speaker,
-    List<String>? tags,
-    DateTime? dateAfter,
-    DateTime? dateBefore,
-    String? query,
+    Object? ministry = _undefined,
+    Object? speaker = _undefined,
+    Object? tags = _undefined,
+    Object? dateAfter = _undefined,
+    Object? dateBefore = _undefined,
+    Object? query = _undefined,
     bool? favoritesOnly,
   }) {
     return SermonFilter(
       skip: skip ?? this.skip,
       limit: limit ?? this.limit,
-      ministry: ministry ?? this.ministry,
-      speaker: speaker ?? this.speaker,
-      tags: tags ?? this.tags,
-      dateAfter: dateAfter ?? this.dateAfter,
-      dateBefore: dateBefore ?? this.dateBefore,
-      query: query ?? this.query,
+      ministry: ministry == _undefined ? this.ministry : ministry as String?,
+      speaker: speaker == _undefined ? this.speaker : speaker as String?,
+      tags: tags == _undefined ? this.tags : tags as List<String>? ?? const <String>[],
+      dateAfter: dateAfter == _undefined ? this.dateAfter : dateAfter as DateTime?,
+      dateBefore: dateBefore == _undefined ? this.dateBefore : dateBefore as DateTime?,
+      query: query == _undefined ? this.query : query as String?,
       favoritesOnly: favoritesOnly ?? this.favoritesOnly,
     );
   }

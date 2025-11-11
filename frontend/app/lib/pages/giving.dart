@@ -27,6 +27,13 @@ class _GivingState extends State<Giving> {
   String? _accountEmail; 
   String _purpose = 'General';
   List<String> _fundPurposes = ['General']; // Default value while loading
+  String _churchName = 'Your Church Name'; // Default value while loading
+  Map<String, String> _churchAddress = {
+    'address': '123 Main Street',
+    'city': 'Your City',
+    'state': 'ST',
+    'postal_code': '12345',
+  }; // Default values while loading
   bool _isSubscription = false;
   String _intervalUnit = 'MONTH';
   int _intervalCount = 1;
@@ -115,7 +122,6 @@ class _GivingState extends State<Giving> {
                       content: Text(
                         '✅ Successfully registered $numberOfPeople ${numberOfPeople == 1 ? 'person' : 'people'} for the event!',
                       ),
-                      backgroundColor: Colors.green,
                       duration: Duration(seconds: 4),
                     ),
                   );
@@ -159,7 +165,6 @@ class _GivingState extends State<Giving> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('✅ Event payment completed successfully!'),
-                      backgroundColor: Colors.green,
                       duration: Duration(seconds: 4),
                     ),
                   );
@@ -204,6 +209,8 @@ class _GivingState extends State<Giving> {
     });
     _accountEmail = FirebaseAuth.instance.currentUser?.email;
     _loadFundPurposes();
+    _loadChurchName();
+    _loadChurchAddress();
   }
 
   Future<void> _loadFundPurposes() async {
@@ -216,6 +223,32 @@ class _GivingState extends State<Giving> {
           if (!_fundPurposes.contains(_purpose)) {
             _purpose = _fundPurposes.isNotEmpty ? _fundPurposes.first : 'General';
           }
+        });
+      }
+    } catch (e) {
+      // Error is already handled in the service with default values
+    }
+  }
+
+  Future<void> _loadChurchName() async {
+    try {
+      final churchName = await PaypalService.getChurchName();
+      if (mounted) {
+        setState(() {
+          _churchName = churchName;
+        });
+      }
+    } catch (e) {
+      // Error is already handled in the service with default values
+    }
+  }
+
+  Future<void> _loadChurchAddress() async {
+    try {
+      final churchAddress = await PaypalService.getChurchAddress();
+      if (mounted) {
+        setState(() {
+          _churchAddress = churchAddress;
         });
       }
     } catch (e) {
@@ -446,16 +479,10 @@ class _GivingState extends State<Giving> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Church Giving',
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
+    return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(159, 144, 79, 230),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text(
-          'Church Giving',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          '$_churchName Giving',
         ),
         centerTitle: true,
         leading: IconButton(
@@ -463,7 +490,6 @@ class _GivingState extends State<Giving> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-        backgroundColor: const Color.fromARGB(246, 244, 236, 255),
         body: SafeArea(
           minimum: const EdgeInsets.symmetric(horizontal: 10),
           child: Center(
@@ -471,14 +497,48 @@ class _GivingState extends State<Giving> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 20),
-                  Text('Support Our Church', style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 10),
+                  Icon(
+                      Icons.church,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  const SizedBox(height: 16),
+                  
+                  Text('Supporting $_churchName', style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  Text(
+                      'Your donations help our mission to support and uplift you and the community! Every contribution, large or small, has a meaningful difference!',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.favorite,
+                          color: Theme.of(context).colorScheme.error,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Thank you for your generosity!',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                            fontStyle: FontStyle.italic,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 32),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Text(
                       'Enter your name and donation details below. Payment will be processed securely through PayPal.',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                      style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -486,7 +546,6 @@ class _GivingState extends State<Giving> {
                   Card(
                     elevation: 4,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    color: Colors.white,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 32),
                       child: Column(
@@ -496,7 +555,6 @@ class _GivingState extends State<Giving> {
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: Colors.deepPurple,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -504,24 +562,23 @@ class _GivingState extends State<Giving> {
                             controller: _amountController,
                             keyboardType: TextInputType.numberWithOptions(decimal: true),
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 36,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1.2,
-                              color: Colors.black,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                             decoration: InputDecoration(
                               prefixIcon: Padding(
                                 padding: const EdgeInsets.only(left: 16, right: 8),
                                 child: Text('\$',
-                                  style: TextStyle(fontSize: 32, color: Colors.green)),
+                                  style: TextStyle(fontSize: 32, color: const Color.fromARGB(255, 50, 143, 53))),
                               ),
                               prefixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
                               hintText: '0.00',
-                              hintStyle: TextStyle(fontSize: 32, color: Colors.grey),
-                              border: InputBorder.none,
+                              hintStyle: TextStyle(fontSize: 32, color: Theme.of(context).hintColor),
+                              border: const OutlineInputBorder(),
                               filled: true,
-                              fillColor: Colors.grey[100],
                               contentPadding: EdgeInsets.symmetric(vertical: 16),
                             ),
                           ),
@@ -698,9 +755,9 @@ class _GivingState extends State<Giving> {
                               _startDate != null
                                   ? '${_startDate!.month}/${_startDate!.day}/${_startDate!.year}'
                                   : 'Choose date',
-                              style: TextStyle(
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 fontSize: 16,
-                                color: _startDate != null ? Colors.black : Colors.grey[600],
+                                color: _startDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
                               ),
                             ),
                           ),
@@ -714,13 +771,14 @@ class _GivingState extends State<Giving> {
                   if (_message != null)
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Text(_message!, style: const TextStyle(fontSize: 16, color: Colors.green)),
+                      child: Text(_message!, style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.error)),
                     ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.volunteer_activism),
                     label: const Text('Give with PayPal'),
                     onPressed: _loading ? null : _give,
                     style: ElevatedButton.styleFrom(
+                      // Leave PayPal button hard coded blue, matches their branding
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -729,12 +787,225 @@ class _GivingState extends State<Giving> {
 
                   
                   const SizedBox(height: 30),
+
+                  // Donate In Person Section
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  
+                  child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Donate In Person',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+                      Text(
+                        'Visit us during service hours to offer donations as cash or checks, any amount is gratefully accepted!',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.schedule,
+                                  size: 18,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Service Times:',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 26),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Sunday Mornings - 9:30 AM',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Sunday United Service - 12:15 PM',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Sunday Evenings - 5:00 PM',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Thursday Prayer Service - 7:00 PM',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Mail-in Donations Section
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.mail,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Mail-in Donations',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Prefer to send a check? Mail your donation to our church address. Please make checks payable to $_churchName.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.location_city,
+                                  size: 18,
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.6),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _churchName,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 26),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (_churchAddress['address']?.isNotEmpty == true)
+                                    Text(
+                                      _churchAddress['address']!,
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  if (_churchAddress['city']?.isNotEmpty == true ||
+                                      _churchAddress['state']?.isNotEmpty == true ||
+                                      _churchAddress['postalCode']?.isNotEmpty == true)
+                                    Text(
+                                      [
+                                        _churchAddress['city'],
+                                        _churchAddress['state'],
+                                        _churchAddress['postalCode']
+                                      ].where((part) => part?.isNotEmpty == true).join(', '),
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+                
                 ],
               ),
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -746,7 +1017,7 @@ class _GivingState extends State<Giving> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error, color: Colors.red, size: 48),
+            Icon(Icons.error, color: Theme.of(context).colorScheme.error, size: 48),
             const SizedBox(height: 16),
             Text(
               'Event payment failed: $error',

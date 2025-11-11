@@ -4,6 +4,8 @@ class SwitchFormComponent extends StatelessWidget {
   final String label;
   final String? inlineLabel;
   final String? helperText;
+  final String? onText;
+  final String? offText;
   final bool requiredField;
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -14,6 +16,8 @@ class SwitchFormComponent extends StatelessWidget {
     required this.label,
     this.inlineLabel,
     this.helperText,
+    this.onText,
+    this.offText,
     this.requiredField = false,
     required this.value,
     required this.onChanged,
@@ -59,7 +63,11 @@ class SwitchFormComponent extends StatelessWidget {
               child: SwitchListTile(
                 value: current,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                title: Text(inline ?? label),
+                title: Text(
+                  current
+                      ? ((onText?.trim().isNotEmpty == true) ? onText! : (inline ?? label))
+                      : ((offText?.trim().isNotEmpty == true) ? offText! : (inline ?? label)),
+                ),
                 onChanged: (val) {
                   final next = val;
                   state.didChange(next);

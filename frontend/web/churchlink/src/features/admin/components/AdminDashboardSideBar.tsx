@@ -36,13 +36,39 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/ui/collapsible";
 import ProfilePill from "@/shared/components/ProfilePill";
 import { Skeleton } from '@/shared/components/ui/skeleton';
+import useUserPermissions from "@/hooks/useUserPermissions";
 
 const AdminDashboardSideBar = () => {
   const location = useLocation();
   const [loadingKey] = useState<string | null>(null);
+  const { permissions, loading } = useUserPermissions();
 
   const isActive = (path?: string) =>
     !!path && (location.pathname === path || location.pathname.startsWith(path + "/"));
+
+  // Helper function to check if user has full access
+  const hasFullAccess = (requiresPermission?: string | string[]): boolean => {
+    if (!requiresPermission) {
+      return true; // No permission required - full access
+    }
+
+    // If still loading, show as no access temporarily
+    if (loading || !permissions) {
+      return false;
+    }
+
+    // Admin has full access to everything
+    if (permissions.admin) {
+      return true;
+    }
+
+    // Check if user has the required permission(s)
+    if (Array.isArray(requiresPermission)) {
+      return requiresPermission.some(perm => permissions[perm as keyof typeof permissions]);
+    } else {
+      return !!permissions[requiresPermission as keyof typeof permissions];
+    }
+  };
 
   type Item = {
     title: string;
@@ -51,6 +77,7 @@ const AdminDashboardSideBar = () => {
     onClick?: (e: React.MouseEvent) => void | Promise<void>;
     loadingKey?: string;
     children?: { title: string; url: string }[];
+    requiresPermission?: string | string[];
   };
 
   const webBuilderChildren = useMemo(
@@ -66,52 +93,111 @@ const AdminDashboardSideBar = () => {
     { title: "Go Back to Main Site", url: "/", icon: ArrowLeft },
     { title: "Admin Panel Home", url: "/admin/", icon: Home },
     {
-      title: "Users", url: "/admin/users", icon: User, children: [
+      title: "Users",
+      url: "/admin/users",
+      icon: User,
+      requiresPermission: "permissions_management",
+      children: [
         { title: "Management", url: "/admin/users/manage-users" },
         { title: "Membership Requests", url: "/admin/users/membership-requests" }
       ]
     },
 
-    { title: "Permissions", url: "/admin/permissions", icon: Shield },
-    { title: "Ministries", url: "/admin/ministries", icon: Church },
-    { title: "Web Builder", icon: FileText, children: webBuilderChildren },
-    { title: "Media Library", url: "/admin/media-library", icon: Image },
     {
-      title: "Mobile UI", icon: Smartphone, children: [
+      title: "Permissions",
+      url: "/admin/permissions",
+      icon: Shield,
+      requiresPermission: "permissions_management"
+    },
+    {
+      title: "Ministries",
+      url: "/admin/ministries",
+      icon: Church,
+      requiresPermission: "ministries_management"
+    },
+    {
+      title: "Web Builder",
+      icon: FileText,
+      requiresPermission: "web_builder_management",
+      children: webBuilderChildren
+    },
+    {
+      title: "Media Library",
+      url: "/admin/media-library",
+      icon: Image,
+      requiresPermission: "media_management"
+    },
+    {
+      title: "Mobile UI",
+      icon: Smartphone,
+      requiresPermission: "mobile_ui_management",
+      children: [
         { title: "Tabs", url: "/admin/mobile-ui-tab" },
         { title: "Pages", url: "/admin/mobile-ui-pages" },
       ]
     },
 
     {
-      title: "Events", icon: CalendarFold, children: [
+      title: "Events", icon: CalendarFold, requiresPermission["event_management", "event_editing"] , children: [
         { title: "Manage Events", url: "/admin/events/" },
         { title: "Manage Discount Codes", url: "/admin/events/discount-codes" },
       ]
     },
 
     {
-      title: "Forms", icon: ClipboardList, children: [
+      title: "Forms",
+      icon: ClipboardList,
+      requiresPermission: "forms_management",
+      children: [
         { title: "Manage Forms", url: "/admin/forms/manage-forms" },
         { title: "Form Builder", url: "/admin/forms/form-builder" },
       ]
     },
-    { title: "Weekly Bulletin", url: "/admin/bulletins", icon: Newspaper },
-    { title: "Sermons Manager", url: "/admin/sermons", icon: Lectern },
     {
-      title: "Bible Plans", icon: BookOpen, children: [
+      title: "Weekly Bulletin",
+      url: "/admin/bulletins",
+      icon: Newspaper,
+      requiresPermission: "bulletin_editing"
+    },
+    {
+      title: "Sermons Manager",
+      url: "/admin/sermons",
+      icon: Lectern,
+      requiresPermission: "sermon_editing"
+    },
+    {
+      title: "Bible Plans",
+      icon: BookOpen,
+      requiresPermission: "bible_plan_management",
+      children: [
         { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
         { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
       ]
     },
     {
-      title: "Finance", icon: Wallet, children: [
+      title: "Finance",
+      icon: Wallet,
+      requiresPermission: "finance",
+      children: [
         { title: "Overview", url: "/admin/finance" },
         { title: "Refund Management", url: "/admin/finance/refunds" },
       ]
     },
-    { title: "Notifications", url: "/admin/notifications", icon: Bell },
+    {
+      title: "Notifications",
+      url: "/admin/notifications",
+      icon: Bell,
+      requiresPermission: "notification_management"
+    },
   ];
+
+  // Filter items to only show those with full access
+  const processedItems = items
+    .filter(item => hasFullAccess(item.requiresPermission))
+    .map(item => ({
+      ...item,
+      accessLevel: 'full' as const
+    }));
 
   return (
     <Sidebar collapsible="icon" autoCollapse={false} hoverable={false} className="border-r">
@@ -120,8 +206,8 @@ const AdminDashboardSideBar = () => {
           <SidebarGroupLabel>Admin</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                item.children ? (
+              {processedItems.map((item) => {
+                return item.children ? (
                   <Collapsible key={item.title} defaultOpen className="group/collapsible">
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
@@ -132,7 +218,7 @@ const AdminDashboardSideBar = () => {
                       </CollapsibleTrigger>
                       <CollapsibleContent>
                         <SidebarMenuSub>
-                          {item.children.map((child) => (
+                          {item.children.map((child: any) => (
                             <SidebarMenuSubItem key={child.url}>
                               <SidebarMenuSubButton asChild isActive={isActive(child.url)}>
                                 <Link to={child.url}>{child.title}</Link>
@@ -163,15 +249,15 @@ const AdminDashboardSideBar = () => {
                       </SidebarMenuButton>
                     ) : item.url ? (
                       <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
-                        <Link to={item.url}>
+                        <Link to={item.url} className="flex items-center gap-2">
                           <item.icon />
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     ) : null}
                   </SidebarMenuItem>
-                )
-              ))}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

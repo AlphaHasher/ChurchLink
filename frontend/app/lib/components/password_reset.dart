@@ -26,25 +26,61 @@ class PasswordReset extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDarkMode = theme.brightness == Brightness.dark;
+    final buttonBackgroundColor = isDarkMode ? Colors.black : Colors.grey[700];
+    
     return AlertDialog(
-      title: const Text('Forgot Password'),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: Text(
+        'Forgot Password',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+          color: isDarkMode ? Colors.white : Colors.grey[900],
+        ),
+      ),
       content: Form(
         key: forgotPasswordFormKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            Text(
               'Enter your email to reset your password',
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(
+                fontSize: 14,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey[700],
+              ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               enabled: authService.getCurrentUser()?.email == null,
               controller: forgotPasswordEmailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Email',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.primary,
+                    width: 2,
+                  ),
+                ),
+                prefixIcon: Icon(
+                  Icons.email_outlined,
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                ),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -63,15 +99,29 @@ class PasswordReset extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
         ElevatedButton(
           onPressed: () => _resetPassword(context),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black,
+            backgroundColor: buttonBackgroundColor,
             foregroundColor: Colors.white,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
-          child: const Text('Reset Password'),
+          child: const Text(
+            'Reset Password',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );

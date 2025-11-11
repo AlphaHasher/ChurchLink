@@ -28,6 +28,7 @@ class UserBase(BaseModel):
     email: EmailStr
     verified: bool
     membership: bool
+    language: str = Field(default="en", min_length=2, max_length=5)
     phone: Optional[str] = None
     birthday: Optional[datetime] = None
     address: AddressSchema = Field(default_factory=AddressSchema)

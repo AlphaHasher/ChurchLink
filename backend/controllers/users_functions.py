@@ -462,7 +462,7 @@ async def update_profile(uid:str, profile_info: PersonalInfo):
     return {
         "success": True,
         "msg": "Profile detail update success!",
-        "profile_info": refreshed.model_dump()
+        "profile_info": refreshed.model_dump(),
     }
 
 

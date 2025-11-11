@@ -8,6 +8,7 @@ import {
 } from '@/shared/components/ui/Dialog';
 import { ChurchBulletin } from '@/shared/types/ChurchBulletin';
 import { getLocalizedBulletinFields } from '@/shared/utils/localeUtils';
+import { BulletinMediaImage } from '@/features/bulletins/components/BulletinMediaImage';
 
 interface BulletinDetailsModalProps {
     bulletin: ChurchBulletin | null;
@@ -21,7 +22,6 @@ export function BulletinDetailsModal({
     onClose
 }: BulletinDetailsModalProps) {
     const publishDate = bulletin?.publish_date ? new Date(bulletin.publish_date) : null;
-    const expireDate = bulletin?.expire_at ? new Date(bulletin.expire_at) : null;
     const updatedAtSource = bulletin ? bulletin.updated_at ?? bulletin.created_at ?? null : null;
     const updatedAt = updatedAtSource ? new Date(updatedAtSource) : null;
     
@@ -41,14 +41,18 @@ export function BulletinDetailsModal({
                 ) : (
                     <>
                         <DialogHeader>
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <DialogTitle className="text-xl font-bold leading-tight">
-                                        {localizedFields.headline}
-                                    </DialogTitle>
-                                </div>
-                            </div>
+                            <DialogTitle className="text-xl font-bold leading-tight text-center">
+                                {localizedFields.headline}
+                            </DialogTitle>
                         </DialogHeader>
+
+                        <BulletinMediaImage
+                            bulletin={bulletin}
+                            alt={localizedFields.headline}
+                            containerClassName="mt-3 overflow-hidden rounded-lg bg-gray-100"
+                            imageClassName="w-full h-full object-cover"
+                            loading="eager"
+                        />
 
                         <div className="space-y-6">
                             <div className="prose prose-sm max-w-none">
@@ -102,18 +106,6 @@ export function BulletinDetailsModal({
                                             <p className="font-medium">Publish Date</p>
                                             <p className="text-sm text-gray-600">
                                                 {format(publishDate, 'MMMM dd, yyyy')}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {expireDate && (
-                                    <div className="flex items-center gap-3 text-gray-700">
-                                        <Calendar className="h-5 w-5 text-gray-500" />
-                                        <div>
-                                            <p className="font-medium">Expires</p>
-                                            <p className="text-sm text-gray-600">
-                                                {format(expireDate, 'MMMM dd, yyyy')}
                                             </p>
                                         </div>
                                     </div>

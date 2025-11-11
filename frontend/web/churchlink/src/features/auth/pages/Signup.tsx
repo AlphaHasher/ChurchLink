@@ -4,12 +4,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { auth, createUserWithEmailAndPassword } from "@/lib/firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
+import { getChurchName } from "@/helpers/ChurchSettingsHelper";
+import { getAuthErrorMessage } from "../utils/errorMessages";
 
 function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [churchName, setChurchName] = useState("Your Church Name");
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -19,7 +22,23 @@ function Signup() {
     }
   }, [user]);
 
+  // Fetch church name on component mount
+  useEffect(() => {
+    const fetchChurchName = async () => {
+      try {
+        const name = await getChurchName();
+        setChurchName(name);
+      } catch (error) {
+        console.warn("Failed to fetch church name for signup page:", error);
+        // Keep default value
+      }
+    };
+
+    fetchChurchName();
+  }, []);
+
   const handleGoogleSignup = async () => {
+    setError(""); // Clear any existing errors
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
@@ -29,9 +48,9 @@ function Signup() {
       // Successful signup will trigger the useEffect above and redirect
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError(getAuthErrorMessage(err.message));
       } else {
-        setError("An unknown error occurred");
+        setError("An error occurred. Please try again.");
       }
     }
   };
@@ -41,7 +60,12 @@ function Signup() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError("Passwords do not match. Please try again.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
       return;
     }
 
@@ -53,9 +77,9 @@ function Signup() {
       // Successful signup will trigger the useEffect above and redirect
     } catch (err: unknown) {
       if (err instanceof Error) {
-        setError(err.message);
+        setError(getAuthErrorMessage(err.message));
       } else {
-        setError("An unknown error occurred");
+        setError("An error occurred. Please try again.");
       }
     }
   };
@@ -71,7 +95,7 @@ function Signup() {
           Sign Up
         </h2>
         <div className="text-gray-600 mb-6">
-          The Second Slavic Baptist Church welcomes you! Please create your
+          {churchName} welcomes you! Please create your
           credentials below.
         </div>
 
@@ -126,7 +150,7 @@ function Signup() {
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg"
           >
             Sign Up
           </button>
@@ -144,7 +168,7 @@ function Signup() {
         <button
           onClick={handleGoogleSignup}
           type="button"
-          className="w-full bg-white text-white border-2 border-gray-400 hover:bg-gray-50 !text-gray-800 font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-white text-white border-2 border-gray-400 hover:bg-gray-50 !text-gray-800 font-semibold py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path

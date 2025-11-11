@@ -190,7 +190,7 @@ async def get_header_items_route():
     return header
 
 
-# layout_management perms necessary below
+# web_builder_management perms necessary below
 
 @mod_header_router.get("/locales")
 async def get_header_locales_route():

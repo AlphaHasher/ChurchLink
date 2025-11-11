@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Represents an attachment item in a bulletin
 class AttachmentItem {
@@ -27,14 +28,17 @@ class Bulletin {
   final DateTime publishDate;
   final DateTime? expireAt;
   final bool published;
-  final bool pinned;
+  final int order;
   final List<String> roles;
   final List<String> ministries;
   final List<AttachmentItem> attachments;
-  final String? ruHeadline;
-  final String? ruBody;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  
+  // Media library integration - EXACTLY like dashboard
+  final String? imageId;
+  final String? imageUrl;
+  final String? thumbnailUrl;
 
   const Bulletin({
     required this.id,
@@ -43,14 +47,15 @@ class Bulletin {
     required this.publishDate,
     this.expireAt,
     required this.published,
-    required this.pinned,
+    required this.order,
     required this.roles,
     required this.ministries,
     required this.attachments,
-    this.ruHeadline,
-    this.ruBody,
     this.createdAt,
     this.updatedAt,
+    this.imageId,
+    this.imageUrl,
+    this.thumbnailUrl,
   });
 
   factory Bulletin.fromJson(Map<String, dynamic> json) {
@@ -97,16 +102,68 @@ class Bulletin {
       publishDate: parseDate(publishDateRaw?.toString()) ?? DateTime.now(),
       expireAt: parseDate(expireAtRaw?.toString()),
       published: json['published'] == true,
-      pinned: json['pinned'] == true,
+      order: json['order'] is int ? json['order'] as int : 0,
       roles: coerceStringList(json['roles']),
       ministries: coerceStringList(json['ministries']),
       attachments: parseAttachments(json['attachments']),
-      ruHeadline: json['ru_headline']?.toString(),
-      ruBody: json['ru_body']?.toString(),
       createdAt: parseDate(createdAtRaw?.toString()),
       updatedAt: parseDate(updatedAtRaw?.toString()),
+      imageId: json['image_id']?.toString(),
+      imageUrl: json['image_url']?.toString(),
+      thumbnailUrl: json['thumbnail_url']?.toString(),
     );
   }
+  
+  /// Build image URL from imageId - EXACT pattern from dashboard
+  String _buildImageUrl(String id, {bool thumbnail = true}) {
+    String base = dotenv.get('BACKEND_URL');
+    if (!base.endsWith('/')) base = '$base/';
+    
+    final prefix = 'api/v1';
+    final path = 'assets/public/id/${Uri.encodeComponent(id)}';
+    final query = thumbnail ? '?thumbnail=1' : '';
+    
+    return '$base$prefix/$path$query';
+  }
+  
+  /// Get resolved thumbnail URL - uses imageId with dashboard pattern
+  String? get resolvedThumbnailUrl {
+    if (imageId != null && imageId!.isNotEmpty) {
+      return _buildImageUrl(imageId!, thumbnail: true);
+    }
+    return null;
+  }
+  
+  /// Get resolved image URL - uses imageId with dashboard pattern
+  String? get resolvedImageUrl {
+    if (imageId != null && imageId!.isNotEmpty) {
+      return _buildImageUrl(imageId!, thumbnail: false);
+    }
+    return null;
+  }
+
+  /// Ordered list of candidate image URLs to attempt when rendering media
+  List<String> get imageSources {
+    final seen = <String>{};
+    final candidates = <String?>[
+      thumbnailUrl,
+      imageUrl,
+      resolvedThumbnailUrl,
+      resolvedImageUrl,
+    ];
+
+    final urls = <String>[];
+    for (final candidate in candidates) {
+      final value = candidate?.trim();
+      if (value != null && value.isNotEmpty && seen.add(value)) {
+        urls.add(value);
+      }
+    }
+    return urls;
+  }
+
+  /// Whether the bulletin has at least one media source available
+  bool get hasImage => imageSources.isNotEmpty;
 
   Map<String, dynamic> toJson() {
     return {
@@ -116,14 +173,15 @@ class Bulletin {
       'publish_date': publishDate.toIso8601String(),
       if (expireAt != null) 'expire_at': expireAt!.toIso8601String(),
       'published': published,
-      'pinned': pinned,
+      'order': order,
       'roles': roles,
       'ministries': ministries,
       'attachments': attachments.map((a) => a.toJson()).toList(),
-      if (ruHeadline != null) 'ru_headline': ruHeadline,
-      if (ruBody != null) 'ru_body': ruBody,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updated_at': updatedAt!.toIso8601String(),
+      if (imageId != null) 'image_id': imageId,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (thumbnailUrl != null) 'thumbnail_url': thumbnailUrl,
     };
   }
 
@@ -152,14 +210,15 @@ class Bulletin {
     DateTime? publishDate,
     DateTime? expireAt,
     bool? published,
-    bool? pinned,
+    int? order,
     List<String>? roles,
     List<String>? ministries,
     List<AttachmentItem>? attachments,
-    String? ruHeadline,
-    String? ruBody,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? imageId,
+    String? imageUrl,
+    String? thumbnailUrl,
   }) {
     return Bulletin(
       id: id ?? this.id,
@@ -168,14 +227,15 @@ class Bulletin {
       publishDate: publishDate ?? this.publishDate,
       expireAt: expireAt ?? this.expireAt,
       published: published ?? this.published,
-      pinned: pinned ?? this.pinned,
+      order: order ?? this.order,
       roles: roles ?? this.roles,
       ministries: ministries ?? this.ministries,
       attachments: attachments ?? this.attachments,
-      ruHeadline: ruHeadline ?? this.ruHeadline,
-      ruBody: ruBody ?? this.ruBody,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      imageId: imageId ?? this.imageId,
+      imageUrl: imageUrl ?? this.imageUrl,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
     );
   }
 }

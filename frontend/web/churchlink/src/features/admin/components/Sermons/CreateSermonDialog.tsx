@@ -16,6 +16,7 @@ import { createSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
 import { fetchMinistries } from "@/helpers/EventsHelper";
+import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateSermonProps {
     onSave: () => Promise<void>;
@@ -32,9 +33,6 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
         youtube_url: "",
         date_posted: new Date(),
         published: false,
-        ru_title: "",
-        ru_description: "",
-        ru_speaker: "",
     };
 
     const [sermon, setSermon] = useState<ChurchSermon>(initial);
@@ -66,7 +64,8 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
             handleDialogClose();
         } catch (err) {
             console.error("Failed to create sermon:", err);
-            alert("Failed to create sermon. See console for details.");
+            const errorMessage = getApiErrorMessage(err, "Failed to create sermon");
+            alert(errorMessage);
         }
         setSaving(false);
     };
@@ -119,28 +118,13 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium">Title (RU)</span>
-                            <input className="border p-2 rounded" value={sermon.ru_title || ''} onChange={(e) => setSermon({ ...sermon, ru_title: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Description</span>
                             <textarea className="border p-2 rounded" value={sermon.description} onChange={(e) => setSermon({ ...sermon, description: e.target.value })} />
                         </label>
 
                         <label className="flex flex-col">
-                            <span className="text-sm font-medium">Description (RU)</span>
-                            <textarea className="border p-2 rounded" value={sermon.ru_description || ''} onChange={(e) => setSermon({ ...sermon, ru_description: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
                             <span className="text-sm font-medium">Speaker</span>
                             <input className="border p-2 rounded" value={sermon.speaker} onChange={(e) => setSermon({ ...sermon, speaker: e.target.value })} />
-                        </label>
-
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium">Speaker (RU)</span>
-                            <input className="border p-2 rounded" value={sermon.ru_speaker || ''} onChange={(e) => setSermon({ ...sermon, ru_speaker: e.target.value })} />
                         </label>
 
                         <div>
