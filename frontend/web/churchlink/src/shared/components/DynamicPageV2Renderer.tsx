@@ -12,21 +12,6 @@ import { makeVirtualTransform, VirtualTransform } from "@/features/webeditor/gri
 import { cn } from "@/lib/utils";
 import DOMPurify from 'dompurify';
 
-
-/**
- * Convert a Tailwind spacing unit to a CSS length in `rem`.
- *
- * @param value - Tailwind spacing unit (each unit = 0.25rem); may be `undefined` or `null`
- * @returns The computed CSS length as a string (e.g., `"0.25rem"`), the string `"0"` for zero, or `undefined` when `value` is not a finite number
- */
-function tailwindSpacingToRem(value?: number | null) {
-  if (typeof value !== "number" || Number.isNaN(value)) return undefined;
-  if (value === 0) return "0";
-  const rem = value * 0.25;
-  const formatted = rem.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
-  return formatted.length ? `${formatted}rem` : `${rem}rem`;
-}
-
 const highlightClass = (node: Node, highlightNodeId?: string) =>
   node.id === highlightNodeId ? "outline outline-2 outline-red-500/70" : undefined;
 
@@ -199,10 +184,10 @@ const renderNode = (
         ...nodeStyle,
         ...(backgroundColor ? { backgroundColor } : {}),
         ...(typeof borderRadius === "number" ? { borderRadius } : {}),
-        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
-        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
-        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
-        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+        ...(typeof paddingTop === "number" && transform ? { paddingTop: paddingTop * transform.cellPx } : {}),
+        ...(typeof paddingBottom === "number" && transform ? { paddingBottom: paddingBottom * transform.cellPx } : {}),
+        ...(typeof paddingLeft === "number" && transform ? { paddingLeft: paddingLeft * transform.cellPx } : {}),
+        ...(typeof paddingRight === "number" && transform ? { paddingRight: paddingRight * transform.cellPx } : {}),
         width: "100%",
         height: "100%",
         display: "block",
@@ -281,10 +266,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         fontSize: `${fontSizeRem * 16 * gridScale}px`,
-        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
-        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
-        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
-        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+        ...(typeof paddingTop === "number" && transform ? { paddingTop: paddingTop * transform.cellPx } : {}),
+        ...(typeof paddingBottom === "number" && transform ? { paddingBottom: paddingBottom * transform.cellPx } : {}),
+        ...(typeof paddingLeft === "number" && transform ? { paddingLeft: paddingLeft * transform.cellPx } : {}),
+        ...(typeof paddingRight === "number" && transform ? { paddingRight: paddingRight * transform.cellPx } : {}),
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -493,10 +478,10 @@ const renderNode = (
       // Also apply container-level background/border radius and paddings if provided on style
       const containerInlineStyle: React.CSSProperties = {
         ...nodeStyle,
-        ...(typeof (node as any).style?.paddingTop === "number" ? { paddingTop: tailwindSpacingToRem((node as any).style?.paddingTop) } : {}),
-        ...(typeof (node as any).style?.paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem((node as any).style?.paddingBottom) } : {}),
-        ...(typeof (node as any).style?.paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem((node as any).style?.paddingLeft) } : {}),
-        ...(typeof (node as any).style?.paddingRight === "number" ? { paddingRight: tailwindSpacingToRem((node as any).style?.paddingRight) } : {}),
+        ...(typeof (node as any).style?.paddingTop === "number" && transform ? { paddingTop: (node as any).style?.paddingTop * transform.cellPx } : {}),
+        ...(typeof (node as any).style?.paddingBottom === "number" && transform ? { paddingBottom: (node as any).style?.paddingBottom * transform.cellPx } : {}),
+        ...(typeof (node as any).style?.paddingLeft === "number" && transform ? { paddingLeft: (node as any).style?.paddingLeft * transform.cellPx } : {}),
+        ...(typeof (node as any).style?.paddingRight === "number" && transform ? { paddingRight: (node as any).style?.paddingRight * transform.cellPx } : {}),
       };
       return (
         <>

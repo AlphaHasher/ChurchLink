@@ -98,9 +98,10 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(LocalizationHelper.localize('Error: ') + e.toString())));
+        final fullError = 'Error: ${e.toString()}';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(LocalizationHelper.localize(fullError))),
+        );
       }
     } finally {
       setState(() => _isLoading = false);

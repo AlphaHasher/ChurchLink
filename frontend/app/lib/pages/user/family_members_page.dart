@@ -32,8 +32,9 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
+        final fullError = 'Error loading family members: ${e.toString()}';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(LocalizationHelper.localize('Error loading family members: ', capitalize: true) + e.toString())),
+          SnackBar(content: Text(LocalizationHelper.localize(fullError, capitalize: true))),
         );
       }
     }
@@ -46,7 +47,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
         final theme = Theme.of(dialogContext);
         return AlertDialog(
           title: Text(LocalizationHelper.localize('Delete Family Member')),
-          content: Text(LocalizationHelper.localize('Are you sure you want to delete ') + member.fullName + LocalizationHelper.localize('?')),
+          content: Text(LocalizationHelper.localize('Are you sure you want to delete ${member.fullName}?')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
@@ -70,13 +71,14 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
         _loadFamilyMembers();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(member.fullName + LocalizationHelper.localize(' deleted successfully'))),
+            SnackBar(content: Text(LocalizationHelper.localize('${member.fullName} deleted successfully'))),
           );
         }
       } catch (e) {
         if (mounted) {
+          final fullError = 'Error deleting family member: ${e.toString()}';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(LocalizationHelper.localize('Error deleting family member: ') + e.toString())),
+            SnackBar(content: Text(LocalizationHelper.localize(fullError, capitalize: true))),
           );
         }
       }
@@ -149,7 +151,7 @@ class _FamilyMembersPageState extends State<FamilyMembersPage> {
                           member.fullName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text(LocalizationHelper.localize('Age: ') + member.age.toString()),
+                        subtitle: Text(LocalizationHelper.localize('Age: ${member.age}')),
                         trailing: PopupMenuButton(
                           itemBuilder:
                               (context) => [

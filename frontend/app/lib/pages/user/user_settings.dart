@@ -319,7 +319,10 @@ class _UserSettingsState extends State<UserSettings> {
                     ),
                   )
                 else ...[
-                  Expanded(
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.6,
+                    ),
                     child: ListView.builder(
                       shrinkWrap: true,
                       itemCount: filtered.length,

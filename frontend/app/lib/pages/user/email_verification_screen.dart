@@ -145,10 +145,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     final disabled = !_online || _cooldown > 0 || _sending;
     final label =
         _cooldown > 0
-            ? '${LocalizationHelper.localize('Resend in ', capitalize: true)}$_cooldown ${LocalizationHelper.localize('seconds')}'
+            ? LocalizationHelper.localize('Resend in $_cooldown seconds')
             : _hasSent
-                ? LocalizationHelper.localize('Re-send verification email', capitalize: true)
-                : LocalizationHelper.localize('Send verification email', capitalize: true);
+                ? LocalizationHelper.localize('Re-send verification email')
+                : LocalizationHelper.localize('Send verification email');
 
     return PopScope(
       canPop: false,
@@ -192,11 +192,15 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        '${LocalizationHelper.localize('Please verify your email: ', capitalize: true)}${_email.isNotEmpty ? _email : LocalizationHelper.localize('(unknown)')} ${LocalizationHelper.localize('to continue. Check your spam folder if you can’t find the message.')}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black54),
-                      ),
+                      () {
+                        final emailDisplay = _email.isNotEmpty ? _email : 'unknown';
+                        final fullMessage = 'Please verify your email: $emailDisplay to continue. Check your spam folder if you can’t find the message.';
+                        return Text(
+                          LocalizationHelper.localize(fullMessage, capitalize: true),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.black54),
+                        );
+                      }(),
                       const SizedBox(height: 20),
                       Icon(
                         Icons.mark_email_unread_rounded,

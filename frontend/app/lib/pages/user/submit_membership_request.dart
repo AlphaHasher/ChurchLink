@@ -87,7 +87,7 @@ class _SubmitMembershipRequestScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize(title))
+        title: Text(title)
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 50, 16, 24),
@@ -102,7 +102,7 @@ class _SubmitMembershipRequestScreenState
               controller: _ctrl,
               maxLines: 6,
               decoration: InputDecoration(
-                hintText: LocalizationHelper.localize(hint),
+                hintText: hint,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

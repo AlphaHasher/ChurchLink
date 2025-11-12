@@ -27,22 +27,22 @@ class _PageSpec {
 // Defines expected Pages and their fallback default colors
 final Map<String, _PageSpec> _kDashboardPages = {
   'join-live': _PageSpec(
-    LocalizationHelper.localize('Join Live', capitalize: true),
+    LocalizationHelper.localize('Join Live'),
     Colors.indigo.shade600,
     (c) => const JoinLive(),
   ),
   'weekly-bulletin': _PageSpec(
-    LocalizationHelper.localize('Weekly Bulletin', capitalize: true),
+    LocalizationHelper.localize('Weekly Bulletin'),
     Colors.teal.shade600,
     (c) => const BulletinsPage(),
   ),
   'sermons': _PageSpec(
-    LocalizationHelper.localize('Sermons', capitalize: true),
+    LocalizationHelper.localize('Sermons'),
     Colors.deepPurple.shade600,
     (c) => const SermonsPage(),
   ),
   'events': _PageSpec(
-    'Events',
+    LocalizationHelper.localize('Events'),
     Colors.orange.shade600,
     (c) => const EventsPage(),
   ),

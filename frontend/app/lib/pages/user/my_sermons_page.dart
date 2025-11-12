@@ -43,12 +43,12 @@ class _MySermonsPageState extends State<MySermonsPage> {
       await provider.removeFavorite(sermon.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Removed "${sermon.title}" from favorites.')),
+        SnackBar(content: Text(LocalizationHelper.localize('Removed "${sermon.title}" from favorites.'))),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update favorites: $error')),
+        SnackBar(content: Text(LocalizationHelper.localize('Unable to update favorites: $error'))),
       );
     }
   }
@@ -86,13 +86,13 @@ class _MySermonsPageState extends State<MySermonsPage> {
                 favorites.isEmpty
                     ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
+                      children: [
                         SizedBox(height: 120),
                         Icon(Icons.star_border, size: 72, color: Colors.grey),
                         SizedBox(height: 12),
                         Center(
                           child: Text(
-                            'You have no favorite sermons yet.',
+                            LocalizationHelper.localize('You have no favorite sermons yet.'),
                             style: TextStyle(color: Colors.grey),
                           ),
                         ),
@@ -108,9 +108,9 @@ class _MySermonsPageState extends State<MySermonsPage> {
                         if (sermon == null) {
                           return ListTile(
                             leading: const Icon(Icons.menu_book_outlined),
-                            title: Text('Sermon ${favorite.sermonId}'),
-                            subtitle: const Text(
-                              'Details unavailable. Tap to refresh.',
+                            title: Text(LocalizationHelper.localize('Sermon ${favorite.sermonId}')),
+                            subtitle: Text(
+                              LocalizationHelper.localize('Details unavailable. Tap to refresh.'),
                             ),
                             onTap: () => provider.refreshFavorites(),
                           );
@@ -148,7 +148,7 @@ class _ErrorState extends StatelessWidget {
             const Icon(Icons.error_outline, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              message,
+              LocalizationHelper.localize('Error: $message'),
               style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),

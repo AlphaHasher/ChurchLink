@@ -74,6 +74,43 @@ class LocalizationHelper {
     return _postProcess(base, capitalize: capitalize);
   }
 
+  static Future<String> localizeAsync(
+    String? input, {
+    bool capitalize = false,
+  }) async {
+    final base = (input ?? '').toString().trim();
+    if (base.isEmpty) {
+      return '';
+    }
+
+    final normalizedLocale = _currentLocale.trim();
+    if (normalizedLocale.isEmpty || normalizedLocale == _sourceLocale) {
+      return _postProcess(base, capitalize: capitalize);
+    }
+
+    final localeMap = _cache.putIfAbsent(base, () => <String, String>{});
+    final cached = localeMap[normalizedLocale];
+    if (cached != null) {
+      return _postProcess(cached, capitalize: capitalize);
+    }
+
+    // Queue and await flush
+    _queueTranslation(base, normalizedLocale);
+
+    // Await the inflight future for this locale
+    final inflight = _inflight[normalizedLocale];
+    if (inflight != null) {
+      await inflight;
+    } else {
+      // If no inflight, trigger flush immediately for this single item
+      await _flush(normalizedLocale);
+    }
+
+    // Now get the translated value
+    final translated = localeMap[normalizedLocale];
+    return _postProcess(translated ?? base, capitalize: capitalize);
+  }
+
   static void _queueTranslation(String text, String locale) {
     final existing = _cache[text];
     if (existing != null && existing.containsKey(locale)) {

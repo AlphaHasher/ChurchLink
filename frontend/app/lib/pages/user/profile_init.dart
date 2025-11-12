@@ -52,20 +52,33 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
     setState(() => _saving = false);
 
     if (result.success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(LocalizationHelper.localize('Profile initialized!'))));
+
+      final successMsg = await LocalizationHelper.localizeAsync('Profile initialized!');
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMsg)));
+
       Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
+
     } else {
+
+      String errorMsg;
+
+      if (result.msg.isNotEmpty) {
+
+        errorMsg = await LocalizationHelper.localizeAsync(result.msg);
+
+      } else {
+
+        errorMsg = await LocalizationHelper.localizeAsync('Failed to initialize profile.');
+
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result.msg.isNotEmpty
-                ? result.msg
-                : LocalizationHelper.localize('Failed to initialize profile.'),
-          ),
-        ),
+
+        SnackBar(content: Text(errorMsg)),
+
       );
+
     }
   }
 
