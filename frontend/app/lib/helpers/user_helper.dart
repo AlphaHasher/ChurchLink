@@ -237,9 +237,10 @@ class UserHelper {
   /// Fetch user language directly from backend.
   static Future<String> fetchUserLanguage() async {
     try {
-      final res = await api.get('/v1/users/get-profile');
-      if (res.data is Map<String, dynamic>) {
-        final data = Map<String, dynamic>.from(res.data);
+      final res = await api.get('/v1/users/language');
+      final raw = res.data;
+      if (raw is Map) {
+        final data = Map<String, dynamic>.from(raw);
         final lang = data['language'];
         if (lang is String) {
           final code = lang.trim();

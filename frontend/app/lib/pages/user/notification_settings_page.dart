@@ -98,7 +98,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notification Preferences'),
+        title: Text(LocalizationHelper.localize('Notification Preferences')),
         centerTitle: true,
       ),
       body: _loading

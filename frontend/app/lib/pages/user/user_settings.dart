@@ -367,6 +367,7 @@ class _UserSettingsState extends State<UserSettings> {
           'Privacy policy and terms of use',
           'Account', 'Guest', 'Preferences', 'Support',
           'Trust me bro', 'Close',
+          'Notification Preferences', 'ßChoose which notifications you want to receive:',
         ],
       );
       if (mounted) {
