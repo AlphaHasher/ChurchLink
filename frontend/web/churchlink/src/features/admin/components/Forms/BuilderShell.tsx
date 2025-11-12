@@ -353,7 +353,6 @@ export function BuilderShell() {
       lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, supported_locales: supportedLocales, formWidth: snapshotWidth, data: dataWithTranslations });
       return true;
     } catch (err: any) {
-      console.error('Failed to save form to server', err);
       if (err?.response?.status === 409) {
         const payload = err.response?.data || err.response?.data?.detail || {};
         // If backend provided existing_id, prompt override

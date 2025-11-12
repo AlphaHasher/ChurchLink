@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from typing import List
 
 from models.form import (
@@ -6,6 +6,7 @@ from models.form import (
 	get_form_by_id_unrestricted,
 	list_all_forms,
 	search_all_forms,
+      add_response_by_slug
 )
 
 
@@ -34,6 +35,21 @@ async def get_form(form_id: str, request: Request) -> FormOut:
 	if not form:
 		raise HTTPException(status_code=404, detail="Form not found")
 	return form
+
+@private_forms_router.post("/slug/{slug}/responses")
+async def submit_response_by_slug(slug: str, request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+    
+    print("READ PAYLOAD")
+    print(payload)
+
+    ok, info = await add_response_by_slug(slug, payload, user_id=request.state.uid, passed_payment=payload.get("payment"))
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or "Failed to store response")
+    return {"message": "Response recorded", "response_id": info}
 
 
 __all__ = ["private_forms_router"]

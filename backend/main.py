@@ -63,8 +63,9 @@ from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
 from routes.form_routes.form_translations_routes import form_translations_router
+from routes.form_routes.form_payment_routes import form_payment_router
 
-#from routes.form_payment_routes import form_payment_router
+
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
 from routes.webbuilder_config_routes import webbuilder_config_public_router, webbuilder_config_private_router
@@ -297,6 +298,7 @@ private_router.include_router(private_forms_router)
 private_router.include_router(private_event_router)
 private_router.include_router(private_bible_plan_router)
 private_router.include_router(event_registration_router)
+private_router.include_router(form_payment_router)
 
 
 #####################################################

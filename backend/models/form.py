@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Literal, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
+from fastapi import HTTPException, status
 
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
@@ -83,14 +84,6 @@ class FormBase(BaseModel):
 
     supported_locales: List[str] = Field(default_factory=list)
 
-    # Payment configuration fields
-    requires_payment: bool = Field(False)
-    payment_amount: Optional[float] = Field(None)
-    payment_type: Optional[str] = Field("fixed")  # "fixed" | "donation" | "variable"
-    payment_description: Optional[str] = Field(None)
-    min_payment_amount: Optional[float] = Field(None)
-    max_payment_amount: Optional[float] = Field(None)
-
     @field_validator("form_width", mode="before")
     def validate_form_width(cls, v):
         return _validate_form_width(v)
@@ -136,14 +129,6 @@ class FormUpdate(BaseModel):
     form_width: Optional[str] = None
     supported_locales: Optional[List[str]] = None
 
-    # Payment configuration fields
-    requires_payment: Optional[bool] = None
-    payment_amount: Optional[float] = None
-    payment_type: Optional[str] = None
-    payment_description: Optional[str] = None
-    min_payment_amount: Optional[float] = None
-    max_payment_amount: Optional[float] = None
-
     @field_validator("slug", mode="before")
     def validate_slug_update(cls, v):
         return _validate_slug(v)
@@ -182,12 +167,8 @@ class Form(MongoBaseModel, FormBase):
     supported_locales: List[str] = Field(default_factory=list)
 
     # Payment configuration fields
-    requires_payment: bool = Field(False)
-    payment_amount: Optional[float] = Field(None)
-    payment_type: Optional[str] = Field("fixed")
-    payment_description: Optional[str] = Field(None)
-    min_payment_amount: Optional[float] = Field(None)
-    max_payment_amount: Optional[float] = Field(None)
+    submission_price: Optional[float] = Field(default_factory=0)
+    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
     expires_at: Optional[datetime]
 
 
@@ -207,12 +188,19 @@ class FormOut(BaseModel):
     supported_locales: List[str] = Field(default_factory=list)
 
     # Payment configuration fields
-    requires_payment: bool = Field(False)
-    payment_amount: Optional[float] = Field(None)
-    payment_type: Optional[str] = Field("fixed")
-    payment_description: Optional[str] = Field(None)
-    min_payment_amount: Optional[float] = Field(None)
-    max_payment_amount: Optional[float] = Field(None)
+    submission_price: Optional[float] = Field(default_factory=0)
+    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
+
+
+class FormResponsePaymentDetails(BaseModel):
+    payment_type: Literal["free", "paypal", "door"] = "free"
+    price: float = 0.0
+    payment_complete: bool = False
+    # Optional when not PayPal
+    transaction_id: Optional[str] = None
+    # Optional, for bookkeeping
+    currency: Optional[str] = "USD"
+    captured_amount: Optional[float] = None
 
 
 def _doc_to_out(doc: dict) -> FormOut:
@@ -248,18 +236,37 @@ def _doc_to_out(doc: dict) -> FormOut:
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
         supported_locales=doc.get("supported_locales", []),
-        requires_payment=doc.get("requires_payment", False),
-        payment_amount=doc.get("payment_amount"),
-        payment_type=doc.get("payment_type", "fixed"),
-        payment_description=doc.get("payment_description"),
-        min_payment_amount=doc.get("min_payment_amount"),
-        max_payment_amount=doc.get("max_payment_amount"),
+        submission_price=doc.get("submission_price", 0),
+        payment_options=doc.get("payment_options", [])
     )
 
 
 ############################
 # CRUD operations
 ############################
+
+async def identify_payment_data_central(form_fields: List[Any]):
+    payment_data = {'submission_price':0, 'payment_options':[], 'price_count':0}
+    for data in form_fields:
+        if 'type' in data and data['type']:
+            if data['type'] == 'price':
+                payment_data['price_count'] += 1
+                payment_data['submission_price'] = data['amount']
+                if 'paymentMethods' in data:
+                    if 'allowInPerson' in data['paymentMethods'] and data['paymentMethods']['allowInPerson']:
+                        payment_data['payment_options'].append('door')
+                    if 'allowPayPal' in data['paymentMethods'] and data['paymentMethods']['allowPayPal']:
+                        payment_data['payment_options'].append('paypal')
+                else:
+                    payment_data['payment_options'] = ['door', 'paypal']
+    return payment_data
+
+
+async def identify_payment_data_from_create(form: FormCreate):
+    return await identify_payment_data_central(form.data)
+
+async def identify_payment_data_from_update(form: FormUpdate):
+    return await identify_payment_data_central(form.data)
 
 
 async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
@@ -284,6 +291,17 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
         except MinistryNotFoundError as exc:
             logger.warning("Form creation failed: %s", exc)
             return None
+        
+    
+        payment_data = await identify_payment_data_from_create(form)
+
+        submission_price = payment_data['submission_price']
+        payment_options = payment_data['payment_options']
+        price_count = payment_data['price_count']
+
+        if price_count > 1:
+            logger.warning("Form creation failed! More than 1 price data type!")
+            return None
 
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
@@ -298,13 +316,9 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "supported_locales": getattr(form, "supported_locales", []),
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
-            # Payment configuration fields
-            "requires_payment": getattr(form, "requires_payment", False),
-            "payment_amount": getattr(form, "payment_amount", None),
-            "payment_type": getattr(form, "payment_type", "fixed"),
-            "payment_description": getattr(form, "payment_description", None),
-            "min_payment_amount": getattr(form, "min_payment_amount", None),
-            "max_payment_amount": getattr(form, "max_payment_amount", None),
+            'submission_price': submission_price,
+            'payment_options': payment_options,
+
         }
         result = await DB.db.forms.insert_one(doc)
         if result.inserted_id:
@@ -869,16 +883,14 @@ def _canonicalize_response(resp: Any) -> Any:
         canonical[base] = variants[first_key]
     return canonical
 
-
 async def add_response_by_slug(
-    slug: str, response: Any, user_id: Optional[str] = None
+    slug: str, response: Any, user_id: Optional[str] = None, passed_payment: FormResponsePaymentDetails=None
 ) -> Tuple[bool, Optional[str]]:
-    """Validate the response against the stored form schema and append it to a single
-    aggregated response document for the form (one document per form_id) in the
-    form_responses collection under the `responses` array.
-
-    Returns (True, response_identifier) or (False, error_message). The identifier is
-    the ISO timestamp of when the response was recorded.
+    """
+    Validate the response against schema and store it.
+    Always attaches a 'payment' object at the top level.
+    If the form's submission_price > 0, a response without a valid payment is rejected.
+    Returns (True, response_identifier_iso) or (False, error_message).
     """
     try:
         status_str, doc_any = await check_form_slug_status(slug)
@@ -888,46 +900,88 @@ async def add_response_by_slug(
             return False, "Form not available"
         if status_str == "expired":
             return False, "Form expired"
+
         doc = doc_any
         if not doc:
             return False, "Form not found"
+
         form_id = doc.get("_id")
         try:
             schema_fields = _get_schema_fields(doc.get("data"))
         except ValueError as ve:
             return False, str(ve)
 
-        # Canonicalize the response to collapse locale-specific keys
+        # Canonicalize response keys (flattens locale variants)
         response_canon = _canonicalize_response(response or {})
 
-        # Validate each declared field against the provided response payload
-        # Only validate fields that are visible based on their visibility conditions
+        # --- Validate custom fields as usual (only visible fields) ---
         for f in schema_fields:
             name = f.get("name")
-
-            # Check if field is visible based on conditional visibility
             visible_if = f.get("visibleIf")
             is_visible = _evaluate_visibility(visible_if, response_canon)
-
-            # Only validate if field is visible
             if not is_visible:
                 continue
-
-            # value may be under exact name or localized variants; response_canon already collapsed
             value = response_canon.get(name)
             valid, err = _validate_field(f, value)
             if not valid:
                 return False, err
 
-        # Upsert a single aggregated responses document per form_id and push the new response
+        # --- Payment enforcement / attachment ---
+        # From the form configuration
+        submission_price = float(doc.get("submission_price", 0) or 0)
+        payment_options = doc.get("payment_options", []) or []
+
+        # Caller may pass a top-level "payment" object
+        raw_payment = passed_payment or {}
+
+        # Build normalized payment details
+        payment = FormResponsePaymentDetails(
+            payment_type="free" if submission_price <= 0 else raw_payment.get("payment_type", "paypal" if "paypal" in payment_options else "door"),
+            price=(0.0 if submission_price <= 0 else float(raw_payment.get("price") or submission_price)),
+            payment_complete=bool(raw_payment.get("payment_complete") or False),
+            transaction_id=raw_payment.get("transaction_id"),
+            currency=raw_payment.get("currency") or "USD",
+            captured_amount=raw_payment.get("captured_amount")
+        )
+
+        # If a price is required, ensure payment is valid
+        if submission_price > 0:
+            # Must have a supported method
+            if payment.payment_type not in ("paypal", "door"):
+                return False, "Payment required: unsupported or missing payment method"
+            if payment.payment_type not in payment_options:
+                return False, "Payment method not allowed for this form"
+            # For PayPal, require a transaction id and payment_complete True
+            if payment.payment_type == "paypal":
+                if not payment.transaction_id:
+                    return False, "Payment required: missing PayPal transaction id"
+                if not payment.payment_complete:
+                    return False, "Payment required: PayPal payment not captured"
+            # For door, we record intent with payment_complete False (to be reconciled later)
+            if payment.payment_type == "door" and payment.price <= 0:
+                return False, "Payment required: invalid door payment amount"
+        else:
+            # Free submissions: force a normalized free record
+            payment = FormResponsePaymentDetails(
+                payment_type="free",
+                price=0.0,
+                payment_complete=True,
+                transaction_id=None,
+                currency="USD",
+                captured_amount=0.0
+            )
+
+        # --- Persist ---
         now = datetime.now()
-        # Build response entry and include user_id if provided
-        entry: dict = {"response": response_canon, "submitted_at": now}
+        entry: dict = {
+            "response": response_canon,
+            "submitted_at": now,
+            "payment": payment.model_dump(),  # ALWAYS at the top level of the response doc
+        }
         if user_id:
             try:
                 entry["user_id"] = ObjectId(user_id)
             except Exception:
-                # fallback to plain string if not a valid ObjectId
                 entry["user_id"] = user_id
 
         update_result = await DB.db.form_responses.update_one(
@@ -936,9 +990,7 @@ async def add_response_by_slug(
             upsert=True,
         )
         if update_result.matched_count == 0 and update_result.upserted_id is None:
-            # Shouldn't happen, but indicates failure
             return False, "Failed to store response"
-        # Return the timestamp as a stable identifier for the recorded response
         return True, now.isoformat()
     except Exception as e:
         logger.error(f"Error adding response for slug {slug}: {e}")
@@ -958,6 +1010,15 @@ async def update_form(
             update_doc["visible"] = update.visible
         if update.data is not None:
             update_doc["data"] = update.data
+            payment_data = await identify_payment_data_from_update(update)
+            submission_price = payment_data['submission_price']
+            payment_options = payment_data['payment_options']
+            price_count = payment_data['price_count']
+            if price_count > 1:
+                logger.error("Error! More than 1 payment submission type!")
+                return None
+            update_doc['submission_price'] = submission_price
+            update_doc['payment_options'] = payment_options
         if update.expires_at is not None:
             # Normalize tz-aware datetimes to local naive datetime before storing
             expires_val = update.expires_at
@@ -969,20 +1030,6 @@ async def update_form(
             update_doc["expires_at"] = expires_val
         if update.supported_locales is not None:
             update_doc["supported_locales"] = update.supported_locales
-
-        # Handle payment configuration updates
-        if update.requires_payment is not None:
-            update_doc["requires_payment"] = update.requires_payment
-        if update.payment_amount is not None:
-            update_doc["payment_amount"] = update.payment_amount
-        if update.payment_type is not None:
-            update_doc["payment_type"] = update.payment_type
-        if update.payment_description is not None:
-            update_doc["payment_description"] = update.payment_description
-        if update.min_payment_amount is not None:
-            update_doc["min_payment_amount"] = update.min_payment_amount
-        if update.max_payment_amount is not None:
-            update_doc["max_payment_amount"] = update.max_payment_amount
 
         try:
             provided = update.model_dump(exclude_unset=True)
@@ -1115,6 +1162,14 @@ async def get_form_responses(
                     "submitted_at": submitted_iso,
                     "user_id": uid_str,
                     "response": _canonicalize_response(r.get("response", {})),
+                    "payment": r.get("payment") or {
+                        "payment_type": "free",
+                        "price": 0.0,
+                        "payment_complete": True,
+                        "transaction_id": None,
+                        "currency": "USD",
+                        "captured_amount": 0.0,
+                    },
                 }
             )
 

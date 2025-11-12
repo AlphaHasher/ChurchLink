@@ -244,15 +244,7 @@ export default function EventAttendeesCard(props: Props) {
 
                             {/* Age & DOB (legacy parity) */}
                             <Chip className="bg-gray-100 text-gray-700">
-                                DOB:{" "}
-                                {r.dateOfBirth
-                                    ? new Intl.DateTimeFormat(undefined, {
-                                        year: "numeric",
-                                        month: "2-digit",
-                                        day: "2-digit",
-                                        timeZone: "UTC",
-                                    }).format(new Date(`${r.dateOfBirth}T00:00:00Z`))
-                                    : "—"}
+                                DOB: {r.dateOfBirth ? new Date(r.dateOfBirth).toLocaleDateString() : "—"}
                             </Chip>
 
 
