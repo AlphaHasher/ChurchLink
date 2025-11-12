@@ -85,7 +85,7 @@ export const DeletePersonDialog: React.FC<DeletePersonDialogProps> = ({
                 <DialogHeader>
                     <DialogTitle>{localize("Delete Family Member")}</DialogTitle>
                     <DialogDescription>
-                        {localize("This action cannot be undone. To confirm, type the full name:")}
+                        {localize("This action cannot be undone. This person will be unregistered from all events and automatic refunds will be issued if applicable. To confirm, type the full name:")}
                         <br />
                         <span className="font-medium text-foreground">{fullName}</span>
                     </DialogDescription>

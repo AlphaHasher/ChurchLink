@@ -7,15 +7,18 @@ from models.event_instance import (
     update_registration,
     ChangeEventRegistration,
     PaymentDetails,
+    get_upcoming_instances_for_user_family,
+    _assemble_event_instance_for_admin,
+    get_upcoming_instances_for_user
 )
-from models.event import _coerce_to_aware_utc, get_event_by_id
+from models.event import _coerce_to_aware_utc, get_event_by_id, get_event_doc_by_id
 from models.discount_code import get_discount_code_by_code, get_discount_code_by_id, increment_discount_usage
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
 import os
 from uuid import uuid4
 from helpers.PayPalHelperV2 import PayPalHelperV2
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import math
 
 import logging
@@ -41,6 +44,35 @@ class DiscountCodeCheck(BaseModel):
     event_id: str
     discount_code: str
 
+class AdminForceChange(BaseModel):
+    """
+    Request body for admin force register/unregister.
+    - event_instance_id: target instance
+    - user_id: the account that owns the registration entry
+    - registrant_id: "SELF" or a family_id string
+    - price: optional; if None/0 => free, else => door (pay later)
+    """
+    event_instance_id: str
+    user_id: str
+    registrant_id: str = Field(description='"SELF" or a family member id')
+    price: Optional[float] = None  # Only used for force-register
+
+
+# A HELPER THAT ENFORCES A VALIDATION THAT AN INSTANCE IS UPCOMING
+# USED FOR FORCED REGISTRATION TO GUARANTEE ONLY UPCOMING EVENTS MODIFIED
+async def _load_upcoming_instance(instance_id: str) -> Optional[AssembledEventInstance]:
+    instance_doc = await get_event_instance_assembly_by_id(instance_id)
+    if not instance_doc:
+        return None
+    try:
+        assembled = AssembledEventInstance(**instance_doc)
+    except Exception:
+        return None
+    now = datetime.now(timezone.utc)
+    ev_dt, _ = _coerce_to_aware_utc(assembled.date)
+    if not ev_dt or now >= ev_dt:
+        return None
+    return assembled
 
 # ----------------------------
 # Helpers to stamp payment/registration details
@@ -99,6 +131,20 @@ async def create_new_payment_details(
         details['line_id'] = None
 
     return PaymentDetails(**details)
+
+# Builds PaymentDetails forcefully created by an admin force registration
+def _build_forced_payment_details(kind: Literal["free", "door"], price: float) -> PaymentDetails:
+    # payment_complete only for "free"; "door" means pay later
+    return PaymentDetails(
+        payment_type=kind,
+        price=round(float(price or 0), 2),
+        payment_complete=(kind == "free"),
+        discount_code_id=None,
+        automatic_refund_eligibility=False,
+        transaction_id=None,
+        line_id=None,
+        is_forced=True,
+    )
 
 
 # Create a new RegistrationDetails to replace in the event
@@ -1111,3 +1157,468 @@ async def _process_refunds_for_removals(
         results.append((label, refund_id, amount))
 
     return {"success": True, "refunded": results}
+
+
+# ----------------------------
+# Admin Helpers (loose validation)
+# ----------------------------
+
+async def _load_upcoming_instance(instance_id: str) -> Optional[AssembledEventInstance]:
+    instance_doc = await get_event_instance_assembly_by_id(instance_id)
+    if not instance_doc:
+        return None
+    try:
+        assembled = AssembledEventInstance(**instance_doc)
+    except Exception:
+        return None
+
+    # upcoming-only requirement
+    now = datetime.now(timezone.utc)
+    ev_dt, _ = _coerce_to_aware_utc(assembled.date)
+    if not ev_dt or now >= ev_dt:
+        return None
+    return assembled
+
+
+def _build_forced_payment_details(kind: Literal["free", "door"], price: float) -> PaymentDetails:
+    # payment_complete only for "free"; "door" means pay later
+    return PaymentDetails(
+        payment_type=kind,
+        price=round(float(price or 0), 2),
+        payment_complete=(kind == "free"),
+        discount_code_id=None,
+        automatic_refund_eligibility=False,
+        transaction_id=None,
+        line_id=None,
+        is_forced=True, 
+    )
+
+
+# ----------------------------
+# Admin: Force Register
+# ----------------------------
+
+async def admin_force_register(request: Request, body: AdminForceChange) -> Dict[str, Any]:
+    # Loose validation: instance exists & upcoming, ids "valid"
+    assembled = await _load_upcoming_instance(body.event_instance_id)
+    if not assembled:
+        return {"success": False, "msg": "Instance not found or not upcoming."}
+
+    if not body.user_id or not body.registrant_id:
+        return {"success": False, "msg": "Invalid user_id or registrant_id."}
+
+    # Read existing details for that user on this instance
+    existing: Optional[RegistrationDetails] = assembled.registration_details.get(body.user_id) or None
+
+    # Detect idempotency / already registered
+    if body.registrant_id == "SELF":
+        if existing and existing.self_registered:
+            return {"success": True, "msg": "Already registered (SELF).", "seats_filled": assembled.seats_filled}
+    else:
+        if existing and body.registrant_id in (existing.family_registered or []):
+            return {"success": True, "msg": "Already registered (family).", "seats_filled": assembled.seats_filled}
+
+    # Build new RegistrationDetails by merging in the registrant
+    if existing:
+        self_registered = existing.self_registered or (body.registrant_id == "SELF")
+        family_registered = list(existing.family_registered or [])
+        if body.registrant_id != "SELF":
+            family_registered.append(body.registrant_id)
+            family_registered = list(dict.fromkeys(family_registered))
+        details = RegistrationDetails(
+            self_registered=self_registered,
+            family_registered=family_registered,
+            self_payment_details=existing.self_payment_details,
+            family_payment_details=dict(existing.family_payment_details or {}),
+        )
+    else:
+        self_registered = (body.registrant_id == "SELF")
+        family_registered = ([] if self_registered else [body.registrant_id])
+        details = RegistrationDetails(
+            self_registered=self_registered,
+            family_registered=family_registered,
+            self_payment_details=None,
+            family_payment_details={},
+        )
+
+    # Decide forced payment type: free (none/0) vs door (>0)
+    price = round(float(body.price or 0.0), 2)
+    pay_kind: Literal["free", "door"] = ("free" if price <= 0 else "door")
+    pd = _build_forced_payment_details(pay_kind, price)
+
+    # Stamp payment details on the specific registrant being added
+    if body.registrant_id == "SELF":
+        details.self_payment_details = pd
+    else:
+        fp = dict(details.family_payment_details or {})
+        fp[body.registrant_id] = pd
+        details.family_payment_details = fp
+
+    # Seats: +1 for a new registrant
+    seat_delta = 1
+
+    # BYPASS CAPACITY: pass capacity_limit=None
+    res = await update_registration(assembled.id, body.user_id, details, seat_delta, capacity_limit=None)
+    return res
+
+
+# ----------------------------
+# Admin: Force Unregister (with PayPal refunds when applicable)
+# ----------------------------
+
+async def admin_force_unregister(request: Request, body: AdminForceChange) -> Dict[str, Any]:
+    assembled = await _load_upcoming_instance(body.event_instance_id)
+    if not assembled:
+        return {"success": False, "msg": "Instance not found or not upcoming."}
+    
+
+    if not body.user_id or not body.registrant_id:
+        return {"success": False, "msg": "Invalid user_id or registrant_id."}
+
+    existing: Optional[RegistrationDetails] = assembled.registration_details.get(body.user_id) or None
+    if not existing:
+        return {"success": True, "msg": "No existing registration for this user on this instance."}
+
+    # Nothing to do?
+    is_self = (body.registrant_id == "SELF")
+    if is_self and not existing.self_registered:
+        return {"success": True, "msg": "SELF not registered; nothing to do."}
+    if (not is_self) and (body.registrant_id not in (existing.family_registered or [])):
+        return {"success": True, "msg": "Family member not registered; nothing to do."}
+
+    # Build the new details with that registrant removed
+    new_self_registered = existing.self_registered
+    new_family = list(existing.family_registered or [])
+    new_spd = existing.self_payment_details
+    new_fpd = dict(existing.family_payment_details or {})
+
+    if is_self:
+        new_self_registered = False
+        new_spd = None
+    else:
+        if body.registrant_id in new_family:
+            new_family.remove(body.registrant_id)
+        if body.registrant_id in new_fpd:
+            new_fpd.pop(body.registrant_id, None)
+
+    new_details = RegistrationDetails(
+        self_registered=new_self_registered,
+        family_registered=new_family,
+        self_payment_details=new_spd,
+        family_payment_details=new_fpd,
+    )
+
+    # Seats: -1 for a single removal
+    seat_delta = -1
+
+    # If PayPal was used for that particular registrant, issue refund (admin flow ignores refund deadline)
+    label = "SELF" if is_self else body.registrant_id
+    pd = (existing.self_payment_details if is_self else (existing.family_payment_details or {}).get(body.registrant_id))
+    if pd and pd.payment_type == "paypal" and pd.payment_complete and pd.transaction_id and pd.line_id:
+        paypal = await PayPalHelperV2.get_instance()
+        await paypal.start()
+
+        tx = await get_transaction_by_order_id(pd.transaction_id)
+        if not tx:
+            return {"success": False, "msg": f"Refund failed for {label}: transaction not found."}
+        item = next((it for it in (tx.items or []) if it.line_id == pd.line_id), None)
+        if not item or not item.capture_id:
+            return {"success": False, "msg": f"Refund failed for {label}: captured line not found."}
+
+        amount = round(float(pd.price or 0.0), 2)
+        if amount > 0:
+            resp = await paypal.post(
+                f"/v2/payments/captures/{item.capture_id}/refund",
+                json_body={"amount": {"currency_code": "USD", "value": f"{amount:.2f}"}},
+                request_id=f"refund:admin:{pd.transaction_id}:{pd.line_id}",
+            )
+            if resp.status_code not in (200, 201):
+                return {"success": False, "msg": f"Refund failed for {label}: PayPal responded {resp.status_code}."}
+
+            rj = resp.json()
+            refund_id = rj.get("id")
+            if not refund_id:
+                return {"success": False, "msg": f"Refund failed for {label}: missing refund id."}
+
+            ok = await append_refund_to_item(
+                order_id=pd.transaction_id,
+                line_id=pd.line_id,
+                refund_id=refund_id,
+                amount=amount,
+                reason="admin_forced_unregistration",
+                by_uid=getattr(request.state, "uid", None),
+            )
+            if not ok:
+                return {"success": False, "msg": f"Refund ledger write failed for {label}."}
+
+    # BYPASS CAPACITY: pass capacity_limit=None
+    res = await update_registration(assembled.id, body.user_id, new_details, seat_delta, capacity_limit=None)
+    return res
+
+
+# ----------------------------
+# SAFETY: Ensure event unregistration/refund logic is complete for deleting family members and accounts
+# ----------------------------
+
+async def unregister_family_member_across_upcoming(request: Request, family_id: str) -> Dict[str, Any]:
+    """
+    For the current user (request.state.uid), scan all UPCOMING instances where
+    this family_id is registered and:
+      - Refund PayPal line if payment_complete and refund deadline not passed,
+        or if the line's automatic_refund_eligibility is True (override).
+      - Unregister the family_id from the instance.
+    Returns { success, msg, stats }
+    """
+    uid = request.state.uid
+    now = datetime.now(timezone.utc)
+
+    try:
+        instance_docs: List[dict] = await get_upcoming_instances_for_user_family(uid, family_id)
+    except Exception as e:
+        return {"success": False, "msg": f"Failed to list upcoming instances: {e}", "stats": {}}
+    
+    if not instance_docs:
+        return {"success": True, "msg": "No upcoming registrations found for this person.", "stats": {"scanned": 0, "updated": 0, "refunded": 0}}
+
+    paypal = await PayPalHelperV2.get_instance()
+    await paypal.start()
+
+    updated = 0
+    refunded = 0
+    scanned = 0
+
+    for inst_doc in instance_docs:
+        event_doc = await get_event_doc_by_id(inst_doc.get("event_id"))
+
+        scanned += 1
+
+        # Assemble
+        try:
+            assembled = _assemble_event_instance_for_admin(instance_doc=inst_doc, event_doc=event_doc)
+            assembled = AssembledEventInstance(**assembled)
+        except Exception as e:
+            return {"success": False, "msg": f"Could not assemble instance: {e}", "stats": {"scanned": scanned-1, "updated": updated, "refunded": refunded}}
+        
+        old_details: RegistrationDetails | None = assembled.registration_details.get(uid) or None
+        if not old_details:
+            # nothing to do
+            continue
+
+        if family_id not in (old_details.family_registered or []):
+            # not registered on this instance
+            continue
+
+        # --- Conditional refund for this family member (PayPal only) ---
+        pd = (old_details.family_payment_details or {}).get(family_id)
+        if pd and pd.payment_type == "paypal" and pd.payment_complete and pd.transaction_id and pd.line_id:
+            # Deadline enforcement with per-line override flag
+            can_refund = True
+            if assembled.automatic_refund_deadline:
+                cutoff, _ = _coerce_to_aware_utc(assembled.automatic_refund_deadline)
+                if cutoff and now > cutoff and not getattr(pd, "automatic_refund_eligibility", False):
+                    can_refund = False
+
+            if can_refund:
+                tx = await get_transaction_by_order_id(pd.transaction_id)
+                if not tx:
+                    return {"success": False, "msg": "Refund failed: transaction not found", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                item = next((it for it in (tx.items or []) if it.line_id == pd.line_id), None)
+                if not item or not item.capture_id:
+                    return {"success": False, "msg": "Refund failed: captured line not found", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+
+                amount = round(float(pd.price or 0.0), 2)
+                if amount > 0:
+                    resp = await paypal.post(
+                        f"/v2/payments/captures/{item.capture_id}/refund",
+                        json_body={"amount": {"currency_code": "USD", "value": f"{amount:.2f}"}},
+                        request_id=f"refund:family-delete:{pd.transaction_id}:{pd.line_id}",
+                    )
+                    if resp.status_code not in (200, 201):
+                        return {"success": False, "msg": f"Refund failed: PayPal {resp.status_code}", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                    rj = resp.json()
+                    refund_id = rj.get("id")
+                    if not refund_id:
+                        return {"success": False, "msg": "Refund failed: missing refund id", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+
+                    ok = await append_refund_to_item(
+                        order_id=pd.transaction_id,
+                        line_id=pd.line_id,
+                        refund_id=refund_id,
+                        amount=amount,
+                        reason="family_member_deleted",
+                        by_uid=uid,
+                    )
+                    if not ok:
+                        return {"success": False, "msg": "Refund failed: ledger write failed", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                    refunded += 1
+
+        # --- Unregister this family member from the instance ---
+        new_family = list(old_details.family_registered or [])
+        if family_id in new_family:
+            new_family.remove(family_id)
+
+        new_details = RegistrationDetails(
+            self_registered=old_details.self_registered,
+            family_registered=new_family,
+            self_payment_details=old_details.self_payment_details,
+            family_payment_details={k: v for k, v in (old_details.family_payment_details or {}).items() if k != family_id},
+        )
+
+        # seats -1 for one removal; capacity check uses instance limit
+        res = await update_registration(assembled.id, uid, new_details, seat_delta=-1, capacity_limit=assembled.max_spots)
+        if not res or not res.get("success"):
+            return {"success": False, "msg": f"Failed to unregister on instance {assembled.id}", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+
+        updated += 1
+
+    return {"success": True, "msg": "Processed upcoming registrations for family member.", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+
+async def unregister_user_across_upcoming(
+    request,
+    *,
+    target_uid: str,
+    admin_initiated: bool,
+) -> Dict[str, Any]:
+    """
+    Sweep ALL upcoming instances for target_uid:
+      - Refund PayPal lines for SELF + every family member registration.
+        - If admin_initiated=True -> ignore refund deadlines.
+        - Else -> enforce automatic_refund_deadline unless payment_details.automatic_refund_eligibility=True
+      - Unregister them from the instance.
+
+    Returns: {success, msg, stats: {instances_scanned, instances_updated, lines_refunded}}
+    """
+    now = datetime.now(timezone.utc)
+
+    try:
+        instance_docs: List[dict] = await get_upcoming_instances_for_user(target_uid)
+    except Exception as e:
+        return {"success": False, "msg": f"Failed to list upcoming instances: {e}", "stats": {}}
+
+    if not instance_docs:
+        return {"success": True, "msg": "No upcoming registrations found for this user.", "stats": {"instances_scanned": 0, "instances_updated": 0, "lines_refunded": 0}}
+
+    paypal = await PayPalHelperV2.get_instance()
+    await paypal.start()
+
+    instances_scanned = 0
+    instances_updated = 0
+    lines_refunded = 0
+
+    for inst_doc in instance_docs:
+        instances_scanned += 1
+
+        # Assemble full instance (admin view) using event doc
+        try:
+            event_doc = await get_event_doc_by_id(inst_doc.get("event_id"))
+            assembled_dict = _assemble_event_instance_for_admin(instance_doc=inst_doc, event_doc=event_doc)
+            assembled = AssembledEventInstance(**assembled_dict)
+        except Exception as e:
+            return {"success": False, "msg": f"Assembly failed: {e}", "stats": {"instances_scanned": instances_scanned - 1, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+
+        # Pull current details for target user on this instance
+        details: Optional[RegistrationDetails] = assembled.registration_details.get(target_uid) or None
+        if not details:
+            continue
+
+        # Build the set of registrants to remove: SELF + all registered family
+        to_remove: List[str] = []
+        if details.self_registered:
+            to_remove.append("SELF")
+        to_remove += list(details.family_registered or [])
+        if not to_remove:
+            continue
+
+        # Refund pass: for each registrant, decide eligibility and refund PayPal line if applicable
+        for pid in list(dict.fromkeys(to_remove)):
+            # Resolve payment details for this person
+            if pid == "SELF":
+                pd = details.self_payment_details
+                label = "SELF"
+            else:
+                pd = (details.family_payment_details or {}).get(pid)
+                label = pid
+
+            if not pd:
+                continue
+
+            # Only PayPal lines with completed payment are refundable
+            if pd.payment_type != "paypal" or not pd.payment_complete or not pd.transaction_id or not pd.line_id:
+                continue
+
+            # Deadline logic
+            can_refund = True
+            if not admin_initiated:
+                if assembled.automatic_refund_deadline:
+                    cutoff, _ = _coerce_to_aware_utc(assembled.automatic_refund_deadline)
+                    if cutoff and now > cutoff and not getattr(pd, "automatic_refund_eligibility", False):
+                        can_refund = False
+
+            if not can_refund:
+                continue
+
+            # Refund this line
+            tx = await get_transaction_by_order_id(pd.transaction_id)
+            if not tx:
+                return {"success": False, "msg": f"Refund failed for {label}: transaction not found.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+
+            item = next((it for it in (tx.items or []) if it.line_id == pd.line_id), None)
+            if not item or not item.capture_id:
+                return {"success": False, "msg": f"Refund failed for {label}: captured line not found.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+
+            amount = round(float(pd.price or 0.0), 2)
+            if amount <= 0:
+                continue
+
+            req_id = f"refund:acct_delete:{pd.transaction_id}:{pd.line_id}"
+            resp = await paypal.post(
+                f"/v2/payments/captures/{item.capture_id}/refund",
+                json_body={"amount": {"currency_code": "USD", "value": f"{amount:.2f}"}},
+                request_id=req_id,
+            )
+            if resp.status_code not in (200, 201):
+                return {"success": False, "msg": f"Refund failed for {label}: PayPal responded {resp.status_code}.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+
+            rj = resp.json()
+            refund_id = rj.get("id")
+            if not refund_id:
+                return {"success": False, "msg": f"Refund failed for {label}: missing refund id.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+
+            ok = await append_refund_to_item(
+                order_id=pd.transaction_id,
+                line_id=pd.line_id,
+                refund_id=refund_id,
+                amount=amount,
+                reason=("admin_account_deleted" if admin_initiated else "user_account_deleted"),
+                by_uid=getattr(request.state, "uid", None),
+            )
+            if not ok:
+                return {"success": False, "msg": f"Refund ledger write failed for {label}.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+
+            lines_refunded += 1
+
+        # Build new RegistrationDetails removing everyone for that user
+        new_details = RegistrationDetails(
+            self_registered=False,
+            family_registered=[],
+            self_payment_details=None,
+            family_payment_details={},  # drop the removed lines
+        )
+
+        seat_delta = 0
+        if details.self_registered:
+            seat_delta -= 1
+        seat_delta -= len(details.family_registered or [])
+
+        # Persist update (atomic seat update)
+        res = await update_registration(assembled.id, target_uid, new_details, seat_delta, capacity_limit=assembled.max_spots)
+        if not res or not res.get("success"):
+            return {"success": False, "msg": f"Failed to unregister on instance {assembled.id}", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+
+        instances_updated += 1
+
+    return {
+        "success": True,
+        "msg": "Processed upcoming registrations for user.",
+        "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded},
+    }

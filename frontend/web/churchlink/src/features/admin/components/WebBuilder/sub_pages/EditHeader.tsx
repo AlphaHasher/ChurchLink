@@ -101,11 +101,10 @@ const VisibilityToggle: React.FC<{ item: HeaderItem; onToggle: (title: string, c
                 onClick={handleToggleVisibility}
                 customComponent={
                     <span
-                        className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
-                            item.visible
-                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                        }`}
+                        className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${item.visible
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                            }`}
                     >
                         {item.visible ? "Visible" : "Hidden"}
                     </span>
@@ -237,7 +236,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const defaultPublicRoutes = useMemo(
         () => [
             { slug: "live", title: "Live" },
-            { slug: "thank-you", title: "Thank You" },
+            { slug: "donations", title: "Donations" },
+            { slug: "events", title: "Events" },
             { slug: "sermons", title: "Sermons" },
             { slug: "weekly-bulletin", title: "Weekly Bulletin" },
         ],
@@ -476,7 +476,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
 
             const res = await api.post("/v1/header/items/links", linkData);
-            
+
             // Check if the response indicates success
             if (res?.data?.success) {
                 toast.success("Link added successfully!");
@@ -495,12 +495,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
         } catch (err: any) {
             console.error("Failed to add link:", err);
-            
+
             // Try to extract error message from response
-            const errorMsg = err?.response?.data?.msg || 
-                           err?.response?.data?.message || 
-                           err?.message || 
-                           "Failed to add link";
+            const errorMsg = err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to add link";
             toast.error(errorMsg);
         }
     };
@@ -527,7 +527,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 "items": processedLinks,
                 "visible": false,
             });
-            
+
             // Check if the response indicates success
             if (res?.data?.success) {
                 toast.success("Dropdown added successfully!");
@@ -544,12 +544,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
         } catch (err: any) {
             console.error("Failed to add dropdown:", err);
-            
+
             // Try to extract error message from response
-            const errorMsg = err?.response?.data?.msg || 
-                           err?.response?.data?.message || 
-                           err?.message || 
-                           "Failed to add dropdown";
+            const errorMsg = err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to add dropdown";
             toast.error(errorMsg);
         }
     };
@@ -696,12 +696,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
         } catch (err: any) {
             console.error("Failed to update navigation item:", err);
-            
+
             // Try to extract error message from response
-            const errorMsg = err?.response?.data?.msg || 
-                           err?.response?.data?.message || 
-                           err?.message || 
-                           "Failed to update navigation item";
+            const errorMsg = err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to update navigation item";
             toast.error(errorMsg);
         }
     };
@@ -848,11 +848,10 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "link" ? "default" : "outline"}
-                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
-                                        itemType !== "link"
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${itemType !== "link"
                                             ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
                                             : ""
-                                        }`}
+                                            }`}
                                         onClick={() => setItemType("link")}
                                     >
                                         Link
@@ -860,11 +859,10 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "dropdown" ? "default" : "outline"}
-                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
-                                        itemType !== "dropdown"
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${itemType !== "dropdown"
                                             ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
                                             : ""
-                                        }`}
+                                            }`}
                                         onClick={() => setItemType("dropdown")}
                                     >
                                         Dropdown
@@ -1260,111 +1258,111 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
             <CardContent>
 
-            {/* Current header items */}
-            <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Current Navigation Items</h3>
-                {header && header.items.length > 0 ? (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <SortableContext
-                            items={header.items.map(item => item.title)}
-                            strategy={verticalListSortingStrategy}
+                {/* Current header items */}
+                <div className="mb-6">
+                    <h3 className="text-lg font-medium mb-2">Current Navigation Items</h3>
+                    {header && header.items.length > 0 ? (
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
                         >
-                            <ul className="border rounded divide-y">
-                                {header.items.map((item) => (
-                                    <SortableItem key={item.title} id={item.title}>
-                                        <li className="flex justify-between items-center p-2">
-                                            <div className="flex flex-1">
-                                                <div>
-                                                    <span className="font-medium">
-                                                        {getDisplayTitle(item as HeaderItem)}
-                                                    </span>
-                                                    {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                            <SortableContext
+                                items={header.items.map(item => item.title)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <ul className="border rounded divide-y">
+                                    {header.items.map((item) => (
+                                        <SortableItem key={item.title} id={item.title}>
+                                            <li className="flex justify-between items-center p-2">
+                                                <div className="flex flex-1">
+                                                    <div>
+                                                        <span className="font-medium">
+                                                            {getDisplayTitle(item as HeaderItem)}
+                                                        </span>
+                                                        {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {/* Navigate (open page in new tab) */}
-                                                {(() => {
-                                                    // Determine a sensible href: prefer slug when present and not hardcoded url
-                                                    let href: string | null = null;
-                                                    if ('items' in item) {
-                                                        href = null; // dropdowns don't have direct destination
-                                                    } else if ('url' in item) {
-                                                        const link = item as any;
-                                                        if (link.is_hardcoded_url && link.url) {
-                                                            href = link.url as string;
-                                                        } else if (link.slug) {
-                                                            let p = link.slug as string;
-                                                            if (p === "Home" || p === "") p = "/";
-                                                            if (!p.startsWith("/")) p = `/${p}`;
-                                                            p = p.replace(/^\/+/, "/");
-                                                            href = p;
+                                                <div className="flex gap-2">
+                                                    {/* Navigate (open page in new tab) */}
+                                                    {(() => {
+                                                        // Determine a sensible href: prefer slug when present and not hardcoded url
+                                                        let href: string | null = null;
+                                                        if ('items' in item) {
+                                                            href = null; // dropdowns don't have direct destination
+                                                        } else if ('url' in item) {
+                                                            const link = item as any;
+                                                            if (link.is_hardcoded_url && link.url) {
+                                                                href = link.url as string;
+                                                            } else if (link.slug) {
+                                                                let p = link.slug as string;
+                                                                if (p === "Home" || p === "") p = "/";
+                                                                if (!p.startsWith("/")) p = `/${p}`;
+                                                                p = p.replace(/^\/+/, "/");
+                                                                href = p;
+                                                            }
                                                         }
-                                                    }
-                                                    return href ? (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => window.open(href as string, "_blank")}
-                                                            title="Open in new tab"
-                                                            className="text-muted-foreground hover:text-foreground"
-                                                        >
-                                                            <ExternalLink className="h-4 w-4" />
-                                                        </Button>
-                                                    ) : null;
-                                                })()}
-                                                <VisibilityToggle item={item} onToggle={handleChangeVisibility} />
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleEditItem(item)}
-                                                    className="text-primary hover:text-primary/80"
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleRemoveItem(item.title)}
-                                                    className="text-destructive hover:text-destructive/80"
-                                                >
-                                                    Remove
-                                                </Button>
-                                            </div>
-                                        </li>
-                                    </SortableItem>
-                                ))}
-                            </ul>
-                        </SortableContext>
-                    </DndContext>
-                ) : (
-                    <p className="text-muted-foreground">No navigation items yet. Click "Add Navigation Item" to create one.</p>
-                )}
-            </div>
-
-            {header && header.items.length > 0 && (
-                <div className="flex gap-4 justify-start mt-6">
-                    <Button
-                        onClick={handleSaveChanges}
-                        disabled={!hasUnsavedChanges}
-                    >
-                        Save Changes
-                    </Button>
-                    {hasUnsavedChanges && (
-                        <Button
-                            variant="outline"
-                            onClick={handleCancelChanges}
-                        >
-                            Cancel
-                        </Button>
+                                                        return href ? (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => window.open(href as string, "_blank")}
+                                                                title="Open in new tab"
+                                                                className="text-muted-foreground hover:text-foreground"
+                                                            >
+                                                                <ExternalLink className="h-4 w-4" />
+                                                            </Button>
+                                                        ) : null;
+                                                    })()}
+                                                    <VisibilityToggle item={item} onToggle={handleChangeVisibility} />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleEditItem(item)}
+                                                        className="text-primary hover:text-primary/80"
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveItem(item.title)}
+                                                        className="text-destructive hover:text-destructive/80"
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        </SortableItem>
+                                    ))}
+                                </ul>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <p className="text-muted-foreground">No navigation items yet. Click "Add Navigation Item" to create one.</p>
                     )}
                 </div>
-            )}
-        </CardContent>
-    </Card>
+
+                {header && header.items.length > 0 && (
+                    <div className="flex gap-4 justify-start mt-6">
+                        <Button
+                            onClick={handleSaveChanges}
+                            disabled={!hasUnsavedChanges}
+                        >
+                            Save Changes
+                        </Button>
+                        {hasUnsavedChanges && (
+                            <Button
+                                variant="outline"
+                                onClick={handleCancelChanges}
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 };
 

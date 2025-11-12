@@ -150,13 +150,13 @@ async def get_reg_details_for_instance_and_user(instance_id: str, user_id:str):
 
 # Perm Protected Router: event_editing
 @event_editing_router.post("/", summary="Create event")
-async def create_event_route(event: EventUpdate, request: Request):
-    return await process_create_event(event, request)
+async def create_event_route(event: EventUpdate):
+    return await process_create_event(event)
 
 # Perm Protected Router: event_editing
 @event_editing_router.put("/{event_id}", summary="Update event")
-async def update_event_route(event_id: str, event: EventUpdate, request: Request):
-    return await process_edit_event(event_id, event, request)
+async def update_event_route(event_id: str, event: EventUpdate):
+    return await process_edit_event(event_id, event)
 
 # Perm Protected Router: event_editing
 @event_editing_router.delete("/{event_id}", summary="Delete event")

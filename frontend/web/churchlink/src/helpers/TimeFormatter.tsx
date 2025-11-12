@@ -228,6 +228,7 @@ export function convertEventsToUserTime<T extends {
     registration_deadline?: MaybeISO;
     automatic_refund_deadline?: MaybeISO;
     updated_on?: MaybeISO;
+    end_date?: MaybeISO;
 }>(events: T[]): T[] {
     return events.map((e) => {
         return {
@@ -237,6 +238,7 @@ export function convertEventsToUserTime<T extends {
             registration_deadline: toZonedISOString(e.registration_deadline) as string,
             automatic_refund_deadline: toZonedISOString(e.automatic_refund_deadline) as string,
             updated_on: toZonedISOString(e.updated_on) as string,
+            end_date: toZonedISOString(e.end_date) as string,
         };
     });
 }
@@ -244,6 +246,7 @@ export function convertEventsToUserTime<T extends {
 
 export function convertAdminEventInstancesToUserTime<T extends {
     date?: MaybeISO;
+    end_date?: MaybeISO;
     registration_opens?: MaybeISO;
     registration_deadline?: MaybeISO;
     automatic_refund_deadline?: MaybeISO
@@ -256,14 +259,16 @@ export function convertAdminEventInstancesToUserTime<T extends {
     return items.map((e) => {
 
         var date_ref = e.event_date;
-        var op_ref = e.registration_opens;
-        var dl_ref = e.registration_deadline;
-        var rdl_ref = e.automatic_refund_deadline;
+        var end_date_ref = e.event_date;
+        var op_ref = e.event_date;
+        var dl_ref = e.event_date;
+        var rdl_ref = e.event_date;
 
         if (e.overrides_tracker != null) {
             if (e.overrides_tracker.length > 3) {
                 if (e.overrides_tracker[3]) {
                     date_ref = e.date;
+                    end_date_ref = e.end_date;
                 }
 
                 if (e.overrides_tracker.length > 4) {
@@ -280,6 +285,7 @@ export function convertAdminEventInstancesToUserTime<T extends {
             ...e,
             // Keep the scheduled local time stable for the instance
             date: convertTime(e.date, date_ref) as string,
+            end_date: convertTime(e.end_date, end_date_ref) as string,
 
             // Target date belongs to the event’s recurrence math (anchor to event)
             target_date: convertTime(e.target_date, e.event_date) as string,
@@ -300,6 +306,7 @@ export function convertAdminEventInstancesToUserTime<T extends {
 
 export function convertUserFacingEventsToUserTime<T extends {
     date?: MaybeISO;
+    end_date?: MaybeISO;
     registration_opens?: MaybeISO;
     registration_deadline?: MaybeISO;
     automatic_refund_deadline?: MaybeISO;
@@ -311,14 +318,16 @@ export function convertUserFacingEventsToUserTime<T extends {
     return items.map((e) => {
 
         var date_ref = e.event_date;
-        var op_ref = e.registration_opens;
-        var dl_ref = e.registration_deadline;
-        var rdl_ref = e.automatic_refund_deadline;
+        var end_date_ref = e.event_date;
+        var op_ref = e.event_date;
+        var dl_ref = e.event_date;
+        var rdl_ref = e.event_date;
 
         if (e.overrides_tracker != null) {
             if (e.overrides_tracker.length > 3) {
                 if (e.overrides_tracker[3]) {
                     date_ref = e.date;
+                    end_date_ref = e.end_date;
                 }
 
                 if (e.overrides_tracker.length > 4) {
@@ -334,6 +343,7 @@ export function convertUserFacingEventsToUserTime<T extends {
         return {
             ...e,
             date: convertTime(e.date, date_ref) as string,
+            end_date: convertTime(e.end_date, end_date_ref) as string,
             registration_opens: convertTime(e.registration_opens, op_ref),
             registration_deadline: convertTime(e.registration_deadline, dl_ref),
             automatic_refund_deadline: convertTime(e.automatic_refund_deadline, rdl_ref),

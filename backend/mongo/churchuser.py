@@ -406,47 +406,28 @@ class UserHandler:
 
     
     @staticmethod
-    # TODO: THIS NEEDS REWORKING SINCE IT RELIES ON MY EVENTS DESIGN PATTERNS
-    # NEED TO FIX THIS LATER
-    async def remove_person(uid: str, person_id: ObjectId):
+    async def remove_person(uid: str, person_id: ObjectId) -> bool:
         """
-        Remove a family member and clean up their event registrations.
+        Remove a family member from the user's document and clean up any references
+        to that person in `my_events`. Safety (refunds/unregisters) is handled upstream.
         """
         try:
-            # First, get all events this family member is registered for
-            family_member_events = await UserHandler.list_my_events(uid, expand=False, person_id=person_id)
-            
             # Remove the person from the people array
             result = await DB.db["users"].update_one(
                 {"uid": uid},
                 {"$pull": {"people": {"_id": person_id}}}
             )
 
-            if result.modified_count == 1:
-                # Clean up event registrations from user's my_events
-                cleanup_result = await DB.db["users"].update_one(
-                    {"uid": uid},
-                    {"$pull": {"my_events": {"person_id": person_id}}}
-                )
-                print(f"Cleaned up {cleanup_result.modified_count} event registrations from user my_events for family member {person_id}")
+            if result.modified_count != 1:
+                return False
 
-                # Now remove the family member from all event attendee lists
-                from models.event import rsvp_remove_person
-                events_cleaned = 0
-                for event_record in family_member_events:
-                    event_id = str(event_record.get("event_id"))
-                    if event_id:
-                        try:
-                            # Use the existing rsvp_remove_person function to clean up event attendee lists
-                            removed = await rsvp_remove_person(event_id, uid, person_id)
-                            if removed:
-                                events_cleaned += 1
-                        except Exception as e:
-                            print(f"Warning: Failed to remove family member {person_id} from event {event_id}: {e}")
-                
-                print(f"Cleaned up family member {person_id} from {events_cleaned} event attendee lists")
+            # Best-effort cleanup of any my_events entries referencing this person
+            await DB.db["users"].update_one(
+                {"uid": uid},
+                {"$pull": {"my_events": {"person_id": person_id}}}
+            )
 
-            return result.modified_count == 1
+            return True
         except Exception as e:
             print(f"Error removing person {person_id}: {e}")
             return False

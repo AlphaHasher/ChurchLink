@@ -156,7 +156,7 @@ export default function EventsTableV2(props: EventsTableV2Props) {
             minWidth: 200,
         },
         // Actions
-        { headerName: "Actions", cellRenderer: ActionsRenderer as any, pinned: "right", minWidth: 110, maxWidth: 140 },
+        { headerName: "Actions", cellRenderer: ActionsRenderer as any, pinned: "right", minWidth: 110 },
     ], [props.ministryMap, ActionsRenderer]);
 
     const defaultColDef = useMemo<ColDef>(() => ({

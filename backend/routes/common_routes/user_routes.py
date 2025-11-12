@@ -9,6 +9,8 @@ from controllers.users_functions import fetch_users, process_sync_by_uid, get_my
 from mongo.database import DB
 from mongo.roles import RoleHandler
 
+from controllers.event_controllers.event_registration_controller import unregister_family_member_across_upcoming, unregister_user_across_upcoming
+
 user_private_router = APIRouter(prefix="/users", tags=["Users"])
 user_mod_router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -222,6 +224,10 @@ async def update_user_family_member_route(request: Request, family_member_data: 
 async def delete_user_family_member_route(request: Request, family_id:str):
     try:
         user_id = request.state.uid
+
+        sweep = await unregister_family_member_across_upcoming(request, family_id)
+        if not sweep.get("success"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Pre-delete cleanup failed: {sweep.get('msg')}")
         
         success = await delete_family_member(user_id, family_id)
         if not success:
@@ -296,6 +302,19 @@ async def delete_account_route(request: Request):
     """Delete user account from both MongoDB and Firebase"""
     try:
         uid = request.state.uid
+
+        # Check if target user has Administrator role - admins cannot be deleted
+        is_admin = await check_if_user_is_admin(uid)
+        if is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Administrator accounts cannot be deleted. To delete an admin account, first remove their administrator privileges."
+            )
+
+        sweep = await unregister_user_across_upcoming(request, target_uid=uid, admin_initiated=False)
+        if not sweep.get("success"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Pre-delete cleanup failed: {sweep.get('msg')}")
+        
         result = await delete_user_account(uid)
         
         if not result["success"]:
@@ -319,6 +338,10 @@ async def delete_user_by_admin_route(request: Request, target_uid: str):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Administrator accounts cannot be deleted. To delete an admin account, first remove their administrator privileges."
             )
+        
+        sweep = await unregister_user_across_upcoming(request, target_uid=target_uid, admin_initiated=True)
+        if not sweep.get("success"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Pre-delete cleanup failed: {sweep.get('msg')}")
         
         result = await delete_user_account(target_uid)
         

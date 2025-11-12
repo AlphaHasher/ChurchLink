@@ -57,13 +57,15 @@ from routes.permissions_routes.permissions_routes import permissions_protected_r
 
 from routes.event_routes.admin_panel_event_routes import event_editing_router, mod_event_router
 from routes.event_routes.user_event_routes import public_event_router, private_event_router
-from routes.event_routes.event_registration_routes import event_registration_router
+from routes.event_routes.event_registration_routes import event_registration_router, admin_event_registration_router
 
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
 from routes.form_routes.form_translations_routes import form_translations_router
 from routes.form_routes.form_payment_routes import form_payment_router
+
+from routes.donation_routes import donation_router
 
 
 from routes.translator_routes import translator_router
@@ -73,6 +75,7 @@ from routes.webbuilder_config_routes import webbuilder_config_public_router, web
 #from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
 #from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
+from routes.webhook_listener_routes.paypal_central_webhook_routes import paypal_central_webhook_router
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -281,6 +284,7 @@ public_router.include_router(public_ministry_router)
 public_router.include_router(public_event_router)
 public_router.include_router(public_forms_router)
 public_router.include_router(webbuilder_config_public_router)
+public_router.include_router(paypal_central_webhook_router)
 
 
 #####################################################
@@ -299,6 +303,7 @@ private_router.include_router(private_event_router)
 private_router.include_router(private_bible_plan_router)
 private_router.include_router(event_registration_router)
 private_router.include_router(form_payment_router)
+private_router.include_router(donation_router)
 
 
 #####################################################
@@ -329,6 +334,7 @@ mod_router.include_router(mod_event_router)
 event_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Events"], required_perms=["event_editing"])
 
 event_editing_protected_router.include_router(event_editing_router)
+event_editing_protected_router.include_router(admin_event_registration_router)
 
 # SERMON EDITING CORE
 sermon_editing_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Sermons"], required_perms=["sermon_editing"])

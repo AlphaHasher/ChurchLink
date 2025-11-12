@@ -146,3 +146,24 @@ class PayPalHelperV2:
     async def get(self, path: str) -> httpx.Response:
         headers = await self.auth_headers(json=False)
         return await self.client.get(f"{self._base_url}{path}", headers=headers)
+
+    
+    # NOTE:
+    # DONO SUBSCRIPTIONS CALL V1 ENDPOINTS
+    # WE STILL USE V2 STANDARDS.
+    # PAYPAL QUIRK, YOU CAN LOOK INTO IT VIA DOCS.
+    
+    async def patch(self, path: str, json_body: Any, *, request_id: Optional[str] = None):
+        """
+        Generic authenticated PATCH request to PayPal REST endpoints.
+        Example: await helper.patch("/v1/billing/subscriptions/{id}", {"status": "CANCELLED"})
+        """
+        headers = await self.auth_headers(request_id=request_id, json=True)
+        return await self.client.patch(f"{self._base_url}{path}", headers=headers, json=json_body)
+
+    async def delete(self, path: str):
+        """
+        Generic authenticated DELETE request to PayPal REST endpoints.
+        """
+        headers = await self.auth_headers(json=False)
+        return await self.client.delete(f"{self._base_url}{path}", headers=headers)

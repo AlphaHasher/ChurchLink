@@ -18,6 +18,7 @@ export type PaymentDetails = {
     automatic_refund_eligibility: boolean;
     transaction_id: string | null;
     line_id: string | null;
+    is_forced?: boolean | null;
 }
 
 export type RegistrationDetails = {
@@ -38,6 +39,7 @@ export type AdminPanelEvent = {
     localizations: Map<string, EventLocalization>;
     // Gets from backend as ISO string so it's much simpler just to use as ISO string
     date: string;
+    end_date?: string | null;
     recurring: EventRecurrence;
     max_published: number;
     currently_publishing: boolean;
@@ -98,6 +100,7 @@ export type EventPagedResults = {
 export type EventUpdate = {
     localizations: Map<string, EventLocalization>;
     date: string;
+    end_date?: string | null;
     recurring: EventRecurrence;
     max_published: number;
     currently_publishing: boolean;
@@ -140,6 +143,7 @@ export type AdminEventInstance = {
 export type AdminEventInstanceOverrides = {
     localizations?: Map<string, EventLocalization> | null;
     date?: string | null;
+    end_date?: string | null;
     hidden?: boolean | null;
     registration_allowed?: boolean | null;
     registration_opens?: string | null;
@@ -204,6 +208,7 @@ export type UserFacingEvent = {
     event_id: string;
     series_index: number;
     date: string;
+    end_date?: string | null;
     seats_filled: number;
     localizations: Map<string, EventLocalization>;
     recurring: EventRecurrence;
@@ -389,4 +394,11 @@ export type AdminRegistrationDetailsByUserResponse = {
     msg?: string;
     event_instance?: AdminEventInstance | null;
     person_dict?: PersonDict | null;
+};
+
+export type AdminForceChange = {
+    event_instance_id: string;
+    user_id: string;
+    registrant_id: "SELF" | string;
+    price?: number | null; // register-only; omit for unregister
 };

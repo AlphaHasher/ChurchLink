@@ -15,7 +15,7 @@ import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
+import { fetchMinistriesAsStringArray } from "@/helpers/MinistriesHelper";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateSermonProps {
@@ -43,7 +43,7 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
 
     useEffect(() => {
         if (isOpen) {
-            fetchMinistries().then(setMinistries)
+            fetchMinistriesAsStringArray().then(setMinistries)
         }
     }, [isOpen])
 
@@ -142,7 +142,7 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Date Posted</span>
-                                            <input type="date" className="border p-2 rounded" value={sermon.date_posted ? sermon.date_posted.toISOString().slice(0,10) : ''} onChange={(e) => setSermon({ ...sermon, date_posted: e.target.value ? new Date(e.target.value) : new Date() })} />
+                            <input type="date" className="border p-2 rounded" value={sermon.date_posted ? sermon.date_posted.toISOString().slice(0, 10) : ''} onChange={(e) => setSermon({ ...sermon, date_posted: e.target.value ? new Date(e.target.value) : new Date() })} />
                         </label>
 
                         <label className="flex items-center space-x-2">

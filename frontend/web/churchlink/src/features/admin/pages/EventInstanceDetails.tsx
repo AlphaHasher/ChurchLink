@@ -188,6 +188,8 @@ export default function EventInstanceDetails() {
             <Separator />
 
             <EventInstanceRegistrationsTable rows={rows} />
+
         </div>
+
     );
 }

@@ -23,6 +23,10 @@ import { useFetchEventInstanceDetails } from "@/helpers/EventUserHelper";
 import { capturePaidRegistration } from "@/helpers/EventRegistrationHelper";
 import { money as fmtMoney, fmtDateTime } from "@/helpers/RegistrationPaymentModalLogic";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
+import EventTicketCard from "@/features/eventsV2/components/EventTicketCard";
+import { useAuth } from "@/features/auth/hooks/auth-context";
+import { fetchMinistries, buildMinistryNameMap } from "@/helpers/MinistriesHelper";
+import type { Ministry } from "@/shared/types/Ministry";
 
 import type {
     EventDetailsResponse,
@@ -144,6 +148,9 @@ const PaymentSuccessPageV2: React.FC = () => {
     const [beforeResp, setBeforeResp] = useState<EventDetailsResponse | null>(null);
     const [afterResp, setAfterResp] = useState<EventDetailsResponse | null>(null);
 
+    const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+    const ministryNameMap = useMemo(() => buildMinistryNameMap(allMinistries), [allMinistries]);
+
     // This is the authoritative "AFTER" registration used to build charges
     const [afterReg, setAfterReg] = useState<RegistrationDetails | null>(null);
     const [detailsMap, setDetailsMap] = useState<DetailsMap | null>(null);
@@ -195,6 +202,8 @@ const PaymentSuccessPageV2: React.FC = () => {
     // deltas for this order only (for the on-screen “Added/Removed” lists)
     const [addedIds, setAddedIds] = useState<Array<"SELF" | string>>([]);
     const [removedIds, setRemovedIds] = useState<Array<"SELF" | string>>([]);
+
+    const { user } = useAuth();
 
     // ---------- core effect ----------
     useEffect(() => {
@@ -342,6 +351,20 @@ const PaymentSuccessPageV2: React.FC = () => {
             setMessage("We couldn't finalize your registration.");
         });
     }, [instanceId, orderId, fetchEventInstanceDetails]);
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const mins = await fetchMinistries();
+                if (!alive) return;
+                setAllMinistries(Array.isArray(mins) ? mins : []);
+            } catch {
+                setAllMinistries([]);
+            }
+        })();
+        return () => { alive = false; };
+    }, []);
 
     // derived event
     const afterEvent: UserFacingEvent | null = useMemo(
@@ -815,6 +838,9 @@ const PaymentSuccessPageV2: React.FC = () => {
                                     Download receipt
                                 </Button>
                             </div>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                                You may access your ticket again anytime by viewing the event page
+                            </p>
 
                             <Alert className="mt-3">
                                 <AlertDescription className="text-xs">
@@ -825,7 +851,7 @@ const PaymentSuccessPageV2: React.FC = () => {
                     </Card>
                 </div>
 
-                {/* RIGHT: Event details + Payment Info */}
+                {/* RIGHT: Event details + Ticket Card + Payment Info */}
                 <div className="space-y-6">
                     {afterEvent && (
                         <Card className="overflow-hidden">
@@ -851,7 +877,7 @@ const PaymentSuccessPageV2: React.FC = () => {
                                 {afterEvent.ministries && afterEvent.ministries.length > 0 && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <Church className="h-4 w-4" />
-                                        <span>{afterEvent.ministries.join(" • ")}</span>
+                                        <span>{afterEvent.ministries.map((id: string) => ministryNameMap[id] || id).join(" • ")}</span>
                                     </div>
                                 )}
 
@@ -876,6 +902,11 @@ const PaymentSuccessPageV2: React.FC = () => {
                                     )}
                             </CardContent>
                         </Card>
+                    )}
+
+                    {/* Ticket card — compact; uses instance + userId only */}
+                    {afterEvent && user && (
+                        <EventTicketCard instance={afterEvent} userId={user.uid} />
                     )}
 
                     {/* Payment Info — moved below the Event card */}

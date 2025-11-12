@@ -1,14 +1,12 @@
 from typing import Literal, Optional, List, Dict, Any, Tuple
-from datetime import datetime, time, timezone, timedelta
-from pydantic import BaseModel, Field
+from datetime import datetime, timezone, timedelta
+from pydantic import BaseModel
 from bson.objectid import ObjectId
 import logging
 import asyncio
 from models.event import EventCore, EventLocalization
 from mongo.database import DB
 import calendar
-from zoneinfo import ZoneInfo
-from pydantic import field_validator
 
 
 # Mutex used for event publishing safety
@@ -20,14 +18,14 @@ _PUBLISH_MUTEX = asyncio.Lock()
 override_group_1 = ['localizations']
 override_group_2 = ['location_address']
 override_group_3 = ['image_id']
-override_group_4 = ['date']
+override_group_4 = ['date', 'end_date']
 override_group_5 = ['rsvp_required', 'registration_opens', 'registration_deadline', 'automatic_refund_deadline', 'max_spots', 'price', 'member_price', 'payment_options']
 override_group_6 = ['members_only', 'gender', 'min_age', 'max_age']
 override_group_7 = ['registration_allowed', 'hidden']
 override_groups = [override_group_1, override_group_2, override_group_3, override_group_4, override_group_5, override_group_6, override_group_7]
 
 # The list of overrides that are allowed to set a value to None, e.g. Max Age is allowed to be None.
-overrides_allowed_none = ['registration_opens', 'registration_deadline', 'automatic_refund_deadline','max_spots', 'member_price', 'min_age', 'max_age']
+overrides_allowed_none = ['end_date', 'registration_opens', 'registration_deadline', 'automatic_refund_deadline','max_spots', 'member_price', 'min_age', 'max_age']
 
 allowed_overrides = []
 for group in override_groups:
@@ -74,6 +72,8 @@ class PaymentDetails(BaseModel):
     transaction_id: Optional[str]
     # String that either points to the line ID of a paypal transaction or None (if door or free)
     line_id: Optional[str]
+    # Boolean that determines if the registration was forced or not
+    is_forced: bool=False
 
 class RegistrationDetails(BaseModel):
     """
@@ -94,6 +94,7 @@ class EventInstanceOverrides(BaseModel):
     """
     localizations: Optional[Dict[str, EventLocalization]] = None
     date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     hidden: Optional[bool] = None
     registration_allowed: Optional[bool] = None
     registration_opens: Optional[datetime] = None
@@ -436,7 +437,7 @@ def _assemble_event_instance_for_read(
         "registration_opens", "registration_deadline", "automatic_refund_deadline", "ministries",
         "members_only", "rsvp_required", "max_spots", "price",
         "min_age", "max_age", "gender", "location_address", "image_id",
-        "payment_options", "member_price", "updated_on",
+        "payment_options", "member_price", "updated_on", "end_date"
     ]:
         if k in event_doc:
             assembled[k] = event_doc[k]
@@ -455,19 +456,22 @@ def _assemble_event_instance_for_read(
     parent_open = event_doc.get("registration_opens")
     parent_deadline = event_doc.get("registration_deadline")
     parent_refund_deadline = event_doc.get("automatic_refund_deadline")
+    parent_end_date = event_doc.get("end_date")
     delta_open = (parent_open - parent_date) if (parent_open and parent_date) else None
     delta_deadline = (parent_deadline - parent_date) if (parent_deadline and parent_date) else None
     delta_refund_deadline = (parent_refund_deadline - parent_date) if (parent_refund_deadline and parent_date) else None
+    delta_end_date = (parent_end_date - parent_date) if (parent_end_date and parent_date) else None
     assembled["registration_opens"] = (scheduled_date + delta_open) if delta_open is not None else None
     assembled["registration_deadline"] = (scheduled_date + delta_deadline) if delta_deadline is not None else None
     assembled['automatic_refund_deadline'] = (scheduled_date + delta_refund_deadline) if delta_refund_deadline is not None else None
+    assembled['end_date'] = (scheduled_date + delta_end_date) if delta_end_date is not None else None
 
     # 4) apply instance overrides
     for k in [
         "localizations","registration_allowed","hidden","members_only","rsvp_required",
         "max_spots","price","member_price","payment_options",
         "min_age","max_age","gender","location_address","image_id",
-        "registration_opens","registration_deadline", 'automatic_refund_deadline'
+        "registration_opens","registration_deadline", 'automatic_refund_deadline', 'end_date'
     ]:
         if k in inst_overrides:
             v = inst_overrides[k]
@@ -538,7 +542,7 @@ def _assemble_event_instance_for_admin(
         "members_only", "rsvp_required", "max_spots", "price", "member_price",
         "min_age", "max_age", "gender", "location_address", "image_id",
         "payment_options", "ministries", "updated_on",
-        "discount_codes",
+        "discount_codes", 'end_date'
     ]:
         if k in event_doc:
             assembled[k] = event_doc[k]
@@ -562,19 +566,22 @@ def _assemble_event_instance_for_admin(
     parent_open = event_doc.get("registration_opens")
     parent_deadline = event_doc.get("registration_deadline")
     parent_refund_deadline = event_doc.get("automatic_refund_deadline")
+    parent_end_date = event_doc.get("end_date")
     delta_open = (parent_open - parent_date) if (parent_open and parent_date) else None
     delta_deadline = (parent_deadline - parent_date) if (parent_deadline and parent_date) else None
     delta_refund_deadline = (parent_refund_deadline - parent_date) if (parent_refund_deadline and parent_date) else None
+    delta_end_date = (parent_end_date - parent_date) if (parent_end_date and parent_date) else None
     assembled["registration_opens"] = (scheduled_date + delta_open) if delta_open is not None else None
     assembled["registration_deadline"] = (scheduled_date + delta_deadline) if delta_deadline is not None else None
     assembled['automatic_refund_deadline'] = (scheduled_date + delta_refund_deadline) if delta_refund_deadline is not None else None
+    assembled['end_date'] = (scheduled_date + delta_end_date) if delta_end_date is not None else None
 
     # Apply instance overrides (overrides win)
     for k in [
         "localizations", "registration_allowed", "hidden", "members_only", "rsvp_required",
         "max_spots", "price", "member_price", "payment_options",
         "min_age", "max_age", "gender", "location_address", "image_id",
-        "registration_opens", "registration_deadline", "automatic_refund_deadline", "ministries", "date",
+        "registration_opens", "registration_deadline", "automatic_refund_deadline", "ministries", "date", "end_date"
     ]:
         if k in inst_overrides:
             assembled[k] = inst_overrides[k]
@@ -1543,6 +1550,32 @@ async def get_upcoming_instances_from_event_id(id: str):
 
     docs = await cursor.to_list(length=None)
     return docs
+
+async def get_upcoming_instances_for_user_family(uid: str, family_id: str) -> List[dict]:
+    """
+    Returns raw instance docs that are scheduled in the future AND have this family_id
+    listed under registration_details.<uid>.family_registered.
+    """
+
+    now = datetime.now(timezone.utc)
+
+    coll = DB.db['event_instances']
+    cursor = coll.find({
+        "scheduled_date": {"$gt": now},
+        f"registration_details.{uid}.family_registered": family_id,
+    })
+
+    return await cursor.to_list(length=10000)
+
+async def get_upcoming_instances_for_user(uid: str) -> List[dict]:
+
+    now = datetime.now(timezone.utc)
+    coll = DB.db['event_instances']
+    cursor = coll.find({
+        "scheduled_date": {"$gt": now},
+        f"registration_details.{uid}": {"$exists": True},
+    })
+    return await cursor.to_list(length=10000)
 
 async def delete_event_instances_from_event_id(event_id: str):
     """

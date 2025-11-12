@@ -90,6 +90,7 @@ export default function EventUpdateInputsV2({
         return {
             localizations: toMapFromRecord(locs),
             date: (base.date as string) ?? nowIso,
+            end_date: (base.end_date as string | null) ?? null,
             recurring: (base.recurring ?? "never") as EventRecurrence,
             max_published: (base.max_published ?? 1),
             currently_publishing: (base.currently_publishing ?? true),
@@ -206,6 +207,13 @@ export default function EventUpdateInputsV2({
         setMonthDateEvent(new Date(draft.date));
     }, [draft.date]);
 
+    const [monthDateEnd, setMonthDateEnd] = useState<Date>(() =>
+        draft.end_date ? new Date(draft.end_date) : new Date(draft.date)
+    );
+    useEffect(() => {
+        setMonthDateEnd(draft.end_date ? new Date(draft.end_date) : new Date(draft.date));
+    }, [draft.end_date, draft.date]);
+
     // Opens
     const [monthDateOpens, setMonthDateOpens] = useState<Date>(() =>
         draft.registration_opens ? new Date(draft.registration_opens) : new Date(draft.date),
@@ -231,6 +239,59 @@ export default function EventUpdateInputsV2({
             draft.automatic_refund_deadline ? new Date(draft.automatic_refund_deadline) : new Date(draft.date),
         );
     }, [draft.automatic_refund_deadline, draft.date]);
+
+    // ---- Price input buffers (allow temporary blank text) ----
+    const [priceText, setPriceText] = useState<string>(() =>
+        draft.price != null ? String(draft.price) : ""
+    );
+    useEffect(() => {
+        // sync buffer if draft.price changes externally
+        setPriceText(draft.price != null ? String(draft.price) : "");
+    }, [draft.price]);
+
+    const [memberPriceText, setMemberPriceText] = useState<string>(() =>
+        draft.member_price == null ? "" : String(draft.member_price)
+    );
+    useEffect(() => {
+        setMemberPriceText(draft.member_price == null ? "" : String(draft.member_price));
+    }, [draft.member_price]);
+
+    function commitPriceFromText() {
+        const n = Number(priceText);
+        updateDraft({ ...draft, price: Number.isFinite(n) && n >= 0 ? n : 0 });
+        // normalize buffer to committed number (avoids lingering invalid strings)
+        setPriceText(String(Number.isFinite(n) && n >= 0 ? n : 0));
+    }
+
+    function commitMemberPriceFromText() {
+        const txt = memberPriceText.trim();
+        if (txt === "") {
+            updateDraft({ ...draft, member_price: null });
+            return; // buffer stays "", which is fine for UX
+        }
+        const n = Number(txt);
+        updateDraft({ ...draft, member_price: Number.isFinite(n) && n >= 0 ? n : null });
+        setMemberPriceText(Number.isFinite(n) && n >= 0 ? String(n) : "");
+    }
+
+    // Allow temporary blank while typing; commit on blur
+    const [maxPublishedText, setMaxPublishedText] = useState<string>(() =>
+        draft.max_published != null ? String(draft.max_published) : "1"
+    );
+
+    useEffect(() => {
+        // sync buffer if draft changes externally (e.g., changing recurrence)
+        setMaxPublishedText(draft.max_published != null ? String(draft.max_published) : "1");
+    }, [draft.max_published]);
+
+    function commitMaxPublishedFromText() {
+        const n = Number(maxPublishedText);
+        // floor and clamp; default back to 1 if empty/invalid
+        const val = Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+        updateDraft({ ...draft, max_published: val });
+        setMaxPublishedText(String(val));
+    }
+
 
     // Ministry data assembly
     const ministryNameById = useMemo<Record<string, string>>(
@@ -436,6 +497,65 @@ export default function EventUpdateInputsV2({
                                     </div>
                                 </PopoverContent>
                             </Popover>
+                        </div>
+                    </div>
+
+                    <div className="mt-4">
+                        <div className="flex items-center gap-3">
+                            <Switch
+                                id="endDateEnabled"
+                                checked={!!draft.end_date}
+                                onCheckedChange={(v) =>
+                                    updateDraft({ ...draft, end_date: v ? (draft.end_date ?? new Date(draft.date).toISOString()) : null })
+                                }
+                                disabled={disabled}
+                            />
+                            <Label htmlFor="endDateEnabled">End date</Label>
+                        </div>
+
+                        <div className={`${!draft.end_date ? "opacity-50 pointer-events-none" : ""} mt-2 max-w-md`}>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="justify-start w-full">
+                                        {dateLabel(draft.end_date)}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-3" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        month={monthDateEnd}
+                                        onMonthChange={setMonthDateEnd}
+                                        selected={draft.end_date ? new Date(draft.end_date) : undefined}
+                                        onSelect={(d: Date | undefined) => {
+                                            if (!d) return;
+                                            const current = draft.end_date ? new Date(draft.end_date) : new Date(draft.date);
+                                            const next = new Date(d);
+                                            next.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                                            updateDraft({ ...draft, end_date: next.toISOString() });
+                                        }}
+                                        disabled={disabled}
+                                        initialFocus
+                                    />
+                                    <div className="mt-3 w-48">
+                                        <Label htmlFor="endTime">Time</Label>
+                                        <Input
+                                            id="endTime"
+                                            type="time"
+                                            disabled={disabled}
+                                            value={draft.end_date ? new Date(draft.end_date).toTimeString().slice(0, 5) : "17:00"}
+                                            onChange={(e) => {
+                                                const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
+                                                const base = draft.end_date ? new Date(draft.end_date) : new Date(draft.date);
+                                                base.setHours(hh || 0, mm || 0, 0, 0);
+                                                updateDraft({ ...draft, end_date: base.toISOString() });
+                                            }}
+                                        />
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                End must be after start
+                            </p>
                         </div>
                     </div>
 
@@ -725,12 +845,12 @@ export default function EventUpdateInputsV2({
                         <Label htmlFor="price">Price</Label>
                         <Input
                             id="price"
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            value={draft.price}
-                            onChange={(e) => updateDraft({ ...draft, price: Number(e.target.value || 0) })}
+                            inputMode="decimal"
+                            value={priceText}
+                            onChange={(e) => setPriceText(e.target.value)}
+                            onBlur={commitPriceFromText}
                             disabled={disabled || !draft.rsvp_required}
+                            placeholder="0.00"
                         />
                         <p className="mt-1 text-xs text-muted-foreground">
                             If price &gt; 0, pick at least one payment option.
@@ -740,14 +860,12 @@ export default function EventUpdateInputsV2({
                         <Label htmlFor="memberPrice">Members price</Label>
                         <Input
                             id="memberPrice"
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            value={draft.member_price ?? ""}
-                            onChange={(e) =>
-                                updateDraft({ ...draft, member_price: e.target.value === "" ? null : Number(e.target.value) })
-                            }
+                            inputMode="decimal"
+                            value={memberPriceText}
+                            onChange={(e) => setMemberPriceText(e.target.value)}
+                            onBlur={commitMemberPriceFromText}
                             disabled={disabled || !draft.rsvp_required}
+                            placeholder="(optional)"
                         />
                     </div>
                 </div>
@@ -929,11 +1047,13 @@ export default function EventUpdateInputsV2({
                         <Label htmlFor="maxPublished">Max published</Label>
                         <Input
                             id="maxPublished"
-                            type="number"
-                            min={1}
-                            value={draft.max_published ?? 1}
-                            onChange={(e) => updateDraft({ ...draft, max_published: Number(e.target.value || 1) })}
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={maxPublishedText}
+                            onChange={(e) => setMaxPublishedText(e.target.value)}
+                            onBlur={commitMaxPublishedFromText}
                             disabled={disabled || draft.recurring === "never"}
+                            placeholder="1"
                         />
                     </div>
                 </div>

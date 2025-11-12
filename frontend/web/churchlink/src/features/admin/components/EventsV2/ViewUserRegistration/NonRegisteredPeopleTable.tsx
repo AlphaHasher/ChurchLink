@@ -5,6 +5,7 @@ import "ag-grid-community/styles/ag-theme-quartz.css";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 import type { AdminEventInstance, PersonDict } from "@/shared/types/Event";
+import AdminForceRegistrationDialog from "./AdminForceRegistrationDialog";
 
 type Row = {
     id: string;
@@ -28,10 +29,12 @@ export default function NonRegisteredPeopleTable({
     instance,
     personDict,
     personIds,
+    userId,
 }: {
     instance: AdminEventInstance;
     personDict: PersonDict;
     personIds: string[];
+    userId: string;
 }) {
     const apiRef = useRef<GridApi<Row> | null>(null);
 
@@ -69,7 +72,22 @@ export default function NonRegisteredPeopleTable({
                 pinned: "right",
                 minWidth: 120,
                 maxWidth: 160,
-                cellRenderer: () => <div className="flex items-center justify-end gap-2">{/* reserved */}</div>,
+                cellRenderer: (p: any) => {
+                    const row = p?.data as Row | null;
+                    if (!row) return null;
+                    const id = row.id as "SELF" | string;
+
+                    return (
+                        <div className="flex items-center justify-end gap-2">
+                            <AdminForceRegistrationDialog
+                                instance={instance}
+                                userId={userId}
+                                personId={id}
+                                personDict={personDict}
+                            />
+                        </div>
+                    );
+                },
             },
         ];
     }, []);

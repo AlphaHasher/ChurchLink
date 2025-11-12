@@ -5,6 +5,7 @@ import "ag-grid-community/styles/ag-theme-quartz.css";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 import type { AdminEventInstance, RegistrationDetails, PersonDict } from "@/shared/types/Event";
+import AdminForceUnregistrationDialog from "./AdminForceUnregistrationDialog";
 
 type Row = {
     id: string; // "SELF" or person _id
@@ -19,6 +20,7 @@ type Row = {
     discountCode: string | null; // show NO CODE USED if null
     orderId: string | null; // transaction id
     lineId: string | null;
+    is_forced: boolean | null;
 };
 
 function computeAgeOnEvent(dobISO: string | null, eventDateISO: string | null): number | null {
@@ -31,16 +33,23 @@ function computeAgeOnEvent(dobISO: string | null, eventDateISO: string | null): 
     return age >= 0 ? age : null;
 }
 
+function formatForced(v?: boolean | null) {
+    if (v === undefined || v === null) return "UNKNOWN";
+    return v ? "Admin" : "User";
+}
+
 export default function RegisteredPersonsTable({
     instance,
     reg,
     personDict,
     personIds,
+    userId,
 }: {
     instance: AdminEventInstance;
     reg: RegistrationDetails | null;
     personDict: PersonDict;
     personIds: string[];
+    userId: string;
 }) {
     const apiRef = useRef<GridApi<Row> | null>(null);
 
@@ -59,6 +68,8 @@ export default function RegisteredPersonsTable({
             const orderId = pay?.order_id ?? pay?.transaction_id ?? pay?.capture_id ?? null;
             const lineId = pay?.line_id ?? pay?.lineId ?? null;
 
+            const is_forced = pay?.is_forced ?? null;
+
             return {
                 id,
                 name,
@@ -72,6 +83,7 @@ export default function RegisteredPersonsTable({
                 discountCode: discountCode ?? null,
                 orderId: orderId ?? null,
                 lineId: lineId ?? null,
+                is_forced: is_forced ?? null,
             };
         };
 
@@ -165,11 +177,37 @@ export default function RegisteredPersonsTable({
             },
 
             {
+                headerName: "Registered By",
+                field: "is_forced",
+                flex: 1,
+                minWidth: 120,
+                cellDataType: "text",
+                valueGetter: (p) => formatForced(p.data?.is_forced),
+            },
+
+            {
                 headerName: "Actions",
                 pinned: "right",
                 minWidth: 120,
                 maxWidth: 160,
-                cellRenderer: () => <div className="flex items-center justify-end gap-2"></div>,
+                cellRenderer: (p: any) => {
+                    const row = p?.data as Row | null;
+                    if (!row) return null;
+                    const id = row.id as "SELF" | string;
+                    // Inline render to have access to props.instance/personDict/userId
+                    // Lazy import (optional), but simple direct import works too:
+                    // import AdminForceUnregistrationDialog at top of file
+                    return (
+                        <div className="flex items-center justify-end gap-2">
+                            <AdminForceUnregistrationDialog
+                                instance={instance}
+                                userId={userId}
+                                personId={id}
+                                personDict={personDict}
+                            />
+                        </div>
+                    );
+                },
             },
         ];
     }, []);

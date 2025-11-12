@@ -33,6 +33,9 @@ class EventCore(BaseModel):
     # This is the date the event will physically take place on.
     date: datetime
 
+    # This is the datetime event ends, it is optional
+    end_date: Optional[datetime]
+
     # Defines how often the event recurs, if ever. Follows pattern previously stated in origin_date for creating event instance dates
     recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
 
@@ -148,6 +151,8 @@ class EventUpdate(BaseModel):
     # This is the origin date that all other events are based off of. If it is not a recurring event, it's the only date
     # If it is a recurring event, say, "weekly" it is the date that all other dates are based off. For instance, 3rd event in series with "Weekly" recurrence = origin_date + 2 weeks
     date: datetime
+    # Optional endtime for event
+    end_date: Optional[datetime]
     # Defines how often the event recurs, if ever. Follows pattern previously stated in origin_date for creating event instance dates
     recurring: Literal["daily", "weekly", "monthly", "yearly", "never"]
     # Defines how many recurrences are published/visible at a time. Defaults to 1 if no recurrences
@@ -341,6 +346,13 @@ def do_event_validation(event_data: dict, validate_date=True):
                 return {'success':False, 'msg':f'Error in reconciling event date! {err}'}
             event_data['date'] = date
 
+        end_date = event_data.get("end_date")
+        if end_date:
+            end_date, err = _coerce_to_aware_utc(end_date)
+            if err:
+                return {'success':False, 'msg':f'Error in reconciling event end date! {err}'}
+            event_data['end_date'] = end_date
+
         registration_opens = event_data.get("registration_opens")
         if registration_opens:
             registration_opens, err = _coerce_to_aware_utc(registration_opens)
@@ -362,6 +374,8 @@ def do_event_validation(event_data: dict, validate_date=True):
                 return {'success':False, 'msg':f'Error in reconciling event automatic refund date! {err}'}
             event_data['automatic_refund_deadline'] = automatic_refund_deadline
 
+        if date and end_date and date >= end_date:
+            return {"success": False, "msg": "The event end date must be after the start time for the event"}
         if registration_opens and registration_deadline and registration_opens >= registration_deadline:
             return {"success": False, "msg": "The registration opening date must be before the registration deadline."}
         if date and registration_deadline and registration_deadline > date:

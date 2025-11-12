@@ -37,6 +37,8 @@ import type { UserFacingEvent, SisterInstanceIdentifier } from "@/shared/types/E
 import type { Ministry } from "@/shared/types/Ministry";
 
 import RegistrationPaymentModal from "@/features/eventsV2/components/RegistrationPaymentModal";
+import EventTicketCard from "@/features/eventsV2/components/EventTicketCard";
+import { useAuth } from "@/features/auth/hooks/auth-context";
 
 type Props = {
     instanceId: string;
@@ -304,6 +306,8 @@ function EventDetailsBody({
     const remaining = Math.max(0, maxSpots - seats);
     const isFull = maxSpots > 0 && seats >= maxSpots;
 
+    const { user } = useAuth();
+
     return (
         <div className="flex flex-col">
             <div
@@ -383,7 +387,16 @@ function EventDetailsBody({
 
                         <div className="flex items-start gap-3">
                             <div className="min-w-0 space-y-2">
-                                <div className="text-base font-medium">{fmtDateTime(data.date)}</div>
+                                {data.end_date ? (
+                                    <div className="space-y-1">
+                                        <div className="text-xs uppercase tracking-wide text-muted-foreground">Start Time</div>
+                                        <div className="text-base font-medium">{fmtDateTime(data.date)}</div>
+                                        <div className="pt-2 text-xs uppercase tracking-wide text-muted-foreground">End Time</div>
+                                        <div className="text-base font-medium">{fmtDateTime(data.end_date)}</div>
+                                    </div>
+                                ) : (
+                                    <div className="text-base font-medium">{fmtDateTime(data.date)}</div>
+                                )}
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {isRecurring ? (
                                         <Badge className="bg-indigo-600 text-white inline-flex items-center gap-1">
@@ -697,6 +710,14 @@ function EventDetailsBody({
                                 {data.has_registrations ? "View Registration" : "Register"}
                             </Button>
                         </Card>
+                    )}
+
+                    {/* Ticket — only if signed in AND the viewer has registrations for this event */}
+                    {user && data.has_registrations && (
+                        <EventTicketCard
+                            instance={data}
+                            userId={user.uid}
+                        />
                     )}
 
 

@@ -51,23 +51,52 @@ export default function ViewUserRegistrationDetails() {
 
     const eventTitle = data?.instance?.default_title || "Event";
 
+    useEffect(() => {
+        const handler = () => {
+            // simply rerun the same fetch as initial load
+            (async () => {
+                try {
+                    setState("loading");
+                    const res = await fetchRegistrationDetailsByInstanceAndUser(instanceId!, userId!);
+                    if (!res?.success || !res?.event_instance || !res?.person_dict) {
+                        setState("error");
+                        setErr(res?.msg || "Failed to load registration details.");
+                        return;
+                    }
+                    const reg = res.event_instance.registration_details?.[userId!] ?? null;
+                    setData({ instance: res.event_instance, personDict: res.person_dict!, reg });
+                    setState("loaded");
+                } catch (e: any) {
+                    setState("error");
+                    setErr(e?.message || "Failed to reload registration details.");
+                }
+            })();
+        };
+
+        window.addEventListener("admin:registration:changed", handler);
+        return () => window.removeEventListener("admin:registration:changed", handler);
+    }, [instanceId, userId]);
+
     // compute rows for tables
     const tables = useMemo(() => {
-        if (!data?.reg || !data?.personDict || !data.instance) {
+        if (!data?.personDict) {
             return {
                 registeredIds: [] as string[],
                 nonRegisteredIds: [] as string[],
             };
         }
-        const registeredIds: string[] = [];
-        if (data.reg.self_registered) registeredIds.push("SELF");
-        for (const fid of data.reg.family_registered || []) registeredIds.push(fid);
 
+        const registeredIds: string[] = [];
+        if (data?.reg?.self_registered) registeredIds.push("SELF");
+        for (const fid of (data?.reg?.family_registered ?? [])) registeredIds.push(fid);
+
+        // Build the full roster from person_dict, always includes SELF
         const allIds = ["SELF", ...Object.keys(data.personDict).filter((k) => k !== "SELF")];
+
         const nonRegisteredIds = allIds.filter((id) => !registeredIds.includes(id));
 
         return { registeredIds, nonRegisteredIds };
-    }, [data]);
+    }, [data?.personDict, data?.reg]);
 
     if (state === "idle" || state === "loading") {
         return (
@@ -123,15 +152,15 @@ export default function ViewUserRegistrationDetails() {
             <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
                     <Link className="hover:underline" to="/admin/events">
-                        Events
+                        All Events
                     </Link>
                     <span>›</span>
                     <Link className="hover:underline" to={`/admin/events/${eventId}`}>
-                        {eventTitle}
+                        Instances for {eventTitle}
                     </Link>
                     <span>›</span>
                     <Link className="hover:underline" to={`/admin/events/${eventId}/instance_details/${instanceId}`}>
-                        Instance
+                        Instance Registrations
                     </Link>
                     <span>›</span>
                     <span className="text-foreground">User: {userId}</span>
@@ -151,7 +180,7 @@ export default function ViewUserRegistrationDetails() {
                         {tables.registeredIds.length} {tables.registeredIds.length === 1 ? "person" : "people"}
                     </div>
                 </div>
-                <RegisteredPersonsTable instance={instance} reg={reg} personDict={personDict} personIds={tables.registeredIds} />
+                <RegisteredPersonsTable instance={instance} reg={reg} personDict={personDict} personIds={tables.registeredIds} userId={userId!} />
             </Card>
 
             {/* Not Registered */}
@@ -162,7 +191,7 @@ export default function ViewUserRegistrationDetails() {
                         {tables.nonRegisteredIds.length} {tables.nonRegisteredIds.length === 1 ? "person" : "people"}
                     </div>
                 </div>
-                <NonRegisteredPeopleTable instance={instance} personDict={personDict} personIds={tables.nonRegisteredIds} />
+                <NonRegisteredPeopleTable instance={instance} personDict={personDict} personIds={tables.nonRegisteredIds} userId={userId!} />
             </Card>
         </div>
     );

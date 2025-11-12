@@ -29,7 +29,7 @@ export default function DeleteEventDialogV2({ event, onDeleted }: DeleteEventDia
     }, [open]);
 
     const handleDelete = async () => {
-        if (confirmText !== "Confirm") return;
+        if (confirmText.toLowerCase() !== "confirm") return;
         const id = (event as any).id;
         if (!id) {
             alert("Missing event id for delete.");
@@ -56,7 +56,7 @@ export default function DeleteEventDialogV2({ event, onDeleted }: DeleteEventDia
     };
 
     const title = (event as any).default_title || "this event";
-    const disabled = deleting || confirmText !== "Confirm";
+    const disabled = deleting || confirmText.toLowerCase() !== "confirm";
 
     return (
         <>
@@ -78,7 +78,7 @@ export default function DeleteEventDialogV2({ event, onDeleted }: DeleteEventDia
                             Are you sure that you want to delete <span className="font-medium">{title}</span>?
                             <br />
                             <span className="text-red-600 font-medium">
-                                Deleting this event will also delete every instance of this event.
+                                Deleting this event will also delete every instance of this event, historical and upcoming. Deleting this event will automatically refund any registered user who paid for an upcoming instance of this event.
                             </span>
                         </DialogDescription>
                     </DialogHeader>
@@ -109,7 +109,7 @@ export default function DeleteEventDialogV2({ event, onDeleted }: DeleteEventDia
                             disabled={disabled}
                             className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                         >
-                            {deleting ? "Deleting…" : "Delete"}
+                            {deleting ? "Deleting… May take some time..." : "Delete"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

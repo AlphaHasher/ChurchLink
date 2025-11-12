@@ -6,7 +6,8 @@ import type {
     RegistrationDetails,
     EventPaymentType,
     DiscountCodeCheckRequest,
-    DiscountCodeCheckResponse
+    DiscountCodeCheckResponse,
+    AdminForceChange
 } from "@/shared/types/Event";
 
 
@@ -160,5 +161,79 @@ export async function validateDiscountCodeForEvent(
     } catch (err) {
         console.error("[EventRegistrationHelper] validateDiscountCodeForEvent() -> error", err);
         return { success: false, msg: "Could not validate discount code" };
+    }
+}
+
+/**
+ * Admin-only: forcefully add a registrant (SELF or family) to an upcoming event instance.
+ * If price is null/0/undefined => "free", else it is marked "door" (pay later).
+ * Capacity/payment option checks are bypassed server-side.
+ */
+export async function adminForceRegister(
+    payload: AdminForceChange
+): Promise<RegistrationChangeResponse> {
+    try {
+        if (!payload?.event_instance_id || !payload?.user_id || !payload?.registrant_id) {
+            return { success: false, msg: "Missing required fields" };
+        }
+
+        const res = await api.put(
+            "/v1/admin-events-registrations/force-register",
+            payload
+        );
+
+        const data = (res?.data ?? {}) as RegistrationChangeResponse;
+        if (typeof data?.success !== "boolean") {
+            return { success: false, msg: "Invalid response from server" };
+        }
+        return {
+            success: data.success,
+            msg: data.msg ?? (data.success ? "This person has successfully been registered!" : "Failed"),
+            seats_filled: data.seats_filled,
+            registration_details: (data as any).registration_details ?? null,
+            change_request: (data as any).change_request ?? null,
+            details_map: (data as any).details_map ?? null,
+        };
+    } catch (err) {
+        console.error("[EventRegistrationHelper] adminForceRegister() -> error", err);
+        return { success: false, msg: "Force registration failed" };
+    }
+}
+
+/**
+ * Admin-only: forcefully remove a registrant (SELF or family) from an upcoming event instance.
+ * If that registrant's payment line was PayPal, the backend issues a refund for that individual.
+ */
+export async function adminForceUnregister(
+    payload: AdminForceChange
+): Promise<RegistrationChangeResponse> {
+    try {
+        if (!payload?.event_instance_id || !payload?.user_id || !payload?.registrant_id) {
+            return { success: false, msg: "Missing required fields" };
+        }
+
+        // Ensure we don't accidentally send a price for unregister
+        const { event_instance_id, user_id, registrant_id } = payload;
+
+        const res = await api.put(
+            "/v1/admin-events-registrations/force-unregister",
+            { event_instance_id, user_id, registrant_id }
+        );
+
+        const data = (res?.data ?? {}) as RegistrationChangeResponse;
+        if (typeof data?.success !== "boolean") {
+            return { success: false, msg: "Invalid response from server" };
+        }
+        return {
+            success: data.success,
+            msg: data.msg ?? (data.success ? "This person has successfully been unregistered!" : "Failed"),
+            seats_filled: data.seats_filled,
+            registration_details: (data as any).registration_details ?? null,
+            change_request: (data as any).change_request ?? null,
+            details_map: (data as any).details_map ?? null,
+        };
+    } catch (err) {
+        console.error("[EventRegistrationHelper] adminForceUnregister() -> error", err);
+        return { success: false, msg: "Force unregistration failed" };
     }
 }

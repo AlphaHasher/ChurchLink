@@ -15,6 +15,8 @@ import { Eye } from "lucide-react";
 import { Input } from "@/shared/components/ui/input";
 
 import { currency } from "./EventInstanceSummary";
+import { Button } from "@/shared/components/ui/button";
+import { ArrowRight } from "lucide-react";
 
 export type RegistrationsRow = {
     uid: string;
@@ -46,6 +48,7 @@ export function EventInstanceRegistrationsTable({
     const { eventId, instanceId } = useParams<{ eventId: string; instanceId: string }>();
 
     const [q, setQ] = useState("");
+    const [gotoUid, setGotoUid] = useState("");
 
     const filtered = useMemo(() => {
         const term = q.trim().toLowerCase();
@@ -204,6 +207,44 @@ export function EventInstanceRegistrationsTable({
                             <option key={s} value={s}>{s}/page</option>
                         ))}
                     </select>
+                </div>
+
+            </div>
+
+            {/* Go-to unregistered user */}
+            <div className="px-2 pb-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                        Want to view a user that has not registered?
+                    </span>
+                    <Input
+                        className="h-9 w-72"
+                        placeholder="Enter user ID…"
+                        value={gotoUid}
+                        onChange={(e) => setGotoUid(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                const uid = gotoUid.trim();
+                                if (uid && eventId && instanceId) {
+                                    navigate(`/admin/events/${eventId}/instance_details/${instanceId}/user_registrations/${uid}`);
+                                }
+                            }
+                        }}
+                    />
+                    <Button
+                        type="button"
+                        variant="default"
+                        className="h-9"
+                        disabled={!gotoUid.trim() || !eventId || !instanceId}
+                        onClick={() => {
+                            const uid = gotoUid.trim();
+                            if (!uid || !eventId || !instanceId) return;
+                            navigate(`/admin/events/${eventId}/instance_details/${instanceId}/user_registrations/${uid}`);
+                        }}
+                    >
+                        Go
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                 </div>
             </div>
         </div>

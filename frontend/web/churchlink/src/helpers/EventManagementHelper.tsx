@@ -185,7 +185,7 @@ const OVERRIDE_GROUPS: Record<number, (keyof AdminEventInstanceOverrides)[]> = {
     1: ["localizations"],
     2: ["location_address"],
     3: ["image_id"],
-    4: ["date"],
+    4: ["date", "end_date"],
     5: [
         "rsvp_required",
         "registration_opens",

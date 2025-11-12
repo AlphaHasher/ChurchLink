@@ -23,7 +23,7 @@ import { updateSermon, deleteSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
+import { fetchMinistriesAsStringArray } from "@/helpers/MinistriesHelper";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface EditSermonProps {
@@ -43,7 +43,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
 
     useEffect(() => {
         if (isOpen) {
-            fetchMinistries().then(setMinistries)
+            fetchMinistriesAsStringArray().then(setMinistries)
         }
     }, [isOpen])
 
@@ -181,30 +181,30 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            onClick={handleDelete}
-                                            disabled={deleting}
-                                        >
-                                            {deleting ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Deleting...
-                                                </>
-                                            ) : (
-                                                'Delete permanently'
-                                            )}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setDeleteConfirmOpen(false)}
-                                            disabled={deleting}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </AlertDialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                    disabled={deleting}
+                                >
+                                    {deleting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        'Delete permanently'
+                                    )}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setDeleteConfirmOpen(false)}
+                                    disabled={deleting}
+                                >
+                                    Cancel
+                                </Button>
+                            </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
 

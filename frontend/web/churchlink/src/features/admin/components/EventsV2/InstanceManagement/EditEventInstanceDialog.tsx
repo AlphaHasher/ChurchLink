@@ -149,6 +149,7 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
     const [monthDateEvent, setMonthDateEvent] = useState<Date | undefined>(
         undefined
     );
+    const [monthDateEnd, setMonthDateEnd] = useState<Date | undefined>(undefined);
     const [monthDateOpens, setMonthDateOpens] = useState<Date | undefined>(
         undefined
     );
@@ -201,6 +202,7 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
             location_address: instance.location_address ?? null,
             image_id: instance.image_id ?? null,
             date: localeEnUSToISOInAdminTz(instance.date) ?? instance.target_date ?? null,
+            end_date: (instance as any).end_date ? localeEnUSToISOInAdminTz((instance as any).end_date) : null,
             hidden: instance.hidden ?? null,
             registration_allowed: instance.registration_allowed ?? null,
             registration_opens: localeEnUSToISOInAdminTz(instance.registration_opens) ?? null,
@@ -270,7 +272,55 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                         ? new Date(instance.target_date)
                         : undefined
         );
+        setMonthDateEnd(
+            (instance as any).end_date
+                ? new Date((instance as any).end_date)
+                : (instance as any).date
+                    ? new Date((instance as any).date)
+                    : instance.target_date
+                        ? new Date(instance.target_date)
+                        : undefined
+        );
     };
+
+    // Price buffers for friendlier typing
+    const [priceText, setPriceText] = useState<string>(() =>
+        draft.price != null ? String(draft.price) : "0"
+    );
+    useEffect(() => {
+        setPriceText(draft.price != null ? String(draft.price) : "0");
+    }, [draft.price]);
+
+    const [memberPriceText, setMemberPriceText] = useState<string>(() =>
+        draft.member_price == null ? "" : String(draft.member_price)
+    );
+    useEffect(() => {
+        setMemberPriceText(draft.member_price == null ? "" : String(draft.member_price));
+    }, [draft.member_price]);
+
+    function commitPriceFromText() {
+        const n = Number(priceText);
+        const val = Number.isFinite(n) && n >= 0 ? n : 0;
+        updateDraft("price", val);
+        setPriceText(String(val));
+    }
+
+    function commitMemberPriceFromText() {
+        const t = memberPriceText.trim();
+        if (t === "") {
+            updateDraft("member_price", null);
+            return;
+        }
+        const n = Number(t);
+        if (Number.isFinite(n) && n >= 0) {
+            updateDraft("member_price", n);
+            setMemberPriceText(String(n));
+        } else {
+            // keep as blank if invalid
+            setMemberPriceText("");
+            updateDraft("member_price", null);
+        }
+    }
 
     useEffect(() => {
         if (!open) return;
@@ -601,6 +651,69 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                     </div>
                                                 </PopoverContent>
                                             </Popover>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4">
+                                        <div className="flex items-center gap-3">
+                                            <Switch
+                                                id="endDateEnabled"
+                                                checked={draft.end_date != null}
+                                                onCheckedChange={(v) =>
+                                                    updateDraft("end_date", v ? (draft.end_date ?? draft.date ?? new Date().toISOString()) : null)
+                                                }
+                                            />
+                                            <Label htmlFor="endDateEnabled">End date</Label>
+                                        </div>
+
+                                        <div className={`${draft.end_date == null ? "opacity-50 pointer-events-none" : ""} mt-2`}>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" className="justify-start">
+                                                        {dateLabel(draft.end_date as string)}
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-3" align="start">
+                                                    <Calendar
+                                                        mode="single"
+                                                        month={monthDateEnd}
+                                                        onMonthChange={setMonthDateEnd}
+                                                        selected={draft.end_date ? new Date(draft.end_date) : undefined}
+                                                        onSelect={(d: Date | undefined) => {
+                                                            if (!d) return;
+                                                            const current = draft.end_date
+                                                                ? new Date(draft.end_date)
+                                                                : (draft.date ? new Date(draft.date) : new Date());
+                                                            const next = new Date(d);
+                                                            next.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                                                            updateDraft("end_date", next.toISOString());
+                                                        }}
+                                                        initialFocus
+                                                    />
+                                                    <div className="mt-3 w-48">
+                                                        <Label htmlFor="endTime">Time</Label>
+                                                        <Input
+                                                            id="endTime"
+                                                            type="time"
+                                                            value={
+                                                                draft.end_date
+                                                                    ? new Date(draft.end_date).toTimeString().slice(0, 5)
+                                                                    : "17:00"
+                                                            }
+                                                            onChange={(e) => {
+                                                                const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
+                                                                const base = draft.end_date
+                                                                    ? new Date(draft.end_date)
+                                                                    : (draft.date ? new Date(draft.date) : new Date());
+                                                                base.setHours(hh || 0, mm || 0, 0, 0);
+                                                                updateDraft("end_date", base.toISOString());
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Must be after the start date/time.
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -975,14 +1088,12 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                         <Label htmlFor="price">Price</Label>
                                         <Input
                                             id="price"
-                                            type="number"
-                                            step="0.01"
-                                            min={0}
-                                            value={draft.price ?? 0}
-                                            onChange={(e) =>
-                                                updateDraft("price", Number(e.target.value || 0))
-                                            }
+                                            inputMode="decimal"
+                                            value={priceText}
+                                            onChange={(e) => setPriceText(e.target.value)}
+                                            onBlur={commitPriceFromText}
                                             disabled={!draft.rsvp_required}
+                                            placeholder="0.00"
                                         />
                                         <p className="mt-1 text-xs text-muted-foreground">
                                             If price &gt; 0, pick a payment option.
@@ -993,17 +1104,12 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                         <Label htmlFor="memberPrice">Members price</Label>
                                         <Input
                                             id="memberPrice"
-                                            type="number"
-                                            step="0.01"
-                                            min={0}
-                                            value={draft.member_price ?? ""}
-                                            onChange={(e) =>
-                                                updateDraft(
-                                                    "member_price",
-                                                    e.target.value === "" ? null : Number(e.target.value)
-                                                )
-                                            }
+                                            inputMode="decimal"
+                                            value={memberPriceText}
+                                            onChange={(e) => setMemberPriceText(e.target.value)}
+                                            onBlur={commitMemberPriceFromText}
                                             disabled={!draft.rsvp_required}
+                                            placeholder="(optional)"
                                         />
                                     </div>
                                 </div>

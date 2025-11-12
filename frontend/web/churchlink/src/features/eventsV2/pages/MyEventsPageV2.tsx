@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { EventListTile } from "@/features/eventsV2/components/EventListTile";
 import { Button } from "@/shared/components/ui/button";
 import { Skeleton } from "@/shared/components/ui/skeleton";
@@ -20,6 +20,8 @@ import {
 } from "@/shared/types/Event";
 
 import { fetchMyEvents } from "@/helpers/EventUserHelper";
+import { fetchMinistries, buildMinistryNameMap } from "@/helpers/MinistriesHelper";
+import type { Ministry } from "@/shared/types/Ministry";
 
 const DEFAULT_PARAMS: MyEventsSearchParams = {
     limit: 12,
@@ -35,6 +37,8 @@ export default function MyEventsPageV2() {
     const [cursor, setCursor] = useState<MyEventsResults["next_cursor"]>(null);
     const [error, setError] = useState<string | null>(null);
     const reqSeq = useRef(0);
+    const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+    const ministryNameMap = useMemo(() => buildMinistryNameMap(allMinistries), [allMinistries]);
 
     const [typeFilter, setTypeFilter] = useState<MyEventsTypeFilter>(
         (DEFAULT_PARAMS.type as MyEventsTypeFilter) || "favorites_and_registered"
@@ -85,6 +89,20 @@ export default function MyEventsPageV2() {
             alive = false;
         };
     }, [buildParams]);
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const mins = await fetchMinistries();
+                if (!alive) return;
+                setAllMinistries(Array.isArray(mins) ? mins : []);
+            } catch {
+                setAllMinistries([]);
+            }
+        })();
+        return () => { alive = false; };
+    }, []);
 
     async function onLoadMore() {
         if (!cursor) return;
@@ -199,7 +217,12 @@ export default function MyEventsPageV2() {
                     <>
                         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                             {items.map((ev) => (
-                                <EventListTile key={ev.id} event={ev} onFavoriteChanged={onFavoriteChanged} />
+                                <EventListTile
+                                    key={ev.id}
+                                    event={ev}
+                                    ministryNameMap={ministryNameMap}
+                                    onFavoriteChanged={onFavoriteChanged}
+                                />
                             ))}
                         </div>
 
