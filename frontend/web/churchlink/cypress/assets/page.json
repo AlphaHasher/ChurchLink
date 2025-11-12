@@ -1,0 +1,2248 @@
+{
+    "_id": {
+      "$oid": "68db63518a8d9c2be3a97fcc"
+    },
+    "title": "Thingy",
+    "slug": "thingy",
+    "sections": [
+      {
+        "id": "1762654488616-33zlkj-hero",
+        "kind": "section",
+        "heightPercent": 100,
+        "background": {
+          "className": "relative isolate overflow-hidden bg-slate-950 text-white",
+          "style": {
+            "background": "linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.85) 100%)"
+          }
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "fontFamily": "Inter, sans-serif",
+          "name": "hero 1"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true,
+          "slideScale": false
+        },
+        "children": [
+          {
+            "id": "1762654488616-bbrsr5-c1",
+            "type": "container",
+            "props": {
+              "maxWidth": "2xl",
+              "paddingX": 0,
+              "paddingY": 0
+            },
+            "style": {
+              "className": "relative h-full flex flex-col items-center justify-center gap-8 text-center"
+            },
+            "children": [
+              {
+                "id": "1762654488616-gwlvv9-h1",
+                "type": "text",
+                "props": {
+                  "variant": "lead",
+                  "html": "WELCOME HOME",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "uppercase tracking-[0.4em] text-indigo-200/80",
+                  "fontSize": 1,
+                  "fontWeight": 600
+                },
+                "layout": {
+                  "units": {
+                    "xu": 27,
+                    "yu": 3,
+                    "wu": 12,
+                    "hu": 4
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-cqa0yu-p1",
+                "type": "text",
+                "props": {
+                  "variant": "h1",
+                  "html": "A Place to Gather, Grow, and Go.",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "leading-tight text-balance drop-shadow-xl",
+                  "fontSize": 3.75,
+                  "fontWeight": 700,
+                  "color": "#f8fafc"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 13,
+                    "yu": 9,
+                    "wu": 40,
+                    "hu": 10
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-l54xpt-btn",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "Join us Sundays at 9 &amp; 11 AM to worship, connect, and experience life-giving community.",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "max-w-2xl mx-auto text-lg leading-relaxed text-slate-200/90",
+                  "fontSize": 1.125
+                },
+                "layout": {
+                  "units": {
+                    "xu": 22,
+                    "yu": 20.000000000000004,
+                    "wu": 22,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-uwpxpo-btn-primary",
+                "type": "button",
+                "props": {
+                  "label": "Plan Your Visit",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-8 py-3 rounded-full text-white font-semibold shadow-lg shadow-indigo-500/30 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
+                  "background": "linear-gradient(90deg, hsl(243.39999999999998, 75.4%, 58.6%), hsl(217.20000000000005, 91.2%, 59.8%))",
+                  "customCss": "&:hover { opacity: 0.9; }"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 20,
+                    "yu": 27.000000000000004,
+                    "wu": 11,
+                    "hu": 3
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-7hyli5-btn-secondary",
+                "type": "button",
+                "props": {
+                  "label": "Watch Online",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-8 py-3 rounded-full bg-white/10 text-white font-semibold border border-white/20 transition backdrop-blur-sm",
+                  "customCss": "&:hover { background: rgba(255,255,255,0.20); }"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 33.99999999999999,
+                    "yu": 27.000000000000004,
+                    "wu": 10,
+                    "hu": 3
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 13,
+                "yu": 3,
+                "wu": 40,
+                "hu": 30.791057180851062
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762681922280-24ndis-service",
+        "kind": "section",
+        "heightPercent": 85,
+        "background": {
+          "className": "",
+          "style": {
+            "backgroundColor": "#92a2c4"
+          }
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "fontFamily": "Lato, sans-serif",
+          "name": "service times 1"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true
+        },
+        "children": [
+          {
+            "id": "1762681922280-l9h3q5-c-service",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "style": {
+              "className": "block w-full h-full [&_.card]:shadow-sm [&_.card]:ring-1 [&_.card]:ring-slate-200",
+              "backgroundColor": "transparent"
+            },
+            "children": [
+              {
+                "id": "1762681922280-ej4693-svc-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Service Times"
+                },
+                "style": {
+                  "fontSize": 2,
+                  "fontWeight": 700,
+                  "color": "#0f172a"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 25,
+                    "yu": 3,
+                    "wu": 14,
+                    "hu": 3
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-pyzr5v-svc-sub",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "We'd love to see you this Sunday!"
+                },
+                "style": {
+                  "color": "#475569"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 24,
+                    "yu": 8,
+                    "wu": 16,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-jqet3d-svc-card-2",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "hsl(0, 0%, 100%)",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762681922280-h2c620-svc-card-2-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Location"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 26,
+                        "yu": 14,
+                        "wu": 10,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762681922280-s57mvz-svc-card-2-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "6601 Watt Ave, North Highlands, CA 95660"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 26,
+                        "yu": 17,
+                        "wu": 12,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 24,
+                    "yu": 13,
+                    "wu": 17,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-1or7yg-svc-card-3",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762681922280-eo7ftu-svc-card-3-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Kids & Students"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 7.000000000000001,
+                        "yu": 14,
+                        "wu": 12,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762681922280-gh4mem-svc-card-3-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "Age-appropriate programs during both services"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 7,
+                        "yu": 17,
+                        "wu": 13,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 5,
+                    "yu": 13,
+                    "wu": 18,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-yijk8p-svc-card-1",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "hsl(0, 0%, 100%)",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762681922280-zb2bnb-svc-card-1-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Sunday Gatherings"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 43,
+                        "yu": 14,
+                        "wu": 14,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762681922280-om1rhl-svc-card-1-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "9:00 AM & 11:00 AM • Main Auditorium"
+                    },
+                    "style": {
+                      "color": "#334155",
+                      "backgroundColor": "hsl(0, 0%, 100%)"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 43,
+                        "yu": 17.999999999999996,
+                        "wu": 16,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 42,
+                    "yu": 13,
+                    "wu": 18,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-2726mx-svc-cta",
+                "type": "button",
+                "props": {
+                  "label": "Plan Your Visit",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-6 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 34,
+                    "yu": 28,
+                    "wu": 11,
+                    "hu": 3
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 3,
+                "yu": 3,
+                "wu": 58,
+                "hu": 31
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762657652859-c8xog3-paypal",
+        "kind": "section",
+        "heightPercent": 90,
+        "background": {
+          "className": "bg-gradient-to-b from-slate-50 via-white to-slate-100"
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "name": "paypal"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 10
+          },
+          "showGrid": true
+        },
+        "lockLayout": true,
+        "children": [
+          {
+            "id": "1762657652859-rquf9h-c-paypal",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "children": [
+              {
+                "id": "1762657652859-si5w1i-paypal-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Give Online"
+                },
+                "style": {
+                  "fontSize": 2.25,
+                  "fontWeight": 700,
+                  "color": "#0f172a"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 0,
+                    "wu": 12,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657652859-pezo7p-paypal-desc",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "Your generosity fuels our mission. Secure donations powered by PayPal."
+                },
+                "style": {
+                  "color": "#334155"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 3,
+                    "wu": 12,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657652859-9t8cdi-paypal",
+                "type": "paypal",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "shadow-sm ring-1 ring-slate-200"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 6,
+                    "wu": 12,
+                    "hu": 10
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 0,
+                "yu": 0,
+                "wu": 12,
+                "hu": 20
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762657265759-h0m8qu-map",
+        "kind": "section",
+        "heightPercent": 70,
+        "background": {
+          "className": "bg-gradient-to-b from-slate-50 via-white to-slate-100"
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "name": "map"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true
+        },
+        "lockLayout": true,
+        "children": [
+          {
+            "id": "1762657265759-6ooarc-c-map",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "children": [
+              {
+                "id": "1762657265759-sn55dg-map-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Our Location",
+                  "align": "left"
+                },
+                "style": {
+                  "fontSize": 2,
+                  "fontWeight": 700,
+                  "color": "#0f172a",
+                  "paddingBottom": 2,
+                  "backgroundColor": "transparent"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 0,
+                    "wu": 12,
+                    "hu": 8
+                  }
+                }
+              },
+              {
+                "id": "1762657265759-91sd53-map",
+                "type": "map",
+                "props": {
+                  "embedUrl": "https://www.google.com/maps?q=6601%20Watt%20Ave%2C%20North%20Highlands%2C%20CA%2095660&output=embed",
+                  "place": "6601 Watt Ave, North Highlands, CA 95660"
+                },
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 1,
+                    "wu": 8,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657265759-k7tnom-map-cta",
+                "type": "button",
+                "props": {
+                  "label": "Get Directions",
+                  "href": "https://www.google.com/maps/dir/?api=1&destination=6601%20Watt%20Ave%2C%20North%20Highlands%2C%20CA%2095660"
+                },
+                "style": {
+                  "className": "mt-4 px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 2,
+                    "wu": 4,
+                    "hu": 1
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 0,
+                "yu": 0,
+                "wu": 12,
+                "hu": 8
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762657674981-lw0c76-menu",
+        "kind": "section",
+        "heightPercent": 90,
+        "background": {
+          "className": "bg-gradient-to-b from-white to-slate-50"
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "name": "menu"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true
+        },
+        "children": [
+          {
+            "id": "1762657674981-2759o0-c-menu",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "children": [
+              {
+                "id": "1762657674981-tx7att-menu-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Explore"
+                },
+                "style": {
+                  "fontSize": 2,
+                  "fontWeight": 700,
+                  "color": "#0f172a"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 27,
+                    "yu": 6,
+                    "wu": 8,
+                    "hu": 3
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-e0ig05-menu-sub",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "Quick links to popular pages"
+                },
+                "style": {
+                  "color": "#475569"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 23,
+                    "yu": 12,
+                    "wu": 15,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-n6v0yf-menu-tile-i'm-new",
+                "type": "button",
+                "props": {
+                  "label": "I'm New",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 14,
+                    "yu": 17,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-sy7efh-menu-tile-sermons",
+                "type": "button",
+                "props": {
+                  "label": "Sermons",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 25,
+                    "yu": 17,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-9yamd8-menu-tile-events",
+                "type": "button",
+                "props": {
+                  "label": "Events",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 36,
+                    "yu": 17,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-61ig9q-menu-tile-ministries",
+                "type": "button",
+                "props": {
+                  "label": "Ministries",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 14,
+                    "yu": 26,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-ghmw5k-menu-tile-serve",
+                "type": "button",
+                "props": {
+                  "label": "Serve",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 25,
+                    "yu": 26,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-r2w2cl-menu-tile-give",
+                "type": "button",
+                "props": {
+                  "label": "Give",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 36,
+                    "yu": 26,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 1,
+                "yu": 5,
+                "wu": 63,
+                "hu": 28
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762911544361-d9di40-contact",
+        "kind": "section",
+        "heightPercent": 90,
+        "background": {
+          "className": "bg-white"
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "name": "contact info"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true
+        },
+        "children": [
+          {
+            "id": "1762911544361-m878mt-c-contact",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "children": [
+              {
+                "id": "1762911544361-y7aaug-contact-node",
+                "type": "contactInfo",
+                "props": {
+                  "data": {
+                    "items": [
+                      {
+                        "label": "Phone",
+                        "value": "(555) 123-4567"
+                      },
+                      {
+                        "label": "Email",
+                        "value": "hello@yourchurch.org"
+                      }
+                    ]
+                  }
+                },
+                "style": {
+                  "className": ""
+                },
+                "layout": {
+                  "units": {
+                    "xu": 14,
+                    "yu": 9,
+                    "wu": 39,
+                    "hu": 10
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 8,
+                "yu": 4,
+                "wu": 51,
+                "hu": 19
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "created_at": {
+      "$date": "2025-09-30T04:57:53.788Z"
+    },
+    "updated_at": {
+      "$date": "2025-11-12T01:41:47.889Z"
+    },
+    "visible": true,
+    "styleTokens": {
+      "defaultFontFamily": "'Montserrat', sans-serif"
+    },
+    "version": 2,
+    "sectionsMobile": [
+      {
+        "id": "1762657656996-t7nlvt-service",
+        "kind": "section",
+        "heightPercent": 85,
+        "background": {
+          "className": "",
+          "style": {
+            "backgroundColor": "#92a2c4"
+          }
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "fontFamily": "Lato, sans-serif",
+          "name": "service times"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 19,
+            "den": 10
+          },
+          "showGrid": true
+        },
+        "children": [
+          {
+            "id": "1762657656996-br4h9h-c-service",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "style": {
+              "className": "block w-full h-full [&_.card]:shadow-sm [&_.card]:ring-1 [&_.card]:ring-slate-200"
+            },
+            "children": [
+              {
+                "id": "1762657656996-5uuyd0-svc-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Service Times"
+                },
+                "style": {
+                  "fontSize": 2,
+                  "fontWeight": 700,
+                  "color": "#0f172a"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 26,
+                    "yu": 3,
+                    "wu": 14,
+                    "hu": 3
+                  }
+                }
+              },
+              {
+                "id": "1762657656996-7gov7q-svc-sub",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "We'd love to see you this Sunday!"
+                },
+                "style": {
+                  "color": "#475569"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 25.779421542553195,
+                    "yu": 5.842752659574467,
+                    "wu": 16,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657656996-ee70yf-svc-card-2",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762657656996-nj62x6-svc-card-2-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Location"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 7,
+                        "yu": 13,
+                        "wu": 10,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762657656996-ai68hu-svc-card-2-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "6601 Watt Ave, North Highlands, CA 95660"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 7,
+                        "yu": 16,
+                        "wu": 12,
+                        "hu": 3
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762814354862-wymd7z-c",
+                    "type": "container",
+                    "props": {
+                      "maxWidth": "xl",
+                      "paddingX": 4,
+                      "paddingY": 6
+                    },
+                    "children": [],
+                    "layout": {
+                      "units": {
+                        "xu": -1.9999999999999991,
+                        "yu": 20.999999999999986,
+                        "wu": 12,
+                        "hu": 8
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 6,
+                    "yu": 12,
+                    "wu": 16.882130940755207,
+                    "hu": 8.99609375
+                  }
+                }
+              },
+              {
+                "id": "1762657656996-jfry5w-svc-card-3",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762657656996-g7nlaa-svc-card-3-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Kids & Students"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 25,
+                        "yu": 13,
+                        "wu": 12,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762657656996-gr8h9z-svc-card-3-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "Age-appropriate programs during both services"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 25,
+                        "yu": 17,
+                        "wu": 13,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 24,
+                    "yu": 12,
+                    "wu": 18,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762657656996-0h29ch-svc-card-1",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762657656996-o8jkzo-svc-card-1-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Sunday Gatherings"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 44,
+                        "yu": 13,
+                        "wu": 15,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762657656996-cq1rc1-svc-card-1-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "9:00 AM & 11:00 AM • Main Auditorium"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 44,
+                        "yu": 17,
+                        "wu": 16,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 43,
+                    "yu": 12,
+                    "wu": 18,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762657656996-gmvlp3-svc-cta",
+                "type": "button",
+                "props": {
+                  "label": "Plan Your Visit",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "mt-6 px-6 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 28,
+                    "yu": 25,
+                    "wu": 11,
+                    "hu": 3
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 3,
+                "yu": 2,
+                "wu": 60,
+                "hu": 29
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762657652859-c8xog3-paypal",
+        "kind": "section",
+        "heightPercent": 90,
+        "background": {
+          "className": "bg-gradient-to-b from-slate-50 via-white to-slate-100"
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "name": "paypal"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 10
+          },
+          "showGrid": true
+        },
+        "lockLayout": true,
+        "children": [
+          {
+            "id": "1762657652859-rquf9h-c-paypal",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "children": [
+              {
+                "id": "1762657652859-si5w1i-paypal-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Give Online"
+                },
+                "style": {
+                  "fontSize": 2.25,
+                  "fontWeight": 700,
+                  "color": "#0f172a"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 0,
+                    "wu": 12,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657652859-pezo7p-paypal-desc",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "Your generosity fuels our mission. Secure donations powered by PayPal."
+                },
+                "style": {
+                  "color": "#334155"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 3,
+                    "wu": 12,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657652859-9t8cdi-paypal",
+                "type": "paypal",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "shadow-sm ring-1 ring-slate-200"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 6,
+                    "wu": 12,
+                    "hu": 10
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 0,
+                "yu": 0,
+                "wu": 12,
+                "hu": 20
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762654488616-33zlkj-hero",
+        "kind": "section",
+        "heightPercent": 100,
+        "background": {
+          "className": "relative isolate overflow-hidden bg-slate-950 text-white",
+          "style": {
+            "background": "linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.85) 100%)"
+          }
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "fontFamily": "Inter, sans-serif",
+          "name": "hero 1"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true,
+          "slideScale": false
+        },
+        "children": [
+          {
+            "id": "1762654488616-bbrsr5-c1",
+            "type": "container",
+            "props": {
+              "maxWidth": "2xl",
+              "paddingX": 0,
+              "paddingY": 0
+            },
+            "style": {
+              "className": "relative h-full flex flex-col items-center justify-center gap-8 text-center"
+            },
+            "children": [
+              {
+                "id": "1762654488616-gwlvv9-h1",
+                "type": "text",
+                "props": {
+                  "variant": "lead",
+                  "html": "WELCOME HOME",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "uppercase tracking-[0.4em] text-indigo-200/80",
+                  "fontSize": 1,
+                  "fontWeight": 600
+                },
+                "layout": {
+                  "units": {
+                    "xu": 27,
+                    "yu": 3,
+                    "wu": 12,
+                    "hu": 4
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-cqa0yu-p1",
+                "type": "text",
+                "props": {
+                  "variant": "h1",
+                  "html": "A Place to Gather, Grow, and Go.",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "leading-tight text-balance drop-shadow-xl",
+                  "fontSize": 3.75,
+                  "fontWeight": 700,
+                  "color": "#f8fafc"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 13,
+                    "yu": 9,
+                    "wu": 40,
+                    "hu": 10
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-l54xpt-btn",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "Join us Sundays at 9 &amp; 11 AM to worship, connect, and experience life-giving community.",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "max-w-2xl mx-auto text-lg leading-relaxed text-slate-200/90",
+                  "fontSize": 1.125
+                },
+                "layout": {
+                  "units": {
+                    "xu": 22,
+                    "yu": 20.000000000000004,
+                    "wu": 22,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-uwpxpo-btn-primary",
+                "type": "button",
+                "props": {
+                  "label": "Plan Your Visit",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-8 py-3 rounded-full text-white font-semibold shadow-lg shadow-indigo-500/30 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
+                  "background": "linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%)",
+                  "customCss": "&:hover { opacity: 0.9; }"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 20,
+                    "yu": 27.000000000000004,
+                    "wu": 11,
+                    "hu": 3
+                  }
+                }
+              },
+              {
+                "id": "1762654488616-7hyli5-btn-secondary",
+                "type": "button",
+                "props": {
+                  "label": "Watch Online",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-8 py-3 rounded-full bg-white/10 text-white font-semibold border border-white/20 transition backdrop-blur-sm",
+                  "customCss": "&:hover { background: rgba(255,255,255,0.20); }"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 33.99999999999999,
+                    "yu": 27.000000000000004,
+                    "wu": 10,
+                    "hu": 3
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 13,
+                "yu": 3,
+                "wu": 40,
+                "hu": 30.791057180851062
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762681922280-24ndis-service",
+        "kind": "section",
+        "heightPercent": 85,
+        "background": {
+          "className": "",
+          "style": {
+            "backgroundColor": "#92a2c4"
+          }
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "fontFamily": "Lato, sans-serif",
+          "name": "service times 1"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true
+        },
+        "children": [
+          {
+            "id": "1762681922280-l9h3q5-c-service",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "style": {
+              "className": "block w-full h-full [&_.card]:shadow-sm [&_.card]:ring-1 [&_.card]:ring-slate-200"
+            },
+            "children": [
+              {
+                "id": "1762681922280-ej4693-svc-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Service Times"
+                },
+                "style": {
+                  "fontSize": 2,
+                  "fontWeight": 700,
+                  "color": "#0f172a"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 25,
+                    "yu": 3,
+                    "wu": 14,
+                    "hu": 3
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-pyzr5v-svc-sub",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "We'd love to see you this Sunday!"
+                },
+                "style": {
+                  "color": "#475569"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 24,
+                    "yu": 8,
+                    "wu": 16,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-jqet3d-svc-card-2",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762681922280-h2c620-svc-card-2-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Location"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 26,
+                        "yu": 14,
+                        "wu": 10,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762681922280-s57mvz-svc-card-2-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "6601 Watt Ave, North Highlands, CA 95660"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 26,
+                        "yu": 17,
+                        "wu": 12,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 24,
+                    "yu": 13,
+                    "wu": 17,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-1or7yg-svc-card-3",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762681922280-eo7ftu-svc-card-3-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Kids & Students"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 7.000000000000001,
+                        "yu": 14,
+                        "wu": 12,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762681922280-gh4mem-svc-card-3-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "Age-appropriate programs during both services"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 6,
+                        "yu": 17,
+                        "wu": 13,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 5,
+                    "yu": 13,
+                    "wu": 18,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-yijk8p-svc-card-1",
+                "type": "container",
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff",
+                  "className": "card p-6"
+                },
+                "children": [
+                  {
+                    "id": "1762681922280-zb2bnb-svc-card-1-title",
+                    "type": "text",
+                    "props": {
+                      "variant": "h3",
+                      "html": "Sunday Gatherings"
+                    },
+                    "style": {
+                      "fontWeight": 700,
+                      "color": "#0f172a"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 43,
+                        "yu": 14,
+                        "wu": 14,
+                        "hu": 2
+                      }
+                    }
+                  },
+                  {
+                    "id": "1762681922280-om1rhl-svc-card-1-p",
+                    "type": "text",
+                    "props": {
+                      "variant": "p",
+                      "html": "9:00 AM & 11:00 AM • Main Auditorium"
+                    },
+                    "style": {
+                      "color": "#334155"
+                    },
+                    "layout": {
+                      "units": {
+                        "xu": 43,
+                        "yu": 17.999999999999996,
+                        "wu": 16,
+                        "hu": 3
+                      }
+                    }
+                  }
+                ],
+                "layout": {
+                  "units": {
+                    "xu": 42,
+                    "yu": 13,
+                    "wu": 18,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762681922280-2726mx-svc-cta",
+                "type": "button",
+                "props": {
+                  "label": "Plan Your Visit",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-6 py-3 rounded-full bg-slate-900 text-white hover:bg-slate-800 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 34,
+                    "yu": 28,
+                    "wu": 11,
+                    "hu": 3
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 3,
+                "yu": 3,
+                "wu": 58,
+                "hu": 31
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762657265759-h0m8qu-map",
+        "kind": "section",
+        "heightPercent": 70,
+        "background": {
+          "className": "bg-gradient-to-b from-slate-50 via-white to-slate-100"
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "name": "map"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true
+        },
+        "lockLayout": true,
+        "children": [
+          {
+            "id": "1762657265759-6ooarc-c-map",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "children": [
+              {
+                "id": "1762657265759-sn55dg-map-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Our Location",
+                  "align": "left"
+                },
+                "style": {
+                  "fontSize": 2,
+                  "fontWeight": 700,
+                  "color": "#0f172a",
+                  "paddingBottom": 2,
+                  "backgroundColor": "transparent"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 0,
+                    "wu": 12,
+                    "hu": 8
+                  }
+                }
+              },
+              {
+                "id": "1762657265759-91sd53-map",
+                "type": "map",
+                "props": {
+                  "embedUrl": "https://www.google.com/maps?q=6601%20Watt%20Ave%2C%20North%20Highlands%2C%20CA%2095660&output=embed",
+                  "place": "6601 Watt Ave, North Highlands, CA 95660"
+                },
+                "style": {
+                  "borderRadius": 16,
+                  "backgroundColor": "#ffffff"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 1,
+                    "wu": 8,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657265759-k7tnom-map-cta",
+                "type": "button",
+                "props": {
+                  "label": "Get Directions",
+                  "href": "https://www.google.com/maps/dir/?api=1&destination=6601%20Watt%20Ave%2C%20North%20Highlands%2C%20CA%2095660"
+                },
+                "style": {
+                  "className": "mt-4 px-4 py-2 rounded-full bg-slate-900 text-white hover:bg-slate-800"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 0,
+                    "yu": 2,
+                    "wu": 4,
+                    "hu": 1
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 0,
+                "yu": 0,
+                "wu": 12,
+                "hu": 8
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762657674981-lw0c76-menu",
+        "kind": "section",
+        "heightPercent": 90,
+        "background": {
+          "className": "bg-gradient-to-b from-white to-slate-50"
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "name": "menu"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 9
+          },
+          "showGrid": true
+        },
+        "children": [
+          {
+            "id": "1762657674981-2759o0-c-menu",
+            "type": "container",
+            "props": {
+              "maxWidth": "xl",
+              "paddingX": 4,
+              "paddingY": 10
+            },
+            "children": [
+              {
+                "id": "1762657674981-tx7att-menu-title",
+                "type": "text",
+                "props": {
+                  "variant": "h2",
+                  "html": "Explore"
+                },
+                "style": {
+                  "fontSize": 2,
+                  "fontWeight": 700,
+                  "color": "#0f172a"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 27,
+                    "yu": 6,
+                    "wu": 8,
+                    "hu": 3
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-e0ig05-menu-sub",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "Quick links to popular pages"
+                },
+                "style": {
+                  "color": "#475569"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 23,
+                    "yu": 12,
+                    "wu": 15,
+                    "hu": 2
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-n6v0yf-menu-tile-i'm-new",
+                "type": "button",
+                "props": {
+                  "label": "I'm New",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 14,
+                    "yu": 17,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-sy7efh-menu-tile-sermons",
+                "type": "button",
+                "props": {
+                  "label": "Sermons",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 25,
+                    "yu": 17,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-9yamd8-menu-tile-events",
+                "type": "button",
+                "props": {
+                  "label": "Events",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 36,
+                    "yu": 17,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-61ig9q-menu-tile-ministries",
+                "type": "button",
+                "props": {
+                  "label": "Ministries",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 14,
+                    "yu": 26,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-ghmw5k-menu-tile-serve",
+                "type": "button",
+                "props": {
+                  "label": "Serve",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 25,
+                    "yu": 26,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              },
+              {
+                "id": "1762657674981-r2w2cl-menu-tile-give",
+                "type": "button",
+                "props": {
+                  "label": "Give",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "rounded-xl bg-slate-900 text-white font-semibold flex items-center justify-center shadow-sm hover:opacity-90 transition"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 36,
+                    "yu": 26,
+                    "wu": 10,
+                    "hu": 7
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 1,
+                "yu": 5,
+                "wu": 63,
+                "hu": 28
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "1762826249712-45ilog-hero",
+        "kind": "section",
+        "heightPercent": 110,
+        "background": {
+          "className": "relative isolate overflow-hidden bg-slate-950 text-white",
+          "style": {
+            "background": "linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.85) 100%)"
+          }
+        },
+        "grid": {
+          "className": "w-full"
+        },
+        "styleTokens": {
+          "fontFamily": "Inter, sans-serif",
+          "name": "hero"
+        },
+        "builderGrid": {
+          "cols": 64,
+          "aspect": {
+            "num": 16,
+            "den": 17
+          },
+          "showGrid": true
+        },
+        "children": [
+          {
+            "id": "1762826249712-mlq4t5-c1",
+            "type": "container",
+            "props": {
+              "maxWidth": "2xl",
+              "paddingX": 0,
+              "paddingY": 0
+            },
+            "style": {
+              "className": "relative h-full flex flex-col items-center justify-center gap-8 text-center"
+            },
+            "children": [
+              {
+                "id": "1762826249712-tms718-h1",
+                "type": "text",
+                "props": {
+                  "variant": "lead",
+                  "html": "WELCOME HOME",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "uppercase tracking-[0.4em] text-indigo-200/80",
+                  "fontSize": 2.07568359375,
+                  "fontWeight": 600
+                },
+                "layout": {
+                  "units": {
+                    "xu": 21,
+                    "yu": 4,
+                    "wu": 23,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762826249712-9n0shs-p1",
+                "type": "text",
+                "props": {
+                  "variant": "h1",
+                  "html": "A Place to Gather, Grow, and Go.",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "leading-tight text-balance drop-shadow-xl",
+                  "fontSize": 4.57763671875,
+                  "fontWeight": 700,
+                  "color": "#f8fafc"
+                },
+                "layout": {
+                  "units": {
+                    "xu": 13,
+                    "yu": 17,
+                    "wu": 40,
+                    "hu": 10
+                  }
+                }
+              },
+              {
+                "id": "1762826249712-yj52eu-btn",
+                "type": "text",
+                "props": {
+                  "variant": "p",
+                  "html": "Join us Sundays at 9 &amp; 11 AM to worship, connect, and experience life-giving community.",
+                  "align": "center"
+                },
+                "style": {
+                  "className": "max-w-2xl mx-auto text-lg leading-relaxed text-slate-200/90",
+                  "fontSize": 1.703125
+                },
+                "layout": {
+                  "units": {
+                    "xu": 16,
+                    "yu": 31,
+                    "wu": 33,
+                    "hu": 9
+                  }
+                }
+              },
+              {
+                "id": "1762826249712-jpm6ba-btn-primary",
+                "type": "button",
+                "props": {
+                  "label": "Plan Your Visit",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-8 py-3 rounded-full text-white font-semibold shadow-lg shadow-indigo-500/30 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 transition",
+                  "background": "linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%)",
+                  "customCss": "&:hover { opacity: 0.9; }",
+                  "fontSize": 2.10205078125
+                },
+                "layout": {
+                  "units": {
+                    "xu": 16,
+                    "yu": 45,
+                    "wu": 33,
+                    "hu": 8
+                  }
+                }
+              },
+              {
+                "id": "1762826249712-zf90kk-btn-secondary",
+                "type": "button",
+                "props": {
+                  "label": "Watch Online",
+                  "href": "#"
+                },
+                "style": {
+                  "className": "px-8 py-3 rounded-full bg-white/10 text-white font-semibold border border-white/20 transition backdrop-blur-sm",
+                  "customCss": "&:hover { background: rgba(255,255,255,0.20); }",
+                  "fontSize": 2.0625
+                },
+                "layout": {
+                  "units": {
+                    "xu": 16,
+                    "yu": 57,
+                    "wu": 33,
+                    "hu": 8
+                  }
+                }
+              }
+            ],
+            "layout": {
+              "units": {
+                "xu": 4,
+                "yu": 4,
+                "wu": 57,
+                "hu": 61
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
