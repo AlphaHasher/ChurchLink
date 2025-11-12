@@ -578,64 +578,6 @@ const renderNode = (
         </div>
       );
     }
-    case 'contactInfo': {
-      const nodeStyleRaw = (node as any).style || {};
-      const BASE_W = 200;
-      const BASE_H = 200;
-      let scale = 1;
-      if (!forceFlowLayout && transform && (node as any)?.layout?.units) {
-        const size = transform.toPx((node as any).layout.units);
-        const w = (size && typeof size.w === 'number') ? size.w : 0;
-        const h = (size && typeof size.h === 'number') ? size.h : 0;
-        const widthScale = w > 0 ? (w / BASE_W) : 1;
-        const heightScale = h > 0 ? (h / BASE_H) : 1;
-        scale = Math.max(0.2, Math.min(widthScale, heightScale));
-      } else if (!forceFlowLayout && transform) {
-        scale = Math.max(0.2, transform.cellPx / 16);
-      }
-      const inlineStyle: React.CSSProperties = {
-        ...nodeStyle,
-        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
-        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
-        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
-        display: 'block',
-        width: '100%',
-        overflow: 'visible',
-      };
-      if (forceFlowLayout) {
-        return (
-          <div
-            className={cn(interactiveClass, outlineClass)}
-            style={inlineStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-          >
-            <PaypalSection data={{}} isEditing={false} />
-          </div>
-        );
-      } else {
-        return (
-          <div
-            className={cn(interactiveClass, outlineClass)}
-            style={inlineStyle}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-          >
-            <div
-              style={{
-                transform: `scale(${scale})`,
-                transformOrigin: 'top left',
-                width: `${100 / (scale || 1)}%`,
-              }}
-            >
-              <PaypalSection data={{}} isEditing={false} />
-            </div>
-          </div>
-        );
-      }
-    }
     case 'paypal': {
       const nodeStyleRaw = (node as any).style || {};
       const BASE_W = 200;

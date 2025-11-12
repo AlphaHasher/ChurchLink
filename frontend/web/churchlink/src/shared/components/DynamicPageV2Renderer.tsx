@@ -453,9 +453,11 @@ const renderNode = (
             left: (rect.x || 0) - domOffset.x,
             top: (rect.y || 0) - domOffset.y,
           };
-          const sizeMode = (child.type === "map" || child.type === "paypal")
-            ? "widthOnly"
-            : "full";
+          const sizeMode = (child as any).props?.sizeMode === "natural"
+            ? "natural"
+            : (child.type === "map" || child.type === "paypal")
+              ? "widthOnly"
+              : "full";
           if (typeof rect.w === "number") style.width = rect.w;
           if (sizeMode === "full" && typeof rect.h === "number") style.height = rect.h;
 
@@ -645,16 +647,20 @@ const SectionWithVirtualGridPublic: React.FC<{
               left: transform.offsetX + (xu * transform.cellPx),
               top: transform.offsetY + (yu * transform.cellPx),
             };
-            const sizeMode = (node.type === "map" || node.type === "paypal")
-              ? "widthOnly"
-              : "full";
+            const sizeMode = (node as any).props?.sizeMode === "natural"
+              ? "natural"
+              : (node.type === "map" || node.type === "paypal")
+                ? "widthOnly"
+                : "full";
             if (typeof wu === "number") style.width = wu * transform.cellPx;
             if (sizeMode === "full" && typeof hu === "number") style.height = hu * transform.cellPx;
 
             const enforcedRendered =
               sizeMode === "widthOnly"
                 ? enforceWidthOnly(rendered)
-                : enforceFullSize(rendered);
+                : sizeMode === "natural"
+                  ? rendered
+                  : enforceFullSize(rendered);
 
             return (
               <div key={node.id} className="absolute" style={style}>
