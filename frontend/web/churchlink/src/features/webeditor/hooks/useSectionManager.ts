@@ -395,7 +395,7 @@ export function useSectionManager() {
     if (selection?.sectionId && selection?.nodeId) {
       const { sectionId, nodeId } = selection;
       // Ensure any pixel cache is cleared so unit updates reflect immediately in the renderer
-      BuilderState.clearNodePixelLayout(sectionId, nodeId);
+      BuilderState.clearNodePixelLayout(nodeId);
       // Do not push to history here; inspector controls push a single history entry on commit
       setTimeout(() => {
         const cache = BuilderState.getNodePixelLayout(nodeId);
@@ -572,7 +572,7 @@ export function useSectionManager() {
 
                 BuilderState.pushLayout(sectionId, nodeId, prevUnits, nextUnits);
                 // Clear any cached pixel overrides so the renderer uses updated units
-                BuilderState.clearNodePixelLayout(sectionId, nodeId);
+                BuilderState.clearNodePixelLayout(nodeId);
                 return {
                   ...n,
                   layout: { units: nextUnits },

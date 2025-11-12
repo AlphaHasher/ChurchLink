@@ -1,6 +1,8 @@
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Any
+import hashlib
+import os
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Query, Path, Body
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Query, Path, Body, Request
 from fastapi.responses import Response
 
 from controllers.assets_controller import (
@@ -26,6 +28,7 @@ from models.image_data import (
     FolderMoveRequest,
     FolderDeleteRequest,
     FolderResponse,
+    get_image_data,
 )
 
 public_assets_router = APIRouter(prefix="/assets", tags=["assets:public"])
@@ -83,6 +86,7 @@ async def api_delete_asset(id: str = Path(..., description="ObjectId string")):
 
 @public_assets_router.get("/public/id/{id}")
 async def serve_asset(
+    request: Request,
     id: str = Path(..., description="ObjectId string"),
     thumbnail: bool = Query(False),
     download: bool = Query(False),
@@ -92,7 +96,50 @@ async def serve_asset(
       - (bytes, media_type)
       - (bytes, media_type, suggested_filename)
     When ?download=1 is used, we set Content-Disposition with a friendly filename.
+    Supports browser caching via ETag and Cache-Control headers.
+    ETag includes the asset's last modification time to ensure clients get updated versions.
     """
+    # Fetch asset metadata to get updated_at timestamp for ETag
+    doc = await get_image_data(id)
+    
+    # Generate ETag based on asset ID, thumbnail flag, and last modified time
+    # This ensures the ETag changes when the asset is updated
+    etag_version = "unknown"
+    
+    if doc and "updated_at" in doc:
+        etag_version = doc["updated_at"].isoformat()
+    elif doc and "path" in doc:
+        try:
+            # Determine the actual file path
+            from controllers.assets_controller import _extract_folder_rel, _safe_join_root, _safe_join_thumbs
+            rel_folder = _extract_folder_rel(doc["path"])
+            filename = os.path.basename(doc["path"])
+            
+            if thumbnail:
+                folder_path = _safe_join_thumbs(rel_folder if rel_folder != "" else None)
+                fs_path = os.path.join(folder_path, filename)
+                if not os.path.exists(fs_path):
+                    folder_path = _safe_join_root(rel_folder if rel_folder != "" else None)
+                    fs_path = os.path.join(folder_path, filename)
+            else:
+                folder_path = _safe_join_root(rel_folder if rel_folder != "" else None)
+                fs_path = os.path.join(folder_path, filename)
+            
+            if os.path.exists(fs_path):
+                mtime = os.path.getmtime(fs_path)
+                etag_version = str(int(mtime * 1000))  # milliseconds since epoch
+        except Exception:
+            # If we can't get the file mtime, fall back to content hash
+            pass
+    
+    etag = f'"{id}-{"thumb" if thumbnail else "full"}-{etag_version}"'
+    
+    # Check if client has cached version
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match == etag:
+        # Client has current version, return 304 Not Modified
+        return Response(status_code=304, headers={"ETag": etag})
+    
     try:
         result: Any = await load_image_bytes_by_id(id, thumbnail=thumbnail)
     except Exception:
@@ -116,9 +163,20 @@ async def serve_asset(
 
     if data is None:
         raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # If we still have "unknown" version and have the data, use content hash
+    if etag_version == "unknown" and data:
+        content_hash = hashlib.md5(data).hexdigest()[:12]
+        etag = f'"{id}-{"thumb" if thumbnail else "full"}-{content_hash}"'
 
+    headers = {
+        "ETag": etag,
+        # Cache for 1 year, but revalidate with ETag on each request after 1 hour
+        # This allows browsers to cache but still check for updates
+        "Cache-Control": "public, max-age=3600, must-revalidate",
+    }
+    
     # If download is requested and we don't already have a suggested filename, derive it.
-    headers = {}
     if download:
         if not suggested_name:
             # Pull from DB metadata
