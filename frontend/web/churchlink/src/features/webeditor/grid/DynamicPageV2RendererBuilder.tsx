@@ -889,20 +889,22 @@ const SectionWithVirtualGrid: React.FC<{
     const hasInvalidAspectNum = !aspect || typeof aspect.num !== 'number' || aspect.num <= 0 || Number.isNaN(aspect.num);
     const safeCols = hasInvalidCols ? 1 : cols;
     const safeAspectNum = hasInvalidAspectNum ? 1 : aspect.num;
-    if (hasInvalidCols || hasInvalidAspectNum) {
+    const hasInvalidAspectDen = !aspect || typeof aspect.den !== 'number' || aspect.den <= 0 || Number.isNaN(aspect.den);
+    const safeAspectDen = hasInvalidAspectDen ? 1 : aspect.den;
+    if (hasInvalidCols || hasInvalidAspectNum || hasInvalidAspectDen) {
       console.warn('SectionWithVirtualGrid: Invalid grid config detected; coercing to safe defaults.', {
         cols,
         aspect,
       });
     }
-    const virtualHeightPx = rect.width * aspect.den / safeAspectNum;
+    const virtualHeightPx = rect.width * safeAspectDen / safeAspectNum;
     const newTransform = makeVirtualTransform(
       { width: rect.width, height: virtualHeightPx },
       safeCols,
-      { num: safeAspectNum, den: aspect.den }
+      { num: safeAspectNum, den: safeAspectDen }
     );
     setTransform(newTransform);
-  }, [cols, aspect]);
+  }, [cols, aspect, aspect?.den]);
 
   useEffect(() => {
     updateTransform();

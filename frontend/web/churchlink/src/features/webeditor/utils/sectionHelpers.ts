@@ -244,7 +244,7 @@ export const createPresetSection = (key: string): SectionV2 | null => {
       heightPercent: 85,
       background: { className: "", style: { backgroundColor: "#92a2c4" } },
       grid: { className: "w-full" },
-      styleTokens: { fontFamily: "Lato, sans-serif", name: "service times" },
+      styleTokens: { fontFamily: "Lato, sans-serif" },
       builderGrid: {
         cols: 64,
         aspect: { num: 16, den: 9 },

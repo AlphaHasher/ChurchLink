@@ -9,27 +9,8 @@ import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { useLocalize } from "@/shared/utils/localizationUtils";
 import { makeVirtualTransform, VirtualTransform } from "@/features/webeditor/grid/virtualGrid";
-
-/**
- * Combine multiple class name fragments into a single space-separated class string.
- *
- * @param classes - Class name fragments; falsy values (`undefined`, `null`, `false`, `""`) are ignored
- * @returns The combined class string with truthy fragments separated by single spaces; an empty string if none
- */
-function cn(...classes: Array<string | undefined | false | null>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-/**
- * Merges multiple CSS class name fragments, filtering out falsy values.
- *
- * @returns A space-separated string of class names.
- */
-function mergeClassNames(
-  ...classes: Array<string | undefined | null | false>
-) {
-  return classes.filter(Boolean).join(" ");
-}
+import { cn } from "@/lib/utils";
+import DOMPurify from 'dompurify';
 
 
 /**
@@ -64,7 +45,7 @@ function enforceFullSize(content: React.ReactNode): React.ReactNode {
         width: (existingStyle as any).width ?? "100%",
         height: (existingStyle as any).height ?? "100%",
       };
-      const mergedClassName = mergeClassNames(existingClass, "block", "w-full", "h-full");
+      const mergedClassName = cn(existingClass, "block", "w-full", "h-full");
       return React.cloneElement(child as React.ReactElement<any>, {
         className: mergedClassName,
         style: mergedStyle,
@@ -95,7 +76,7 @@ function enforceFullSize(content: React.ReactNode): React.ReactNode {
     width: (existingStyle as any).width ?? "100%",
     height: (existingStyle as any).height ?? "100%",
   };
-  const mergedClassName = mergeClassNames(existingClass, "block", "w-full", "h-full");
+  const mergedClassName = cn(existingClass, "block", "w-full", "h-full");
   return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
 }
 
@@ -110,7 +91,7 @@ function enforceWidthOnly(content: React.ReactNode): React.ReactNode {
         ...existingStyle,
         width: (existingStyle as any).width ?? "100%",
       };
-      const mergedClassName = mergeClassNames(existingClass, "block", "w-full");
+      const mergedClassName = cn(existingClass, "block", "w-full");
       return React.cloneElement(child as React.ReactElement<any>, {
         className: mergedClassName,
         style: mergedStyle,
@@ -136,7 +117,7 @@ function enforceWidthOnly(content: React.ReactNode): React.ReactNode {
     ...existingStyle,
     width: (existingStyle as any).width ?? "100%",
   };
-  const mergedClassName = mergeClassNames(existingClass, "block", "w-full");
+  const mergedClassName = cn(existingClass, "block", "w-full");
   return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
 }
 
@@ -175,11 +156,21 @@ const renderNode = (
       const directHtml = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale);
       const baseHtml = (node as any).props?.html ?? (node as any).props?.text ?? "";
       const isNonDefaultLocale = !!activeLocale && activeLocale !== 'en';
-      const htmlToInject = (directHtml != null && String(directHtml).trim())
+      let htmlToInject = (directHtml != null && String(directHtml).trim())
         ? String(directHtml)
         : ((isNonDefaultLocale && baseHtml && localizeFn)
             ? localizeFn(String(baseHtml))
             : String(baseHtml));
+
+      // Sanitize user-controlled HTML to prevent XSS attacks; DOMPurify strips dangerous tags/attrs
+      // (e.g., <script>, onload) while allowing safe text formatting. Defaults block unsafe URI schemes like javascript:.
+      const isPlainText = !/&lt;/.test(htmlToInject) && !/<[^>]*>/.test(htmlToInject); // Basic check for no HTML tags
+      const sanitizedHtml = DOMPurify.sanitize(htmlToInject, {
+        ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 'br', 'ul', 'ol', 'li', 'a'],
+        ALLOWED_ATTR: ['href', 'target', 'rel'], // Safe attrs only; no onclick, style, etc.
+        ALLOW_DATA_ATTR: false,
+      });
+
       const align = (node as any).props?.align ?? "left";
       const variant = (node as any).props?.variant ?? "p";
       const paddingY = nodeStyleRaw?.paddingY ?? 0;
@@ -258,7 +249,10 @@ const renderNode = (
                 (node as any).style?.className
               )}
               style={innerStyle}
-              dangerouslySetInnerHTML={{ __html: htmlToInject }}
+              {...(isPlainText
+                ? { textContent: sanitizedHtml }
+                : { dangerouslySetInnerHTML: { __html: sanitizedHtml } }
+              )}
             />
           </div>
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
