@@ -164,7 +164,6 @@ const renderNode = (
 
       // Sanitize user-controlled HTML to prevent XSS attacks; DOMPurify strips dangerous tags/attrs
       // (e.g., <script>, onload) while allowing safe text formatting. Defaults block unsafe URI schemes like javascript:.
-      const isPlainText = !/&lt;/.test(htmlToInject) && !/<[^>]*>/.test(htmlToInject); // Basic check for no HTML tags
       const sanitizedHtml = DOMPurify.sanitize(htmlToInject, {
         ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 'br', 'ul', 'ol', 'li', 'a'],
         ALLOWED_ATTR: ['href', 'target', 'rel'], // Safe attrs only; no onclick, style, etc.
@@ -249,10 +248,7 @@ const renderNode = (
                 (node as any).style?.className
               )}
               style={innerStyle}
-              {...(isPlainText
-                ? { textContent: sanitizedHtml }
-                : { dangerouslySetInnerHTML: { __html: sanitizedHtml } }
-              )}
+              dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
             />
           </div>
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
