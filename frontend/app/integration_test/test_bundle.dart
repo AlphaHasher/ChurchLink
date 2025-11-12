@@ -9,7 +9,7 @@ import 'package:patrol/src/native/contracts/contracts.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 // START: GENERATED TEST IMPORTS
-import 'bible_reader_test.dart' as __bible_reader_test;
+import 'weekly_bulletin_test.dart' as __weekly_bulletin_test;
 // END: GENERATED TEST IMPORTS
 
 Future<void> main() async {
@@ -69,7 +69,7 @@ Future<void> main() async {
   });
 
   // START: GENERATED TEST GROUPS
-  group('.bible_reader_test', __bible_reader_test.main);
+  group('.weekly_bulletin_test', __weekly_bulletin_test.main);
   // END: GENERATED TEST GROUPS
 
   final dartTestGroup = await testExplorationCompleter.future;

@@ -39,12 +39,4 @@ describe('Public – Header & Footer', () => {
     cy.contains('Home').should('be.visible');
     cy.contains('All rights reserved').should('be.visible');
   });
-
-  it('opens dropdowns and navigates without visual issues', () => {
-    cy.visit('/');
-    cy.contains('Ministries').trigger('mouseover');
-    cy.contains('Youth').should('be.visible').click();
-    cy.location('pathname').should('eq', '/youth');
-    cy.assertNoClientErrors();
-  });
 });

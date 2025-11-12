@@ -58,6 +58,9 @@ export default function FormPublic() {
   const location = useLocation();
   const navigate = useNavigate();
   const availableLocales = useMemo(() => collectAvailableLocales(schema), [schema]);
+  
+  // Check if E2E test mode is enabled (bypasses authentication)
+  const E2E_TEST_MODE = import.meta.env.VITE_E2E_TEST_MODE === 'true';
 
   // Load available languages for display names
   useEffect(() => {
@@ -85,12 +88,24 @@ export default function FormPublic() {
     (async () => {
       try {
         setLoading(true);
-        // If user is not logged in, show login error
-        if (!user) {
+        
+        console.log('[FormPublic] Auth check:', { 
+          hasUser: !!user, 
+          userEmail: user?.email,
+          E2E_TEST_MODE,
+          slug 
+        });
+        
+        // If user is not logged in, show login error (unless in E2E test mode)
+        if (!user && !E2E_TEST_MODE) {
+          console.log('[FormPublic] Not authenticated - showing login prompt');
           setError("You need to be logged in to view this form");
           setLoading(false);
           return;
         }
+        
+        // Make API call - backend will enforce authentication
+        console.log('[FormPublic] Making API call to fetch form');
         const resp = await api.get(`/v1/forms/slug/${slug}`);
         if (!mounted) return;
         const form = resp.data;
@@ -131,9 +146,9 @@ export default function FormPublic() {
         const status = err?.response?.status as number | undefined;
         const detail = err?.response?.data?.detail;
         const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
-        // If not authenticated/forbidden, don't surface the error; show login prompt instead
-        if (status === 401 || status === 403 || status === 419 || detailStr.includes('not authenticated') || detailStr.includes('unauthorized') || detailStr.includes('forbidden')) {
-          setError(null);
+        // If not authenticated/forbidden, show login prompt
+        if (status === 401 || status === 403 || status === 419 || detailStr.includes('not authenticated') || detailStr.includes('unauthorized') || detailStr.includes('forbidden') || detailStr.includes('missing authorization')) {
+          setError("You need to be logged in to view this form");
           setLoading(false);
           return;
         }
@@ -182,7 +197,7 @@ export default function FormPublic() {
           </span>
           <h2 className="text-xl font-semibold">Form unavailable</h2>
           <p className="text-destructive max-w-md">{error}</p>
-          {!user && (
+          {!user && !E2E_TEST_MODE && (
             <Button
               className="mt-2"
               onClick={() => {

@@ -28,7 +28,6 @@ class _EventsPageState extends State<EventsPage> {
   List<Event> _events = [];
   bool _isLoading = true;
   final Map<String, EventRegistrationSummary> _registrationSummaries = {};
-  Timer? _refreshTimer;
 
   // Declare variables for dynamic filter values
   int? _minAge;
@@ -63,16 +62,10 @@ class _EventsPageState extends State<EventsPage> {
     _dateRange = RangeValues(0, totalDays);
 
     _loadEvents();
-
-    // Auto-refresh every 60 seconds when page is visible
-    _refreshTimer = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted) _loadEvents();
-    });
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     _nameController.dispose();
     _maxPriceController.dispose();
     _ageController.dispose();
@@ -421,7 +414,11 @@ END:VCALENDAR
     // Try opening directly (ACTION_VIEW). If no app can handle it, show share sheet.
     final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
-      final xfile = XFile(path, mimeType: 'text/calendar', name: 'event_${event.id}.ics');
+      final xfile = XFile(
+        path,
+        mimeType: 'text/calendar',
+        name: 'event_${event.id}.ics',
+      );
       await Share.shareXFiles(
         [xfile],
         subject: 'Add to Calendar',
