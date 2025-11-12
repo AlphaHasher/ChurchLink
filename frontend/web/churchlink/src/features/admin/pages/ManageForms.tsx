@@ -29,6 +29,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
 import { MoreHorizontal, Pencil, FileEdit, Copy, Download, Trash, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { slugify } from '@/shared/utils/slugify';
 import { fetchResponsesAndDownloadCsv } from '@/shared/utils/csvExport';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
@@ -444,15 +445,6 @@ const ManageForms = () => {
     }
   };
 
-  const slugify = (s: string) => {
-    return s
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-');
-  };
-
   const openCreateSlug = (id: string, currentSlug?: string, isExisting: boolean = false, autoEnableVisibility: boolean = false) => {
     setSlugError(null);
     setSlugDialog({ id, slug: currentSlug || '', isExisting, autoEnableVisibility });
@@ -597,46 +589,46 @@ const ManageForms = () => {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold mb-4">Forms</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refreshFormsAndMinistries({ showSpinner: true })} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
-          <Button onClick={() => navigate('/admin/forms/form-builder?new=1')}>
-            <Pencil className="h-4 w-4 mr-2" /> New Form
-          </Button>
-        </div>
-      </div>
+      <h1 className="text-2xl font-semibold mb-4">Forms</h1>
 
       <FormsTabs />
 
       <div className="mt-4 p-4 border rounded bg-card text-card-foreground">
         {/* Filters */}
-        <div className="flex flex-wrap gap-2 items-center mb-4">
-          <Input
-            placeholder="Search by name"
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
-            className="w-64 h-9 bg-background"
-          />
-          <Select value={searchMinistry} onValueChange={(v) => setSearchMinistry(v)}>
-            <SelectTrigger className="w-56 h-9 bg-background">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All ministries</SelectItem>
-              {availableMinistries.length > 0 && availableMinistries.map((m: any) => (
-                <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            className="h-9"
-            onClick={() => { setSearchName(''); setSearchMinistry('all'); refreshFormsAndMinistries(); }}
-          >
-            Clear
-          </Button>
-          {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}
+        <div className="flex flex-wrap gap-2 items-center mb-4 justify-between">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              placeholder="Search by name"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              className="w-64 h-9 bg-background"
+            />
+            <Select value={searchMinistry} onValueChange={(v) => setSearchMinistry(v)}>
+              <SelectTrigger className="w-56 h-9 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ministries</SelectItem>
+                {availableMinistries.length > 0 && availableMinistries.map((m: any) => (
+                  <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              className="h-9"
+              onClick={() => { setSearchName(''); setSearchMinistry('all'); refreshFormsAndMinistries(); }}
+            >
+              Clear
+            </Button>
+            {status && <div className="text-sm text-muted-foreground ml-2">{status}</div>}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => refreshFormsAndMinistries({ showSpinner: true })} title="Refresh"><RefreshCcw className="h-4 w-4" /></Button>
+            <Button onClick={() => navigate('/admin/forms/form-builder?new=1')}>
+              <Pencil className="h-4 w-4 mr-2" /> New Form
+            </Button>
+          </div>
         </div>
         {/* Bulk actions */}
         {selectedRows.length > 0 && (

@@ -23,7 +23,7 @@ export function SectionCanvas({
       className={`relative w-full min-h-full flex-1 ${className}`}
       style={style}
     >
-      {showGrid && <GridOverlay gridSize={gridSize} />}
+      {showGrid && <GridOverlay cellPx={gridSize} offsetX={0} offsetY={0} />}
       {/* children will be absolutely positioned nodes + flow content if needed */}
       {children}
     </div>

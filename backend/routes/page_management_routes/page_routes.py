@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Body, Path, HTTPException
 from mongo.database import DB
 from models.page_models import Page
+from helpers.slug_validator import validate_slug
 from bson import ObjectId, errors as bson_errors
 from datetime import datetime
 from urllib.parse import unquote
@@ -18,6 +19,7 @@ def _normalize_slug(raw_slug: str) -> str:
         return "/"
     return decoded
 
+
 # Mod Router
 # @router.post("/api/pages", dependencies=[Depends(permission_required(["can_create_pages"]))])
 @mod_page_router.post("/")
@@ -29,7 +31,10 @@ async def create_page(page: Page = Body(...)):
 
     existing_page = await DB.db["pages"].find_one({"slug": page.slug})
     if existing_page:
-        raise HTTPException(status_code=400, detail="Slug already exists. Please choose a different slug.")
+        raise HTTPException(
+            status_code=400,
+            detail="Slug already exists. Please choose a different slug.",
+        )
 
     page_data = page.dict()
     page_data["created_at"] = datetime.utcnow()
@@ -38,6 +43,7 @@ async def create_page(page: Page = Body(...)):
     result = await DB.db["pages"].insert_one(page_data)
     return {"_id": str(result.inserted_id)}
 
+
 # Public Router - Get page by slug (moved under /slug to avoid conflict with list endpoint)
 @public_page_router.get("/slug/{slug:path}")
 async def get_page_by_slug(slug: str):
@@ -45,22 +51,17 @@ async def get_page_by_slug(slug: str):
     decoded = _normalize_slug(slug)
 
     # Try exact match first
-    page = await DB.db["pages"].find_one({
-        "slug": decoded,
-        "visible": True
-    })
+    page = await DB.db["pages"].find_one({"slug": decoded, "visible": True})
 
     # Fallback: if root not found, try "home"
     if not page and decoded == "/":
-        page = await DB.db["pages"].find_one({
-            "slug": "home",
-            "visible": True
-        })
+        page = await DB.db["pages"].find_one({"slug": "home", "visible": True})
 
     if not page:
         raise HTTPException(status_code=404, detail="Page not found")
     page["_id"] = str(page["_id"])
     return page
+
 
 # Public Router - List visible pages only
 @public_page_router.get("/")
@@ -69,44 +70,44 @@ async def list_visible_pages(skip: int = 0, limit: int = 20):
     List all visible pages for public consumption (navigation, menus, etc.)
     Only returns pages where visible=True
     """
-    cursor = DB.db["pages"].find({
-        "visible": True
-    }).skip(skip).limit(limit)
+    cursor = DB.db["pages"].find({"visible": True}).skip(skip).limit(limit)
     pages = await cursor.to_list(length=limit)
     for page in pages:
         page["_id"] = str(page["_id"])
     return pages
 
+
 # Mod Router
 # @router.put("/api/pages/{page_id}", dependencies=[Depends(permission_required(["can_edit_pages"]))])
 @mod_page_router.put("/{page_id}")
-async def update_page_sections(
-    page_id: str = Path(...),
-    data: dict = Body(...)
-):
+async def update_page_sections(page_id: str = Path(...), data: dict = Body(...)):
     data["updated_at"] = datetime.utcnow()
     if "title" in data and not isinstance(data["title"], str):
         raise HTTPException(status_code=400, detail="Invalid title format")
-    if "slug" in data and not isinstance(data["slug"], str):
-        raise HTTPException(status_code=400, detail="Invalid slug format")
+    if "slug" in data:
+        if not isinstance(data["slug"], str):
+            raise HTTPException(status_code=400, detail="Invalid slug format")
+        try:
+            data["slug"] = validate_slug(data["slug"], allow_none=True, allow_root=True)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
     try:
         object_id = ObjectId(page_id)
     except bson_errors.InvalidId:
         raise HTTPException(status_code=400, detail="Invalid page ID format")
 
-    result = await DB.db["pages"].update_one(
-        {"_id": object_id},
-        {"$set": data}
-    )
+    result = await DB.db["pages"].update_one({"_id": object_id}, {"$set": data})
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Page not found")
-    
+
     return {"matched": result.matched_count, "modified": result.modified_count}
+
 
 # ------------------------------
 # Staging/Draft Endpoints
 # ------------------------------
+
 
 @public_page_router.get("/staging/{slug:path}")
 async def get_staging_page(slug: str):
@@ -131,10 +132,7 @@ async def get_staging_page(slug: str):
 
 
 @mod_page_router.put("/staging/{slug:path}")
-async def upsert_staging_page(
-    slug: str = Path(...),
-    data: dict = Body(...)
-):
+async def upsert_staging_page(slug: str = Path(...), data: dict = Body(...)):
     """Create or update a staging (draft) page by slug. Upserts by slug."""
     data = {**data}
     decoded = _normalize_slug(slug)
@@ -150,7 +148,10 @@ async def upsert_staging_page(
         {"$set": data, "$setOnInsert": {"created_at": datetime.utcnow()}},
         upsert=True,
     )
-    return {"upserted": getattr(result, "upserted_id", None) is not None, "modified": result.modified_count}
+    return {
+        "upserted": getattr(result, "upserted_id", None) is not None,
+        "modified": result.modified_count,
+    }
 
 
 @mod_page_router.delete("/staging/{slug:path}")
@@ -167,7 +168,20 @@ async def delete_staging_page(slug: str):
 
 @mod_page_router.post("/publish/{slug:path}")
 async def publish_staging_page(slug: str):
-    """Publish staging page to live collection by slug, replacing or creating live page. Removes staging copy afterwards."""
+    """
+    Publish a staging page into the live pages collection by slug.
+
+    Normalizes the provided slug, loads the corresponding staging document (with a root '/' fallback to 'home'), upserts a curated set of fields into the live pages collection, and removes the staging copy after successful publish.
+
+    Parameters:
+        slug (str): Raw slug or path identifying the page to publish; it will be normalized/decoded before use.
+
+    Returns:
+        dict: `{'published': True}` when the publish completes successfully.
+
+    Raises:
+        HTTPException: If the staging page cannot be found (404) or if an internal error occurs during publishing (500).
+    """
     try:
         # Normalize and safely decode slug to mirror preview/get behavior
         decoded = _normalize_slug(slug)
@@ -180,7 +194,16 @@ async def publish_staging_page(slug: str):
             raise HTTPException(status_code=404, detail="Staging page not found")
 
         # Build publish fields with sane defaults and include style tokens for v2
-        allowed_keys = ["title", "slug", "sections", "visible", "version", "styleTokens"]
+        # Include mobile sections if provided
+        allowed_keys = [
+            "title",
+            "slug",
+            "sections",
+            "sectionsMobile",
+            "visible",
+            "version",
+            "styleTokens",
+        ]
         publish_fields = {k: staging.get(k) for k in allowed_keys if k in staging}
         publish_fields["slug"] = decoded
         publish_fields.setdefault("version", 2)
@@ -207,6 +230,7 @@ async def publish_staging_page(slug: str):
         # Surface internal error for easier debugging during development
         raise HTTPException(status_code=500, detail=f"Publish failed: {str(e)}")
 
+
 # Mod Router
 @mod_page_router.delete("/{page_id}")
 async def delete_page(page_id: str = Path(...)):
@@ -222,6 +246,7 @@ async def delete_page(page_id: str = Path(...)):
 
     return {"deleted": result.deleted_count}
 
+
 # Mod Router - List all pages (including hidden ones) for admin management
 @mod_page_router.get("/")
 async def list_all_pages(skip: int = 0, limit: int = 20):
@@ -235,11 +260,13 @@ async def list_all_pages(skip: int = 0, limit: int = 20):
         page["_id"] = str(page["_id"])
     return pages
 
+
 # Mod Router
 @mod_page_router.get("/check-slug")
 async def check_slug_availability(slug: str):
     existing_page = await DB.db["pages"].find_one({"slug": slug})
     return {"available": existing_page is None}
+
 
 # Mod Router
 @mod_page_router.put("/{page_id}/visibility")
@@ -251,13 +278,14 @@ async def toggle_page_visibility(page_id: str = Path(...), visible: bool = Body(
 
     result = await DB.db["pages"].update_one(
         {"_id": object_id},
-        {"$set": {"visible": visible, "updated_at": datetime.utcnow()}}
+        {"$set": {"visible": visible, "updated_at": datetime.utcnow()}},
     )
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Page not found")
 
     return {"matched": result.matched_count, "modified": result.modified_count}
+
 
 # Mod Router - Preview page for admin (bypasses visibility checks)
 @mod_page_router.get("/preview/{slug:path}")

@@ -1,27 +1,24 @@
 import React from "react";
 import EventSection from "@sections/EventSection";
 import MapSection from "@sections/MapSection";
-// import ServiceTimesSection from "@sections/ServiceTimesSection";
-// import MenuSection from "@sections/MenuSection";
-// import ContactInfoSection from "@sections/ContactInfoSection";
+import ServiceTimesSection from "@sections/ServiceTimesSection";
+import MenuSection from "@sections/MenuSection";
+import ContactInfoSection from "@sections/ContactInfoSection";
 import PaypalSection from "@sections/PaypalSection";
-// ScopedStyle temporarily disabled due to drag measurement regressions
 import { PageV2, SectionV2, Node } from "@/shared/types/pageV2";
-import { defaultGridSize, unitsToPx } from "@/features/webeditor/grid/gridMath";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { useLocalize } from "@/shared/utils/localizationUtils";
+import { makeVirtualTransform, VirtualTransform } from "@/features/webeditor/grid/virtualGrid";
+import { cn } from "@/lib/utils";
+import DOMPurify from 'dompurify';
 
-function cn(...classes: Array<string | undefined | false | null>) {
-  return classes.filter(Boolean).join(" ");
-}
 
-function mergeClassNames(
-  ...classes: Array<string | undefined | null | false>
-) {
-  return classes.filter(Boolean).join(" ");
-}
-
-// Match builder padding conversion: Tailwind spacing unit -> rem (n * 0.25rem)
+/**
+ * Convert a Tailwind spacing unit to a CSS length in `rem`.
+ *
+ * @param value - Tailwind spacing unit (each unit = 0.25rem); may be `undefined` or `null`
+ * @returns The computed CSS length as a string (e.g., `"0.25rem"`), the string `"0"` for zero, or `undefined` when `value` is not a finite number
+ */
 function tailwindSpacingToRem(value?: number | null) {
   if (typeof value !== "number" || Number.isNaN(value)) return undefined;
   if (value === 0) return "0";
@@ -48,7 +45,7 @@ function enforceFullSize(content: React.ReactNode): React.ReactNode {
         width: (existingStyle as any).width ?? "100%",
         height: (existingStyle as any).height ?? "100%",
       };
-      const mergedClassName = mergeClassNames(existingClass, "block", "w-full", "h-full");
+      const mergedClassName = cn(existingClass, "block", "w-full", "h-full");
       return React.cloneElement(child as React.ReactElement<any>, {
         className: mergedClassName,
         style: mergedStyle,
@@ -79,7 +76,7 @@ function enforceFullSize(content: React.ReactNode): React.ReactNode {
     width: (existingStyle as any).width ?? "100%",
     height: (existingStyle as any).height ?? "100%",
   };
-  const mergedClassName = mergeClassNames(existingClass, "block", "w-full", "h-full");
+  const mergedClassName = cn(existingClass, "block", "w-full", "h-full");
   return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
 }
 
@@ -94,7 +91,7 @@ function enforceWidthOnly(content: React.ReactNode): React.ReactNode {
         ...existingStyle,
         width: (existingStyle as any).width ?? "100%",
       };
-      const mergedClassName = mergeClassNames(existingClass, "block", "w-full");
+      const mergedClassName = cn(existingClass, "block", "w-full");
       return React.cloneElement(child as React.ReactElement<any>, {
         className: mergedClassName,
         style: mergedStyle,
@@ -120,7 +117,7 @@ function enforceWidthOnly(content: React.ReactNode): React.ReactNode {
     ...existingStyle,
     width: (existingStyle as any).width ?? "100%",
   };
-  const mergedClassName = mergeClassNames(existingClass, "block", "w-full");
+  const mergedClassName = cn(existingClass, "block", "w-full");
   return React.cloneElement(element, { className: mergedClassName, style: mergedStyle });
 }
 
@@ -137,11 +134,12 @@ const renderNode = (
   node: Node,
   highlightNodeId?: string,
   sectionFontFamily?: string,
-  gridSize?: number,
+  transform?: VirtualTransform | null,
   forceFlowLayout?: boolean,
   activeLocale?: string,
   defaultLocale?: string,
-  localizeFn?: (text: string) => string
+  localizeFn?: (text: string) => string,
+  domOffsets?: Record<string, { x: number; y: number }>
 ): React.ReactNode => {
   const nodeFontFamily = (node as any).style?.fontFamily || sectionFontFamily;
   const nodeStyleRaw = (node as any).style || {};
@@ -156,21 +154,22 @@ const renderNode = (
   switch (node.type) {
     case "text": {
       const directHtml = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale);
-      const baseHtmlProp = (node as any).props?.html as string | undefined;
-      const baseTextProp = (node as any).props?.text as string | undefined;
-      const isNonDefaultLocale = !!activeLocale && !!(defaultLocale || 'en') && activeLocale !== (defaultLocale || 'en');
+      const baseHtml = (node as any).props?.html ?? (node as any).props?.text ?? "";
+      const isNonDefaultLocale = !!activeLocale && activeLocale !== 'en';
+      let htmlToInject = (directHtml != null && String(directHtml).trim())
+        ? String(directHtml)
+        : ((isNonDefaultLocale && baseHtml && localizeFn)
+            ? localizeFn(String(baseHtml))
+            : String(baseHtml));
 
-      const hasDirectHtml = !!(directHtml != null && String(directHtml).trim());
-      const canUseBaseAuthoredHtml = !!(baseHtmlProp && !isNonDefaultLocale);
-      const shouldInjectHtml = hasDirectHtml || canUseBaseAuthoredHtml;
-      const htmlToInject = hasDirectHtml ? String(directHtml) : String(baseHtmlProp ?? "");
+      // Sanitize user-controlled HTML to prevent XSS attacks; DOMPurify strips dangerous tags/attrs
+      // (e.g., <script>, onload) while allowing safe text formatting. Defaults block unsafe URI schemes like javascript:.
+      const sanitizedHtml = DOMPurify.sanitize(htmlToInject, {
+        ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'strong', 'em', 'u', 'br', 'ul', 'ol', 'li', 'a'],
+        ALLOWED_ATTR: ['href', 'target', 'rel'], // Safe attrs only; no onclick, style, etc.
+        ALLOW_DATA_ATTR: false,
+      });
 
-      const baseTextSource = (baseTextProp != null && String(baseTextProp).trim())
-        ? String(baseTextProp)
-        : (typeof baseHtmlProp === 'string' ? String(baseHtmlProp).replace(/<[^>]*>/g, '') : "");
-      const textToRender = (isNonDefaultLocale && baseTextSource && localizeFn)
-        ? localizeFn(String(baseTextSource))
-        : String(baseTextSource);
       const align = (node as any).props?.align ?? "left";
       const variant = (node as any).props?.variant ?? "p";
       const paddingY = nodeStyleRaw?.paddingY ?? 0;
@@ -178,7 +177,6 @@ const renderNode = (
       const textStyles = nodeStyleRaw?.textStyles || [];
       const fontSize = nodeStyleRaw?.fontSize;
       const fontWeight = nodeStyleRaw?.fontWeight;
-      const width = nodeStyleRaw?.width;
       const elementFontFamily = nodeStyleRaw?.fontFamily;
       const underlineThickness = nodeStyleRaw?.underlineThickness;
       const color = nodeStyleRaw?.color;
@@ -193,62 +191,66 @@ const renderNode = (
       const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX ?? paddingY;
       const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX ?? paddingY;
 
-      const isBold = textStyles.includes("bold");
       const isItalic = textStyles.includes("italic");
       const isUnderline = textStyles.includes("underline");
 
-      const inlineStyles: React.CSSProperties = {
+      // Wrapper fills the node box; background and paddings apply to wrapper
+      const wrapperStyle: React.CSSProperties = {
         ...nodeStyle,
-        ...(fontSize && fontSize !== 1 ? { fontSize: `${fontSize}rem` } : {}),
-        ...(fontWeight && fontWeight !== 400 ? { fontWeight } : {}),
-        ...(width && width !== "auto" ? { width, display: "inline-block" } : {}),
-        ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
-        ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness}px` } : {}),
-        ...(color ? { color } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
         ...(typeof borderRadius === "number" ? { borderRadius } : {}),
         ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
         ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
         ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
         ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+        width: "100%",
+        height: "100%",
+        display: "block",
+      };
+      const gridScale = transform ? (transform.cellPx / 16) : 1;
+      const baseRemByVariant: Record<string, number> = {
+        h1: 2.25,
+        h2: 1.875,
+        h3: 1.5,
+        lead: 1.25,
+        muted: 0.875,
+        p: 1,
+      };
+      const effectiveRem =
+        typeof fontSize === "number" && fontSize > 0
+          ? fontSize
+          : (baseRemByVariant[variant] ?? 1);
+      const innerStyle: React.CSSProperties = {
+        fontSize: `${effectiveRem * 16 * gridScale}px`,
+        ...(fontWeight && fontWeight !== 400 ? { fontWeight } : {}),
+        ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
+        ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
+        ...(color ? { color } : {}),
       };
 
       return (
         <>
-          {shouldInjectHtml ? (
+          <div
+            className={cn(
+              "block w-full h-full align-top break-words",
+              (node as any).style?.className,
+              !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
+              highlightClass(node, highlightNodeId)
+            )}
+            style={wrapperStyle}
+          >
             <Tag
               className={cn(
                 align === "center" && "text-center",
                 align === "right" && "text-right",
-                isBold && "font-bold",
                 isItalic && "italic",
                 isUnderline && "underline",
-                (node as any).style?.className,
-                !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
-                "inline-block max-w-full w-fit align-top break-words",
-                highlightClass(node, highlightNodeId)
+                (node as any).style?.className
               )}
-              style={inlineStyles}
-              dangerouslySetInnerHTML={{ __html: htmlToInject }}
+              style={innerStyle}
+              dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
             />
-          ) : (
-            <Tag
-              className={cn(
-                align === "center" && "text-center",
-                align === "right" && "text-right",
-                isBold && "font-bold",
-                isItalic && "italic",
-                isUnderline && "underline",
-                (node as any).style?.className,
-                !elementFontFamily && nodeFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]",
-                "inline-block max-w-full w-fit align-top break-words",
-                highlightClass(node, highlightNodeId)
-              )}
-              style={inlineStyles}
-            >
-              {textToRender}
-            </Tag>
-          )}
+          </div>
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
       );
@@ -258,12 +260,12 @@ const renderNode = (
       const baseLabel = (node as any).props?.label ?? "Button";
       const label = (direct != null && String(direct).trim())
         ? direct
-        : ((activeLocale && activeLocale !== defaultLocale && baseLabel && localizeFn)
+        : ((activeLocale && activeLocale !== 'en' && baseLabel && localizeFn)
             ? localizeFn(String(baseLabel))
             : String(baseLabel));
       const href = (node as any).props?.href;
       const className = cn(
-        (node as any).style?.className ?? "px-4 py-2 bg-blue-600 text-white rounded",
+        (node as any).style?.className ?? "px-4 py-2 bg-blue-600 text-white rounded text-center",
         nodeFontFamily && "[&>*]:font-[inherit]",
         highlightClass(node, highlightNodeId)
       );
@@ -274,12 +276,23 @@ const renderNode = (
       const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
       const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX;
       const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX;
+      const gridScale = transform ? (transform.cellPx / 16) : 1;
+      const fontSizeRem = typeof (nodeStyleRaw as any)?.fontSize === "number" ? (nodeStyleRaw as any).fontSize : 1;
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
+        fontSize: `${fontSizeRem * 16 * gridScale}px`,
         ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
         ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
         ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
         ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        margin: 0,
+        whiteSpace: "nowrap",
+        width: "100%",
+        height: "100%",
       };
       if (href) {
         return (
@@ -301,19 +314,9 @@ const renderNode = (
       );
     }
     case "eventList": {
-      // Event list container should also respect padding/background/border radius
-      const paddingY = nodeStyleRaw?.paddingY;
-      const paddingX = nodeStyleRaw?.paddingX;
-      const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
-      const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
-      const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX;
-      const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX;
+      // Match builder: respect background/backgroundColor/borderRadius on wrapper
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
-        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
-        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
-        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
-        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
       };
       return (
         <>
@@ -338,30 +341,81 @@ const renderNode = (
     }
     case "map": {
       const url = (node as any).props?.embedUrl || "";
-      const paddingY = nodeStyleRaw?.paddingY;
-      const paddingX = nodeStyleRaw?.paddingX;
-      const paddingTop = nodeStyleRaw?.paddingTop ?? paddingY;
-      const paddingBottom = nodeStyleRaw?.paddingBottom ?? paddingY;
-      const paddingLeft = nodeStyleRaw?.paddingLeft ?? paddingX;
-      const paddingRight = nodeStyleRaw?.paddingRight ?? paddingX;
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
-        ...(typeof paddingTop === "number" ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
-        ...(typeof paddingBottom === "number" ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
-        ...(typeof paddingLeft === "number" ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
-        ...(typeof paddingRight === "number" ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
       };
       return (
         <div className={cn('block w-full', (node as any).style?.className, highlightClass(node, highlightNodeId))} style={inlineStyle}>
-          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle unstyled />
+          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle disableInteractions />
         </div>
       );
     }
     case "paypal": {
-      // In V2, paypal is rendered as a locked section content; here allow rendering the UI component
+      const BASE_W = 200;
+      const BASE_H = 200;
+      let scale = 1;
+      const units = (node as any)?.layout?.units as { wu?: number; hu?: number } | undefined;
+      if (!forceFlowLayout && units && transform) {
+        const wpx = typeof units.wu === "number" ? (units.wu * transform.cellPx) : 0;
+        const hpx = typeof units.hu === "number" ? (units.hu * transform.cellPx) : 0;
+        const widthScale = wpx > 0 ? (wpx / BASE_W) : 1;
+        const heightScale = hpx > 0 ? (hpx / BASE_H) : 1;
+        scale = Math.max(0.2, Math.min(widthScale, heightScale));
+      } else if (!forceFlowLayout && transform) {
+        scale = Math.max(0.2, transform.cellPx / 16);
+      }
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        display: "block",
+        width: "100%",
+        overflow: "visible",
+      };
+      if (forceFlowLayout) {
+        return (
+          <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={inlineStyle}>
+            <PaypalSection data={{}} isEditing={false} />
+          </div>
+        );
+      } else {
+        return (
+          <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={{ ...inlineStyle, height: undefined }}>
+            <div
+              style={{
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+                width: `${100 / (scale || 1)}%`,
+              }}
+            >
+              <PaypalSection data={{}} isEditing={false} />
+            </div>
+          </div>
+        );
+      }
+    }
+    case "serviceTimes": {
+      const defaultData = { title: "Service Times", times: [{ label: "Sunday", time: "9:00 AM" }, { label: "Sunday", time: "11:00 AM" }] };
+      const data = (node as any).props?.data ?? defaultData;
       return (
         <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
-          <PaypalSection data={{}} isEditing={false} />
+          <ServiceTimesSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case "menu": {
+      const defaultData = { items: [] as Array<{ title: string; imageUrl: string; description?: string; linkUrl?: string }> };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
+          <MenuSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case "contactInfo": {
+      const defaultData = { items: [{ label: "Phone", value: "(555) 123-4567" }, { label: "Email", value: "hello@yourchurch.org" }] };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={nodeStyle}>
+          <ContactInfoSection data={data} isEditing={false} />
         </div>
       );
     }
@@ -386,27 +440,33 @@ const renderNode = (
       const pyClass =
         py === 0 ? "py-0" : py === 2 ? "py-2" : py === 4 ? "py-4" : py === 6 ? "py-6" : "py-6";
 
+      // Container grid origin is not needed when using DOM offset alignment (builder parity)
       const containerContent = (node.children ?? []).map((child) => {
         const hasLayout = !!child.layout?.units;
-        const childRendered = renderNode(child, highlightNodeId, nodeFontFamily, gridSize, forceFlowLayout, activeLocale, defaultLocale);
+        const childRendered = renderNode(child, highlightNodeId, nodeFontFamily, transform, forceFlowLayout, activeLocale, defaultLocale, localizeFn, domOffsets);
 
-        if (hasLayout && gridSize && !forceFlowLayout) {
-          const { xu, yu, wu, hu } = child.layout!.units;
+        if (hasLayout && transform && !forceFlowLayout) {
+          const rect = transform.toPx(child.layout!.units);
+          const domOffset = (domOffsets && domOffsets[node.id]) || { x: 0, y: 0 };
           const style: React.CSSProperties = {
-            left: unitsToPx(xu, gridSize),
-            top: unitsToPx(yu, gridSize),
+            // Builder equivalent: child px relative to content minus real DOM container offset
+            left: (rect.x || 0) - domOffset.x,
+            top: (rect.y || 0) - domOffset.y,
           };
-          if (typeof wu === "number") style.width = unitsToPx(wu, gridSize);
-          if (typeof hu === "number") style.height = unitsToPx(hu, gridSize);
+          const sizeMode = (child.type === "map" || child.type === "paypal")
+            ? "widthOnly"
+            : "full";
+          if (typeof rect.w === "number") style.width = rect.w;
+          if (sizeMode === "full" && typeof rect.h === "number") style.height = rect.h;
 
           const enforcedChild =
-            child.type === "text" || child.type === "button"
+            sizeMode === "widthOnly"
               ? enforceWidthOnly(childRendered)
               : enforceFullSize(childRendered);
 
           return (
             <div key={child.id} className="absolute" style={style}>
-              <div className="w-full h-full">{enforcedChild}</div>
+              <div className={cn("w-full", sizeMode === "full" && "h-full")}>{enforcedChild}</div>
             </div>
           );
         }
@@ -461,7 +521,7 @@ const renderNode = (
       const baseAlt = (node as any).props?.alt || "";
       const alt = (directAlt != null && String(directAlt).trim())
         ? directAlt
-        : ((activeLocale && activeLocale !== defaultLocale && baseAlt && localizeFn)
+        : ((activeLocale && activeLocale !== 'en' && baseAlt && localizeFn)
             ? localizeFn(String(baseAlt))
             : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || "cover";
@@ -482,14 +542,142 @@ const renderNode = (
         </>
       );
     }
-    case "menu": {
-      // V1 only; for V2 treat as container/text composition in presets
-      return null;
-    }
     default: {
       return null;
     }
   }
+};
+
+const SectionWithVirtualGridPublic: React.FC<{
+  section: SectionV2;
+  bg?: string;
+  gridClasses: string;
+  sectionFontFamily?: string;
+  highlightNodeId?: string;
+  activeLocale?: string;
+  defaultLocale?: string;
+  localize: (t: string) => string;
+}> = ({ section, bg, gridClasses, sectionFontFamily, highlightNodeId, activeLocale, defaultLocale, localize }) => {
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = React.useState<VirtualTransform | null>(null);
+  const [containerDomOffsets, setContainerDomOffsets] = React.useState<Record<string, { x: number; y: number }>>({});
+
+  const cols = section.builderGrid?.cols ?? 64;
+  const aspect = section.builderGrid?.aspect ?? { num: 16, den: 9 };
+
+  const updateTransform = React.useCallback(() => {
+    if (!contentRef.current) return;
+    const rect = contentRef.current.getBoundingClientRect();
+    const virtualHeightPx = rect.width * aspect.den / aspect.num;
+    const newTransform = makeVirtualTransform(
+      { width: rect.width, height: virtualHeightPx },
+      cols,
+      aspect
+    );
+    setTransform(newTransform);
+  }, [cols, aspect]);
+
+  React.useEffect(() => {
+    updateTransform();
+    const ro = new ResizeObserver(() => updateTransform());
+    if (contentRef.current) ro.observe(contentRef.current);
+    return () => {
+      ro.disconnect();
+    };
+  }, [updateTransform]);
+
+  const locked = section.lockLayout === true;
+
+  // Re-introduce DOM offset measurement for containers (used for nested children placement)
+  React.useLayoutEffect(() => {
+    if (!contentRef.current || !transform) return;
+    const contentRect = contentRef.current.getBoundingClientRect();
+    const mapping: Record<string, { x: number; y: number }> = {};
+    const walk = (nodes: Node[] | undefined) => {
+      if (!nodes) return;
+      for (const n of nodes) {
+        if (n.type === "container") {
+          const el = document.getElementById(n.id);
+          if (el) {
+            const r = el.getBoundingClientRect();
+            mapping[n.id] = { x: r.left - contentRect.left, y: r.top - contentRect.top };
+          }
+        }
+        const maybeChildren = (n as any).children as Node[] | undefined;
+        if (maybeChildren && Array.isArray(maybeChildren)) walk(maybeChildren);
+      }
+    };
+    walk(section.children as any);
+    setContainerDomOffsets(mapping);
+  }, [section.children, transform]);
+
+  return (
+    <section
+      className={cn(
+        "w-full relative overflow-x-hidden",
+        bg,
+        sectionFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]"
+      )}
+      style={{
+        ...(section.background?.style as React.CSSProperties),
+        ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
+        ...(locked
+          ? {}
+          : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
+      }}
+    >
+      <div
+        ref={contentRef}
+        className={cn(gridClasses, "relative", !locked && "h-full min-h-full")}
+        id={`section-content-${section.id}`}
+        style={{ ...(locked ? {} : { minHeight: "inherit" }), position: "relative" }}
+      >
+        {section.children.map((node) => {
+          const hasLayout = !!node.layout?.units;
+        const rendered = renderNode(node, highlightNodeId, sectionFontFamily, transform, locked, activeLocale, defaultLocale, localize, containerDomOffsets);
+
+          if (hasLayout && !locked && transform) {
+            const { xu, yu, wu, hu } = node.layout!.units;
+            const style: React.CSSProperties = {
+              // Match builder: position using virtual grid px including transform offsets
+              left: transform.offsetX + (xu * transform.cellPx),
+              top: transform.offsetY + (yu * transform.cellPx),
+            };
+            const sizeMode = (node.type === "map" || node.type === "paypal")
+              ? "widthOnly"
+              : "full";
+            if (typeof wu === "number") style.width = wu * transform.cellPx;
+            if (sizeMode === "full" && typeof hu === "number") style.height = hu * transform.cellPx;
+
+            const enforcedRendered =
+              sizeMode === "widthOnly"
+                ? enforceWidthOnly(rendered)
+                : enforceFullSize(rendered);
+
+            return (
+              <div key={node.id} className="absolute" style={style}>
+                <div className={cn("w-full", sizeMode === "full" && "h-full")}>{enforcedRendered}</div>
+              </div>
+            );
+          }
+
+          const isContainer = node.type === "container";
+          if (locked) {
+            return (
+              <div key={node.id} className="relative">
+                {rendered}
+              </div>
+            );
+          }
+          return (
+            <div key={node.id} className={cn("relative", !isContainer && "inline-block")} style={{ width: !isContainer ? "fit-content" : undefined }}>
+              {rendered}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
 };
 
 const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; activeLocale?: string; defaultLocale?: string }> = ({ page, highlightNodeId, activeLocale, defaultLocale }) => {
@@ -497,82 +685,55 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
   const defaultFontFallback = (page as any).styleTokens?.defaultFontFallback as string | undefined;
   const fontFamily = defaultFontFamily || defaultFontFallback;
   const localize = useLocalize();
+  const [isMobile, setIsMobile] = React.useState<boolean>(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    return window.matchMedia("(max-width: 768px)").matches;
+  });
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    try {
+      mq.addEventListener("change", handler);
+    } catch {
+      // Safari
+      mq.addListener(handler);
+    }
+    return () => {
+      try {
+        mq.removeEventListener("change", handler);
+      } catch {
+        mq.removeListener(handler);
+      }
+    };
+  }, []);
 
   return (
     <div
-      className="w-full min-h-full"
+      className="w-full min-h-full overflow-x-hidden max-w-full"
       style={fontFamily ? ({ fontFamily } as React.CSSProperties) : undefined}
     >
-      {page.sections.map((section: SectionV2) => {
+      {(isMobile && Array.isArray((page as any)?.sectionsMobile) && (page as any).sectionsMobile.length ? (page as any).sectionsMobile : page.sections).map((section: SectionV2) => {
         const bg = section.background?.className as string | undefined;
         const gridClass = section.grid?.className ?? "";
         const hasWidthClass = /(^|\s)w-/.test(gridClass);
         const gridClasses = cn(gridClass, !hasWidthClass && "w-full");
 
         const sectionFontFamily = (section.styleTokens as any)?.fontFamily || fontFamily;
-        const gridSize = section.builderGrid?.gridSize ?? defaultGridSize;
 
         return (
-          <section
+          <SectionWithVirtualGridPublic
             key={section.id}
-            className={cn(
-              "w-full relative",
-              bg,
-              sectionFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]"
-            )}
-            style={{
-              ...(section.background?.style as React.CSSProperties),
-              ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
-              minHeight: `${section.heightPercent ?? 100}vh`,
-            }}
-          >
-            <div
-              className={cn(gridClasses, "relative h-full min-h-full")}
-              id={`section-content-${section.id}`}
-              style={{ minHeight: "inherit" }}
-            >
-              {section.children.map((node) => {
-                const hasLayout = !!node.layout?.units;
-                const forceFlow = section.lockLayout === true;
-                const rendered = renderNode(node, highlightNodeId, sectionFontFamily, gridSize, forceFlow, activeLocale, (defaultLocale || (page as any)?.defaultLocale), localize);
-
-                if (hasLayout && !forceFlow) {
-                  const { xu, yu, wu, hu } = node.layout!.units;
-                  const style: React.CSSProperties = {
-                    left: unitsToPx(xu, gridSize),
-                    top: unitsToPx(yu, gridSize),
-                  };
-                  if (typeof wu === "number") style.width = unitsToPx(wu, gridSize);
-                  if (typeof hu === "number") style.height = unitsToPx(hu, gridSize);
-
-                  const enforcedRendered =
-                    node.type === "text" || node.type === "button"
-                      ? enforceWidthOnly(rendered)
-                      : enforceFullSize(rendered);
-
-                  return (
-                    <div key={node.id} className="absolute" style={style}>
-                      <div className="w-full h-full">{enforcedRendered}</div>
-                    </div>
-                  );
-                }
-
-                const isContainer = node.type === "container";
-                if (forceFlow) {
-                  return (
-                    <div key={node.id} className="relative">
-                      {rendered}
-                    </div>
-                  );
-                }
-                return (
-                  <div key={node.id} className={cn("relative", !isContainer && "inline-block")} style={{ width: !isContainer ? "fit-content" : undefined }}>
-                    {rendered}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+            section={section}
+            bg={bg}
+            gridClasses={gridClasses}
+            sectionFontFamily={sectionFontFamily}
+            highlightNodeId={highlightNodeId}
+            activeLocale={activeLocale}
+            defaultLocale={defaultLocale || (page as any)?.defaultLocale}
+            localize={localize}
+          />
         );
       })}
     </div>
@@ -580,5 +741,4 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
 };
 
 export default DynamicPageV2Renderer;
-
 

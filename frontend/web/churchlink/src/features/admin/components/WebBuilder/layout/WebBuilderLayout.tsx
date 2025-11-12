@@ -166,7 +166,7 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
               <div className="absolute inset-0 border rounded-lg overflow-hidden bg-background flex flex-col min-h-0">
                 <NavBar headerData={type === "header" ? currentHeaderData : undefined} />
                 <div className="flex-1 overflow-auto">
-                  <DynamicPage isPreviewMode={true} previewSlug="home" showPreviewHeader={false} />
+                  <DynamicPage isPreviewMode={true} previewSlug="home" />
                 </div>
                 <div className="shrink-0">
                   <Footer footerData={type === "footer" ? currentFooterData : undefined} />

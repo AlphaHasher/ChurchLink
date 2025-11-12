@@ -6,7 +6,7 @@ import { Label } from '@/shared/components/ui/label';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { Save, Globe, Image, Church, MapPin } from 'lucide-react';
 import { websiteConfigApi } from '@/api/api';
-import FaviconSelector from '../../../components/Website/FaviconSelector';
+import FaviconSelector from '@/features/admin/components/Website/FaviconSelector';
 
 interface WebsiteConfig {
   title: string;
@@ -25,7 +25,7 @@ interface ChurchSettings {
   CHURCH_POSTAL_CODE?: string;
 }
 
-const WebsiteSettings: React.FC = () => {
+const WebsiteSettingsPage: React.FC = () => {
   const [config, setConfig] = useState<WebsiteConfig>({
     title: 'Your Church Website',
     favicon_url: null,
@@ -171,9 +171,9 @@ const WebsiteSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Globe className="h-6 w-6" />
+    <div className="p-4 space-y-6">
+      <div className="flex items-center mt-2">
+        <Globe className="h-6 w-6 mr-2" />
         <h2 className="text-2xl font-bold">Website Settings</h2>
       </div>
 
@@ -384,4 +384,4 @@ const WebsiteSettings: React.FC = () => {
   );
 };
 
-export default WebsiteSettings;
+export default WebsiteSettingsPage;

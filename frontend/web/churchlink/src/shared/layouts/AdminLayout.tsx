@@ -9,7 +9,7 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
-  
+
 
   const renderedSidebar = <Sidebar />;
 
@@ -25,9 +25,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
             <ModeToggle />
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-            <div className="mb-3">
-              <SidebarTrigger />
-            </div>
+            <SidebarTrigger />
             {children || <Outlet />}
           </div>
         </div>

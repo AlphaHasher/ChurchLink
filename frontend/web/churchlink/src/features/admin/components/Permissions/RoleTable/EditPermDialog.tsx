@@ -169,7 +169,11 @@ export function EditPermDialog({ onSave, permissions: initialPermissions }: Edit
                     </div>
                     <DialogFooter>
                         <Button type="button" onClick={handleDialogClose} disabled={saving}>Cancel</Button>
-                        <Button type="button" onClick={handleSaveChanges} disabled={saving}>
+                        <Button
+                            type="button"
+                            onClick={handleSaveChanges}
+                            disabled={saving || !permissions.name.trim()}
+                        >
                             {saving ? (
                                 <>
                                     <Loader2 className="animate-spin mr-2 h-4 w-4" />

@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import "ag-grid-community/styles/ag-theme-quartz.css";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, RefreshCcw } from "lucide-react";
 import api from "@/api/api";
 import { VisibilityToggleCellRenderer } from "@/shared/components/VisibilityToggle";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
+import { slugify } from "@/shared/utils/slugify";
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -30,18 +31,21 @@ const WebBuilderPageList = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newSlug, setNewSlug] = useState("");
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchPages = async () => {
+    try {
+      const response = await api.get("/v1/pages/");
+      setPages(response.data);
+    } catch (error) {
+      console.error("Error fetching pages:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchPages = async () => {
-      try {
-        const response = await api.get("/v1/pages/");
-        setPages(response.data);
-      } catch (error) {
-        console.error("Error fetching pages:", error);
-      }
-    };
     fetchPages();
   }, []);
 
@@ -173,18 +177,17 @@ const WebBuilderPageList = () => {
     filter: true,
   }), []);
 
-  const slugify = (s: string) => {
-    return s
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
+  // Validate slug
+  const validateSlug = (slug: string): boolean => {
+    if (slug === "/") return true; // Special case for home page
+    return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
   };
 
   const openAddDialog = () => {
     setNewTitle("");
     setNewSlug("");
+    setSlugManuallyEdited(false);
+    setSlugError(null);
     setError(null);
     setIsAddOpen(true);
   };
@@ -215,8 +218,10 @@ const WebBuilderPageList = () => {
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-semibold">Website Pages</h1>
+      <div className="flex justify-end items-center mb-4 gap-2">
+        <Button variant="outline" size="sm" onClick={fetchPages} title="Refresh">
+          <RefreshCcw className="h-4 w-4" />
+        </Button>
         <Button onClick={openAddDialog} className="h-9">
           + Add Page
         </Button>
@@ -226,7 +231,7 @@ const WebBuilderPageList = () => {
           rowData={pages}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
-          context={{ 
+          context={{
             setPages,
             onToggleVisibility: async (id: string, newVisibility: boolean) => {
               await api.put(`/v1/pages/${id}`, { visible: newVisibility });
@@ -252,7 +257,14 @@ const WebBuilderPageList = () => {
                 value={newTitle}
                 onChange={(e) => {
                   setNewTitle(e.target.value);
-                  if (!newSlug) setNewSlug(slugify(e.target.value));
+                  if (!slugManuallyEdited) {
+                    const titleValue = e.target.value;
+                    if (titleValue.trim().toLowerCase() === 'home') {
+                      setNewSlug('/');
+                    } else {
+                      setNewSlug(slugify(titleValue));
+                    }
+                  }
                 }}
                 placeholder="Home, About, Contact..."
                 className="mt-1"
@@ -262,16 +274,40 @@ const WebBuilderPageList = () => {
               <label className="text-sm">Slug</label>
               <Input
                 value={newSlug}
-                onChange={(e) => setNewSlug(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setNewSlug(value);
+
+                  // If slug is cleared, restore auto-slugification
+                  if (value.trim() === "") {
+                    setSlugManuallyEdited(false);
+                    setSlugError(null);
+                    // Auto-generate from current title
+                    if (newTitle.trim().toLowerCase() === 'home') {
+                      setNewSlug('/');
+                    } else {
+                      setNewSlug(slugify(newTitle));
+                    }
+                  } else {
+                    setSlugManuallyEdited(true);
+                    // Validate slug
+                    if (!validateSlug(value)) {
+                      setSlugError("Only lowercase letters, numbers, and hyphens allowed");
+                    } else {
+                      setSlugError(null);
+                    }
+                  }
+                }}
                 placeholder="about-us or / for home page"
                 className="mt-1"
               />
+              {slugError && <div className="text-xs text-orange-600 mt-1">{slugError}</div>}
             </div>
             {error && <div className="text-xs text-destructive">{error}</div>}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsAddOpen(false)} disabled={saving}>Cancel</Button>
-            <Button onClick={saveNewPage} disabled={saving}>Save</Button>
+            <Button onClick={saveNewPage} disabled={saving || !!slugError || !newTitle.trim() || !newSlug.trim()}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

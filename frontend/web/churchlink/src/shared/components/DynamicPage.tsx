@@ -1,14 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import api from "@/api/api";
-import HeroSection from "@/features/admin/components/WebBuilder/sections/HeroSection";
-import PaypalSection from "@/features/admin/components/WebBuilder/sections/PaypalSection";
-import ServiceTimesSection from "@/features/admin/components/WebBuilder/sections/ServiceTimesSection";
-import MenuSection from "@/features/admin/components/WebBuilder/sections/MenuSection";
-import ContactInfoSection from "@/features/admin/components/WebBuilder/sections/ContactInfoSection";
-import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
-import MapSection from "@/features/admin/components/WebBuilder/sections/MapSection";
-import TextSectionRenderer from "@/features/admin/components/WebBuilder/sections/TextSectionRenderer";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
 import { Skeleton } from "@/shared/components/ui/skeleton";
@@ -53,9 +45,6 @@ export interface Page {
 export interface DynamicPageProps {
   isPreviewMode?: boolean;
   previewSlug?: string;
-  showPreviewHeader?: boolean;
-  onEditClick?: () => void;
-  onBackClick?: () => void;
 }
 
 const DEFAULT_HOME_SLUG = "/";
@@ -63,10 +52,7 @@ const OPTIONAL_BASE = "pages";
 
 const DynamicPage: React.FC<DynamicPageProps> = ({
   isPreviewMode = false,
-  previewSlug,
-  showPreviewHeader = false,
-  onEditClick,
-  onBackClick
+  previewSlug
 }) => {
   const { slug: paramSlug } = useParams();
   const location = useLocation();
@@ -92,7 +78,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     return raw;
   }, [paramSlug, location.pathname, isPreviewMode, previewSlug]);
 
-  const [pageData, setPageData] = useState<Page | null>(null);
+  const [pageData, setPageData] = useState<PageV2 | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState<boolean>(false);
@@ -132,7 +118,6 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
     return () => ctrl.abort();
   }, [slug, isPreviewMode]);
 
-  // In preview mode, don't check visibility; in public mode, check visibility
   const isEffectivelyPreview =
     isPreviewMode ||
     (new URLSearchParams(location.search).get("staging") === "1" ||
@@ -165,125 +150,14 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   console.log("DynamicPage: Rendering page:", pageData);
   console.log("DynamicPage: Page sections:", pageData.sections);
 
-  // If this is a v2 page, render with the v2 renderer
-  const maybeV2 = (pageData as any)?.version;
-  if (maybeV2 === 2) {
-    const searchParams = new URLSearchParams(location.search);
-    const localeParam = searchParams.get('locale') || undefined;
-    return (
-      <DynamicPageV2Renderer page={pageData as unknown as PageV2} activeLocale={localeParam || ctxLocale} defaultLocale={(pageData as any)?.defaultLocale}
-      />
-    );
-  }
-
+  const searchParams = new URLSearchParams(location.search);
+  const localeParam = searchParams.get('locale') || undefined;
   return (
-    <>
-      {/* Preview Header */}
-      {showPreviewHeader && (
-        <div className="bg-yellow-100 border-b border-yellow-300 p-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="bg-yellow-600 text-white px-3 py-1 rounded-full text-sm font-medium">
-                PREVIEW MODE
-              </span>
-              <h1 className="text-lg font-semibold text-gray-800">
-                {pageData.title} ({slug})
-              </h1>
-              <span className={`inline-block px-2 py-1 text-xs rounded-full font-medium ${pageData.visible ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                }`}>
-                {pageData.visible ? "Visible" : "Hidden"}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              {onEditClick && (
-                <button
-                  onClick={onEditClick}
-                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                >
-                  Edit
-                </button>
-              )}
-              {onBackClick && (
-                <button
-                  onClick={onBackClick}
-                  className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
-                >
-                  Back to List
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Page Content */}
-      {pageData.sections && pageData.sections.length > 0 ? (
-        <>
-          {pageData.sections.map((section) => {
-            return (
-              <React.Fragment key={section.id}>
-                {section.type === "text" && (
-                  <div className="container mx-auto px-4 py-6">
-                    <TextSectionRenderer data={section.content} />
-                  </div>
-                )}
-
-                {section.type === "image" && (
-                  <div className="w-full">
-                    <img src={section.content} alt="Section" className="w-full object-cover" />
-                  </div>
-                )}
-
-                {section.type === "video" && (
-                  <div className="aspect-w-16 aspect-h-9">
-                    <iframe
-                      src={section.content}
-                      title="Embedded Video"
-                      frameBorder="0"
-                      allowFullScreen
-                      className="w-full h-96"
-                    />
-                  </div>
-                )}
-
-                {section.type === "hero" && <HeroSection data={section.content} isEditing={false} />}
-
-                {section.type === "paypal" && (
-                  <PaypalSection
-                    data={section.content}
-                    isEditing={false}
-                  />
-                )}
-
-                {section.type === "service-times" && <ServiceTimesSection data={section.content} isEditing={false} />}
-
-                {section.type === "menu" && (
-                  <MenuSection data={section.content} isEditing={false} />
-                )}
-
-                {section.type === "contact-info" && <ContactInfoSection data={section.content} isEditing={false} />}
-
-                {section.type === "map" && (
-                  <MapSection data={section.content} isEditing={false} />
-                )}
-
-                {section.type === "event" && (
-                  <EventSection
-                    showFilters={section.settings?.showFilters !== false}
-                    eventName={section.settings?.eventName}
-                    lockedFilters={section.settings?.lockedFilters}
-                    title={section.settings?.title}
-                    showTitle={section.settings?.showTitle !== false}
-                  />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </>
-      ) : (
-        <div className="container mx-auto px-4 py-8 text-gray-500">No content available.</div>
-      )}
-    </>
+    <DynamicPageV2Renderer
+      page={pageData}
+      activeLocale={localeParam || ctxLocale}
+      defaultLocale={pageData?.defaultLocale}
+    />
   );
 };
 

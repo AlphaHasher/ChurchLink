@@ -28,11 +28,19 @@ type TextInspectorProps = {
   node: TextNode;
   onUpdate: (updater: (node: Node) => Node) => void;
   fontManager?: any;
-  gridSize?: number;
   activeLocale?: string;
   defaultLocale?: string;
 };
 
+/**
+ * Get the localized value for a given property key from a node, falling back to the node's prop value when localization is not available.
+ *
+ * @param node - The node object which may contain an `i18n` map and `props`
+ * @param key - The property key to resolve (e.g., `"text"` or `"html"`)
+ * @param activeLocale - Preferred locale to read from `node.i18n`
+ * @param defaultLocale - Fallback locale to use if `activeLocale` is not provided
+ * @returns The value from `node.i18n[locale][key]` when present for the resolved locale, otherwise `node.props[key]` (may be `undefined`)
+ */
 function resolveLocalized(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
   const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
   const locale = activeLocale || defaultLocale;
@@ -40,7 +48,7 @@ function resolveLocalized(node: Node, key: string, activeLocale?: string, defaul
   return (node as any).props?.[key];
 }
 
-export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fontManager, gridSize, activeLocale, defaultLocale }) => {
+export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fontManager, activeLocale, defaultLocale }) => {
   const [customFontActive, setCustomFontActive] = React.useState<boolean>(false);
   const [localHtml, setLocalHtml] = React.useState(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
   const prevRef = React.useRef<Node | null>(null);
@@ -499,7 +507,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
 
       <Separator />
 
-      <PaddingControls node={node} onUpdate={onUpdate} gridSize={gridSize} />
+      <PaddingControls node={node} onUpdate={onUpdate} />
 
       <Separator />
 
@@ -531,5 +539,4 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
     </div>
   );
 };
-
 
