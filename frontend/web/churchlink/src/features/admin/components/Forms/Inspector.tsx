@@ -199,7 +199,7 @@ export function Inspector() {
               const pricelabelFields = allFields.filter(f => f.type === 'pricelabel') as any[];
               const calculatedTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
               const hasPricelabelFields = pricelabelFields.length > 0;
-              
+
               if (hasPricelabelFields) {
                 return (
                   <div className="space-y-2">
@@ -236,10 +236,10 @@ export function Inspector() {
               } else {
                 return (
                   <div className="space-y-2">
-                    <Input 
-                      type="number" 
+                    <Input
+                      type="number"
                       value={(field as any).amount ?? 0}
-                      onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} 
+                      onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)}
                     />
                     <p className="text-xs text-muted-foreground">
                       Manual entry mode - no price components found. Add price components for automatic calculation.

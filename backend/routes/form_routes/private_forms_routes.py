@@ -42,9 +42,6 @@ async def submit_response_by_slug(slug: str, request: Request):
         payload = await request.json()
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-    
-    print("READ PAYLOAD")
-    print(payload)
 
     ok, info = await add_response_by_slug(slug, payload, user_id=request.state.uid, passed_payment=payload.get("payment"))
     if not ok:
