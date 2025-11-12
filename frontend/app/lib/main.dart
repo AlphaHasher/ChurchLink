@@ -72,7 +72,7 @@ Future<void> main() async {
         DeepLinkingService.handleNotificationData(initialMessage.data);
       });
     }
-  }
+  
 
   // Initialize localization
   await LocalizationHelper.init();
@@ -129,8 +129,9 @@ class MyApp extends StatelessWidget {
               '/giving': (context) => const Giving(),
             },
           ),
+        );
       },
-    ));
+    );
   }
 }
 
