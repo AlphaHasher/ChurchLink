@@ -93,6 +93,40 @@ export interface PaypalNode extends NodeBase {
   props?: Record<string, any>;
 }
 
+export interface MenuNode extends NodeBase {
+  type: "menu";
+  props?: {
+    data: {
+      items: any[];  
+    };
+  } & Record<string, any>;
+}
+
+export interface ContactInfoNode extends NodeBase {
+  type: "contactInfo";
+  props?: {
+    data: {
+      items: Array<{
+        label: string;
+        value: string;
+      }>;
+    };
+  } & Record<string, any>;
+}
+
+export interface ServiceTimesNode extends NodeBase {
+  type: "serviceTimes";
+  props?: {
+    data: {
+      items: Array<{
+        time: string;
+        location?: string;
+        details?: string;
+      }>;
+    };
+  } & Record<string, any>;
+}
+
 export type Node =
   | TextNode
   | ButtonNode
@@ -101,6 +135,9 @@ export type Node =
   | ImageNode
   | MapNode
   | PaypalNode
+  | MenuNode
+  | ContactInfoNode
+  | ServiceTimesNode
   | NodeBase;
 
 export interface SectionV2 {
@@ -112,10 +149,12 @@ export interface SectionV2 {
   background?: Record<string, any>;
   grid?: Record<string, any>;
   styleTokens?: Record<string, any>;
-  // section-level grid config (override defaults)
+  
   builderGrid?: {
     gridSize?: number; // px per cell (e.g., 16)
     showGrid?: boolean;
+    cols?: number; 
+    aspect?: { num: number; den: number }; 
   };
   // When true, disables drag & resize of child nodes in the builder, but style editing remains
   lockLayout?: boolean;
@@ -137,6 +176,7 @@ export interface PageV2 {
     [key: string]: unknown;
   };
   sections: SectionV2[];
+	sectionsMobile?: SectionV2[];
   created_at?: string;
   updated_at?: string;
 }

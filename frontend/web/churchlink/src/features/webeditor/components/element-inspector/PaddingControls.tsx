@@ -16,7 +16,6 @@ import {
 type PaddingControlsProps = {
   node: Node;
   onUpdate: (updater: (node: Node) => Node) => void;
-  gridSize?: number;
 };
 
 type PaddingUnit = 'spacing' | 'px' | 'rem';

@@ -15,6 +15,7 @@ from models.ministry import (
     MinistryNotFoundError,
     resolve_ministry_name,
 )
+from helpers.slug_validator import validate_slug
 
 logger = logging.getLogger(__name__)
 
@@ -23,22 +24,6 @@ DEFAULT_FORM_WIDTH = "100"
 FORM_WIDTH_ALLOWED = {"100", "85", "70", "55", "40", "25", "15"}
 FORM_WIDTH_ALLOWED_LIST = sorted(FORM_WIDTH_ALLOWED, key=int, reverse=False)
 FORM_WIDTH_ALLOWED_MESSAGE = ", ".join(FORM_WIDTH_ALLOWED_LIST)
-
-
-def _validate_slug(v: Optional[str], allow_none: bool = True) -> Optional[str]:
-    if v is None:
-        return None
-    s = str(v).strip()
-    if s == "":
-        return None
-    # only allow lowercase letters, numbers and dashes
-    if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", s):
-        raise ValueError(
-            "Invalid slug format: only lowercase letters, numbers and dashes allowed"
-        )
-    if len(s) > 200:
-        raise ValueError("Slug too long")
-    return s
 
 
 def _validate_data_is_list(v: Any, allow_none: bool = True) -> Any:
@@ -114,8 +99,9 @@ class FormCreate(FormBase):
         return _validate_data_is_list(v, allow_none=False)
 
     @field_validator("slug", mode="before")
-    def validate_slug(cls, v):
-        return _validate_slug(v)
+    @classmethod
+    def validate_slug_field(cls, v):
+        return validate_slug(v, allow_none=True, allow_root=False)
 
 
 class FormUpdate(BaseModel):
@@ -130,8 +116,9 @@ class FormUpdate(BaseModel):
     supported_locales: Optional[List[str]] = None
 
     @field_validator("slug", mode="before")
+    @classmethod
     def validate_slug_update(cls, v):
-        return _validate_slug(v)
+        return validate_slug(v, allow_none=True, allow_root=False)
 
     @field_validator("data", mode="before")
     def validate_update_data_is_list(cls, v):

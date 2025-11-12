@@ -35,6 +35,7 @@ const RefundManagement = lazy(() => import("../features/admin/pages/RefundManage
 const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
 const MobileUIPages = lazy(() => import("../features/admin/pages/MobileUIPages"));
 const MediaLibrary = lazy(() => import("../features/admin/pages/MediaLibrary"));
+const WebsiteSettingsPage = lazy(() => import("../features/admin/pages/WebsiteSettings"));
 
 export const AdminRoutes = () => {
   return (
@@ -119,6 +120,11 @@ export const AdminRoutes = () => {
         <Route path="webbuilder/footer" element={<PermissionGuard requiredPermission="web_builder_management">
           <WebBuilderLayout type="footer"><EditFooter /></WebBuilderLayout>
         </PermissionGuard>} />
+        <Route path="webbuilder/settings" element={
+          <PermissionGuard requiredPermission="web_builder_management">
+            <WebsiteSettingsPage />
+          </PermissionGuard>
+        } />
         <Route path="/media-library" element={<MediaLibrary />} />
       </Route>
     </Routes>

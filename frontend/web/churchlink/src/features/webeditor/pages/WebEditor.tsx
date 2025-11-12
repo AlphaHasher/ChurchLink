@@ -21,6 +21,7 @@ import { BuilderState } from "@/features/webeditor/state/BuilderState";
 import { AddLocaleDialog, collectTranslatablePairs, ensurePageLocale, translateStrings } from "@/shared/utils/localizationUtils";
 import LocaleSelect from "@/shared/components/LocaleSelect";
 import { useLanguage } from "@/provider/LanguageProvider";
+import { Trash2 } from "lucide-react";
 
 const WebEditor: React.FC = () => {
   const { slug: encoded } = useParams();
@@ -33,6 +34,8 @@ const WebEditor: React.FC = () => {
     setPage,
     sections,
     setSections: setPageSections,
+    sectionsMobile,
+    setSectionsMobile: setPageSectionsMobile,
     showHeader,
     setShowHeader,
     showFooter,
@@ -76,27 +79,39 @@ const WebEditor: React.FC = () => {
     copySelected,
     pasteClipboard,
     deleteSelectedNode,
+    reorderSections,
   } = useSectionManager();
 
   // Font management
   const fontManager = useFontManager(page, setPage);
 
+  const [isMobileMode, setIsMobileMode] = React.useState(false);
+  const deepCloneSections = React.useCallback((list: SectionV2[]): SectionV2[] => {
+    return JSON.parse(JSON.stringify(list)) as SectionV2[];
+  }, []);
+
   // Sync sections between page manager and section manager
   React.useEffect(() => {
-    if (sections.length > 0 && managedSections.length === 0) {
-      setSections(sections);
+    const source = isMobileMode ? sectionsMobile : sections;
+    if (source.length > 0 && managedSections.length === 0) {
+      setSections(source);
     }
-  }, [sections, managedSections.length, setSections]);
+  }, [sections, sectionsMobile, isMobileMode, managedSections.length, setSections]);
 
   React.useEffect(() => {
     if (managedSections.length > 0) {
-      setPageSections(managedSections);
+      if (isMobileMode) {
+        setPageSectionsMobile(managedSections);
+      } else {
+        setPageSections(managedSections);
+      }
     }
-  }, [managedSections, setPageSections]);
+  }, [managedSections, isMobileMode, setPageSections, setPageSectionsMobile]);
 
   const [openInspector, setOpenInspector] = React.useState(false);
   const [openElementInspector, setOpenElementInspector] = React.useState(false);
   const [addLocaleOpen, setAddLocaleOpen] = React.useState(false);
+  const [clearPageDialogOpen, setClearPageDialogOpen] = React.useState(false);
 
 
   const computedLocales = useMemo(() => {
@@ -135,15 +150,15 @@ const WebEditor: React.FC = () => {
 
 
 
-  const handleFocusSection = (id: string) => {
+  // Single click from sidebar: open section inspector immediately
+  const handleSidebarSectionFocus = React.useCallback((id: string) => {
     const el = document.getElementById(`section-${id}`) as HTMLElement | null;
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setSelectedSectionId(id);
     setSelection(null);
-    // Focus does not open inspector; open on double click instead
-    setOpenInspector(false);
+    setOpenInspector(true);
     setOpenElementInspector(false);
-  };
+  }, [setSelectedSectionId, setSelection]);
 
   // Single click on canvas: select only; do not open element inspector
   const handleNodeClick = React.useCallback((sectionId: string, nodeId: string) => {
@@ -234,7 +249,6 @@ const WebEditor: React.FC = () => {
 
   const selectedNode = selection?.nodeId ? findNode(selection.nodeId) : null;
   const selectedSectionForNode = selection?.sectionId ? managedSections.find(s => s.id === selection.sectionId) : undefined;
-  const selectedGridSize = selectedSectionForNode?.builderGrid?.gridSize ?? 16;
 
   // Global keyboard shortcuts for copy/paste selected element
   React.useEffect(() => {
@@ -270,7 +284,7 @@ const WebEditor: React.FC = () => {
               const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
                 if (n.id === action.nodeId) {
                   const target = isRedo ? action.next : action.prev;
-                  BuilderState.clearNodePixelLayout(action.sectionId, action.nodeId);
+                  BuilderState.clearNodePixelLayout(action.nodeId);
                   return { ...n, layout: { units: { ...target } } } as Node;
                 }
                 if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;
@@ -310,7 +324,7 @@ const WebEditor: React.FC = () => {
               if (s.id !== action.sectionId) return s;
               const walk = (nodes: Node[]): Node[] => nodes.map((n) => {
                 if (n.id === action.nodeId) {
-                  BuilderState.clearNodePixelLayout(action.sectionId, action.nodeId);
+                  BuilderState.clearNodePixelLayout(action.nodeId);
                   return { ...n, layout: { units: { ...action.next } } } as Node;
                 }
                 if (n.children && n.children.length) return { ...n, children: walk(n.children) } as Node;
@@ -438,6 +452,21 @@ const WebEditor: React.FC = () => {
     setSidebarOpen(false);
   }, []);
 
+  const handleClearPage = React.useCallback(() => {
+    setSections([]);
+    setPageSections([]);
+    setPageSectionsMobile([]);
+    setSelection(null);
+    setSelectedSectionId(null);
+    setHighlightNodeId(null);
+    setHoveredNodeId(null);
+    setOpenInspector(false);
+    setOpenElementInspector(false);
+    BuilderState.clearSelection();
+    BuilderState.stopEditing();
+    setClearPageDialogOpen(false);
+  }, [setSections, setPageSections, setPageSectionsMobile, setSelection, setSelectedSectionId, setHighlightNodeId, setHoveredNodeId]);
+
   if (!page) return <div className="p-6">Loading...</div>;
 
   return (
@@ -446,7 +475,7 @@ const WebEditor: React.FC = () => {
       onOpenChange={handleSidebarOpenChange}
       style={{
         ["--sidebar-width" as any]: "14rem",
-        ["--sidebar-width-icon" as any]: "2.75rem",
+        ["--sidebar-width-icon" as any]: "0rem",
       }}
     >
       {/* Full-width fixed top bar */}
@@ -454,6 +483,15 @@ const WebEditor: React.FC = () => {
         <div className="flex h-12 items-center justify-between px-4">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/admin/webbuilder')}>Back to Admin</Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setClearPageDialogOpen(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear Page
+            </Button>
             <div className="hidden sm:flex items-center gap-3 text-sm">
               <label className="flex items-center gap-2">
                 <Checkbox checked={showHeader} onCheckedChange={(v) => setShowHeader(Boolean(v))} />
@@ -491,6 +529,47 @@ const WebEditor: React.FC = () => {
                   }
                 }}
               />
+            </div>
+            {/* Device toggle */}
+            <div className="flex items-center mr-2">
+              <div className="inline-flex rounded-md border border-input bg-background p-0.5">
+                <Button
+                  variant={isMobileMode ? "ghost" : "default"}
+                  className={`h-8 px-3 text-xs ${!isMobileMode ? "" : "bg-transparent"}`}
+                  onClick={() => {
+                    if (isMobileMode) {
+                      // switching to desktop: seed manager with desktop sections
+                      setSections(sections.length ? sections : []);
+                      BuilderState.resetForModeSwitch();
+                      setIsMobileMode(false);
+                    }
+                  }}
+                >
+                  Desktop
+                </Button>
+                <Button
+                  variant={isMobileMode ? "default" : "ghost"}
+                  className={`h-8 px-3 text-xs ${isMobileMode ? "" : "bg-transparent"}`}
+                  onClick={() => {
+                    if (!isMobileMode) {
+                      // switching to mobile: if empty or mismatched, clone from desktop to ensure 1:1 sections
+                      const needsSeed =
+                        !sectionsMobile.length || sectionsMobile.length !== sections.length;
+                      if (needsSeed) {
+                        const cloned = deepCloneSections(sections);
+                        setPageSectionsMobile(cloned);
+                        setSections(cloned);
+                      } else {
+                        setSections(sectionsMobile);
+                      }
+                      BuilderState.resetForModeSwitch();
+                      setIsMobileMode(true);
+                    }
+                  }}
+                >
+                  Mobile
+                </Button>
+              </div>
             </div>
             {/* Save status badge */}
             <MultiStateBadge
@@ -555,9 +634,10 @@ const WebEditor: React.FC = () => {
         sectionPresets={SECTION_PRESETS}
         onAddSectionPreset={addSectionPreset}
         currentSections={managedSections.map((section, index) => buildSidebarTree(section, index))}
-        onFocusSection={handleFocusSection}
+        onFocusSection={handleSidebarSectionFocus}
         onFocusNode={handleSidebarNodeFocus}
         onDeleteSection={(id) => setDeleteSectionId(id)}
+        onReorderSections={reorderSections}
         pageTitle={page.title}
         slug={slug}
       />
@@ -565,20 +645,23 @@ const WebEditor: React.FC = () => {
       
 
       {/* Canvas - full available width/height */}
-      <SidebarInset className="h-[calc(100vh-48px)] mt-12 overflow-auto bg-white text-gray-900">
+      <SidebarInset className="h-[calc(100vh-48px)] mt-12 overflow-y-auto overflow-x-hidden bg-white text-gray-900">
         <div className="min-h-full" onMouseDown={handleCanvasMouseDown}>
           {showHeader && (
             <div className="border-b">
               <NavBar />
             </div>
           )}
+          <div
+            className={`${isMobileMode ? "mx-auto" : ""}`}
+            style={isMobileMode ? { width: 390 } : undefined}
+          >
           {managedSections.map((s) => (
             <div
               id={`section-${s.id}`}
               key={s.id}
               data-section-id={s.id}
-              className={"border-b group/section relative h-full"}
-              style={{ minHeight: `${(s.heightPercent ?? 100)}vh` }}
+              className={"border-b group/section relative"}
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 setSelectedSectionId(s.id);
@@ -615,6 +698,7 @@ const WebEditor: React.FC = () => {
               />
             </div>
           ))}
+          </div>
           {showFooter && (
             <div className="border-t">
               <Footer />
@@ -635,7 +719,6 @@ const WebEditor: React.FC = () => {
         setHighlightNodeId={setHighlightNodeId}
         updateSelectedNode={updateSelectedNode}
         page={page}
-        setPage={setPage}
         fontManager={fontManager}
         onRequestDeleteSection={setDeleteSectionId}
       />
@@ -652,10 +735,11 @@ const WebEditor: React.FC = () => {
         }}
         selectedNode={selectedNode}
         onUpdateNode={updateSelectedNode}
+        sectionId={selection?.sectionId}
         activeLocale={activeLocale}
         defaultLocale={(page as any)?.defaultLocale || 'en'}
         fontManager={fontManager}
-        gridSize={selectedGridSize}
+        section={selectedSectionForNode}
         onRequestDeleteNode={() => {
           if (selection?.sectionId && selection?.nodeId) {
             setDeleteNodeId({ sectionId: selection.sectionId, nodeId: selection.nodeId });
@@ -700,6 +784,27 @@ const WebEditor: React.FC = () => {
               onClick={deleteNode}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear Page Confirm */}
+      <AlertDialog open={clearPageDialogOpen} onOpenChange={setClearPageDialogOpen}>
+        <AlertDialogContent>
+          <ADHeader>
+            <AlertDialogTitle>Clear entire page?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all sections from the page and start from scratch. This action cannot be undone.
+            </AlertDialogDescription>
+          </ADHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setClearPageDialogOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleClearPage}
+            >
+              Clear Page
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

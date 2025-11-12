@@ -13,14 +13,11 @@ export type NumberSelectorProps = {
   min?: number;
   max?: number;
   step?: number;
-  /** Multiplier applied while holding Shift (defaults to 10). */
   shiftMultiplier?: number;
-  /** Multiplier applied while holding Alt/Option (defaults to 0.1). */
   altMultiplier?: number;
-  /** Clamp the current value to min/max bounds on blur (defaults to true). */
   clampOnBlur?: boolean;
-  /** Override the cursor class used during hover/drag (defaults to cursor-ew-resize). */
   dragCursorClassName?: string;
+  transformValue?: (value: number) => number;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "type">;
 
 export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorProps>(
@@ -36,6 +33,7 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
       altMultiplier = 0.1,
       clampOnBlur = true,
       dragCursorClassName = "cursor-ew-resize",
+      transformValue,
       className,
       disabled,
       ...restProps
@@ -80,9 +78,28 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
       [min, max]
     );
 
+    const applyTransform = React.useCallback(
+      (next: number) => {
+        if (typeof transformValue === "function") {
+          try {
+            const result = transformValue(next);
+            if (!Number.isFinite(result)) {
+              return next;
+            }
+            return result;
+          } catch {
+            return next;
+          }
+        }
+        return next;
+      },
+      [transformValue]
+    );
+
     const emitChange = React.useCallback(
       (next: number) => {
-        const clamped = clampValue(next);
+        const transformed = applyTransform(next);
+        const clamped = clampValue(transformed);
         if (clamped !== latestValueRef.current) {
           latestValueRef.current = clamped;
           onChange(clamped);
@@ -90,7 +107,7 @@ export const NumberSelector = React.forwardRef<HTMLInputElement, NumberSelectorP
         setLocal(clamped);
         return clamped;
       },
-      [clampValue, onChange]
+      [applyTransform, clampValue, onChange]
     );
 
     const getModifierMultiplier = React.useCallback(

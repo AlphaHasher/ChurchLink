@@ -1,14 +1,14 @@
 // DynamicPageV2RendererBuilder.tsx - Builder-specific renderer with grid and draggable support
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { GridOverlay } from './GridOverlay';
 import { DraggableNode } from './DraggableNode';
-import { defaultGridSize, unitsToPx } from './gridMath';
+import { makeVirtualTransform, VirtualTransform } from './virtualGrid';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
 import EventSection from '@/features/admin/components/WebBuilder/sections/EventSection';
 import MapSection from '@sections/MapSection';
-// import ServiceTimesSection from '@sections/ServiceTimesSection';
-// import MenuSection from '@sections/MenuSection';
-// import ContactInfoSection from '@sections/ContactInfoSection';
+import ServiceTimesSection from '@sections/ServiceTimesSection';
+import MenuSection from '@sections/MenuSection';
+import ContactInfoSection from '@sections/ContactInfoSection';
 import PaypalSection from '@sections/PaypalSection';
 // import ScopedStyle from '@/shared/components/ScopedStyle';
 import { ActivePaddingOverlay, BuilderState } from '@/features/webeditor/state/BuilderState';
@@ -39,9 +39,11 @@ function tailwindSpacingToRem(value?: number | null) {
 
 type PaddingOverlayProps = {
   layer: ActivePaddingOverlay | null;
+  transform: VirtualTransform | null;
+  node: Node | null;
 };
 
-const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer }) => {
+const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer, transform, node }) => {
   const [overlay, setOverlay] = React.useState<ActivePaddingOverlay | null>(layer ?? BuilderState.paddingOverlay);
 
   React.useEffect(() => {
@@ -50,21 +52,20 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer }) => {
   }, []);
 
   const data = overlay ?? layer;
-  if (!data) return null;
-  const { nodeId, sectionId, values } = data;
-  const cache = BuilderState.getNodePixelLayout(nodeId);
-  if (!cache || cache.sectionId !== sectionId) return null;
+  if (!data || !transform || !node || !node.layout?.units) return null;
+  const { values } = data;
   const [top, right, bottom, left] = values;
+  const { x, y, w, h } = transform.toPx(node.layout.units);
 
   return (
     <div className="absolute inset-0 pointer-events-none">
       <div
         className="absolute"
         style={{
-          left: cache.x,
-          top: cache.y,
-          width: cache.w,
-          height: cache.h,
+          left: x,
+          top: y,
+          width: w,
+          height: h,
           pointerEvents: 'none',
         }}
       >
@@ -113,13 +114,29 @@ const PaddingOverlay: React.FC<PaddingOverlayProps> = ({ layer }) => {
   );
 };
 
+/**
+ * Concatenates class name fragments into a single space-separated string.
+ *
+ * @param classes - Class name fragments; falsy values (`undefined`, `null`, `false`, `''`) are ignored.
+ * @returns A space-separated string of the truthy class names, or an empty string if none are provided.
+ */
 function cn(...classes: Array<string | undefined | false | null>) {
   return classes.filter(Boolean).join(' ');
 }
 
-// highlightClass removed (no red outlines)
 
-// Updated renderNode signature with additional optional params for nesting
+/**
+ * Retrieve a localized property value for a node, falling back to the node's base prop.
+ *
+ * Checks the node's `i18n` map for `activeLocale` (or `defaultLocale` when `activeLocale` is absent)
+ * and returns the keyed value if present; otherwise returns `node.props?.[key]`.
+ *
+ * @param node - The node object containing optional `i18n` and `props`.
+ * @param key - The property key to look up.
+ * @param activeLocale - Preferred locale to resolve the property.
+ * @param defaultLocale - Locale to use if `activeLocale` is not provided.
+ * @returns The localized value for `key` when available for the chosen locale, otherwise the node's prop value for `key`, or `undefined` if not found.
+ */
 function resolveLocalizedProp(node: Node, key: string, activeLocale?: string, defaultLocale?: string): any {
   const i18n = (node as any).i18n as Record<string, Record<string, any>> | undefined;
   const locale = activeLocale || defaultLocale;
@@ -139,7 +156,7 @@ const renderNode = (
   onNodeDoubleClick?: (sectionId: string, nodeId: string) => void,
   hoveredNodeId?: string | null,
   selectedNodeId?: string | null,
-  gridSize?: number,  // Added for nested positioning
+  transform?: VirtualTransform,  
   onUpdateNodeLayout?: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void,  // Added for nested commits
   forceFlowLayout?: boolean,
   activeLocale?: string,
@@ -203,7 +220,6 @@ const renderNode = (
       const textStyles = nodeStyleRaw?.textStyles || [];
       const fontSize = nodeStyleRaw?.fontSize;
       const fontWeight = nodeStyleRaw?.fontWeight;
-      const width = nodeStyleRaw?.width;
       const elementFontFamily = nodeStyleRaw?.fontFamily;
       const underlineThickness = nodeStyleRaw?.underlineThickness;
       const color = nodeStyleRaw?.color;
@@ -232,18 +248,33 @@ const renderNode = (
 
       const wrapperStyle: React.CSSProperties = {
         ...nodeStyle,
-        ...(width && width !== 'auto' ? { width, display: 'inline-block' } : { display: 'inline-block' }),
+        width: '100%',
+        height: '100%',
+        display: 'block',
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
         ...(typeof borderRadius === 'number' ? { borderRadius } : {}),
         ...paddingStyles,
       };
 
+      const gridScale = transform ? (transform.cellPx / 16) : 1; // scale relative to grid cell size
+      const baseRemByVariant: Record<string, number> = {
+        h1: 2.25,
+        h2: 1.875,
+        h3: 1.5,
+        lead: 1.25,
+        muted: 0.875,
+        p: 1,
+      };
+      const effectiveRem =
+        typeof fontSize === 'number' && fontSize > 0
+          ? fontSize
+          : (baseRemByVariant[variant] ?? 1);
       const innerStyle: React.CSSProperties = {
-        ...(fontSize && fontSize !== 1 ? { fontSize: `${fontSize}rem` } : {}),
+        fontSize: `${effectiveRem * 16 * gridScale}px`,
         ...(fontWeight && fontWeight !== 400 ? { fontWeight } : {}),
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
-        ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness}px` } : {}),
+        ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
         ...(color ? { color } : {}),
       };
 
@@ -255,7 +286,7 @@ const renderNode = (
             data-node-id={node.id}
             data-node-type={node.type}
             className={cn(
-              'inline-block max-w-full w-fit align-top break-words',
+              'block w-full h-full align-top break-words',
               interactiveClass,
               outlineClass,
               nodeClassName,
@@ -348,11 +379,22 @@ const renderNode = (
         interactiveClass,
         outlineClass
       );
+      const gridScaleBtn = transform ? (transform.cellPx / 16) : 1;
+      const fontSizeRemBtn = typeof (nodeStyleRaw as any)?.fontSize === 'number' ? (nodeStyleRaw as any).fontSize : 1; // default 1rem
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        fontSize: `${fontSizeRemBtn * 16 * gridScaleBtn}px`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        margin: 0,
+        whiteSpace: 'nowrap',
+        width: '100%',
+        height: '100%',
       };
       if (href) {
         return (
@@ -456,11 +498,11 @@ const renderNode = (
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}
         >
-          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle unstyled disableInteractions />
+          <MapSection isEditing={false} data={{ embedUrl: url }} hideTitle disableInteractions />
         </div>
       );
     }
-    case 'paypal': {
+    case 'serviceTimes': {
       const nodeStyleRaw = (node as any).style || {};
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
@@ -468,53 +510,174 @@ const renderNode = (
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
+      const defaultData = { title: 'Service Times', times: [{ label: 'Sunday', time: '9:00 AM' }, { label: 'Sunday', time: '11:00 AM' }] };
+      const data = (node as any).props?.data ?? defaultData;
       return (
-        <div className={cn(interactiveClass, outlineClass)} style={inlineStyle} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} onClick={handleClick}>
-          <PaypalSection data={{}} isEditing={false} />
+        <div
+          data-node-id={node.id}
+          data-node-type={node.type}
+          className={cn(interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        >
+          <ServiceTimesSection data={data} isEditing={false} />
         </div>
       );
     }
+    case 'menu': {
+      const nodeStyleRaw = (node as any).style || {};
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
+      const defaultData = { items: [] as Array<{ title: string; imageUrl: string; description?: string; linkUrl?: string }> };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div
+          data-node-id={node.id}
+          data-node-type={node.type}
+          className={cn(interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        >
+          <MenuSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case 'contactInfo': {
+      const nodeStyleRaw = (node as any).style || {};
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+      };
+      const defaultData = { items: [{ label: 'Phone', value: '(555) 123-4567' }, { label: 'Email', value: 'hello@yourchurch.org' }] };
+      const data = (node as any).props?.data ?? defaultData;
+      return (
+        <div
+          data-node-id={node.id}
+          data-node-type={node.type}
+          className={cn(interactiveClass, outlineClass)}
+          style={inlineStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        >
+          <ContactInfoSection data={data} isEditing={false} />
+        </div>
+      );
+    }
+    case 'paypal': {
+      const nodeStyleRaw = (node as any).style || {};
+      const BASE_W = 200;
+      const BASE_H = 200;
+      let scale = 1;
+      if (!forceFlowLayout && transform && (node as any)?.layout?.units) {
+        const size = transform.toPx((node as any).layout.units);
+        const w = (size && typeof size.w === 'number') ? size.w : 0;
+        const h = (size && typeof size.h === 'number') ? size.h : 0;
+        const widthScale = w > 0 ? (w / BASE_W) : 1;
+        const heightScale = h > 0 ? (h / BASE_H) : 1;
+        scale = Math.max(0.2, Math.min(widthScale, heightScale));
+      } else if (!forceFlowLayout && transform) {
+        scale = Math.max(0.2, transform.cellPx / 16);
+      }
+      const inlineStyle: React.CSSProperties = {
+        ...nodeStyle,
+        ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
+        ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        display: 'block',
+        width: '100%',
+        overflow: 'visible',
+      };
+      if (forceFlowLayout) {
+        return (
+          <div
+            className={cn(interactiveClass, outlineClass)}
+            style={inlineStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+          >
+            <PaypalSection data={{}} isEditing={false} />
+          </div>
+        );
+      } else {
+        return (
+          <div
+            className={cn(interactiveClass, outlineClass)}
+            style={inlineStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleClick}
+          >
+            <div
+              style={{
+                transform: `scale(${scale})`,
+                transformOrigin: 'top left',
+                width: `${100 / (scale || 1)}%`,
+              }}
+            >
+              <PaypalSection data={{}} isEditing={false} />
+            </div>
+          </div>
+        );
+      }
+    }
     case 'container': {
       const nodeStyleRaw = (node as any).style || {};
-      const maxWidth = (node as any).props?.maxWidth ?? 'xl';
-      const px = (node as any).props?.paddingX ?? 4;
-      const py = (node as any).props?.paddingY ?? 6;
-      const mwClass =
-        maxWidth === 'full'
-          ? 'w-full'
-          : maxWidth === '2xl'
-            ? 'max-w-7xl'
-            : maxWidth === 'xl'
-              ? 'max-w-6xl'
-              : maxWidth === 'lg'
-                ? 'max-w-5xl'
-                : maxWidth === 'md'
-                  ? 'max-w-3xl'
-                  : 'max-w-xl';
-      const pxClass =
-        px === 0 ? 'px-0' : px === 2 ? 'px-2' : px === 4 ? 'px-4' : px === 6 ? 'px-6' : 'px-4';
-      const pyClass =
-        py === 0 ? 'py-0' : py === 2 ? 'py-2' : py === 4 ? 'py-4' : py === 6 ? 'py-6' : 'py-6';
+      const maxWidthToken = (node as any).props?.maxWidth ?? 'xl';
+      const paddingXToken = (node as any).props?.paddingX ?? 4;
+      const paddingYToken = (node as any).props?.paddingY ?? 6;
+
+      const tailwindSpacingPx = (value: number) => value * 4;
+      const tailwindMaxWidthPx: Record<string, number | undefined> = {
+        full: undefined,
+        '2xl': 1280,
+        xl: 1152,
+        lg: 1024,
+        md: 768,
+      };
+
+      const innerMaxWidth = tailwindMaxWidthPx[maxWidthToken] ?? undefined;
+      const innerPaddingStyle: React.CSSProperties = {
+        width: '100%',
+        height: '100%',
+        paddingLeft: tailwindSpacingPx(paddingXToken),
+        paddingRight: tailwindSpacingPx(paddingXToken),
+        paddingTop: tailwindSpacingPx(paddingYToken),
+        paddingBottom: tailwindSpacingPx(paddingYToken),
+        ...(innerMaxWidth ? { maxWidth: innerMaxWidth, marginLeft: 'auto', marginRight: 'auto' } : {}),
+        ...(nodeFontFamily ? { fontFamily: nodeFontFamily } : {}),
+      };
       // Render container div with nested children wrapped in DraggableNode for absolute positioning
       const containerContent = (node.children ?? []).map((c) => {
         const childHasLayout = !!c.layout?.units;
-        if (childHasLayout && gridSize && onUpdateNodeLayout && sectionId && !forceFlowLayout) {
-          const cachedPx = BuilderState.getNodePixelLayout(c.id);
-          const hasCustomPx = cachedPx && cachedPx.sectionId === sectionId;
-          const cx = hasCustomPx ? cachedPx!.x : unitsToPx(c.layout!.units.xu, gridSize);
-          const cy = hasCustomPx ? cachedPx!.y : unitsToPx(c.layout!.units.yu, gridSize);
-          const cw = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (c.layout?.units.wu ? unitsToPx(c.layout!.units.wu!, gridSize) : undefined);
-          const ch = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (c.layout?.units.hu ? unitsToPx(c.layout!.units.hu!, gridSize) : undefined);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
+        if (childHasLayout && transform && onUpdateNodeLayout && sectionId && !forceFlowLayout) {
+          const childSize = transform.toPx(c.layout!.units);
+          const cw = childSize.w;
+          const ch = childSize.h;
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale, localizeFn);
           return (
             <DraggableNode
               key={c.id}
               sectionId={sectionId}
               node={{
                 ...c,
-                layout: { units: c.layout!.units, px: { x: cx, y: cy, w: cw, h: ch } },
+                layout: { units: c.layout!.units },
               }}
-              gridSize={gridSize}
+              transform={transform}
               defaultSize={{ w: cw, h: ch }}
               selected={selectedNodeId === c.id}
               onCommitLayout={(nodeId, units) => onUpdateNodeLayout(sectionId, nodeId, units)}
@@ -522,14 +685,24 @@ const renderNode = (
               onDoubleSelect={() => onNodeDoubleClick?.(sectionId, c.id)}
               render={() => childRendered}
               containerId={node.id}
-              enforceChildFullSize={c.type === 'container' || c.type === 'button' || c.type === 'text'}
+              parentUnits={
+                (() => {
+                  const u = node.layout?.units;
+                  return u && typeof u.xu === 'number' && typeof u.yu === 'number' && typeof u.wu === 'number' && typeof u.hu === 'number'
+                    ? { xu: u.xu, yu: u.yu, wu: u.wu, hu: u.hu }
+                    : undefined;
+                })()
+              }
+              enforceChildFullSize
               allowContentPointerEvents
             />
           );
         } else {
           // Fallback for missing layout or params - render without wrapper
-          if (!childHasLayout) console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
-          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
+          if (!childHasLayout && process.env.NODE_ENV === 'development') {
+            console.warn(`Nested node ${c.id} missing layout.units - rendering as flow inside container.`);
+          }
+          const childRendered = renderNode(c, highlightNodeId, nodeFontFamily, sectionId, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, forceFlowLayout, activeLocale, defaultLocale);
           return <div key={c.id} className="relative">{childRendered}</div>;
         }
       });
@@ -541,11 +714,7 @@ const renderNode = (
             id={node.id}
             data-draggable="true"
             className={cn(
-              'mx-auto relative',
-              mwClass,
-              pxClass,
-              pyClass,
-              nodeFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]',
+              'relative',
               interactiveClass,
               outlineClass
             )}
@@ -561,7 +730,9 @@ const renderNode = (
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
           >
-            {containerContent}
+            <div style={innerPaddingStyle}>
+              {containerContent}
+            </div>
           </div>
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
@@ -627,106 +798,238 @@ export const DynamicPageV2RendererBuilder: React.FC<{
         const hasWidthClass = /(^|\s)w-/.test(gridClass);
         const gridClasses = cn(gridClass, !hasWidthClass && 'w-full');
 
-        const gridSize = section.builderGrid?.gridSize ?? defaultGridSize;
         const gridEnabled = section.builderGrid?.showGrid ?? true;
         const shouldShowGrid = gridEnabled && isInteracting;
 
         // Get section-level font from styleTokens or page default
         const sectionFontFamily = (section.styleTokens as any)?.fontFamily || fontFamily;
 
+        const cols = section.builderGrid?.cols ?? 64;
+        const aspect = section.builderGrid?.aspect ?? { num: 16, den: 9 };
+
         return (
-          <section
+          <SectionWithVirtualGrid
             key={section.id}
-            className={cn(
-              'w-full relative',
-              bg,
-              sectionFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
-            )}
-            style={{
-              ...(section.background?.style as React.CSSProperties),
-              ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
-              minHeight: `${(section.heightPercent ?? 100)}vh`,
-            }}
-          >
-            {gridEnabled && (
-              <div className="pointer-events-none absolute inset-0">
-                <GridOverlay gridSize={gridSize} active={shouldShowGrid} />
-              </div>
-            )}
-
-            {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
-            <div
-              className={cn(gridClasses, 'relative h-full min-h-full')}
-              id={`section-content-${section.id}`}
-              style={{ minHeight: 'inherit', position: 'relative' }}
-            >
-              {section.children.map((node) => {
-                const hasLayout = !!node.layout?.units;
-                const locked = section.lockLayout === true;
-                let rendered: React.ReactNode;
-                if (hasLayout && !locked) {
-                  const cachedPx = BuilderState.getNodePixelLayout(node.id);
-                  const hasCustomPx = cachedPx && cachedPx.sectionId === section.id;
-                  const x = hasCustomPx ? cachedPx!.x : unitsToPx(node.layout!.units.xu, gridSize);
-                  const y = hasCustomPx ? cachedPx!.y : unitsToPx(node.layout!.units.yu, gridSize);
-                  const w = hasCustomPx && typeof cachedPx!.w === 'number' ? cachedPx!.w : (node.layout?.units.wu ? unitsToPx(node.layout!.units.wu!, gridSize) : undefined);
-                  const h = hasCustomPx && typeof cachedPx!.h === 'number' ? cachedPx!.h : (node.layout?.units.hu ? unitsToPx(node.layout!.units.hu!, gridSize) : undefined);
-                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
-
-                  const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
-                    if (node.type !== 'container') {
-                      onUpdateNodeLayout(section.id, nodeId, units as any);
-                      return;
-                    }
-
-                    // Removed unused prevPx to satisfy linter after child delta removal
-                    const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
-
-                    const nextUnits = {
-                      xu: units.xu ?? prevUnits.xu ?? 0,
-                      yu: units.yu ?? prevUnits.yu ?? 0,
-                      wu: units.wu ?? prevUnits.wu,
-                      hu: units.hu ?? prevUnits.hu,
-                    };
-
-                    onUpdateNodeLayout(section.id, nodeId, nextUnits);
-                  };
-
-                  return (
-                    <DraggableNode
-                      key={node.id}
-                      sectionId={section.id}
-                      node={{
-                        ...node,
-                        layout: { units: node.layout!.units, px: { x, y, w, h } },
-                      }}
-                      gridSize={gridSize}
-                      defaultSize={{ w, h }}
-                      selected={node.id === selectedNodeId}
-                      onCommitLayout={handleCommitLayout}
-                      onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
-                      onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
-                      render={() => rendered}
-                      containerId={`section-content-${section.id}`}
-                      enforceChildFullSize={node.type === 'container' || node.type === 'button' || node.type === 'text'}
-                      allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
-                      disabled={locked}
-                    />
-                  );
-                } else {
-                  // Flow layout for locked sections or nodes without layout
-                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, gridSize, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
-                  return <div key={node.id} className="relative">{rendered}</div>;
-                }
-              })}
-
-              {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && (
-                <PaddingOverlay layer={activePaddingOverlay} />
-              )}
-            </div>
-          </section>
+            section={section}
+            bg={bg}
+            gridClasses={gridClasses}
+            sectionFontFamily={sectionFontFamily}
+            gridEnabled={gridEnabled}
+            shouldShowGrid={shouldShowGrid}
+            cols={cols}
+            aspect={aspect}
+            highlightNodeId={highlightNodeId}
+            hoveredNodeId={hoveredNodeId}
+            selectedNodeId={selectedNodeId}
+            onNodeHover={onNodeHover}
+            onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
+            onUpdateNodeLayout={onUpdateNodeLayout}
+            activeLocale={activeLocale}
+            defaultLocale={defaultLocale}
+            localize={localize}
+            activePaddingOverlay={activePaddingOverlay}
+          />
         );
       })}
     </div>
+  );
+};
+
+// Component that measures container and computes virtual transform
+const SectionWithVirtualGrid: React.FC<{
+  section: SectionV2;
+  bg?: string;
+  gridClasses: string;
+  sectionFontFamily?: string;
+  gridEnabled: boolean;
+  shouldShowGrid: boolean;
+  cols: number;
+  aspect: { num: number; den: number };
+  highlightNodeId?: string;
+  hoveredNodeId?: string | null;
+  selectedNodeId?: string | null;
+  onNodeHover?: (nodeId: string | null) => void;
+  onNodeClick?: (sectionId: string, nodeId: string) => void;
+  onNodeDoubleClick?: (sectionId: string, nodeId: string) => void;
+  onUpdateNodeLayout: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void;
+  activeLocale?: string;
+  defaultLocale?: string;
+  localize?: (text: string) => string;
+  activePaddingOverlay: ActivePaddingOverlay | null;
+}> = ({
+  section,
+  bg,
+  gridClasses,
+  sectionFontFamily,
+  gridEnabled,
+  shouldShowGrid,
+  cols,
+  aspect,
+  highlightNodeId,
+  hoveredNodeId,
+  selectedNodeId,
+  onNodeHover,
+  onNodeClick,
+  onNodeDoubleClick,
+  onUpdateNodeLayout,
+  activeLocale,
+  defaultLocale,
+  localize,
+  activePaddingOverlay,
+}) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState<VirtualTransform | null>(null);
+
+  const updateTransform = useCallback(() => {
+    if (!contentRef.current) return;
+    const rect = contentRef.current.getBoundingClientRect();
+    const hasInvalidCols = typeof cols !== 'number' || cols <= 0 || Number.isNaN(cols);
+    const hasInvalidAspectNum = !aspect || typeof aspect.num !== 'number' || aspect.num <= 0 || Number.isNaN(aspect.num);
+    const safeCols = hasInvalidCols ? 1 : cols;
+    const safeAspectNum = hasInvalidAspectNum ? 1 : aspect.num;
+    const hasInvalidAspectDen = !aspect || typeof aspect.den !== 'number' || aspect.den <= 0 || Number.isNaN(aspect.den);
+    const safeAspectDen = hasInvalidAspectDen ? 1 : aspect.den;
+    if (hasInvalidCols || hasInvalidAspectNum || hasInvalidAspectDen) {
+      console.warn('SectionWithVirtualGrid: Invalid grid config detected; coercing to safe defaults.', {
+        cols,
+        aspect,
+      });
+    }
+    const virtualHeightPx = rect.width * safeAspectDen / safeAspectNum;
+    const newTransform = makeVirtualTransform(
+      { width: rect.width, height: virtualHeightPx },
+      safeCols,
+      { num: safeAspectNum, den: safeAspectDen }
+    );
+    setTransform(newTransform);
+  }, [cols, aspect, aspect?.den]);
+
+  useEffect(() => {
+    updateTransform();
+    const resizeObserver = new ResizeObserver(() => {
+      updateTransform();
+    });
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [updateTransform]);
+
+  const locked = section.lockLayout === true;
+  const rootContainerNode = (section.children || []).find((n) => n.type === 'container') || null;
+  const rootContainerId = rootContainerNode?.id;
+
+  return (
+    <section
+      className={cn(
+        'w-full relative',
+        bg,
+        sectionFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
+      )}
+      style={{
+        ...(section.background?.style as React.CSSProperties),
+        ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
+        ...(locked
+          ? {}
+          : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
+      }}
+    >
+      {gridEnabled && transform && (
+        <div className="pointer-events-none absolute inset-0">
+          <GridOverlay
+            cellPx={transform.cellPx}
+            offsetX={transform.offsetX}
+            offsetY={transform.offsetY}
+            active={shouldShowGrid}
+          />
+        </div>
+      )}
+
+      {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
+      <div
+        ref={contentRef}
+        className={cn(gridClasses, 'relative', !locked && 'h-full min-h-full')}
+        id={`section-content-${section.id}`}
+        style={{ ...(locked ? {} : { minHeight: 'inherit' }), position: 'relative' }}
+      >
+        {transform &&
+          (() => {
+            const sectionUnits = { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows };
+            const normalizeUnits = (units?: { xu?: number; yu?: number; wu?: number; hu?: number } | null, fallback = sectionUnits) => ({
+              xu: typeof units?.xu === 'number' ? units.xu : fallback.xu,
+              yu: typeof units?.yu === 'number' ? units.yu : fallback.yu,
+              wu: typeof units?.wu === 'number' ? units.wu : fallback.wu,
+              hu: typeof units?.hu === 'number' ? units.hu : fallback.hu,
+            });
+            const rootUnits = normalizeUnits(rootContainerNode?.layout?.units, sectionUnits);
+
+            return section.children.map((node) => {
+              const hasLayout = !!node.layout?.units;
+              let rendered: React.ReactNode;
+              if (hasLayout && !locked) {
+                const topLevelSize = transform.toPx(node.layout!.units);
+                const w = topLevelSize.w;
+                const h = topLevelSize.h;
+                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
+
+                const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
+                  if (node.type !== 'container') {
+                    onUpdateNodeLayout(section.id, nodeId, units as any);
+                    return;
+                  }
+
+                  const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
+
+                  const nextUnits = {
+                    xu: units.xu ?? prevUnits.xu ?? 0,
+                    yu: units.yu ?? prevUnits.yu ?? 0,
+                    wu: units.wu ?? prevUnits.wu,
+                    hu: units.hu ?? prevUnits.hu,
+                  };
+
+                  onUpdateNodeLayout(section.id, nodeId, nextUnits);
+                };
+
+                return (
+                  <DraggableNode
+                    key={node.id}
+                    sectionId={section.id}
+                    node={{
+                      ...node,
+                      layout: { units: node.layout!.units },
+                    }}
+                    transform={transform}
+                    defaultSize={{ w, h }}
+                    selected={node.id === selectedNodeId}
+                    onCommitLayout={handleCommitLayout}
+                    onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
+                    onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
+                    render={() => rendered}
+                    containerId={node.type === 'container' ? `section-content-${section.id}` : (rootContainerId ?? `section-content-${section.id}`)}
+                    parentUnits={node.type === 'container' ? sectionUnits : rootUnits}
+                    enforceChildFullSize
+                    allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
+                    disabled={locked}
+                  />
+                );
+              } else {
+                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
+                return <div key={node.id} className="relative">{rendered}</div>;
+              }
+            });
+          })()}
+
+        {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && transform && (
+          <PaddingOverlay
+            layer={activePaddingOverlay}
+            transform={transform}
+            node={section.children.find((n) => n.id === activePaddingOverlay.nodeId) ?? null}
+          />
+        )}
+      </div>
+    </section>
   );
 };

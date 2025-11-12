@@ -136,3 +136,31 @@ always pass. Can be used as a template for other tests
 `patrol test --target integration_test --dart-define=TEST_MODE=true`
 This command assumes you are running it from frontend/app, the last flag
 of the command is necessary for it to run correctly, do not omit it.
+
+
+### **11. Setting App Image And Name**
+
+#### App Name
+
+1. `.env` - APP_NAME
+2. `AndroidManifest.xml` - android:label
+3. `AppFrameworkInfo.plist`:
+    ```yaml
+    <key>CFBundleName</key>
+    <string>App Name Goes Here</string>
+    ```
+
+#### App Image
+
+Using the [flutter_launcher_icons](https://pub.dev/packages/flutter_launcher_icons) package
+
+1. Setup `pubspec.yaml`
+```
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/user/AppLogo.png"
+```
+2. run `dart run flutter_launcher_icons`
+3. Build app as your would normally, and that's it!

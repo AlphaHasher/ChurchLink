@@ -74,6 +74,7 @@
     "color": "^5.0.2",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.18",
+    "dompurify": "^3.3.0",
     "dotenv": "^17.2.3",
     "editorjs-color-picker": "^1.0.8",
     "firebase": "^12.4.0",

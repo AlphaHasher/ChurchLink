@@ -6,15 +6,12 @@ interface MapSectionProps {
     embedUrl?: string;
   };
   onChange?: (data: any) => void;
-  // V2 builder integration: hide title text and remove outer section framing
   hideTitle?: boolean;
-  unstyled?: boolean;
   title?: string;
-  // When true, prevent any pointer/keyboard interaction with the iframe
   disableInteractions?: boolean;
 }
 
-const MapSection: React.FC<MapSectionProps> = ({ isEditing = false, data, onChange, hideTitle = false, unstyled = false, title = "Our Location", disableInteractions = false }) => {
+const MapSection: React.FC<MapSectionProps> = ({ isEditing = false, data, onChange, hideTitle = false, title = "Our Location", disableInteractions = false }) => {
   const [localUrl, setLocalUrl] = useState(data?.embedUrl || "");
 
   const handleUrlChange = (value: string) => {
@@ -22,9 +19,7 @@ const MapSection: React.FC<MapSectionProps> = ({ isEditing = false, data, onChan
  
     let embedUrl = value;
  
-    // Convert regular Google Maps URL to embed URL
-    // Users can paste standard Google Maps URLs and the component will attempt to convert them into embeddable URLs.
-    // Reminder: Replace "YOUR_GOOGLE_MAPS_EMBED_API_KEY" with your actual API key.
+
     const match = value.match(/https:\/\/www\.google\.com\/maps\/place\/([^\/]+)\/?(@[^\/]+)?/);
     if (match) {
       const encodedPlace = encodeURIComponent(match[1]);
@@ -37,42 +32,58 @@ const MapSection: React.FC<MapSectionProps> = ({ isEditing = false, data, onChan
   };
 
   const content = (
-    <div className={unstyled ? undefined : "max-w-6xl mx-auto text-left"}>
-      {!hideTitle && (
-        <h2 className="text-2xl font-bold text-slate-900 mb-3">{title}</h2>
-      )}
+    <div style={{ height: "auto", width: "100%", marginLeft: "auto", marginRight: "auto" }}>
+      {!hideTitle && <h2 style={{ fontSize: 24, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>{title}</h2>}
       {isEditing && (
         <input
           type="text"
           value={localUrl}
           onChange={(e) => handleUrlChange(e.target.value)}
           placeholder="Paste your Google Maps embed URL"
-          className="mb-4 w-full border border-gray-300 p-2 rounded bg-white"
+          style={{ marginBottom: 16, width: "100%", border: "1px solid #d1d5db", padding: 8, borderRadius: 6, background: "#ffffff" }}
         />
       )}
       {localUrl && (
-        <div className="w-full overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5 bg-white">
-          <div className="aspect-video">
+        <div
+          style={{
+            width: "100%",
+            overflow: "hidden",
+            borderRadius: 12,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            background: "#ffffff",
+            border: "1px solid rgba(0,0,0,0.06)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "14 / 6",
+              background: "#fff",
+            }}
+          >
+            {(() => {
+              const baseStyle: React.CSSProperties = { width: "100%", height: "100%", border: 0, display: "block" };
+              const iframeStyle: React.CSSProperties = disableInteractions ? { ...baseStyle, pointerEvents: "none" } : baseStyle;
+              return (
             <iframe
               src={localUrl}
-              className="w-full h-full border-0"
+              style={iframeStyle}
               allowFullScreen={!disableInteractions}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              style={disableInteractions ? { pointerEvents: "none" } : undefined}
               tabIndex={disableInteractions ? -1 : undefined}
               aria-hidden={disableInteractions ? true : undefined}
             ></iframe>
+              );
+            })()}
           </div>
         </div>
       )}
     </div>
   );
 
-  if (unstyled) return content;
-
   return (
-    <section className="w-full py-10 px-4 bg-gradient-to-b from-slate-50 via-white to-slate-100">
+    <section style={{ width: "100%" }}>
       {content}
     </section>
   );

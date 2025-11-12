@@ -24,19 +24,19 @@ const BulletinsPage = () => {
             setLoading(true);
             try {
                 console.log(`[Bulletins Page] Loading feed with filters at ${new Date().toISOString()}`, filters);
-                
+
                 // Fetch server-localized week info
                 const weekInfo = await fetchCurrentWeek();
                 if (isMounted) {
                     setServerWeek(weekInfo);
                     console.log(`[Bulletins Page] Server week: ${weekInfo.week_label} (${weekInfo.timezone})`);
                 }
-                
+
                 const weekStart = new Date(weekInfo.week_start);
                 const weekEnd = new Date(weekInfo.week_end);
-                
+
                 console.log(`[Bulletins Page] Filtering services for week: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`);
-                
+
                 // Convert filters to API format
                 // IMPORTANT: week_start/week_end are sent to the API but the backend will IGNORE them for bulletins
                 // when upcoming_only=true. The backend uses week filters ONLY for services.
@@ -257,7 +257,7 @@ const BulletinsPage = () => {
                                         {selectedService.timeline_notes.split('\n').map((line, index, array) => {
                                             const trimmedLine = line.trim();
                                             if (!trimmedLine) return <div key={index} className="h-2" />;
-                                            
+
                                             return (
                                                 <div key={index}>
                                                     <div className="py-2 leading-relaxed">

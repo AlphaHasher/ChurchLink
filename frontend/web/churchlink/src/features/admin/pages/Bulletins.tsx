@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { fetchBulletins, fetchServices, reorderServices, reorderBulletins } from '@/features/bulletins/api/bulletinsApi';
 import { fetchPermissions } from '@/helpers/PermissionsHelper';
 import { ChurchBulletin, ServiceBulletin } from '@/shared/types/ChurchBulletin';
@@ -14,7 +14,7 @@ const Bulletins = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<string>('services');
 
-    const loadBulletins = async (): Promise<ChurchBulletin[]> => {
+    const loadBulletins = useCallback(async (): Promise<ChurchBulletin[]> => {
         try {
             const [publishedBulletins, draftBulletins] = await Promise.all([
                 fetchBulletins({ published: true, skip_expiration_filter: true }),
@@ -26,11 +26,7 @@ const Bulletins = () => {
                 merged.set(entry.id, entry);
             });
 
-            const sorted = Array.from(merged.values()).sort((a, b) => {
-                // Sort by order (ascending) for drag-and-drop reordering
-                return a.order - b.order;
-            });
-
+            const sorted = Array.from(merged.values()).sort((a, b) => a.order - b.order);
             setBulletins(sorted);
             return sorted;
         } catch (err) {
@@ -38,13 +34,12 @@ const Bulletins = () => {
             setBulletins([]);
             return [];
         }
-    };
+    }, []);
 
-    const loadServices = async (): Promise<ServiceBulletin[]> => {
+    const loadServices = useCallback(async (): Promise<ServiceBulletin[]> => {
         try {
             const allServices = await fetchServices({ published: undefined });
             const sorted = allServices.sort((a, b) => {
-                // Sort by display_week desc, then order asc
                 const aWeek = a.display_week ? new Date(a.display_week).getTime() : 0;
                 const bWeek = b.display_week ? new Date(b.display_week).getTime() : 0;
                 
@@ -61,9 +56,9 @@ const Bulletins = () => {
             setServices([]);
             return [];
         }
-    };
+    }, []);
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         try {
             const [permsFromAPI] = await Promise.all([
@@ -78,22 +73,29 @@ const Bulletins = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [loadBulletins, loadServices]);
 
-    const handleReorderServices = async (serviceIds: string[]) => {
+    const handleReorderServices = useCallback(async (serviceIds: string[]) => {
         await reorderServices(serviceIds);
         await loadServices();
-    };
+    }, [loadServices]);
 
-    const handleReorderBulletins = async (bulletinIds: string[]) => {
+    const handleReorderBulletins = useCallback(async (bulletinIds: string[]) => {
         await reorderBulletins(bulletinIds);
         await loadBulletins();
-    };
+    }, [loadBulletins]);
 
-    useEffect(() => { 
+    const handleRefreshBulletins = useCallback(async (): Promise<void> => {
+        await loadBulletins();
+    }, [loadBulletins]);
+
+    const handleRefreshServices = useCallback(async (): Promise<void> => {
+        await loadServices();
+    }, [loadServices]);
+
+    useEffect(() => {
         loadData(); 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [loadData]);
 
     if (loading) return <p>Loading Weekly Bulletin...</p>;
 
@@ -113,24 +115,22 @@ const Bulletins = () => {
                         value="bulletins"
                         className="px-6 py-2.5 transition-colors hover:text-blue-700 dark:hover:text-blue-200 data-[state=active]:border-blue-500/60 data-[state=active]:text-blue-700 dark:data-[state=active]:border-blue-300/50 dark:data-[state=active]:text-blue-200"
                     >
-                        Bulletin Announcements
+                        Bulletins
                     </TabsTrigger>
                 </TabsList>
-                
                 <TabsContent value="bulletins" className="mt-6">
                     <BulletinsTable 
                         bulletins={bulletins} 
                         permissions={perms} 
-                        onRefresh={async () => { await loadBulletins(); }}
+                        onRefresh={handleRefreshBulletins}
                         onReorder={handleReorderBulletins}
                     />
                 </TabsContent>
-                
                 <TabsContent value="services" className="mt-6">
                     <ServicesTable 
                         services={services} 
                         permissions={perms} 
-                        onRefresh={async () => { await loadServices(); }}
+                        onRefresh={handleRefreshServices}
                         onReorder={handleReorderServices}
                     />
                 </TabsContent>

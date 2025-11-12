@@ -35,13 +35,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load environment variables
-  if (!kTestMode) {
-    try {
-      await dotenv.load(fileName: ".env");
-    } catch (e) {
-    // Environment file not found or invalid
-    }
-  }
+  await dotenv.load(fileName: ".env");
 
   // Initialize Firebase
   await Firebase.initializeApp();
@@ -62,23 +56,22 @@ Future<void> main() async {
 
   // Setup messaging and notifications BEFORE checking for initial message
 
-  if (!kTestMode) {
-    setupFirebaseMessaging();
-    await setupLocalNotifications();
+  setupFirebaseMessaging();
+  await setupLocalNotifications();
 
-    // Startup connectivity service
-    ConnectivityService().start();
+  // Startup connectivity service
+  ConnectivityService().start();
 
-    RemoteMessage? initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) {
-      initialNotificationData = initialMessage.data;
-      // Store the initial message for handling after the app is built
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        DeepLinkingService.handleNotificationData(initialMessage.data);
-      });
-    }
+  RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    initialNotificationData = initialMessage.data;
+    // Store the initial message for handling after the app is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkingService.handleNotificationData(initialMessage.data);
+    });
   }
+
 
   runApp(
     MultiProvider(
@@ -87,18 +80,8 @@ Future<void> main() async {
           create: (context) {
             final provider = TabProvider();
             TabProvider.instance = provider;
-            if (kTestMode) {
-              // Provide a fixed, fast-loading tab set for tests
-              provider.setTabsForTest(const [
-                {'name': 'home', 'displayName': 'Home', 'icon': 'home'},
-                {'name': 'bible', 'displayName': 'Bible', 'icon': 'menu_book'},
-                {'name': 'sermons', 'displayName': 'Sermons', 'icon': 'sermons'},
-                {'name': 'events', 'displayName': 'Events', 'icon': 'event'},
-                {'name': 'profile', 'displayName': 'Profile', 'icon': 'person'},
-              ]);
-              } else {
-                provider.loadTabConfiguration();
-              }
+            provider.loadTabConfiguration();
+            
             return provider;
           },
         ),
@@ -120,8 +103,9 @@ class MyApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: c,
       builder: (_, child) {
+        final appName = dotenv.env['APP_NAME'] ?? 'ChurchLink';
         return MaterialApp(
-          title: 'ChurchLink',
+          title: appName,
           navigatorKey: navigatorKey,
           theme: AppTheme.light, // Colors are defined in app_theme.dart
           darkTheme: AppTheme.dark,

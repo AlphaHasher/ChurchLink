@@ -73,3 +73,6 @@ app.*.map.json
 # Ignore Firebase config files
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+
+/assets/user
+/ios/Runner/Assets.xcassets/

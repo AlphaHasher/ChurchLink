@@ -4,9 +4,30 @@ import { PageV2, SectionV2 } from "@/shared/types/pageV2";
 import api, { pageApi } from "@/api/api";
 import { defaultSection } from "../utils/sectionHelpers";
 
+/**
+ * Manages staging and publishing state for a page identified by `slug`, including staging data, autosave, live sync checks, and translations.
+ *
+ * @param slug - The page slug to load and manage.
+ * @returns An object exposing the current page state, setters, UI flags, sync/publish/save statuses, translation state, publish function, and locale helpers:
+ * - `page`, `setPage` — current staged PageV2 and setter
+ * - `sections`, `setSections` — staged desktop sections and setter
+ * - `sectionsMobile`, `setSectionsMobile` — staged mobile sections and setter
+ * - `activeLocale`, `setActiveLocale` — currently active locale and setter
+ * - `showHeader`, `setShowHeader` — header visibility flag and setter
+ * - `showFooter`, `setShowFooter` — footer visibility flag and setter
+ * - `liveVisible` — whether the live page is visible
+ * - `inSyncWithLive` — whether staged content matches live content (normalized)
+ * - `saveState` — autosave status: `"custom" | "processing" | "success" | "error"`
+ * - `publishState` — publish status: `"custom" | "processing" | "success" | "error"`
+ * - `publish` — function to publish the staged page (includes translation flow)
+ * - `translationError`, `setTranslationError` — translation error marker and setter
+ * - `addLocale(code)` — adds a locale to the page's locales
+ * - `setDefaultLocale(code)` — sets the page default locale and updates `activeLocale`
+ */
 export function usePageManager(slug: string) {
   const [page, setPage] = useState<PageV2 | null>(null);
   const [sections, setSections] = useState<SectionV2[]>([]);
+  const [sectionsMobile, setSectionsMobile] = useState<SectionV2[]>([]);
   const [activeLocale, setActiveLocale] = useState<string>('en');
   const [showHeader, setShowHeader] = useState(false);
   const [showFooter, setShowFooter] = useState(false);
@@ -38,6 +59,7 @@ export function usePageManager(slug: string) {
         if (mounted) {
           setPage({ ...v2, defaultLocale, locales });
           setSections(v2.sections ?? []);
+          setSectionsMobile((v2 as any)?.sectionsMobile ?? []);
           setActiveLocale(defaultLocale);
         }
       } catch (e: any) {
@@ -53,6 +75,7 @@ export function usePageManager(slug: string) {
         };
         setPage(seeded);
         setSections(seeded.sections);
+        setSectionsMobile([]);
         setActiveLocale('en');
       }
     };
@@ -155,7 +178,7 @@ export function usePageManager(slug: string) {
     setSaveState((prev) => (prev === "processing" ? prev : "processing"));
     const t = setTimeout(async () => {
       try {
-        await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections });
+        await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections, sectionsMobile });
         setSaveState("success");
         // Briefly show success then idle
         setTimeout(() => setSaveState("custom"), 900);
@@ -165,14 +188,14 @@ export function usePageManager(slug: string) {
       }
     }, 800);
     return () => clearTimeout(t);
-  }, [slug, page, sections]);
+  }, [slug, page, sections, sectionsMobile]);
 
   const publish = async () => {
     if (!slug) return;
     if (publishState !== "custom") return;
     try {
       setPublishState("processing");
-      await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections });
+      await pageApi.saveStaging(slug, { ...page, slug, version: 2, sections, sectionsMobile });
       await pageApi.publish(slug);
       try {
         const localesSet = new Set<string>();
@@ -271,6 +294,8 @@ export function usePageManager(slug: string) {
     setPage,
     sections,
     setSections,
+    sectionsMobile,
+    setSectionsMobile,
     activeLocale,
     setActiveLocale,
     showHeader,
