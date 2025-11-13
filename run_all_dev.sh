@@ -26,7 +26,7 @@ FRONTEND_PID=$!
 
 # Start backend Python server
 echo "Starting backend Python server..."
-cd ../../../backend && uv run main.py &
+cd ../../../backend && uv run main.py debug &
 BACKEND_PID=$!
 
 
