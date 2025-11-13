@@ -23,7 +23,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const optionViolations = useMemo(() => !slug ? getOptionViolations(schema) : [], [schema, slug]);
   const zodSchema = schemaToZodObject(schema); // always create schema
-  
+
   const defaultValues = useMemo(() => {
     const defaults: Record<string, any> = {};
     for (const field of schema.data) {
@@ -33,7 +33,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
     }
     return defaults;
   }, [schema.data]);
-  
+
   const form = useForm({ resolver: zodResolver(zodSchema), defaultValues });
   const formWidthClass = applyFormWidth ? formWidthToClass((schema as any)?.formWidth) : undefined;
   const values = form.watch();
@@ -267,12 +267,12 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         <PreviewUnavailableAlert message="Fix the following option issues to resume the live builder preview:">
           {optionViolations.map((issue) => (
             <li key={issue.fieldId}>
-              <span className="font-medium">{issue.fieldLabel}</span>: 
-              {issue.hasEmptyLabels && issue.hasEmptyValues 
+              <span className="font-medium">{issue.fieldLabel}</span>:
+              {issue.hasEmptyLabels && issue.hasEmptyValues
                 ? ' One or more options have empty labels and values'
-                : issue.hasEmptyLabels 
-                ? ' One or more options have empty labels'
-                : ' One or more options have empty values'}
+                : issue.hasEmptyLabels
+                  ? ' One or more options have empty labels'
+                  : ' One or more options have empty values'}
             </li>
           ))}
         </PreviewUnavailableAlert>
@@ -551,6 +551,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
             field={f}
             control={form.control}
             error={(form.formState.errors as any)?.[f.name]?.message as string | undefined}
+            dynamicTotal={total}
           />
         ))}
 
@@ -702,16 +703,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
             </div>
           )}
         </div>
-        {showPricingBar && (
-          <div className="col-span-12">
-            <div className="mt-2 border-t pt-2 flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">Pricing summary</div>
-              <div className="text-base">
-                <span className="font-medium">Estimated Total: </span>${total.toFixed(2)}
-              </div>
-            </div>
-          </div>
-        )}
       </form>
     </div>
   );

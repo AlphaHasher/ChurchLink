@@ -22,6 +22,7 @@ const items = [
 
 export function Palette() {
   const addField = useBuilderStore((s) => s.addField);
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="p-3 pb-2">

@@ -93,7 +93,7 @@ const newField = (type: FieldType): AnyField => {
     case "pricelabel":
       return { ...base, type: "pricelabel", label: "Price Item", amount: 5 } as any;
     case "price":
-      return { ...base, type: "price", label: "Total Price", amount: 0 } as any;
+      return { ...base, type: "price", label: "Payment Method", amount: 0 } as any;
     default:
       return { ...base, type: "text", placeholder: "Enter text" };
   }
@@ -108,75 +108,114 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   modifiedFields: new Set(),
   select: (id?: string) => set({ selectedId: id }),
   addField: (type: FieldType) => set((s) => {
-    // Prevent adding multiple price fields - only one price field allowed per form
-    if (type === 'price') {
-      const hasPriceField = s.schema.data.some(field => field.type === 'price');
-      if (hasPriceField) {
-        return s; // Don't add another price field if one already exists
-      }
-    }
-    
     let newFieldData = newField(type);
-    let newData: AnyField[] = [...s.schema.data, newFieldData];
 
-    if (type === 'price') {
-      const pricelabelFields = s.schema.data.filter(f => f.type === 'pricelabel') as AnyField[];
-      if (pricelabelFields.length > 0) {
-        const calculatedTotal = pricelabelFields.reduce((sum, f: any) => sum + (f.amount || 0), 0);
-        newFieldData = { ...newFieldData, amount: calculatedTotal } as AnyField;
-        newData = [...s.schema.data, newFieldData];
-      }
+    // For non-price fields, insert before any existing price field to keep Payment Method at bottom
+    const priceFieldIndex = s.schema.data.findIndex(f => f.type === 'price');
+    let newData: AnyField[];
+    if (type !== 'price' && priceFieldIndex !== -1) {
+      // Insert new field before the price field
+      newData = [
+        ...s.schema.data.slice(0, priceFieldIndex),
+        newFieldData,
+        ...s.schema.data.slice(priceFieldIndex)
+      ];
+    } else {
+      // No price field exists or we're adding a price field, append normally
+      newData = [...s.schema.data, newFieldData];
     }
-    
-    // If we're adding a pricelabel field, update price field totals
+
+    // If we're adding a pricelabel field, update price field totals and ensure Payment Method exists
     if (type === 'pricelabel') {
       // Calculate total from all pricelabel fields (including the new one)
       const pricelabelFields = newData.filter(f => f.type === 'pricelabel') as any[];
       const newTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-      
-      // Update all price fields with the calculated total
-      const finalData = newData.map(f => {
-        if (f.type === 'price') {
-          return { ...f, amount: newTotal } as AnyField;
-        }
-        return f;
-      });
-      
+
+      // Ensure Payment Method field exists at the bottom
+      let finalData = newData;
+      const hasPriceField = finalData.some(f => f.type === 'price');
+      if (!hasPriceField) {
+        const paymentField = newField('price') as any;
+        paymentField.label = 'Payment Method';
+        paymentField.amount = newTotal;
+        finalData = [...finalData, paymentField];
+      } else {
+        finalData = finalData.map(f => {
+          if (f.type === 'price') {
+            return { ...f, amount: newTotal } as AnyField;
+          }
+          return f;
+        });
+      }
+
       return { schema: { ...s.schema, data: finalData } };
     }
-    
+
+    // If adding a price field manually, ensure it's at the bottom and remove any existing one first
+    if (type === 'price') {
+      (newFieldData as any).label = 'Payment Method';
+      const nonPriceFields = newData.filter(f => f.type !== 'price');
+      return { schema: { ...s.schema, data: [...nonPriceFields, newFieldData] } };
+    }
+
     return { schema: { ...s.schema, data: newData } };
   }),
   removeField: (id: string) => set((s) => {
     const fieldToRemove = s.schema.data.find(f => f.id === id);
-    const newData = s.schema.data.filter((f) => f.id !== id);
-    
-    // If we're removing a pricelabel field, update price field totals
+    let newData = s.schema.data.filter((f) => f.id !== id);
+
+    // If we're removing the Payment Method field (price type), just remove it
+    if (fieldToRemove?.type === 'price') {
+      return {
+        schema: { ...s.schema, data: newData },
+        selectedId: s.selectedId === id ? undefined : s.selectedId,
+      };
+    }
+
+    // If we're removing a pricelabel field, update price field totals and auto-remove Payment Method if needed
     if (fieldToRemove?.type === 'pricelabel') {
       // Calculate new total from remaining pricelabel fields
       const remainingPricelabelFields = newData.filter(f => f.type === 'pricelabel') as any[];
       const newTotal = remainingPricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-      
-      // Update all price fields with the new calculated total
-      const finalData = newData.map(f => {
-        if (f.type === 'price') {
-          return { ...f, amount: newTotal } as AnyField;
-        }
-        return f;
-      });
-      
+
+      // Check if there's a base price on the price field itself
+      const priceField = newData.find(f => f.type === 'price') as any;
+      const hasBasePrice = priceField && (priceField.amount || 0) > 0 && remainingPricelabelFields.length === 0;
+
+      // If no more pricelabel fields and no base price, remove the Payment Method field
+      if (remainingPricelabelFields.length === 0 && !hasBasePrice) {
+        newData = newData.filter(f => f.type !== 'price');
+      } else if (remainingPricelabelFields.length > 0) {
+        // Update price field with new calculated total
+        newData = newData.map(f => {
+          if (f.type === 'price') {
+            return { ...f, amount: newTotal } as AnyField;
+          }
+          return f;
+        });
+      }
+
       return {
-        schema: { ...s.schema, data: finalData },
+        schema: { ...s.schema, data: newData },
         selectedId: s.selectedId === id ? undefined : s.selectedId,
       };
     }
-    
+
     return {
       schema: { ...s.schema, data: newData },
       selectedId: s.selectedId === id ? undefined : s.selectedId,
     };
   }),
   reorder: (from: number, to: number) => set((s) => {
+    // Prevent reordering the Payment Method field
+    const fromField = s.schema.data[from];
+    const toField = s.schema.data[to];
+
+    // If either field is a price field, don't allow reordering
+    if (fromField?.type === 'price' || toField?.type === 'price') {
+      return s;
+    }
+
     const arr = [...s.schema.data];
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
@@ -192,27 +231,39 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
 
     // Update the field with the patch
     const updatedData = s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[];
-    
+
     // If this is a pricelabel field and its amount changed, auto-update price fields
     if (field?.type === 'pricelabel' && patch.hasOwnProperty('amount')) {
       // Calculate new total from all pricelabel fields
       const pricelabelFields = updatedData.filter(f => f.type === 'pricelabel') as any[];
       const newTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-      
-      // Update all price fields with the calculated total
-      const finalData = updatedData.map(f => {
-        if (f.type === 'price') {
-          return { ...f, amount: newTotal } as AnyField;
-        }
-        return f;
-      });
-      
+
+      // Check if Payment Method field exists
+      let finalData = updatedData;
+      const hasPriceField = finalData.some(f => f.type === 'price');
+
+      if (!hasPriceField) {
+        // Auto-create Payment Method field at the end
+        const paymentField = newField('price') as any;
+        paymentField.label = 'Payment Method';
+        paymentField.amount = newTotal;
+        finalData = [...finalData, paymentField];
+      } else {
+        // Update existing price field with the calculated total
+        finalData = finalData.map(f => {
+          if (f.type === 'price') {
+            return { ...f, amount: newTotal } as AnyField;
+          }
+          return f;
+        });
+      }
+
       return {
         schema: {
           ...s.schema,
           data: finalData,
         },
-        modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined) 
+        modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined)
           ? new Set([...s.modifiedFields, id])
           : s.modifiedFields,
       };
@@ -223,7 +274,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         ...s.schema,
         data: updatedData,
       },
-      modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined) 
+      modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined)
         ? new Set([...s.modifiedFields, id])
         : s.modifiedFields,
     };
@@ -241,22 +292,24 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     };
   }),
   setSchema: (schema) => {
-    // Remove duplicate price fields if any exist (keep only the first one)
-    const cleanedData = [];
-    let hasPriceField = false;
-    
+    // Clean up schema: remove duplicate price fields and ensure price field is always at the end
+    const nonPriceFields: AnyField[] = [];
+    let priceField: AnyField | null = null;
+
     for (const field of schema.data) {
       if (field.type === 'price') {
-        if (!hasPriceField) {
-          cleanedData.push(field);
-          hasPriceField = true;
+        if (!priceField) {
+          priceField = field; // Keep first price field
         }
         // Skip additional price fields
       } else {
-        cleanedData.push(field);
+        nonPriceFields.push(field);
       }
     }
-    
+
+    // Reconstruct data with price field at the end if it exists
+    const cleanedData = priceField ? [...nonPriceFields, priceField] : nonPriceFields;
+
     return set({
       schema: {
         ...schema,
