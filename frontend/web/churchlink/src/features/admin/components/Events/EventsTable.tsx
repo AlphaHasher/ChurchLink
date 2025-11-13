@@ -147,7 +147,7 @@ export function EventsTable({ data, permData, onSave }: EventsTableProps) {
     };
 
     return (
-        <div className="container mx-auto">
+        <div>
             <div className="flex items-center py-4">
                 <Input
                     placeholder="Search Events..."

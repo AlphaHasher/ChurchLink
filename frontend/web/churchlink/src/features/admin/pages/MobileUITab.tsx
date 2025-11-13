@@ -221,7 +221,7 @@ const MobileUITab = () => {
 
   if (loading) {
     return (
-      <div className="p-6 bg-background text-foreground">
+      <div className="bg-background text-foreground">
         <h1 className="text-3xl font-bold mb-6">Mobile UI Tab</h1>
         <div className="text-center py-8">
           <Skeleton className="h-8 w-1/3 mx-auto" />
@@ -232,7 +232,7 @@ const MobileUITab = () => {
   }
 
   return (
-    <div className="p-6 bg-background text-foreground">
+    <div className="bg-background text-foreground">
       <h1 className="text-3xl font-bold mb-6">Mobile UI Tab</h1>
       {/* Tab Management Section */}
       <div className="bg-card text-card-foreground border border-border rounded-lg shadow-sm p-6 mb-6">
