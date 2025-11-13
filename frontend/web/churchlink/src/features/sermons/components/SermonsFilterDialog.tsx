@@ -97,7 +97,7 @@ export function SermonsFilterDialog({ filters, availableMinistries, onApply, onR
                 )}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="w-full max-w-2xl">
+            <DialogContent className="w-full max-w-2xl z-[999]">
                 <DialogHeader>
                     <DialogTitle>Filter sermons</DialogTitle>
                     <DialogDescription>

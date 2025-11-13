@@ -4,7 +4,6 @@ import { Calendar, Clock, ExternalLink, Users } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from '@/shared/components/ui/Dialog';
@@ -72,7 +71,7 @@ export function SermonDetailsModal({ sermon, isOpen, onClose, isLoading = false,
 
     return (
         <Dialog open={isOpen} onOpenChange={(next) => !next && onClose()}>
-            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto sm:pr-6">
+            <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto sm:pr-6 z-[999]">
                 {!sermon ? (
                     <>
                         <DialogHeader>
@@ -86,11 +85,6 @@ export function SermonDetailsModal({ sermon, isOpen, onClose, isLoading = false,
                             <DialogTitle className="text-xl font-bold leading-tight">
                                 {sermon.title}
                             </DialogTitle>
-                            {sermon.speaker && (
-                                <DialogDescription className="text-sm text-gray-600">
-                                    {sermon.speaker}
-                                </DialogDescription>
-                            )}
                             {canFavorite && (
                                 <Button
                                     type="button"
@@ -138,6 +132,18 @@ export function SermonDetailsModal({ sermon, isOpen, onClose, isLoading = false,
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {sermon.speaker && (
+                                    <div className="flex items-center gap-3 text-gray-700">
+                                        <Users className="h-5 w-5 text-gray-500" />
+                                        <div>
+                                            <p className="font-medium">Preacher</p>
+                                            <p className="text-sm text-gray-600">
+                                                {sermon.speaker}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {postedAt && (
                                     <div className="flex items-center gap-3 text-gray-700">
                                         <Calendar className="h-5 w-5 text-gray-500" />
@@ -152,7 +158,7 @@ export function SermonDetailsModal({ sermon, isOpen, onClose, isLoading = false,
 
                                 {updatedAt && (
                                     <div className="flex items-center gap-3 text-gray-700">
-                                        <Users className="h-5 w-5 text-gray-500" />
+                                        <Calendar className="h-5 w-5 text-gray-500" />
                                         <div>
                                             <p className="font-medium">Last updated</p>
                                             <p className="text-sm text-gray-600">

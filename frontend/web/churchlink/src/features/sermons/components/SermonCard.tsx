@@ -16,10 +16,11 @@ export function SermonCard({ sermon, onClick }: SermonCardProps) {
 
     return (
         <Card
-            className="group overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1"
+            className="group overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 flex flex-col py-0"
             onClick={onClick}
         >
-            <div className="relative aspect-video w-full bg-gray-200">
+            {/* Video Thumbnail */}
+            <div className="relative aspect-video w-full bg-gray-200 flex-shrink-0">
                 {sermon.is_favorited && (
                     <Star
                         className="absolute right-3 top-3 z-20 h-6 w-6 text-yellow-400 drop-shadow-lg"
@@ -37,26 +38,22 @@ export function SermonCard({ sermon, onClick }: SermonCardProps) {
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-300 via-slate-200 to-slate-100" />
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-                <div className="absolute inset-0 flex flex-col justify-end gap-2 p-4 text-white">
-                    <div>
-                        <h3 className="text-lg font-semibold leading-tight line-clamp-2">
-                            {sermon.title}
-                        </h3>
-                        <p className="text-sm text-white/80 mt-1 line-clamp-1">{sermon.speaker}</p>
-                    </div>
-
-                    {posted && (
-                        <div className="text-xs uppercase tracking-wide text-white/70">
-                            {format(posted, 'MMM dd, yyyy')}
-                        </div>
-                    )}
-                </div>
-
                 {durationLabel && (
-                    <div className="absolute bottom-3 right-3 inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-black/70 backdrop-blur-sm text-white">
+                    <div className="absolute bottom-3 right-3 inline-flex items-center rounded-md text-xs font-medium bg-black/70 backdrop-blur-sm text-white">
                         {durationLabel}
+                    </div>
+                )}
+            </div>
+
+            {/* Info Section Below Video */}
+            <div className="flex flex-col gap-1 p-3 flex-1">
+                <h3 className="text-sm font-semibold leading-tight line-clamp-2">
+                    {sermon.title}
+                </h3>
+                <p className="text-xs text-gray-600 line-clamp-1">{sermon.speaker}</p>
+                {posted && (
+                    <div className="text-xs text-gray-500">
+                        {format(posted, 'MMM dd, yyyy')}
                     </div>
                 )}
             </div>
