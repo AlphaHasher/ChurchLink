@@ -76,10 +76,25 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
       }
     }
 
+    // Don't show Payment Method if total is $0 (no paid options selected)
+    if (amount == 0) {
+      return null;
+    }
+
     const paymentMethods = priceField.paymentMethods || {};
     const allowPayPal = paymentMethods.allowPayPal !== false; // default true
     const allowInPerson = paymentMethods.allowInPerson !== false; // default true
-    const localizedLabel = priceField.label;
+
+    // Localization function for price field label
+    const t = (key: 'label', base?: string) => {
+      if (!activeLocale || activeLocale === 'en') return base;
+      const fieldTranslations = translations[field.id]?.[activeLocale];
+      if (!fieldTranslations) return base;
+      const val = (fieldTranslations as any)[key];
+      return (val != null && val !== '') ? val : base;
+    };
+
+    const priceSummaryLabel = t('label', 'Price Summary');
 
     // Determine UI behavior based on enabled payment methods
     const paypalOnly = allowPayPal && !allowInPerson;
@@ -101,17 +116,15 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
               This form requires payment through PayPal. You'll be redirected to PayPal to complete the payment when submitting.
             </p>
             {/* Price display */}
-            {localizedLabel && (
-              <div className="flex items-center justify-between pt-2 border-t border-blue-200">
-                <Label className="text-sm font-medium flex items-center gap-1 text-blue-900">
-                  <span>{localizedLabel}</span>
-                  {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
-                </Label>
-                <span className="text-lg font-semibold text-blue-700">
-                  ${amount.toFixed(2)}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between pt-2 border-t border-blue-200">
+              <Label className="text-sm font-medium flex items-center gap-1 text-blue-900">
+                <span>{priceSummaryLabel}</span>
+                {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
+              </Label>
+              <span className="text-lg font-semibold text-blue-700">
+                ${amount.toFixed(2)}
+              </span>
+            </div>
           </div>
         )}
 
@@ -129,17 +142,15 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
               You can submit the form now and complete payment when you arrive.
             </p>
             {/* Price display */}
-            {localizedLabel && (
-              <div className="flex items-center justify-between pt-2 border-t border-green-200">
-                <Label className="text-sm font-medium flex items-center gap-1 text-green-900">
-                  <span>{localizedLabel}</span>
-                  {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
-                </Label>
-                <span className="text-lg font-semibold text-green-700">
-                  ${amount.toFixed(2)}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between pt-2 border-t border-green-200">
+              <Label className="text-sm font-medium flex items-center gap-1 text-green-900">
+                <span>{priceSummaryLabel}</span>
+                {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
+              </Label>
+              <span className="text-lg font-semibold text-green-700">
+                ${amount.toFixed(2)}
+              </span>
+            </div>
           </div>
         )}
 
@@ -200,17 +211,15 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
             />
 
             {/* Price display */}
-            {localizedLabel && (
-              <div className="flex items-center justify-between pt-2 border-t">
-                <Label className="text-sm font-medium flex items-center gap-1">
-                  <span>{localizedLabel}</span>
-                  {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
-                </Label>
-                <span className="text-lg font-semibold text-primary">
-                  ${amount.toFixed(2)}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <span>{priceSummaryLabel}</span>
+                {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
+              </Label>
+              <span className="text-lg font-semibold text-primary">
+                ${amount.toFixed(2)}
+              </span>
+            </div>
           </div>
         )}
 
@@ -434,11 +443,19 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
                 );
               }
               return (
-                <Select value={rhf.value} onValueChange={rhf.onChange}>
+                <Select value={rhf.value || ""} onValueChange={(val) => {
+                  // If field is not required, allow clearing by selecting the clear value
+                  rhf.onChange(val === "__clear__" ? undefined : val);
+                }}>
                   <SelectTrigger id={field.name}>
                     <SelectValue placeholder={localizedPlaceholder || "Choose"} />
                   </SelectTrigger>
                   <SelectContent>
+                    {!field.required && (
+                      <SelectItem value="__clear__">
+                        <span className="text-muted-foreground italic">None</span>
+                      </SelectItem>
+                    )}
                     {safeOpts.map((o: any, idx: number) => (
                       <SelectItem key={o.value} value={o.value}>
                         {tOption(idx, o.label)}

@@ -17,7 +17,6 @@ const items = [
   { type: "switch", label: "Switch" },
   { type: "time", label: "Time" },
   { type: "pricelabel", label: "Price (for label purpose)" },
-  { type: "price", label: "Payment Method" },
 ] as const;
 
 export function Palette() {

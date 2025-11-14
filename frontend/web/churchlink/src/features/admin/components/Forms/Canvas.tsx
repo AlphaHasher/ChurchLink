@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/shared/components/ui/sheet";
-import { Pencil, Trash, Lock, LockOpen } from "lucide-react";
+import { Pencil, Trash, Lock } from "lucide-react";
 import { useBuilderStore } from "./store";
 import { Inspector } from "./Inspector";
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -57,15 +57,6 @@ export function Canvas() {
             <div className="flex flex-col gap-2">
               {fields.map((f, idx) => {
                 const isPriceField = f.type === 'price';
-                // Check if ANY field has pricing (pricelabel, checkbox/switch with price, radio/select options with prices, or date pricing)
-                const hasFieldsWithPricing = fields.some(field => {
-                  if (field.type === 'pricelabel') return true;
-                  if ((field.type === 'checkbox' || field.type === 'switch') && (field as any).price != null) return true;
-                  if ((field.type === 'radio' || field.type === 'select') && (field as any).options?.some((o: any) => o.price != null)) return true;
-                  if (field.type === 'date' && (field as any).pricing?.enabled) return true;
-                  return false;
-                });
-                const isPaymentMethodLocked = isPriceField && hasFieldsWithPricing;
                 return (
                   <SortableItem key={f.id} id={f.id} disabled={isPriceField}>
                     {({ setNodeRef, setActivatorNodeRef, attributes, listeners, style }) => (
@@ -82,10 +73,10 @@ export function Canvas() {
                             className={`mr-1 flex-shrink-0 ${isPriceField ? "text-muted-foreground" : "cursor-grab select-none"}`}
                             {...(isPriceField ? {} : listeners)}
                             onClick={(e) => e.stopPropagation()}
-                            aria-label={isPriceField ? (isPaymentMethodLocked ? "Payment Method (locked)" : "Payment Method (can remove)") : "Drag handle"}
-                            title={isPriceField ? (isPaymentMethodLocked ? "Payment Method field cannot be moved (price components exist)" : "Payment Method field can be removed") : "Drag to reorder"}
+                            aria-label={isPriceField ? "Payment Method (auto-managed)" : "Drag handle"}
+                            title={isPriceField ? "Payment Method is auto-managed and always positioned at the bottom" : "Drag to reorder"}
                           >
-                            {isPriceField ? (isPaymentMethodLocked ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />) : "⋮⋮"}
+                            {isPriceField ? <Lock className="h-4 w-4" /> : "⋮⋮"}
                           </span>
                           <span className="flex-shrink-0">{idx + 1}.</span>
                           <span className="truncate" title={(() => {
@@ -126,11 +117,6 @@ export function Canvas() {
                           </Sheet>
                           {!isPriceField && (
                             <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); removeField(f.id); }} title="Remove">
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {isPriceField && !isPaymentMethodLocked && (
-                            <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); removeField(f.id); }} title="Remove Payment Method">
                               <Trash className="h-4 w-4" />
                             </Button>
                           )}

@@ -9,8 +9,7 @@ import type { AnyField, DateField, SelectField } from "./types";
 import { format } from "date-fns";
 import api from '@/api/api';
 import { useState, useEffect, useMemo } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
-import { MailCheck, CreditCard } from 'lucide-react';
+import { MailCheck } from 'lucide-react';
 import { formWidthToClass } from "./types";
 import { cn } from "@/lib/utils";
 import { formPaymentApi } from "@/features/forms/api/formPaymentApi";
@@ -42,6 +41,15 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [paymentConfig, setPaymentConfig] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'in-person' | null>(null);
+
+  useEffect(() => {
+    const paymentFieldKey = Object.keys(values).find((key) => key.includes('_payment_method'));
+    const selected = paymentFieldKey ? values[paymentFieldKey] as 'paypal' | 'in-person' | undefined : undefined;
+    setPaymentMethod((prev) => {
+      const normalized = selected ?? null;
+      return prev === normalized ? prev : normalized;
+    });
+  }, [values]);
 
   // Create a unique instance identifier for duplicate prevention
   const formInstanceId = useMemo(() => instanceId || `form_${Date.now()}_${Math.random()}`, [instanceId]);
@@ -490,23 +498,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   };
   const total = computeTotal();
 
-  const hasPricing = (): boolean => {
-    for (const f of schema.data as AnyField[]) {
-      if (f.type === "price") {
-        return true;
-      } else if (f.type === "checkbox" || f.type === "switch") {
-        if ((f as any).price != null) return true;
-      } else if (f.type === "radio" || f.type === "select") {
-        if ((f as any).options?.some((o: any) => o.price != null)) return true;
-      } else if (f.type === "date") {
-        const df = f as DateField;
-        if (df.pricing?.enabled) return true;
-      }
-    }
-    return false;
-  };
-  const showPricingBar = hasPricing();
-
   if (slug && submitState === 'success' && submitMessage) {
     return (
       <div className={cn("mx-auto w-full", formWidthClass)}>
@@ -555,42 +546,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           />
         ))}
 
-        {/* Payment section - show if form has pricing */}
-        {slug && (showPricingBar || paymentConfig?.requires_payment) && (
-          <div className="col-span-12 space-y-4">
-            <Alert className="border-blue-200 bg-blue-50">
-              <CreditCard className="h-4 w-4" />
-              <AlertTitle>Payment Required</AlertTitle>
-              <AlertDescription>
-                <div className="space-y-3">
-                  {showPricingBar && (
-                    <div className="text-lg font-semibold">
-                      Total: ${computeTotal().toFixed(2)}
-                    </div>
-                  )}
-
-                  {paymentConfig?.payment_description && (
-                    <div className="text-sm">{paymentConfig.payment_description}</div>
-                  )}
-
-                  {/* Payment methods are now handled by price fields directly */}
-                  <div className="text-sm text-muted-foreground">
-                    Choose your payment method in the form above.
-                  </div>
-
-                  {/* Payment status messages */}
-                  {submitMessage && submitState !== 'success' && (
-                    <div className={`text-sm mt-2 ${submitState === 'error' ? 'text-red-600' : 'text-blue-600'}`}>
-                      {submitMessage}
-                    </div>
-                  )}
-
-                </div>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
         <div className="col-span-12">
           {(() => {
             const availableMethods = getAvailablePaymentMethods();
@@ -599,12 +554,8 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
             const bothEnabled = availableMethods.allowPayPal && availableMethods.allowInPerson;
             const hasPayment = total > 0;
 
-            // Check if form has price fields (for Form Builder preview experience)
-            const hasPriceFields = schema.data.some(field => field.type === 'price');
-
-            // For forms with payment (both preview and public forms)
-            // Show PayPal UI if has payment OR if has price fields (for Form Builder preview)
-            if (hasPayment || (!slug && hasPriceFields)) {
+            // Only show payment buttons if total is actually greater than 0
+            if (hasPayment) {
               // Scenario 1: PayPal Only
               if (paypalOnly) {
                 return (
@@ -647,8 +598,11 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                 const paymentMethodField = Object.keys(values).find(key =>
                   key.includes('_payment_method')
                 );
-                const currentMethod = paymentMethodField ?
-                  values[paymentMethodField] as 'paypal' | 'in-person' : 'paypal';
+                const currentMethod = paymentMethod ?? (
+                  paymentMethodField
+                    ? values[paymentMethodField] as 'paypal' | 'in-person'
+                    : 'paypal'
+                );
 
                 if (currentMethod === 'paypal') {
                   return (
@@ -684,7 +638,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
               }
             }
 
-            // Default submit button for non-payment forms or admin preview
+            // Default submit button for non-payment forms or when total is $0
             return (
               <Button
                 type="submit"
