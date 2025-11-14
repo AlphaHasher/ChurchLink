@@ -1,14 +1,21 @@
 import logging
 import os
 import json
-import traceback
 import requests
-from typing import Dict, Any, Optional, Tuple, List
-from datetime import datetime
+from typing import Dict, Any, Optional, List
+from datetime import datetime, date, timedelta
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from fastapi import HTTPException
 
 from mongo.database import DB
-from models.form import get_form_by_slug, get_form_by_id, add_response_by_slug
+from models.form import (
+    get_form_by_slug,
+    get_form_by_id,
+    add_response_by_slug,
+    get_form_by_id_unrestricted,
+    _canonicalize_response,
+    _evaluate_visibility,
+)
 from models.transaction import Transaction, PaymentStatus
 
 from helpers.audit_logger import payment_audit_logger
@@ -68,7 +75,7 @@ class FormPaymentHelper:
                             if amount > 0:
                                 total_amount += amount
                                 self.logger.debug(f"Added price field {field_id}: ${amount:.2f}")
-                        except (ValueError, TypeError) as e:
+                        except (ValueError, TypeError):
                             self.logger.warning(f"Invalid price value for field {field_id}: {price}")
                             continue
             
@@ -84,6 +91,311 @@ class FormPaymentHelper:
         except Exception as e:
             self.logger.error(f"Error calculating total amount: {str(e)}")
             raise ValueError(f"Failed to calculate payment amount: {str(e)}")
+
+    async def compute_expected_payment(
+        self,
+        form_id: str,
+        user_response: Dict[str, Any],
+        *,
+        respect_visibility: bool = True,
+    ) -> float:
+        """Return the authoritative payment total for a form submission.
+
+        Args:
+            form_id: Identifier of the form to evaluate.
+            user_response: Raw response payload supplied by the submitter.
+            respect_visibility: When True, ignore fields hidden by visibility rules.
+
+        Returns:
+            The total amount owed for the supplied response.
+
+        Raises:
+            ValueError: When the form cannot be located, the schema is invalid,
+                or the response references options that do not exist.
+        """
+
+        form = await get_form_by_id_unrestricted(form_id)
+        if not form:
+            raise ValueError("Form not found")
+
+        schema_fields = getattr(form, "data", None)
+        if not isinstance(schema_fields, list):
+            raise ValueError("Stored form schema is invalid; expected a list of fields")
+
+        canonical_response = _canonicalize_response(user_response or {})
+        running_total = Decimal("0")
+
+        for field in schema_fields:
+            if not isinstance(field, dict):
+                continue
+
+            if respect_visibility:
+                visible_if = field.get("visibleIf")
+                if not _evaluate_visibility(visible_if, canonical_response):
+                    continue
+
+            try:
+                running_total += self._calculate_field_total(field, canonical_response)
+            except ValueError as exc:
+                context = field.get("label") or field.get("name") or field.get("id") or "field"
+                raise ValueError(f"{context}: {exc}") from exc
+
+        if running_total < Decimal("0"):
+            raise ValueError("Computed total cannot be negative")
+
+        return float(running_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+    @classmethod
+    def _calculate_field_total(cls, field: Dict[str, Any], responses: Dict[str, Any]) -> Decimal:
+        field_type = (field.get("type") or "").lower()
+        context = field.get("label") or field.get("name") or field.get("id") or "field"
+        name = field.get("name")
+
+        if field_type == "price":
+            return cls._to_decimal(field.get("amount"), context)
+
+        if field_type == "pricelabel":
+            # Pricelabel rows are reflected in the auto-managed price summary field.
+            return Decimal("0")
+
+        if field_type in {"checkbox", "switch"}:
+            if not name:
+                return Decimal("0")
+            if not cls._is_checked(responses.get(name)):
+                return Decimal("0")
+            return cls._to_decimal(field.get("price"), context)
+
+        if field_type == "radio":
+            if not name:
+                return Decimal("0")
+            return cls._calculate_option_total(field, responses.get(name), allow_multiple=False, context=context)
+
+        if field_type == "select":
+            if not name:
+                return Decimal("0")
+            allow_multiple = bool(field.get("multiple"))
+            return cls._calculate_option_total(field, responses.get(name), allow_multiple=allow_multiple, context=context)
+
+        if field_type == "date":
+            if not name:
+                return Decimal("0")
+            return cls._calculate_date_total(field, responses.get(name), context=context)
+
+        return Decimal("0")
+
+    @classmethod
+    def _calculate_option_total(
+        cls,
+        field: Dict[str, Any],
+        raw_value: Any,
+        *,
+        allow_multiple: bool,
+        context: str,
+    ) -> Decimal:
+        options = field.get("options") or []
+        if not isinstance(options, list):
+            raise ValueError("options configuration is invalid")
+
+        option_map: Dict[str, Dict[str, Any]] = {}
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            normalized_value = cls._normalize_option_value(option.get("value"))
+            if normalized_value is None:
+                continue
+            option_map[normalized_value] = option
+
+        if raw_value in (None, "", "__clear__"):
+            return Decimal("0")
+
+        values = cls._collect_select_values(raw_value, allow_multiple, context)
+        total = Decimal("0")
+
+        for value in values:
+            normalized_value = cls._normalize_option_value(value)
+            if normalized_value not in option_map:
+                raise ValueError(f"invalid selection '{value}'")
+            price = option_map[normalized_value].get("price")
+            if price in (None, "", 0, "0"):
+                continue
+            option_label = option_map[normalized_value].get("label") or option_map[normalized_value].get("value")
+            option_context = f"{context} option '{option_label}'"
+            total += cls._to_decimal(price, option_context)
+
+        return total
+
+    @classmethod
+    def _collect_select_values(cls, raw_value: Any, allow_multiple: bool, context: str) -> List[Any]:
+        if allow_multiple:
+            if isinstance(raw_value, (list, tuple, set)):
+                iterable = list(raw_value)
+            elif isinstance(raw_value, str):
+                stripped = raw_value.strip()
+                if not stripped:
+                    return []
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        iterable = parsed
+                    else:
+                        iterable = [raw_value]
+                except json.JSONDecodeError:
+                    iterable = [part.strip() for part in stripped.split(",") if part.strip()]
+            else:
+                raise ValueError("expected an array of selections")
+        else:
+            if isinstance(raw_value, (list, tuple, set)):
+                if len(raw_value) > 1:
+                    raise ValueError("multiple selections supplied to single-select field")
+                iterable = list(raw_value)
+            else:
+                iterable = [raw_value]
+
+        cleaned: List[Any] = []
+        for value in iterable:
+            if value in (None, "", "__clear__"):
+                continue
+            cleaned.append(value)
+        return cleaned
+
+    @staticmethod
+    def _normalize_option_value(value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        return str(value).strip()
+
+    @classmethod
+    def _calculate_date_total(cls, field: Dict[str, Any], raw_value: Any, context: str) -> Decimal:
+        pricing = field.get("pricing") or {}
+        if not isinstance(pricing, dict) or not pricing.get("enabled"):
+            return Decimal("0")
+
+        selected_dates = cls._extract_dates(field, raw_value, context)
+        if not selected_dates:
+            return Decimal("0")
+
+        price_lookup = cls._build_date_price_lookup(pricing, context)
+        total = Decimal("0")
+        for selected_date in selected_dates:
+            total += price_lookup(selected_date)
+        return total
+
+    @classmethod
+    def _extract_dates(cls, field: Dict[str, Any], raw_value: Any, context: str) -> List[date]:
+        mode = (field.get("mode") or "single").lower()
+        if mode == "range":
+            if not isinstance(raw_value, dict):
+                raise ValueError("expected an object with 'from' and 'to' keys for date range selection")
+            start = cls._parse_date_value(raw_value.get("from"), context)
+            end = cls._parse_date_value(raw_value.get("to"), context)
+            if start is None and end is None:
+                return []
+            if start is None or end is None:
+                return [start or end]
+            if end < start:
+                raise ValueError("end date must be on or after start date")
+            dates: List[date] = []
+            cursor = start
+            while cursor <= end:
+                dates.append(cursor)
+                cursor += timedelta(days=1)
+            return dates
+
+        parsed = cls._parse_date_value(raw_value, context)
+        return [parsed] if parsed else []
+
+    @staticmethod
+    def _parse_date_value(value: Any, context: str) -> Optional[date]:
+        if value in (None, "", {}):
+            return None
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if not trimmed:
+                return None
+            try:
+                return datetime.fromisoformat(trimmed).date()
+            except ValueError:
+                try:
+                    return datetime.strptime(trimmed[:10], "%Y-%m-%d").date()
+                except ValueError as exc:
+                    raise ValueError(f"invalid date value '{value}'") from exc
+        raise ValueError(f"invalid date value '{value}'")
+
+    @classmethod
+    def _build_date_price_lookup(cls, pricing: Dict[str, Any], context: str):
+        base_price = cls._to_decimal(pricing.get("basePerDay"), f"{context} base rate") if pricing.get("basePerDay") not in (None, "") else Decimal("0")
+
+        weekday_overrides: Dict[str, Decimal] = {}
+        overrides = pricing.get("weekdayOverrides") or {}
+        if isinstance(overrides, dict):
+            for key, raw_price in overrides.items():
+                if raw_price in (None, "", 0, "0"):
+                    continue
+                try:
+                    day_index = int(key)
+                except (ValueError, TypeError):
+                    continue
+                normalized_day = cls._normalize_weekday(day_index)
+                weekday_overrides[normalized_day] = cls._to_decimal(raw_price, f"{context} weekday override {day_index}")
+
+        specific_overrides: Dict[str, Decimal] = {}
+        specifics = pricing.get("specificDates") or []
+        if isinstance(specifics, list):
+            for entry in specifics:
+                if not isinstance(entry, dict):
+                    continue
+                day_str = entry.get("date")
+                if not day_str:
+                    continue
+                specific_overrides[day_str] = cls._to_decimal(entry.get("price"), f"{context} date override {day_str}")
+
+        def lookup(selected_date: date) -> Decimal:
+            iso = selected_date.isoformat()
+            if iso in specific_overrides:
+                return specific_overrides[iso]
+            override_key = cls._normalize_weekday(((selected_date.weekday() + 1) % 7))
+            if override_key in weekday_overrides:
+                return weekday_overrides[override_key]
+            return base_price
+
+        return lookup
+
+    @staticmethod
+    def _normalize_weekday(day_index: int) -> str:
+        try:
+            normalized = int(day_index) % 7
+        except (ValueError, TypeError):
+            normalized = 0
+        return str(normalized)
+
+    @staticmethod
+    def _to_decimal(value: Any, context: str) -> Decimal:
+        if value in (None, ""):
+            return Decimal("0")
+        try:
+            return Decimal(str(value))
+        except (InvalidOperation, ValueError, TypeError) as exc:
+            raise ValueError(f"invalid monetary value '{value}'") from exc
+
+    @staticmethod
+    def _is_checked(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "on", "checked"}:
+                return True
+            if normalized in {"false", "0", "no", "off", ""}:
+                return False
+        return False
 
     async def create_form_payment_order(
         self,
@@ -155,7 +467,7 @@ class FormPaymentHelper:
             # Log amount calculation for security audit
             self.logger.info(f"Amount calculation - Frontend: ${payment_amount:.2f}, Calculated: ${calculated_amount:.2f}")
             if abs(payment_amount - calculated_amount) > 0.01:  # Allow for small float differences
-                self.logger.warning(f"Payment amount mismatch detected - using calculated amount for security")
+                self.logger.warning("Payment amount mismatch detected - using calculated amount for security")
             
             # Validate the calculated amount
             validated_amount = await self._validate_payment_amount(calculated_amount, form, user_id, client_ip)
