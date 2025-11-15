@@ -549,13 +549,13 @@ function EventDetailsBody({
 
                     {/* Event Capacity */}
                     {data.rsvp_required && (<Card className="px-5">
-                        <div className="flex items-center gap-2 font-semibold">
+                        <div className="flex items-center gap-2 font-semibold pb-3">
                             <Users className="h-4 w-4 text-muted-foreground" />
                             Event Capacity
                         </div>
 
                         {/* Registration requirement */}
-                        <div className="text-sm">
+                        <div className="text-sm pb-3">
                             {data.rsvp_required ? (
                                 <Badge className="bg-blue-50 text-blue-700 border border-blue-200">
                                     Registration Required

@@ -21,6 +21,7 @@ from uuid import uuid4
 from helpers.PayPalHelperV2 import PayPalHelperV2
 from pydantic import BaseModel, Field
 import math
+import logging
 
 
 from models.event_transaction import (
@@ -1229,20 +1230,18 @@ async def _process_refunds_for_removals(
         order_id = pd.transaction_id  # this is the PayPal order id you stored at capture time
         line_id = pd.line_id
         if not order_id or not line_id:
-            return {
-                "success": False,
-                "msg": f"Unable to refund {label}: missing transaction lineage (order_id/line_id).",
-            }
-
+            logging.critical(f"Refund failure: missing lineage for {label} (person {person_id})")
+            continue
         # Look up the captured line and get its capture_id from the ledger
         tx = await get_transaction_by_order_id(order_id)
         if not tx:
-            return {"success": False, "msg": f"Unable to refund {label}: transaction not found."}
+            logging.critical(f"Refund failure: transaction not found for order_id {order_id} (person {person_id})")
+            continue
 
         item = next((it for it in (tx.items or []) if it.line_id == line_id), None)
         if not item or not item.capture_id:
-            return {"success": False, "msg": f"Unable to refund {label}: captured line not found."}
-
+            logging.critical(f"Refund failure: captured line not found for order_id {order_id}, line_id {line_id} (person {person_id})")
+            continue
          # Compute how much is still refundable for this line:
         #   base_refundable = refundable_amount (if set) else price
         #   remaining_from_pd = base_refundable - amount_refunded_so_far
@@ -1282,15 +1281,13 @@ async def _process_refunds_for_removals(
             request_id=req_id,
         )
         if resp.status_code not in (200, 201):
-            return {
-                "success": False,
-                "msg": f"Refund failed for {label}: PayPal responded {resp.status_code}.",
-            }
+            logging.critical(f"Refund failed for {label}: PayPal responded {resp.status_code}.")
+            continue
         rj = resp.json()
         refund_id = rj.get("id")
         if not refund_id:
-            return {"success": False, "msg": f"Refund failed for {label}: missing refund id."}
-
+            logging.critical(f"Refund failed for {label}: missing refund id.")
+            continue
         # Mirror to ledger (append refund + flip line status if appropriate)
         ok = await append_refund_to_item(
             order_id=order_id,
@@ -1301,7 +1298,8 @@ async def _process_refunds_for_removals(
             by_uid=request.state.uid,
         )
         if not ok:
-            return {"success": False, "msg": f"Refund ledger write failed for {label}."}
+            logging.critical(f"Refund ledger write failed for {label} after PayPal refund {refund_id}.")
+            continue
         
         # Best-effort: bump amount_refunded on the PaymentDetails line as well.
         try:
@@ -1473,43 +1471,50 @@ async def admin_force_unregister(request: Request, body: AdminForceChange) -> Di
 
     # If PayPal was used for that particular registrant, issue refund (admin flow ignores refund deadline)
     label = "SELF" if is_self else body.registrant_id
+
     pd = (existing.self_payment_details if is_self else (existing.family_payment_details or {}).get(body.registrant_id))
-    if pd and pd.payment_type == "paypal" and pd.payment_complete and pd.transaction_id and pd.line_id:
-        paypal = await PayPalHelperV2.get_instance()
-        await paypal.start()
 
-        tx = await get_transaction_by_order_id(pd.transaction_id)
-        if not tx:
-            return {"success": False, "msg": f"Refund failed for {label}: transaction not found."}
-        item = next((it for it in (tx.items or []) if it.line_id == pd.line_id), None)
-        if not item or not item.capture_id:
-            return {"success": False, "msg": f"Refund failed for {label}: captured line not found."}
+    try:
+        if pd and pd.payment_type == "paypal" and pd.payment_complete and pd.transaction_id and pd.line_id:
+            paypal = await PayPalHelperV2.get_instance()
+            await paypal.start()
 
-        amount = round(float(pd.price or 0.0), 2)
-        if amount > 0:
-            resp = await paypal.post(
-                f"/v2/payments/captures/{item.capture_id}/refund",
-                json_body={"amount": {"currency_code": "USD", "value": f"{amount:.2f}"}},
-                request_id=f"refund:admin:{pd.transaction_id}:{pd.line_id}",
-            )
-            if resp.status_code not in (200, 201):
-                return {"success": False, "msg": f"Refund failed for {label}: PayPal responded {resp.status_code}."}
+            tx = await get_transaction_by_order_id(pd.transaction_id)
+            if not tx:
+                return {"success": False, "msg": f"Refund failed for {label}: transaction not found."}
+            item = next((it for it in (tx.items or []) if it.line_id == pd.line_id), None)
+            if not item or not item.capture_id:
+                return {"success": False, "msg": f"Refund failed for {label}: captured line not found."}
 
-            rj = resp.json()
-            refund_id = rj.get("id")
-            if not refund_id:
-                return {"success": False, "msg": f"Refund failed for {label}: missing refund id."}
+            amount = round(float(pd.price - pd.amount_refunded), 2)
+            if amount > 0:
+                resp = await paypal.post(
+                    f"/v2/payments/captures/{item.capture_id}/refund",
+                    json_body={"amount": {"currency_code": "USD", "value": f"{amount:.2f}"}},
+                    request_id=f"refund:admin:{pd.transaction_id}:{pd.line_id}",
+                )
 
-            ok = await append_refund_to_item(
-                order_id=pd.transaction_id,
-                line_id=pd.line_id,
-                refund_id=refund_id,
-                amount=amount,
-                reason="admin_forced_unregistration",
-                by_uid=getattr(request.state, "uid", None),
-            )
-            if not ok:
-                return {"success": False, "msg": f"Refund ledger write failed for {label}."}
+                if resp.status_code not in (200, 201):
+                    logging.critical(f"Refund failed for {label}: PayPal {resp.status_code}")
+                    
+
+                rj = resp.json()
+                refund_id = rj.get("id")
+                if not refund_id:
+                    logging.critical(f"Refund failed for {label}: missing refund id")
+
+                ok = await append_refund_to_item(
+                    order_id=pd.transaction_id,
+                    line_id=pd.line_id,
+                    refund_id=refund_id,
+                    amount=amount,
+                    reason="admin_forced_unregistration",
+                    by_uid=getattr(request.state, "uid", None),
+                )
+                if not ok:
+                    logging.critical(f"Refund ledger write failed for {label} after PayPal refund {refund_id}.")
+    except Exception:
+        pass # previously already had logs
 
     # BYPASS CAPACITY: pass capacity_limit=None
     res = await update_registration(assembled.id, body.user_id, new_details, seat_delta, capacity_limit=None)
@@ -1581,12 +1586,15 @@ async def unregister_family_member_across_upcoming(request: Request, family_id: 
             if can_refund:
                 tx = await get_transaction_by_order_id(pd.transaction_id)
                 if not tx:
-                    return {"success": False, "msg": "Refund failed: transaction not found", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                    logging.critical("Refund failed: transaction not found")
+                    continue
                 item = next((it for it in (tx.items or []) if it.line_id == pd.line_id), None)
                 if not item or not item.capture_id:
-                    return {"success": False, "msg": "Refund failed: captured line not found", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                    logging.critical("Refund failed: captured line not found")
+                    continue
 
-                amount = round(float(pd.price or 0.0), 2)
+
+                amount = round(float(pd.refundable_amount - pd.amount_refunded), 2)
                 if amount > 0:
                     resp = await paypal.post(
                         f"/v2/payments/captures/{item.capture_id}/refund",
@@ -1594,11 +1602,13 @@ async def unregister_family_member_across_upcoming(request: Request, family_id: 
                         request_id=f"refund:family-delete:{pd.transaction_id}:{pd.line_id}",
                     )
                     if resp.status_code not in (200, 201):
-                        return {"success": False, "msg": f"Refund failed: PayPal {resp.status_code}", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                        logging.critical(f"Refund failed: PayPal {resp.status_code}")
+                        continue
                     rj = resp.json()
                     refund_id = rj.get("id")
                     if not refund_id:
-                        return {"success": False, "msg": "Refund failed: missing refund id", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                        logging.critical("Refund failed: missing refund id")
+                        continue
 
                     ok = await append_refund_to_item(
                         order_id=pd.transaction_id,
@@ -1609,7 +1619,8 @@ async def unregister_family_member_across_upcoming(request: Request, family_id: 
                         by_uid=uid,
                     )
                     if not ok:
-                        return {"success": False, "msg": "Refund failed: ledger write failed", "stats": {"scanned": scanned, "updated": updated, "refunded": refunded}}
+                        logging.critical("Refund failed: ledger write failed")
+                        continue
                     refunded += 1
 
         # --- Unregister this family member from the instance ---
@@ -1726,7 +1737,13 @@ async def unregister_user_across_upcoming(
             if not item or not item.capture_id:
                 return {"success": False, "msg": f"Refund failed for {label}: captured line not found.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
 
-            amount = round(float(pd.price or 0.0), 2)
+
+            if pd.price == 0:
+                continue
+            if admin_initiated:
+                amount = round(float(pd.price - pd.amount_refunded), 2)
+            else:
+                amount = round(float(pd.refundable_amount - pd.amount_refunded), 2)
             if amount <= 0:
                 continue
 
@@ -1737,12 +1754,14 @@ async def unregister_user_across_upcoming(
                 request_id=req_id,
             )
             if resp.status_code not in (200, 201):
-                return {"success": False, "msg": f"Refund failed for {label}: PayPal responded {resp.status_code}.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+                logging.critical(f"Refund failed for {label}: PayPal responded {resp.status_code}.")
+                continue
 
             rj = resp.json()
             refund_id = rj.get("id")
             if not refund_id:
-                return {"success": False, "msg": f"Refund failed for {label}: missing refund id.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+                logging.critical(f"Refund failed for {label}: missing refund id.")
+                continue
 
             ok = await append_refund_to_item(
                 order_id=pd.transaction_id,
@@ -1753,7 +1772,8 @@ async def unregister_user_across_upcoming(
                 by_uid=getattr(request.state, "uid", None),
             )
             if not ok:
-                return {"success": False, "msg": f"Refund ledger write failed for {label}.", "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded}}
+                logging.critical(f"Refund ledger write failed for {label} after PayPal refund {refund_id}.")
+                continue
 
             lines_refunded += 1
 

@@ -165,12 +165,14 @@ async def _refund_paypal_lines_for_instance(instance_doc: dict, by_uid: str) -> 
 
             tx = await get_transaction_by_order_id(order_id)
             if not tx:
-                return {"success": False, "msg": f"Refund failed for {label}: transaction not found."}
+                logging.critical(f"Refund failed for {label}: transaction not found.")
+                continue
 
             item = next((it for it in (tx.items or []) if it.line_id == line_id), None)
             capture_id = getattr(item, "capture_id", None) if item else None
             if not capture_id:
-                return {"success": False, "msg": f"Refund failed for {label}: captured line not found."}
+                logging.critical(f"Refund failed for {label}: captured line not found.")
+                continue
 
             req_id = f"refund:{order_id}:{line_id}"
             resp = await paypal.post(
@@ -179,12 +181,14 @@ async def _refund_paypal_lines_for_instance(instance_doc: dict, by_uid: str) -> 
                 request_id=req_id,
             )
             if resp.status_code not in (200, 201):
-                return {"success": False, "msg": f"Refund failed for {label}: PayPal {resp.status_code}."}
+                logging.critical(f"Refund failed for {label}: PayPal {resp.status_code}.")
+                continue
 
             rj = resp.json()
             refund_id = rj.get("id")
             if not refund_id:
-                return {"success": False, "msg": f"Refund failed for {label}: missing refund id."}
+                logging.critical(f"Refund failed for {label}: missing refund id.")
+                continue
 
             ok = await append_refund_to_item(
                 order_id=order_id,
@@ -195,7 +199,8 @@ async def _refund_paypal_lines_for_instance(instance_doc: dict, by_uid: str) -> 
                 by_uid=by_uid,
             )
             if not ok:
-                return {"success": False, "msg": f"Refund ledger write failed for {label}."}
+                logging.critical(f"Refund failed for {label}: ledger write failed.")
+                continue
 
             refunded.append((label, refund_id, round(amount, 2)))
         except Exception as e:
