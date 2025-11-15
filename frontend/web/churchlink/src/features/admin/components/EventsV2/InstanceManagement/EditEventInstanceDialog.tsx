@@ -36,7 +36,7 @@ import {
 import { Calendar } from "@/shared/components/ui/calendar";
 import { Pencil } from "lucide-react";
 
-import { EventImageSelector } from "@/features/admin/components/Events/EventImageSelector";
+import EventImageSelector from "../EventManagement/EventImageSelector";
 import { localizationNameToCode } from "@/shared/dictionaries/LocalizationDicts";
 
 import type {

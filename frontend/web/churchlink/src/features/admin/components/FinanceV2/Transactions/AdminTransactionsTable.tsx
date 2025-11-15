@@ -31,6 +31,9 @@ type AdminTransactionsTableProps = {
     pageSize: number;   // 10/25/50
     total: number;
 
+    // 🔑 callback supplied by ViewAdminTransactions
+    onAfterRefund?: () => void;
+
     onPageChange?: (page: number) => void;
     onPageSizeChange?: (size: number) => void;
 };
@@ -47,7 +50,6 @@ function formatAmount(amount?: number | null, currency?: string | null) {
     return `${c} ${amount.toFixed(2)}`;
 }
 
-// Items count helper (same semantics as MyTransactionsTable)
 function getLineItemCount(row: TransactionSummary | null | undefined): number | null {
     if (!row) return null;
     const { kind, extra } = row;
@@ -63,16 +65,13 @@ function getLineItemCount(row: TransactionSummary | null | undefined): number | 
     }
 
     if (kind === "donation_subscription_payment") {
-        // single payment per row
         return 1;
     }
 
     if (kind === "donation_subscription") {
-        // plan itself, not a specific payment
         return 0;
     }
 
-    // forms / one-time donations are single entries
     return 1;
 }
 
@@ -83,9 +82,13 @@ const StatusCellRenderer = (props: ICellRendererParams<TransactionSummary>) => {
     return <SoftPill className={className}>{label}</SoftPill>;
 };
 
-const ActionsCellRenderer = (props: ICellRendererParams<TransactionSummary>) => {
+const ActionsCellRenderer = (
+    props: ICellRendererParams<TransactionSummary> & { onAfterRefund?: () => void }
+) => {
     const row = props.data;
     if (!row) return null;
+
+    const onAfterRefund = (props as any).onAfterRefund as (() => void) | undefined;
 
     const net = row.net_amount ?? row.amount ?? 0;
     const statusLower = (row.status || "").toLowerCase();
@@ -103,14 +106,16 @@ const ActionsCellRenderer = (props: ICellRendererParams<TransactionSummary>) => 
 
     return (
         <div className="flex items-center justify-end gap-2">
-            {/* Full detail dialog (eye icon) */}
             <ViewAdminTransactionDialog tx={row} />
 
-            {/* Refund dialog (dollar icon) for events/forms/donations/etc */}
-            {showRefund && <TransactionRefundDialog tx={row} />}
+            {showRefund && (
+                <TransactionRefundDialog
+                    tx={row}
+                    onAfterRefund={onAfterRefund}
+                />
+            )}
 
-            {/* Cancel dialog (cancel icon) for donation plans */}
-            <CancelDonationSubscriptionDialog tx={row} />
+            <CancelDonationSubscriptionDialog tx={row} onAfterCancel={onAfterRefund} />
         </div>
     );
 };
@@ -203,8 +208,12 @@ export default function AdminTransactionsTable(props: AdminTransactionsTableProp
             pinned: "right",
             minWidth: 130,
             maxWidth: 150,
+            // 🔑 actually pass the callback into the renderer
+            cellRendererParams: {
+                onAfterRefund: props.onAfterRefund,
+            },
         },
-    ], []);
+    ], [props.onAfterRefund]); // 🔑 memo depends on this
 
     const defaultColDef = useMemo<ColDef>(() => ({
         sortable: false,

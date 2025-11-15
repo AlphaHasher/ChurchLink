@@ -213,6 +213,11 @@ export default function MyTransactions() {
                 </div>
             </div>
 
+            <p className="text-sm text-muted-foreground">
+                You can horizontally scroll within the left-side of the table to see
+                more details.
+            </p>
+
             <div className="h-[600px] border rounded-md overflow-hidden bg-background">
                 <MyTransactionsTable
                     rows={rows}
@@ -222,6 +227,10 @@ export default function MyTransactions() {
                     total={total}
                     onPageChange={handleChangePage}
                     onPageSizeChange={handleChangePageSize}
+                    onAfterCancelSubscription={() => {
+                        // Re-fetch with current filters/page
+                        refresh();
+                    }}
                 />
             </div>
         </div>

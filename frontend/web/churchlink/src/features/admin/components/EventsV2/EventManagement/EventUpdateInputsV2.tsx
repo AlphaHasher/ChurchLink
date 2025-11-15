@@ -17,7 +17,7 @@ import {
     Command, CommandInput, CommandEmpty, CommandList, CommandGroup, CommandItem,
 } from "@/shared/components/ui/command";
 import { Calendar } from "@/shared/components/ui/calendar";
-import { EventImageSelector } from "@/features/admin/components/Events/EventImageSelector";
+import EventImageSelector from "./EventImageSelector";
 import { localizationNameToCode } from "@/shared/dictionaries/LocalizationDicts";
 
 import type {
@@ -310,7 +310,7 @@ export default function EventUpdateInputsV2({
             <section>
                 <h3 className="text-base font-semibold">Localized Text</h3>
                 <p className="text-sm text-muted-foreground">
-                    Translations for title, description, and location info.
+                    Translations for title, description, and location info. An English locale is required at minimum.
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -392,6 +392,7 @@ export default function EventUpdateInputsV2({
                                     onChange={(e) => setLocField(activeLang, "location_info", e.target.value)}
                                     placeholder="e.g., Gymnasium / Room A; special parking info, etc."
                                 />
+                                <p className="mt-1 text-xs text-muted-foreground">Optional. Used for non-address details like a room number or other special instructions to reach the event.</p>
                             </div>
                         </div>
                         <div className="max-w-2xl">

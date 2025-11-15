@@ -81,11 +81,14 @@ export function normalizePaymentDetails(
 
 /**
  * Step 1 (paid, PayPal): create a PayPal order for a form.
- * - Server validates slug, price > 0, and PayPal is an allowed method.
+ * - Server validates slug, computes price from answers, and checks PayPal is allowed.
  * - Returns order_id and raw PayPal "order" blob (approval link usually lives in links[]).
  */
-export async function createFormPaymentOrder(slug: string): Promise<CreateFormOrderResponse> {
-    const res = await api.post("/v1/forms/payments/create", { slug });
+export async function createFormPaymentOrder(
+    slug: string,
+    answers: Record<string, any>
+): Promise<CreateFormOrderResponse> {
+    const res = await api.post("/v1/forms/payments/create", { slug, answers });
     return res.data as CreateFormOrderResponse;
 }
 
@@ -149,8 +152,8 @@ export async function submitPaidFormViaPayPal(
     answers: Record<string, any>,
     _form: Pick<Form, "submission_price" | "payment_options">
 ): Promise<CaptureAndSubmitFormResponse> {
-    // Step 1: create a PayPal order
-    const order = await createFormPaymentOrder(slug);
+    // Step 1: create a PayPal order using the current answers so server can compute price
+    const order = await createFormPaymentOrder(slug, answers);
 
     // Step 2: caller should redirect to PayPal approval UI using order.paypal.links
     // After approval, the success page should call the single endpoint below:
@@ -231,5 +234,29 @@ export async function adminRefundFormPayment(
             success: false,
             msg: "Unexpected error refunding form payment.",
         };
+    }
+}
+
+export async function adminMarkFormResponsePaid(
+    formId: string,
+    submittedAt: string
+): Promise<{ success: boolean; msg?: string }> {
+    try {
+        const res = await api.post("/v1/admin/forms/payments/mark-paid", {
+            form_id: formId,
+            submitted_at: submittedAt,
+        });
+        const data = res.data as { success: boolean; msg?: string };
+        return data;
+    } catch (err: any) {
+        console.error(
+            "[FormSubmissionHelper] adminMarkFormResponsePaid() -> error",
+            err,
+        );
+        const detail =
+            err?.response?.data?.detail ||
+            err?.message ||
+            "Unexpected error marking response as paid.";
+        return { success: false, msg: detail };
     }
 }

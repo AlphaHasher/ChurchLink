@@ -312,6 +312,8 @@ def do_event_validation(event_data: dict, validate_date=True):
         if localizations is not None:
             if not isinstance(localizations, dict) or len(localizations.values()) < 1:
                 return {"success": False, "msg": "Error: At least one localization for event title/description is required!"}
+            if 'en' not in localizations:
+                return {"success": False, "msg": "Error: An English ('en') localization for event title/description is required!"}
             for lang, locale in localizations.items():
                 title = (locale.get("title") or "").strip()
                 description = (locale.get("description") or "").strip()

@@ -6,7 +6,7 @@ import {
 } from "@radix-ui/react-dropdown-menu";
 import { Button } from "@/shared/components/ui/button";
 import { Avatar, AvatarFallback } from "@/shared/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { CreditCard, LogOut, User } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import { Link } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
@@ -61,6 +61,16 @@ function ProfileDropDown({ className, isMod }: ProfileDropDownProps) {
           >
             <User className="h-4 w-4" />
             <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link
+            to="/my-transactions"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-lg first:rounded-t-lg last:rounded-b-lg transition-colors duration-200"
+          >
+            <CreditCard className="h-4 w-4" />
+            <span>My Transactions</span>
           </Link>
         </DropdownMenuItem>
         {displayAdminDash ? (

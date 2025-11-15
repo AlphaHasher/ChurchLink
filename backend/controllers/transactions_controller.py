@@ -504,6 +504,13 @@ def _map_form_doc(
     if net_before is not None and refunded_total > 0:
         net_after = round(net_before - refunded_total, 2)
 
+    # ---- Sanitize form_id so it is JSON-serializable ----
+    raw_form_id = doc.get("form_id")
+    if isinstance(raw_form_id, ObjectId):
+        form_id_str = str(raw_form_id)
+    else:
+        form_id_str = raw_form_id
+
     return UnifiedTransaction(
         id=str(doc.get("_id")),
         kind="form",
@@ -524,7 +531,7 @@ def _map_form_doc(
         paypal_subscription_id=None,
         source_collection="form_transactions",
         extra={
-            "form_id": doc.get("form_id"),
+            "form_id": form_id_str,
             "meta": doc.get("metadata") or {},
         },
         raw=doc if include_raw else None,
@@ -887,6 +894,7 @@ async def _query_transactions_common(
     end = start + body.page_size
     page_items = unified[start:end]
     has_more = len(unified) > end
+
 
     return {
         "items": [tx.model_dump(exclude_none=True) for tx in page_items],

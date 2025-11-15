@@ -15,12 +15,82 @@ import { TranslationsPanel } from "./TranslationsPanel";
 export function Inspector() {
   const selectedId = useBuilderStore((s) => s.selectedId);
   const field = useBuilderStore((s) => s.schema.data.find((f) => f.id === s.selectedId));
-  const allFields = useBuilderStore((s) => s.schema.data);
   const update = useBuilderStore((s) => s.updateField);
   const updateOptions = useBuilderStore((s) => s.updateOptions);
 
   if (!selectedId || !field) {
     return <div className="text-sm text-muted-foreground">Select a field to edit its properties</div>;
+  }
+
+  // Special handling for Payment Method field (price field)
+  if (field.type === 'price') {
+    const priceField = field as any;
+    const onChange = (patch: Partial<AnyField>) => update(field.id, patch);
+
+    return (
+      <div className="space-y-3">
+        <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
+          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+            Payment Method Component
+          </p>
+          <p className="text-xs text-blue-800 dark:text-blue-200 mt-1">
+            This field is automatically managed. It appears when price components are added and is always positioned at the bottom of the form.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label>Payment Methods</Label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={!!(priceField.paymentMethods?.allowPayPal ?? true)}
+                  onCheckedChange={(v) => {
+                    const current = priceField.paymentMethods || {};
+                    const newAllowPayPal = !!v;
+                    let newAllowInPerson = current.allowInPerson ?? true;
+                    // If toggling off and both would be false, force the other to true
+                    if (!newAllowPayPal && !newAllowInPerson) {
+                      newAllowInPerson = true;
+                    }
+                    onChange({
+                      paymentMethods: {
+                        ...current,
+                        allowPayPal: newAllowPayPal,
+                        allowInPerson: newAllowInPerson,
+                      }
+                    } as any);
+                  }}
+                />
+                <Label>Allow PayPal Payment</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={!!(priceField.paymentMethods?.allowInPerson ?? true)}
+                  onCheckedChange={(v) => {
+                    const current = priceField.paymentMethods || {};
+                    const newAllowInPerson = !!v;
+                    let newAllowPayPal = current.allowPayPal ?? true;
+                    // If toggling off and both would be false, force the other to true
+                    if (!newAllowInPerson && !newAllowPayPal) {
+                      newAllowPayPal = true;
+                    }
+                    onChange({
+                      paymentMethods: {
+                        ...current,
+                        allowInPerson: newAllowInPerson,
+                        allowPayPal: newAllowPayPal,
+                      }
+                    } as any);
+                  }}
+                />
+                <Label>Allow In-Person Payment</Label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const onChange = (patch: Partial<AnyField>) => update(field.id, patch);
@@ -165,7 +235,7 @@ export function Inspector() {
         </div>
       )}
       {/* English (base) label - always editable */}
-      {field.type !== 'static' && field.type !== 'price' && (
+      {field.type !== 'static' && (
         <div className="space-y-1">
           <Label>Label (English)</Label>
           <Input value={field.label || ""} onChange={(e) => onChange({ label: e.target.value })} placeholder="Enter field label" />
@@ -184,124 +254,10 @@ export function Inspector() {
             <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} placeholder="Enter placeholder text" />
           </div>
         )}
-      {field.type !== 'price' && field.type !== 'pricelabel' && (
+      {field.type !== 'pricelabel' && (
         <div className="space-y-1">
           <Label>Component Name</Label>
           <Input value={field.name} onChange={(e) => onChange({ name: e.target.value })} />
-        </div>
-      )}
-      {field.type === "price" && (
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Amount</Label>
-            {(() => {
-              // Calculate total from pricelabel fields
-              const pricelabelFields = allFields.filter(f => f.type === 'pricelabel') as any[];
-              const calculatedTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-              const hasPricelabelFields = pricelabelFields.length > 0;
-
-              if (hasPricelabelFields) {
-                return (
-                  <div className="space-y-2">
-                    <div className="p-3 bg-muted rounded-md">
-                      <div className="text-sm font-medium text-muted-foreground mb-2">
-                        Calculated from price components:
-                      </div>
-                      <div className="text-2xl font-bold text-primary">
-                        ${calculatedTotal.toFixed(2)}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                        <div>{pricelabelFields.length} price component{pricelabelFields.length === 1 ? '' : 's'} found:</div>
-                        {pricelabelFields.map((pf, idx) => (
-                          <div key={pf.id} className="flex justify-between text-xs">
-                            <span>• {pf.label || `Component ${idx + 1}`}</span>
-                            <span>${(pf.amount || 0).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => {
-                        onChange({ amount: calculatedTotal } as any);
-                      }}
-                    >
-                      Apply Calculated Total (${calculatedTotal.toFixed(2)})
-                    </Button>
-                  </div>
-                );
-              } else {
-                return (
-                  <div className="space-y-2">
-                    <Input
-                      type="number"
-                      value={(field as any).amount ?? 0}
-                      onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Manual entry mode - no price components found. Add price components for automatic calculation.
-                    </p>
-                  </div>
-                );
-              }
-            })()}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Payment Methods</Label>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={!!((field as any).paymentMethods?.allowPayPal ?? true)}
-                  onCheckedChange={(v) => {
-                    const current = (field as any).paymentMethods || {};
-                    const newAllowPayPal = !!v;
-                    let newAllowInPerson = current.allowInPerson ?? true;
-                    // If toggling off and both would be false, force the other to true
-                    if (!newAllowPayPal && !newAllowInPerson) {
-                      newAllowInPerson = true;
-                    }
-                    onChange({
-                      paymentMethods: {
-                        ...current,
-                        allowPayPal: newAllowPayPal,
-                        allowInPerson: newAllowInPerson,
-                      }
-                    } as any);
-                  }}
-                />
-                <Label>Allow PayPal Payment</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={!!((field as any).paymentMethods?.allowInPerson ?? true)}
-                  onCheckedChange={(v) => {
-                    const current = (field as any).paymentMethods || {};
-                    const newAllowInPerson = !!v;
-                    let newAllowPayPal = current.allowPayPal ?? true;
-                    // If toggling off and both would be false, force the other to true
-                    if (!newAllowInPerson && !newAllowPayPal) {
-                      newAllowPayPal = true;
-                    }
-                    onChange({
-                      paymentMethods: {
-                        ...current,
-                        allowInPerson: newAllowInPerson,
-                        allowPayPal: newAllowPayPal,
-                      }
-                    } as any);
-                  }}
-                />
-                <Label>Allow In-Person Payment</Label>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Configure which payment methods are available for this price field. At least one method should be enabled.
-            </p>
-          </div>
         </div>
       )}
 
@@ -316,7 +272,7 @@ export function Inspector() {
         </div>
       )}
 
-      {field.type !== 'price' && field.type !== 'pricelabel' && (
+      {field.type !== 'pricelabel' && (
         <>
           <div className="space-y-1">
             <Label>Width</Label>
@@ -538,7 +494,7 @@ export function Inspector() {
         </>
       )}
       {renderOptions()}
-      {field.type !== 'price' && (
+      {field.type !== 'pricelabel' && (
         <div className="border-t pt-3">
           <TranslationsPanel field={field} />
         </div>

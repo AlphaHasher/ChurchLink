@@ -33,6 +33,7 @@ type MyTransactionsTableProps = {
 
     onPageChange?: (page: number) => void;
     onPageSizeChange?: (size: number) => void;
+    onAfterCancelSubscription?: () => void;
 };
 
 function formatDate(iso?: string | null) {
@@ -95,13 +96,16 @@ const StatusCellRenderer = (props: ICellRendererParams<TransactionSummary>) => {
     return <SoftPill className={className}>{label}</SoftPill>;
 };
 
-const ActionsCellRenderer = (props: ICellRendererParams<TransactionSummary>) => {
+const ActionsCellRenderer = (
+    props: ICellRendererParams<TransactionSummary> & {
+        onAfterCancelSubscription?: () => void;
+    },
+) => {
     const row = props.data;
     if (!row) return null;
 
     const isRefundableKind = row.kind === "event" || row.kind === "form";
 
-    // Use user-facing net (amount - refunded_total), not fee-aware net_amount
     const userNet = getUserNet(row) ?? 0;
     const statusLower = (row.status || "").toLowerCase();
     const isFullyRefunded =
@@ -111,10 +115,16 @@ const ActionsCellRenderer = (props: ICellRendererParams<TransactionSummary>) => 
 
     const showRefundRequest = isRefundableKind && !isFullyRefunded;
 
+    const onAfterCancel =
+        (props as any).onAfterCancelSubscription as (() => void) | undefined;
+
     return (
         <div className="flex items-center justify-end gap-2">
-            {/* Cancel recurring donation plan (for donation_subscription rows) */}
-            <CancelDonationSubscriptionUserDialog tx={row} />
+            {/* Cancel recurring donation plan (for ACTIVE donation_subscription rows) */}
+            <CancelDonationSubscriptionUserDialog
+                tx={row}
+                onAfterCancel={onAfterCancel}
+            />
 
             {/* User-initiated refund request (events/forms) */}
             {showRefundRequest && <RequestRefundDialog tx={row} />}
@@ -209,11 +219,15 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                 headerName: "Actions",
                 cellRenderer: ActionsCellRenderer as any,
                 pinned: "right",
-                minWidth: 130,
+                minWidth: 95,
                 maxWidth: 150,
+                width: 95,
+                cellRendererParams: {
+                    onAfterCancelSubscription: props.onAfterCancelSubscription,
+                },
             },
         ],
-        []
+        [props.onAfterCancelSubscription],
     );
 
     const defaultColDef = useMemo<ColDef>(

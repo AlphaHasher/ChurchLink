@@ -14,9 +14,10 @@ import { adminCancelDonationSubscription } from "@/helpers/DonationHelper";
 
 type Props = {
     tx: TransactionSummary;
+    onAfterCancel?: () => void;
 };
 
-export default function CancelDonationSubscriptionDialog({ tx }: Props) {
+export default function CancelDonationSubscriptionDialog({ tx, onAfterCancel }: Props) {
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
@@ -26,7 +27,11 @@ export default function CancelDonationSubscriptionDialog({ tx }: Props) {
     const isDonationPlan = kind === "donation_subscription";
     const subscriptionId = tx.paypal_subscription_id || null;
 
-    if (!isDonationPlan || !subscriptionId) {
+    const statusUpper = (tx.status || "").toString().toUpperCase();
+    const isActive = statusUpper === "ACTIVE";
+
+    // Only render for ACTIVE donation plans with a subscription id
+    if (!isDonationPlan || !subscriptionId || !isActive) {
         return null;
     }
 
@@ -51,7 +56,16 @@ export default function CancelDonationSubscriptionDialog({ tx }: Props) {
                 res.msg ||
                 "The donation plan has been cancelled. Future charges will no longer be attempted.",
             );
-            setOk(!!res.success);
+            const success = !!res.success;
+            setOk(success);
+
+            if (success) {
+                if (onAfterCancel) {
+                    onAfterCancel();
+                }
+                // Close on success so we don't leave a stale dialog up
+                resetAndClose();
+            }
         } catch (err) {
             console.error("[CancelDonationSubscriptionDialog] handleCancel error", err);
             setMsg("Unexpected error cancelling this subscription.");
@@ -80,8 +94,8 @@ export default function CancelDonationSubscriptionDialog({ tx }: Props) {
                 <DialogHeader>
                     <DialogTitle>Cancel donation plan</DialogTitle>
                     <DialogDescription>
-                        This will cancel the recurring donation plan associated with this transaction.
-                        PayPal will no longer attempt future charges.
+                        This will cancel the recurring donation plan associated with this
+                        transaction. PayPal will no longer attempt future charges.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -98,16 +112,16 @@ export default function CancelDonationSubscriptionDialog({ tx }: Props) {
                     </div>
                     <p className="mt-2">
                         Existing successful payments will remain on record. This does not
-                        retroactively refund past charges; it simply prevents new ones from being
-                        created.
+                        retroactively refund past charges; it simply prevents new ones from
+                        being created.
                     </p>
                 </div>
 
                 {msg && (
                     <div
                         className={`mt-3 rounded-md border px-3 py-2 text-sm ${ok
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                            : "border-red-200 bg-red-50 text-red-900"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                                : "border-red-200 bg-red-50 text-red-900"
                             }`}
                     >
                         {msg}

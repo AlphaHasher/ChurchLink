@@ -5,6 +5,76 @@ import { normalizeFormWidth, DEFAULT_FORM_WIDTH } from "./types";
 
 const DEFAULT_META = { title: "Untitled Form", description: "" };
 
+const PAYMENT_FIELD_TYPE: FieldType = "price";
+
+const hasPricingFields = (fields: AnyField[]): boolean => {
+  return fields.some((field) => {
+    if (field.type === "pricelabel") return true;
+    if ((field.type === "checkbox" || field.type === "switch") && (field as any).price != null) return true;
+    if ((field.type === "radio" || field.type === "select") && (field as any).options?.some((option: any) => option?.price != null)) return true;
+    if (field.type === "date" && (field as any).pricing?.enabled) return true;
+    return false;
+  });
+};
+
+const sumPricelabelTotals = (fields: AnyField[]): number => {
+  return fields
+    .filter((field) => field.type === "pricelabel")
+    .reduce((total, field) => {
+      const amount = (field as any).amount;
+      return total + (typeof amount === "number" && !Number.isNaN(amount) ? amount : 0);
+    }, 0);
+};
+
+const separatePaymentField = (fields: AnyField[]) => {
+  const nonPaymentFields: AnyField[] = [];
+  let paymentField: AnyField | null = null;
+
+  for (const field of fields) {
+    if (field.type === PAYMENT_FIELD_TYPE) {
+      if (!paymentField) {
+        paymentField = field;
+      }
+      continue;
+    }
+    nonPaymentFields.push(field);
+  }
+
+  return { nonPaymentFields, paymentField };
+};
+
+// Keeps the auto-managed payment field in sync with pricing-enabled fields.
+const syncPaymentField = (fields: AnyField[]): AnyField[] => {
+  const { nonPaymentFields, paymentField } = separatePaymentField(fields);
+
+  if (!hasPricingFields(nonPaymentFields)) {
+    return nonPaymentFields;
+  }
+
+  const ensuredPaymentField: AnyField = paymentField ? { ...paymentField } : (newField("price") as AnyField);
+  const updatedTotal = sumPricelabelTotals(nonPaymentFields);
+
+  if (ensuredPaymentField.type === PAYMENT_FIELD_TYPE) {
+    (ensuredPaymentField as any).amount = updatedTotal;
+  }
+
+  return [...nonPaymentFields, ensuredPaymentField];
+};
+
+// Ensures new fields land above the payment field so it remains at the bottom.
+const insertBeforePaymentField = (fields: AnyField[], fieldToInsert: AnyField): AnyField[] => {
+  const paymentIndex = fields.findIndex((field) => field.type === PAYMENT_FIELD_TYPE);
+  if (paymentIndex === -1) {
+    return [...fields, fieldToInsert];
+  }
+
+  return [
+    ...fields.slice(0, paymentIndex),
+    fieldToInsert,
+    ...fields.slice(paymentIndex),
+  ];
+};
+
 export type BuilderState = {
   schema: FormSchema;
   selectedId?: string;
@@ -93,7 +163,7 @@ const newField = (type: FieldType): AnyField => {
     case "pricelabel":
       return { ...base, type: "pricelabel", label: "Price Item", amount: 5 } as any;
     case "price":
-      return { ...base, type: "price", label: "Total Price", amount: 0 } as any;
+      return { ...base, type: "price", label: "Payment Method", amount: 0, paymentMethods: { 'allowInPerson': true, allowPayPal: true } } as any;
     default:
       return { ...base, type: "text", placeholder: "Enter text" };
   }
@@ -108,155 +178,89 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   modifiedFields: new Set(),
   select: (id?: string) => set({ selectedId: id }),
   addField: (type: FieldType) => set((s) => {
-    // Prevent adding multiple price fields - only one price field allowed per form
-    if (type === 'price') {
-      const hasPriceField = s.schema.data.some(field => field.type === 'price');
-      if (hasPriceField) {
-        return s; // Don't add another price field if one already exists
-      }
+    if (type === PAYMENT_FIELD_TYPE) {
+      return s;
     }
-    
-    let newFieldData = newField(type);
-    let newData: AnyField[] = [...s.schema.data, newFieldData];
 
-    if (type === 'price') {
-      const pricelabelFields = s.schema.data.filter(f => f.type === 'pricelabel') as AnyField[];
-      if (pricelabelFields.length > 0) {
-        const calculatedTotal = pricelabelFields.reduce((sum, f: any) => sum + (f.amount || 0), 0);
-        newFieldData = { ...newFieldData, amount: calculatedTotal } as AnyField;
-        newData = [...s.schema.data, newFieldData];
-      }
-    }
-    
-    // If we're adding a pricelabel field, update price field totals
-    if (type === 'pricelabel') {
-      // Calculate total from all pricelabel fields (including the new one)
-      const pricelabelFields = newData.filter(f => f.type === 'pricelabel') as any[];
-      const newTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-      
-      // Update all price fields with the calculated total
-      const finalData = newData.map(f => {
-        if (f.type === 'price') {
-          return { ...f, amount: newTotal } as AnyField;
-        }
-        return f;
-      });
-      
-      return { schema: { ...s.schema, data: finalData } };
-    }
-    
-    return { schema: { ...s.schema, data: newData } };
+    const createdField = newField(type);
+    const insertedFields = insertBeforePaymentField(s.schema.data, createdField);
+    const normalizedFields = syncPaymentField(insertedFields);
+
+    return { schema: { ...s.schema, data: normalizedFields } };
   }),
   removeField: (id: string) => set((s) => {
     const fieldToRemove = s.schema.data.find(f => f.id === id);
-    const newData = s.schema.data.filter((f) => f.id !== id);
-    
-    // If we're removing a pricelabel field, update price field totals
-    if (fieldToRemove?.type === 'pricelabel') {
-      // Calculate new total from remaining pricelabel fields
-      const remainingPricelabelFields = newData.filter(f => f.type === 'pricelabel') as any[];
-      const newTotal = remainingPricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-      
-      // Update all price fields with the new calculated total
-      const finalData = newData.map(f => {
-        if (f.type === 'price') {
-          return { ...f, amount: newTotal } as AnyField;
-        }
-        return f;
-      });
-      
-      return {
-        schema: { ...s.schema, data: finalData },
-        selectedId: s.selectedId === id ? undefined : s.selectedId,
-      };
+    if (fieldToRemove?.type === PAYMENT_FIELD_TYPE) {
+      return s;
     }
-    
+
+    const filteredFields = s.schema.data.filter((f) => f.id !== id);
+    const normalizedFields = syncPaymentField(filteredFields);
+
     return {
-      schema: { ...s.schema, data: newData },
+      schema: { ...s.schema, data: normalizedFields },
       selectedId: s.selectedId === id ? undefined : s.selectedId,
     };
   }),
   reorder: (from: number, to: number) => set((s) => {
+    // Prevent reordering the Payment Method field
+    const fromField = s.schema.data[from];
+    const toField = s.schema.data[to];
+
+    // If either field is a price field, don't allow reordering
+    if (fromField?.type === PAYMENT_FIELD_TYPE || toField?.type === PAYMENT_FIELD_TYPE) {
+      return s;
+    }
+
     const arr = [...s.schema.data];
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
     return { schema: { ...s.schema, data: arr } };
   }),
   updateField: (id: string, patch: Partial<AnyField>) => set((s) => {
-    // Mark field as modified if label, placeholder, or content changed
-    const field = s.schema.data.find(f => f.id === id);
-    if (field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined)) {
-      const newModified = new Set(s.modifiedFields);
-      newModified.add(id);
-    }
+    const field = s.schema.data.find((f) => f.id === id);
+    const shouldMarkModified = Boolean(
+      field && (
+        patch.label !== undefined ||
+        patch.placeholder !== undefined ||
+        (patch as any).content !== undefined
+      )
+    );
 
-    // Update the field with the patch
-    const updatedData = s.schema.data.map((f) => (f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f)) as AnyField[];
-    
-    // If this is a pricelabel field and its amount changed, auto-update price fields
-    if (field?.type === 'pricelabel' && patch.hasOwnProperty('amount')) {
-      // Calculate new total from all pricelabel fields
-      const pricelabelFields = updatedData.filter(f => f.type === 'pricelabel') as any[];
-      const newTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-      
-      // Update all price fields with the calculated total
-      const finalData = updatedData.map(f => {
-        if (f.type === 'price') {
-          return { ...f, amount: newTotal } as AnyField;
-        }
-        return f;
-      });
-      
-      return {
-        schema: {
-          ...s.schema,
-          data: finalData,
-        },
-        modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined) 
-          ? new Set([...s.modifiedFields, id])
-          : s.modifiedFields,
-      };
-    }
+    const updatedFields = s.schema.data.map((f) =>
+      f.id === id ? ({ ...f, ...(patch as any) } as AnyField) : f
+    ) as AnyField[];
+
+    const normalizedFields = syncPaymentField(updatedFields);
 
     return {
       schema: {
         ...s.schema,
-        data: updatedData,
+        data: normalizedFields,
       },
-      modifiedFields: field && (patch.label !== undefined || patch.placeholder !== undefined || (patch as any).content !== undefined) 
+      modifiedFields: shouldMarkModified
         ? new Set([...s.modifiedFields, id])
         : s.modifiedFields,
     };
   }),
   updateOptions: (id: string, options: OptionItem[]) => set((s) => {
-    // Mark field as modified since options changed
-    const newModified = new Set(s.modifiedFields);
-    newModified.add(id);
+    const updatedFields = s.schema.data.map((f) =>
+      f.id === id ? ({ ...f, options } as AnyField) : f
+    ) as AnyField[];
+
+    const normalizedFields = syncPaymentField(updatedFields);
+
     return {
       schema: {
         ...s.schema,
-        data: s.schema.data.map((f) => (f.id === id ? ({ ...f, options } as AnyField) : f)) as AnyField[],
+        data: normalizedFields,
       },
-      modifiedFields: newModified,
+      modifiedFields: new Set([...s.modifiedFields, id]),
     };
   }),
   setSchema: (schema) => {
-    // Remove duplicate price fields if any exist (keep only the first one)
-    const cleanedData = [];
-    let hasPriceField = false;
-    
-    for (const field of schema.data) {
-      if (field.type === 'price') {
-        if (!hasPriceField) {
-          cleanedData.push(field);
-          hasPriceField = true;
-        }
-        // Skip additional price fields
-      } else {
-        cleanedData.push(field);
-      }
-    }
-    
+    const cleanedData = syncPaymentField(schema.data);
+
     return set({
       schema: {
         ...schema,

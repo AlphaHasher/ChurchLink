@@ -25,6 +25,7 @@ import { adminRefundEventTransaction } from "@/helpers/EventRegistrationHelper";
 
 type Props = {
     tx: TransactionSummary;
+    onAfterRefund?: () => void;
 };
 
 function formatCurrency(amount?: number | null, currency?: string | null) {
@@ -41,7 +42,7 @@ function formatCurrency(amount?: number | null, currency?: string | null) {
     }
 }
 
-export default function TransactionRefundDialog({ tx }: Props) {
+export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
     const [open, setOpen] = useState(false);
     const [amount, setAmount] = useState<string>("");
     const [reason, setReason] = useState<string>("");
@@ -238,6 +239,11 @@ export default function TransactionRefundDialog({ tx }: Props) {
 
             setResultMsg(msg);
             setResultOk(success);
+
+            // 🔑 NEW: on success, tell the parent to refresh the data
+            if (success && onAfterRefund) {
+                onAfterRefund();
+            }
         } catch (err) {
             console.error("[TransactionRefundDialog] handleSubmit error", err);
             setResultMsg("Unexpected error while issuing refund.");
@@ -255,7 +261,10 @@ export default function TransactionRefundDialog({ tx }: Props) {
     })();
 
     return (
-        <Dialog open={open} onOpenChange={(next) => (next ? setOpen(true) : resetStateAndClose())}>
+        <Dialog
+            open={open}
+            onOpenChange={(next) => (next ? setOpen(true) : resetStateAndClose())}
+        >
             <DialogTrigger asChild>
                 <Button
                     variant="ghost"

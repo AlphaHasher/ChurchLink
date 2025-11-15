@@ -24,6 +24,7 @@ import {
   SidebarMenuSkeleton,
   SidebarProvider,
 } from '@/shared/components/ui/sidebar';
+import { adminMarkFormResponsePaid } from '@/helpers/FormSubmissionHelper';
 
 const useQuery = () => new URLSearchParams(useLocation().search);
 
@@ -62,6 +63,7 @@ const FormResponses = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedResponseKey, setSelectedResponseKey] = useState<string | null>(null);
+  const [markingPaid, setMarkingPaid] = useState(false);
   const userInfoRef = useRef(userInfo);
 
   useEffect(() => {
@@ -238,6 +240,31 @@ const FormResponses = () => {
     filteredResponseItems.find((item) => item.key === selectedResponseKey) ||
     responseItems.find((item) => item.key === selectedResponseKey) ||
     (filteredResponseItems.length > 0 ? filteredResponseItems[0] : null);
+
+  const handleMarkPaid = async () => {
+    if (!formId) return;
+    if (!selectedItem || !selectedItem.submitted) return;
+
+    try {
+      setMarkingPaid(true);
+      const result = await adminMarkFormResponsePaid(formId, selectedItem.submitted);
+      if (!result.success) {
+        setError(result.msg || 'Failed to mark response as paid.');
+        return;
+      }
+      // Refresh the list so the badge/card updates
+      await fetchResponses();
+    } catch (err: any) {
+      console.error('Failed to mark response paid', err);
+      const detail =
+        err?.response?.data?.detail ||
+        err?.message ||
+        'Failed to mark response as paid.';
+      setError(detail);
+    } finally {
+      setMarkingPaid(false);
+    }
+  };
 
   const getFieldLabel = (field: any): string => {
     if (!field) return 'Field';
@@ -438,7 +465,15 @@ const FormResponses = () => {
     );
   };
 
-  const PaymentCard = ({ p }: { p: PaymentDetails }) => {
+  const PaymentCard = ({
+    p,
+    onMarkPaid,
+    markPaidBusy,
+  }: {
+    p: PaymentDetails;
+    onMarkPaid?: () => void;
+    markPaidBusy?: boolean;
+  }) => {
     const priceStr =
       p.payment_type === 'free'
         ? 'FREE'
@@ -447,15 +482,31 @@ const FormResponses = () => {
           currency: (p.currency ?? 'USD') as any,
         }).format(p.price ?? 0);
 
+    const canMarkPaid = !!onMarkPaid && p.payment_type !== 'free' && !p.payment_complete;
+
     return (
       <div className="rounded-lg border bg-card text-card-foreground p-4">
-        <div className="mb-3 text-sm font-semibold">Submission Payment Details</div>
+        <div className="mb-3 flex items-center justify-between gap-2 text-sm font-semibold">
+          <span>Submission Payment Details</span>
+          {canMarkPaid && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={markPaidBusy}
+              onClick={onMarkPaid}
+            >
+              {markPaidBusy ? 'Marking…' : 'Mark Paid'}
+            </Button>
+          )}
+        </div>
 
         {/* Responsive: stacks at <640px, 3 columns at >=640px */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="flex min-w-0 flex-col gap-1">
             <div className="text-xs uppercase text-muted-foreground">Payment Type</div>
-            <div className="mt-1"><PaymentTypeBadge p={p} /></div>
+            <div className="mt-1">
+              <PaymentTypeBadge p={p} />
+            </div>
           </div>
 
           <div className="flex min-w-0 flex-col gap-1">
@@ -465,7 +516,9 @@ const FormResponses = () => {
 
           <div className="flex min-w-0 flex-col gap-1">
             <div className="text-xs uppercase text-muted-foreground">Payment Status</div>
-            <div className="mt-1"><PaymentStatusBadge p={p} /></div>
+            <div className="mt-1">
+              <PaymentStatusBadge p={p} />
+            </div>
           </div>
         </div>
 
@@ -609,10 +662,22 @@ const FormResponses = () => {
                           </div>
 
                           {/* Payment details card (always present) */}
-                          {(() => {
-                            const p = (selectedItem.response as any)?.payment as PaymentDetails | undefined;
+                          {selectedItem && (() => {
+                            const p =
+                              (selectedItem as any).payment as PaymentDetails | undefined ||
+                              (selectedItem.response as any)?.payment;
+
                             if (!p) return null;
-                            return <div className="mt-4"><PaymentCard p={p} /></div>;
+
+                            return (
+                              <div className="mt-4">
+                                <PaymentCard
+                                  p={p}
+                                  onMarkPaid={handleMarkPaid}
+                                  markPaidBusy={markingPaid}
+                                />
+                              </div>
+                            );
                           })()}
                         </div>
 

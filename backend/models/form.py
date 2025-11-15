@@ -152,10 +152,6 @@ class Form(MongoBaseModel, FormBase):
     slug: Optional[str]
     form_width: Optional[str]
     supported_locales: List[str] = Field(default_factory=list)
-
-    # Payment configuration fields
-    submission_price: Optional[float] = Field(default_factory=0)
-    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
     expires_at: Optional[datetime]
 
 
@@ -173,10 +169,6 @@ class FormOut(BaseModel):
     updated_at: datetime
     form_width: Optional[str]
     supported_locales: List[str] = Field(default_factory=list)
-
-    # Payment configuration fields
-    submission_price: Optional[float] = Field(default_factory=0)
-    payment_options: List[str] = Field(default_factory=list, description="Available payment methods: ['paypal', 'door']")
 
 
 class FormResponsePaymentDetails(BaseModel):
@@ -223,37 +215,12 @@ def _doc_to_out(doc: dict) -> FormOut:
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
         supported_locales=doc.get("supported_locales", []),
-        submission_price=doc.get("submission_price", 0),
-        payment_options=doc.get("payment_options", [])
     )
 
 
 ############################
 # CRUD operations
 ############################
-
-async def identify_payment_data_central(form_fields: List[Any]):
-    payment_data = {'submission_price':0, 'payment_options':[], 'price_count':0}
-    for data in form_fields:
-        if 'type' in data and data['type']:
-            if data['type'] == 'price':
-                payment_data['price_count'] += 1
-                payment_data['submission_price'] = data['amount']
-                if 'paymentMethods' in data:
-                    if 'allowInPerson' in data['paymentMethods'] and data['paymentMethods']['allowInPerson']:
-                        payment_data['payment_options'].append('door')
-                    if 'allowPayPal' in data['paymentMethods'] and data['paymentMethods']['allowPayPal']:
-                        payment_data['payment_options'].append('paypal')
-                else:
-                    payment_data['payment_options'] = ['door', 'paypal']
-    return payment_data
-
-
-async def identify_payment_data_from_create(form: FormCreate):
-    return await identify_payment_data_central(form.data)
-
-async def identify_payment_data_from_update(form: FormUpdate):
-    return await identify_payment_data_central(form.data)
 
 
 async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
@@ -278,18 +245,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
         except MinistryNotFoundError as exc:
             logger.warning("Form creation failed: %s", exc)
             return None
-        
     
-        payment_data = await identify_payment_data_from_create(form)
-
-        submission_price = payment_data['submission_price']
-        payment_options = payment_data['payment_options']
-        price_count = payment_data['price_count']
-
-        if price_count > 1:
-            logger.warning("Form creation failed! More than 1 price data type!")
-            return None
-
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
             "ministries": ministries_list,
@@ -303,8 +259,6 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "supported_locales": getattr(form, "supported_locales", []),
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
-            'submission_price': submission_price,
-            'payment_options': payment_options,
 
         }
         result = await DB.db.forms.insert_one(doc)
@@ -871,13 +825,19 @@ def _canonicalize_response(resp: Any) -> Any:
     return canonical
 
 async def add_response_by_slug(
-    slug: str, response: Any, user_id: Optional[str] = None, passed_payment: FormResponsePaymentDetails=None
+    slug: str,
+    response: Any,
+    user_id: Optional[str] = None,
+    passed_payment: Optional[dict] = None,
 ) -> Tuple[bool, Optional[str]]:
-    """
-    Validate the response against schema and store it.
-    Always attaches a 'payment' object at the top level.
-    If the form's submission_price > 0, a response without a valid payment is rejected.
-    Returns (True, response_identifier_iso) or (False, error_message).
+    """Validate a response against the stored form schema and persist it.
+
+    The response is appended into a single aggregated document in `form_responses`
+    (one document per form_id) under the `responses` array.
+
+    Returns:
+        (True, response_identifier) or (False, error_message).
+        The identifier is the ISO timestamp of when the response was recorded.
     """
     try:
         status_str, doc_any = await check_form_slug_status(slug)
@@ -898,78 +858,58 @@ async def add_response_by_slug(
         except ValueError as ve:
             return False, str(ve)
 
-        # Canonicalize response keys (flattens locale variants)
+        # Canonicalize the response to collapse locale-specific keys
         response_canon = _canonicalize_response(response or {})
 
-        # --- Validate custom fields as usual (only visible fields) ---
+        # Validate each declared field against the provided response payload
+        # Only validate fields that are visible based on their visibility conditions
         for f in schema_fields:
+            if not isinstance(f, dict):
+                continue
+
             name = f.get("name")
+            if not name:
+                continue
+
             visible_if = f.get("visibleIf")
             is_visible = _evaluate_visibility(visible_if, response_canon)
+
+            # Only validate if field is visible
             if not is_visible:
                 continue
+
+            # value may be under exact name or localized variants; response_canon already collapsed
             value = response_canon.get(name)
             valid, err = _validate_field(f, value)
             if not valid:
                 return False, err
 
-        # --- Payment enforcement / attachment ---
-        # From the form configuration
-        submission_price = float(doc.get("submission_price", 0) or 0)
-        payment_options = doc.get("payment_options", []) or []
-
-        # Caller may pass a top-level "payment" object
-        raw_payment = passed_payment or {}
-
-        # Build normalized payment details
-        payment = FormResponsePaymentDetails(
-            payment_type="free" if submission_price <= 0 else raw_payment.get("payment_type", "paypal" if "paypal" in payment_options else "door"),
-            price=(0.0 if submission_price <= 0 else float(raw_payment.get("price") or submission_price)),
-            payment_complete=bool(raw_payment.get("payment_complete") or False),
-            transaction_id=raw_payment.get("transaction_id"),
-            currency=raw_payment.get("currency") or "USD",
-            captured_amount=raw_payment.get("captured_amount")
-        )
-
-        # If a price is required, ensure payment is valid
-        if submission_price > 0:
-            # Must have a supported method
-            if payment.payment_type not in ("paypal", "door"):
-                return False, "Payment required: unsupported or missing payment method"
-            if payment.payment_type not in payment_options:
-                return False, "Payment method not allowed for this form"
-            # For PayPal, require a transaction id and payment_complete True
-            if payment.payment_type == "paypal":
-                if not payment.transaction_id:
-                    return False, "Payment required: missing PayPal transaction id"
-                if not payment.payment_complete:
-                    return False, "Payment required: PayPal payment not captured"
-            # For door, we record intent with payment_complete False (to be reconciled later)
-            if payment.payment_type == "door" and payment.price <= 0:
-                return False, "Payment required: invalid door payment amount"
-        else:
-            # Free submissions: force a normalized free record
-            payment = FormResponsePaymentDetails(
-                payment_type="free",
-                price=0.0,
-                payment_complete=True,
-                transaction_id=None,
-                currency="USD",
-                captured_amount=0.0
-            )
-
-        # --- Persist ---
+        # Build response entry
         now = datetime.now()
         entry: dict = {
             "response": response_canon,
             "submitted_at": now,
-            "payment": payment.model_dump(),  # ALWAYS at the top level of the response doc
         }
+
+        # Attach user_id when provided
         if user_id:
             try:
                 entry["user_id"] = ObjectId(user_id)
             except Exception:
                 entry["user_id"] = user_id
+
+        # Attach payment details (authoritative snapshot for this submission)
+        if passed_payment:
+            try:
+                payment_model = FormResponsePaymentDetails(**passed_payment)
+            except Exception as exc:
+                logger.error(f"Invalid payment payload for form response: {exc}")
+                payment_model = FormResponsePaymentDetails()
+        else:
+            # Default to "free" unless the controller passes in PayPal/door data
+            payment_model = FormResponsePaymentDetails()
+
+        entry["payment"] = payment_model.model_dump(exclude_none=True)
 
         update_result = await DB.db.form_responses.update_one(
             {"form_id": form_id},
@@ -977,7 +917,10 @@ async def add_response_by_slug(
             upsert=True,
         )
         if update_result.matched_count == 0 and update_result.upserted_id is None:
+            # Shouldn't happen, but indicates failure
             return False, "Failed to store response"
+
+        # Return the timestamp as a stable identifier for the recorded response
         return True, now.isoformat()
     except Exception as e:
         logger.error(f"Error adding response for slug {slug}: {e}")
@@ -997,15 +940,6 @@ async def update_form(
             update_doc["visible"] = update.visible
         if update.data is not None:
             update_doc["data"] = update.data
-            payment_data = await identify_payment_data_from_update(update)
-            submission_price = payment_data['submission_price']
-            payment_options = payment_data['payment_options']
-            price_count = payment_data['price_count']
-            if price_count > 1:
-                logger.error("Error! More than 1 payment submission type!")
-                return None
-            update_doc['submission_price'] = submission_price
-            update_doc['payment_options'] = payment_options
         if update.expires_at is not None:
             # Normalize tz-aware datetimes to local naive datetime before storing
             expires_val = update.expires_at
@@ -1101,12 +1035,17 @@ async def delete_form_responses(form_id: str, user_id: str) -> bool:
 
 
 async def get_form_responses(
-    form_id: str, user_id: str, skip: int = 0, limit: int | None = None
+    form_id: str,
+    user_id: str,
+    skip: int = 0,
+    limit: int | None = None,
 ) -> Optional[dict]:
     """Return responses for a form owned by the given user.
 
     Results include total count and a slice of items sorted by submitted_at DESC.
     The submitted_at values are returned as ISO strings for JSON serialization.
+
+    Each item includes a `payment` block summarizing how the submission was paid.
     """
     try:
         agg_doc = await DB.db.form_responses.find_one({"form_id": ObjectId(form_id)})
@@ -1116,47 +1055,50 @@ async def get_form_responses(
         responses = agg_doc.get("responses", []) or []
 
         # Sort by submitted_at desc (handle missing gracefully)
-        def _to_dt(x):
-            return x.get("submitted_at") or datetime.min
+        def _to_dt(x: dict) -> datetime:
+            val = x.get("submitted_at")
+            if isinstance(val, datetime):
+                return val
+            return datetime.min
 
         responses_sorted = sorted(responses, key=_to_dt, reverse=True)
-
         total = len(responses_sorted)
+
         # Apply pagination
         start = max(0, int(skip))
         if limit is None:
-            # No limit - return all items from start
             page_items = responses_sorted[start:]
         else:
             end = max(start, start + int(limit))
             page_items = responses_sorted[start:end]
 
-        items = []
+        items: list[dict] = []
         for r in page_items:
             submitted = r.get("submitted_at")
             if isinstance(submitted, datetime):
                 submitted_iso = submitted.isoformat()
             else:
                 submitted_iso = str(submitted) if submitted is not None else None
-            # Convert user_id to string if present
+
             uid = r.get("user_id")
             if isinstance(uid, ObjectId):
                 uid_str = str(uid)
             else:
                 uid_str = str(uid) if uid is not None else None
+
+            # Normalize payment block for the frontend
+            raw_payment = r.get("payment") or {}
+            try:
+                payment_obj = FormResponsePaymentDetails(**raw_payment)
+            except Exception:
+                payment_obj = FormResponsePaymentDetails()
+
             items.append(
                 {
                     "submitted_at": submitted_iso,
                     "user_id": uid_str,
                     "response": _canonicalize_response(r.get("response", {})),
-                    "payment": r.get("payment") or {
-                        "payment_type": "free",
-                        "price": 0.0,
-                        "payment_complete": True,
-                        "transaction_id": None,
-                        "currency": "USD",
-                        "captured_amount": 0.0,
-                    },
+                    "payment": payment_obj.model_dump(exclude_none=True),
                 }
             )
 
@@ -1164,3 +1106,70 @@ async def get_form_responses(
     except Exception as e:
         logger.error(f"Error getting form responses: {e}")
         return None
+
+async def mark_form_response_paid(
+    form_id: str,
+    submitted_at: str,
+) -> Tuple[bool, str]:
+    """
+    Mark a single stored form response as paid (payment_complete = True),
+    identified by (form_id, submitted_at ISO string).
+
+    Returns (success, message).
+    """
+    try:
+        form_oid = ObjectId(form_id)
+    except Exception:
+        return False, "Invalid form_id"
+
+    agg_doc = await DB.db.form_responses.find_one({"form_id": form_oid})
+    if not agg_doc:
+        return False, "No responses found for this form"
+
+    raw_submitted = (submitted_at or "").strip()
+    if not raw_submitted:
+        return False, "submitted_at is required"
+
+    target_dt = None
+    try:
+        target_dt = datetime.fromisoformat(raw_submitted)
+    except Exception:
+        # If parsing fails, we'll compare as plain string
+        target_dt = None
+
+    responses = agg_doc.get("responses", []) or []
+    changed = False
+
+    for r in responses:
+        stored = r.get("submitted_at")
+
+        match = False
+        if isinstance(stored, datetime) and target_dt is not None:
+            match = stored == target_dt
+        elif isinstance(stored, str):
+            match = stored == raw_submitted
+
+        if not match:
+            continue
+
+        # Normalize / rebuild payment block
+        payment_raw = r.get("payment") or {}
+        try:
+            payment_obj = FormResponsePaymentDetails(**payment_raw)
+        except Exception:
+            payment_obj = FormResponsePaymentDetails()
+
+        payment_obj.payment_complete = True
+        r["payment"] = payment_obj.model_dump(exclude_none=True)
+        changed = True
+        break
+
+    if not changed:
+        return False, "Matching response not found"
+
+    await DB.db.form_responses.update_one(
+        {"_id": agg_doc["_id"]},
+        {"$set": {"responses": responses}},
+    )
+
+    return True, "Marked response as paid"

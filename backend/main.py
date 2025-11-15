@@ -1,8 +1,8 @@
-from contextlib import asynccontextmanager
 import asyncio
 import logging
 import os
 import sys
+from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +12,8 @@ from scalar_fastapi import get_scalar_api_reference
 
 import firebase_admin
 from firebase_admin import credentials
+from dotenv import load_dotenv
+
 
 from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
@@ -81,13 +83,38 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
 logger = logging.getLogger(__name__)
 
 E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+def _resolve_run_mode(value: str | None) -> str | None:
+    if not value:
+        return None
+    value = value.lower()
+    if value in {"debug", "development", "dev"}:
+        return "debug"
+    if value in {"production", "prod"}:
+        return "production"
+    return None
+
+
+_cli_run_mode = _resolve_run_mode(sys.argv[1]) if len(sys.argv) > 1 else None
+if _cli_run_mode:
+    os.environ["RUN_MODE"] = _cli_run_mode
+
+_env_run_mode = _resolve_run_mode(os.getenv("RUN_MODE"))
+if not _env_run_mode:
+    default_mode = "production" if ENVIRONMENT == "production" else "debug"
+    os.environ.setdefault("RUN_MODE", default_mode)
+    _env_run_mode = default_mode
+
+RUN_MODE = _env_run_mode
+IS_DEBUG_MODE = RUN_MODE == "debug"
+
 
 def validate_e2e_mode():
     if not E2E_TEST_MODE:
@@ -241,6 +268,10 @@ async def root():
 ##nice looking docs
 @app.get("/scalar", include_in_schema=False)
 async def scalar_html():
+    if not IS_DEBUG_MODE:
+        from fastapi import HTTPException
+
+        raise HTTPException(status_code=404, detail="Not found")
     return get_scalar_api_reference(
         openapi_url=app.openapi_url,
         title=app.title,
@@ -400,4 +431,21 @@ app.include_router(media_management_protected_router)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    run_mode = RUN_MODE
+    reload_enabled = run_mode == "debug"
+
+    if run_mode == "debug":
+        logger.info(
+            "Starting in DEBUG mode - auto-reload enabled, docs available at /scalar and /docs"
+        )
+    else:
+        logger.info("Starting in PRODUCTION mode - auto-reload disabled, docs disabled")
+
+    os.environ["RUN_MODE"] = run_mode
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=reload_enabled,
+    )
