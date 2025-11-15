@@ -219,11 +219,7 @@ async def process_delete_event(event_id: str, request: Request):
     for inst in (upcoming or []):
         res = await _refund_paypal_lines_for_instance(inst, by_uid=request.state.uid)
         if not res.get("success"):
-            # Abort the delete to keep data safe
-            return {
-                "success": False,
-                "msg": f"Event deletion aborted. {res.get('msg','Refund error')}",
-            }
+            logging.critical(f"EVENT REFUND ERROR DETECTED WHILE DELETING EVENT! BE SURE TO MAKE SURE THIS IS AS EXPECTED! ERROR: {res.get('msg','Refund error')}")
 
     # 2) Gather ALL instance docs now (pre-delete) for snapshot
     try:

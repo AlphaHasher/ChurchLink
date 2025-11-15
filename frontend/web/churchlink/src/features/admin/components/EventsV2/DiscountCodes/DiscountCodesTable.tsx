@@ -119,6 +119,7 @@ export default function DiscountCodesTable({
                     animateRows
                     onGridReady={(ev) => { gridApi.current = ev.api; }}
                     overlayNoRowsTemplate={loading ? "Loading..." : "No discount codes found"}
+                    enableCellTextSelection
                 />
             </div>
 

@@ -133,6 +133,7 @@ export default function EventInstancesTable(props: Props) {
                     animateRows
                     onGridReady={(ev) => { gridApi.current = ev.api; }}
                     overlayNoRowsTemplate={props.loading ? "Loading..." : "No instances found"}
+                    enableCellTextSelection
                 />
             </div>
 

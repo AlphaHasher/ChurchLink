@@ -79,6 +79,26 @@ function getPaymentFor(id: "SELF" | string, reg: RegistrationDetails | null | un
     return reg.family_payment_details?.[id] ?? null;
 }
 
+function refundableRemainingFromPaymentDetails(pd: PaymentDetails | null | undefined): number {
+    if (!pd) return 0;
+
+    const base =
+        typeof pd.refundable_amount === "number"
+            ? pd.refundable_amount
+            : typeof pd.price === "number"
+                ? pd.price
+                : 0;
+
+    const already =
+        typeof pd.amount_refunded === "number" && !Number.isNaN(pd.amount_refunded)
+            ? pd.amount_refunded
+            : 0;
+
+    const remaining = base - already;
+    if (!Number.isFinite(remaining)) return 0;
+    return remaining > 0 ? remaining : 0;
+}
+
 // Prefer names; fall back to raw id if we truly don't have a map entry
 const nameFor = (id: "SELF" | string, detailsMap: DetailsMap | null) =>
     id === "SELF" ? fullName(detailsMap?.SELF, "You (Self)") : fullName(detailsMap?.[id], id);
@@ -117,13 +137,17 @@ function buildScopedItems(params: {
     for (const id of removedIds) {
         const pd = getPaymentFor(id, before);
         if (!pd) continue;
-        const price = asNumber(pd.price);
+
         const method = (pd.payment_type as string) ?? null;
         if (method !== "paypal") continue; // instant refunds only when PayPal handled it
+
+        const refundAmount = refundableRemainingFromPaymentDetails(pd);
+        if (refundAmount <= 0) continue;
+
         refunds.push({
             id,
             label: nameFor(id, detailsMap),
-            price,
+            price: refundAmount, // what we actually auto-refund
             method,
             complete: true,
             txn: (pd as any)?.transaction_id ?? null,

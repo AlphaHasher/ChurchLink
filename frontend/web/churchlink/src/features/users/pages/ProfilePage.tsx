@@ -1,6 +1,6 @@
 import * as React from "react";
 import { motion } from "framer-motion";
-import { UserCog, CalendarDays, IdCard } from "lucide-react";
+import { UserCog, CalendarDays, IdCard, CreditCard } from "lucide-react";
 import { ProfileCard } from "@/features/users/components/Profile/ProfileCard";
 import { PersonRail } from "@/features/users/components/Profile/PersonRail";
 import { DeleteAccountCard } from "@/features/users/components/Profile/DeleteAccountCard";
@@ -26,6 +26,7 @@ import { readMembershipDetails } from "@/helpers/MembershipHelper";
 import type { MembershipDetails } from "@/shared/types/MembershipRequests";
 import { useLocalize } from "@/shared/utils/localizationUtils";
 import MyEventsPageV2 from "@/features/eventsV2/pages/MyEventsPageV2";
+import MyTransactions from "@/features/transactions/MyTransactions";
 
 import ChangeEmailDialog from "@/features/users/components/Profile/ChangeEmailDialog";
 import ChangePasswordDialog from "@/features/users/components/Profile/ChangePasswordDialog";
@@ -51,14 +52,28 @@ const ProfilePage: React.FC = () => {
     const [members, setMembers] = React.useState<PersonDetails[]>([]);
 
     const location = useLocation();
-    // Determine tab from route
-    // Derive tab from pathname, query param (?tab=membership), or hash (#membership)
     const searchParams = new URLSearchParams(location.search);
-    const tabValue = location.pathname.includes("/profile/my-events")
-        ? "events"
-        : location.pathname.includes("/profile/membership") || searchParams.get('tab') === 'membership' || location.hash === '#membership'
-            ? 'membership'
-            : 'profile';
+
+    // Derive tab from pathname, query param, or hash
+    let tabValue: "profile" | "membership" | "events" | "transactions";
+    if (location.pathname.includes("/profile/my-events")) {
+        tabValue = "events";
+    } else if (
+        location.pathname.includes("/profile/transactions") ||
+        searchParams.get("tab") === "transactions" ||
+        location.hash === "#transactions"
+    ) {
+        tabValue = "transactions";
+    } else if (
+        location.pathname.includes("/profile/membership") ||
+        searchParams.get("tab") === "membership" ||
+        location.hash === "#membership"
+    ) {
+        tabValue = "membership";
+    } else {
+        tabValue = "profile";
+    }
+
     const navigate = useNavigate();
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [dialogResubmission, setDialogResubmission] = React.useState(false);
@@ -93,16 +108,17 @@ const ProfilePage: React.FC = () => {
         setDialogOpen(true);
     };
 
-    if (loading) return (
-        <Layout>
-            <div className="mx-auto max-w-5xl p-6">
-                <div className="space-y-4">
-                    <Skeleton className="h-10 w-1/3" />
-                    <Skeleton className="h-48 w-full" />
+    if (loading)
+        return (
+            <Layout>
+                <div className="mx-auto max-w-5xl p-6">
+                    <div className="space-y-4">
+                        <Skeleton className="h-10 w-1/3" />
+                        <Skeleton className="h-48 w-full" />
+                    </div>
                 </div>
-            </div>
-        </Layout>
-    );
+            </Layout>
+        );
 
     if (!profile) {
         return (
@@ -115,41 +131,59 @@ const ProfilePage: React.FC = () => {
     return (
         <Layout>
             <div className="mx-auto max-w-7xl p-6">
-                <Tabs value={tabValue} onValueChange={(v) => {
-                    // Keep routes in sync: events has its own route; membership uses a query param so it can be deep-linked
-                    if (v === 'events') navigate('/profile/my-events');
-                    else if (v === 'membership') navigate('/profile/membership');
-                    else navigate('/profile');
-                }} className="w-full">
-                    <div className="flex justify-center mb-8">
+                <Tabs
+                    value={tabValue}
+                    onValueChange={(v) => {
+                        if (v === "events") navigate("/profile/my-events");
+                        else if (v === "membership") navigate("/profile/membership");
+                        else if (v === "transactions") navigate("/profile/transactions");
+                        else navigate("/profile");
+                    }}
+                    className="w-full"
+                >
+                    {/* Responsive tab switcher */}
+                    <div className="mb-8 md:flex md:justify-center">
                         <motion.div
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="w-full"
                         >
-                            <TabsList className="bg-neutral-300 p-4 rounded-xl gap-4 flex-wrap md:flex-nowrap">
-                                <TabsTrigger
-                                    value="profile"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
-                                >
-                                    <UserCog className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    {localize("Profile")}
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="membership"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
-                                >
-                                    <IdCard className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    {localize("Membership")}
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="events"
-                                    className="px-8 py-4 text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-3"
-                                >
-                                    <CalendarDays className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
-                                    {localize("My Events")}
-                                </TabsTrigger>
-                            </TabsList>
+                            <div className="w-full max-w-5xl mx-auto overflow-x-auto scrollbar-none">
+                                <TabsList className="flex w-full gap-3 bg-neutral-200 px-2 py-2 rounded-full">
+                                    <TabsTrigger
+                                        value="profile"
+                                        className="whitespace-nowrap shrink-0 px-4 py-2 text-sm md:px-8 md:py-4 md:text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-2 md:gap-3"
+                                    >
+                                        <UserCog className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                        {localize("Profile")}
+                                    </TabsTrigger>
+
+                                    <TabsTrigger
+                                        value="membership"
+                                        className="whitespace-nowrap shrink-0 px-4 py-2 text-sm md:px-8 md:py-4 md:text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-2 md:gap-3"
+                                    >
+                                        <IdCard className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                        {localize("Membership")}
+                                    </TabsTrigger>
+
+                                    <TabsTrigger
+                                        value="events"
+                                        className="whitespace-nowrap shrink-0 px-4 py-2 text-sm md:px-8 md:py-4 md:text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-2 md:gap-3"
+                                    >
+                                        <CalendarDays className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                        {localize("My Events")}
+                                    </TabsTrigger>
+
+                                    <TabsTrigger
+                                        value="transactions"
+                                        className="whitespace-nowrap shrink-0 px-4 py-2 text-sm md:px-8 md:py-4 md:text-[18px] font-['Playfair_Display'] font-bold text-neutral-800 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-300 ease-out rounded-lg group flex items-center gap-2 md:gap-3"
+                                    >
+                                        <CreditCard className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
+                                        {localize("My Transactions")}
+                                    </TabsTrigger>
+                                </TabsList>
+                            </div>
                         </motion.div>
                     </div>
 
@@ -187,7 +221,12 @@ const ProfilePage: React.FC = () => {
                                 className="lg:ml-6"
                                 phone={contact?.phone ?? null}
                                 address={contact?.address ?? null}
-                                footer={<EditContactDialog initialContact={contact!} onUpdated={(c) => setContact(c)} />}
+                                footer={
+                                    <EditContactDialog
+                                        initialContact={contact!}
+                                        onUpdated={(c) => setContact(c)}
+                                    />
+                                }
                             />
                             <PersonRail className="lg:ml-6" people={members} />
                         </motion.div>
@@ -221,6 +260,10 @@ const ProfilePage: React.FC = () => {
 
                     <TabsContent value="events" className="min-h-[60vh]">
                         <MyEventsPageV2 />
+                    </TabsContent>
+
+                    <TabsContent value="transactions" className="min-h-[60vh]">
+                        <MyTransactions />
                     </TabsContent>
                 </Tabs>
             </div>

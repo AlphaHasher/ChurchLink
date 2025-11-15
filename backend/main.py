@@ -44,7 +44,6 @@ from routes.common_routes.app_config_routes import app_config_public_router, app
 from routes.common_routes.dashboard_app_config_routes import dashboard_app_config_public_router, dashboard_app_config_private_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 
-#from routes.event_payment_routes.event_payment_routes import event_payment_router
 from routes.finance_routes.finance_routes import finance_router
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
@@ -63,19 +62,19 @@ from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
 from routes.form_routes.form_translations_routes import form_translations_router
-from routes.form_routes.form_payment_routes import form_payment_router
+from routes.form_routes.form_payment_routes import form_payment_router, admin_form_payment_router
 
-from routes.donation_routes import donation_router
+from routes.donation_routes import donation_router, private_donation_router, admin_donation_router
 
 
 from routes.translator_routes import translator_router
 from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
 from routes.webbuilder_config_routes import webbuilder_config_public_router, webbuilder_config_private_router
 
-#from routes.webhook_listener_routes.paypal_subscription_webhook_routes import paypal_subscription_webhook_router
-#from routes.webhook_listener_routes.paypal_webhook_routes import paypal_webhook_router
 from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
 from routes.webhook_listener_routes.paypal_central_webhook_routes import paypal_central_webhook_router
+
+from routes.transactions_routes import transactions_router, admin_transactions_router
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -273,10 +272,6 @@ public_router.include_router(youtube_listener_router)
 public_router.include_router(public_notification_router)
 public_router.include_router(app_config_public_router)
 public_router.include_router(dashboard_app_config_public_router)
-#public_router.include_router(paypal_public_router)
-#public_router.include_router(form_payment_router)
-#public_router.include_router(paypal_subscription_webhook_router)
-#public_router.include_router(paypal_webhook_router)
 public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
@@ -285,6 +280,7 @@ public_router.include_router(public_event_router)
 public_router.include_router(public_forms_router)
 public_router.include_router(webbuilder_config_public_router)
 public_router.include_router(paypal_central_webhook_router)
+public_router.include_router(donation_router)
 
 
 #####################################################
@@ -303,7 +299,8 @@ private_router.include_router(private_event_router)
 private_router.include_router(private_bible_plan_router)
 private_router.include_router(event_registration_router)
 private_router.include_router(form_payment_router)
-private_router.include_router(donation_router)
+private_router.include_router(transactions_router)
+private_router.include_router(private_donation_router)
 
 
 #####################################################
@@ -365,6 +362,9 @@ web_builder_management_protected_router.include_router(webbuilder_config_private
 # FINANCE MANAGEMENT CORE
 finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Finance Management"], required_perms=["finance"])
 finance_management_protected_router.include_router(finance_router)
+finance_management_protected_router.include_router(admin_transactions_router)
+finance_management_protected_router.include_router(admin_donation_router)
+finance_management_protected_router.include_router(admin_form_payment_router)
 
 # EVENT PAYMENT ROUTES
 ##app.include_router(event_payment_router, prefix="/api/v1")

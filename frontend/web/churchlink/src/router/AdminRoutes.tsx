@@ -10,6 +10,7 @@ const AdminDashboard = lazy(() => import("../features/admin/pages/AdminDashboard
 const Permissions = lazy(() => import("../features/admin/pages/Permissions"));
 const Notification = lazy(() => import("../features/admin/pages/Notification"));
 const Finance = lazy(() => import("../features/admin/pages/Finance"));
+const ViewAdminTransactions = lazy(() => import("../features/admin/pages/ViewAdminTransactions"));
 const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
 const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditPage"));
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
@@ -77,6 +78,9 @@ export const AdminRoutes = () => {
         </PermissionGuard>} />
         <Route path="/finance" element={<PermissionGuard requiredPermission="finance">
           <Finance />
+        </PermissionGuard>} />
+        <Route path="/finance/view-transactions" element={<PermissionGuard requiredPermission="finance">
+          <ViewAdminTransactions />
         </PermissionGuard>} />
         <Route path="/finance/refunds" element={<PermissionGuard requiredPermission="finance">
           <RefundManagement />

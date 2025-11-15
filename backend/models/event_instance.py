@@ -58,22 +58,39 @@ class PaymentDetails(BaseModel):
     # Says what kind of payment the user signed up for
     # "free" if no payment
     payment_type: Literal['free', 'paypal', 'door']
-    # What price the user signed up for
-    # May differ from event price, consider a situation with discount or price gets changed
+
+    # What price the user signed up for (user-facing price)
+    # May differ from event price, consider discounts or price changes
     price: float
+
+    # For PayPal:
+    #  - The maximum amount we will ever automatically refund for this line.
+    #  - Typically = unit_price minus that line's share of the PayPal transaction fee.
+    # For non-PayPal lines this can be None.
+    refundable_amount: Optional[float] = None
+
+    # Cumulative amount refunded against this payment line (in the same currency).
+    # Increases with each refund (admin or user), used to compute remaining refundable.
+    amount_refunded: float = 0.0
+
     # Boolean true/false that is true if paid and false otherwise
     payment_complete: bool
-    # Optional value that denotates the discount code id, if any, that was used to sign up for this event.
+
+    # Optional value that denotes the discount code id, if any, that was used to sign up
     discount_code_id: Optional[str]
-    # Denotates whether or not the particular registrant is eligible for automatic refund
+
+    # Denotes whether or not the particular registrant is eligible for automatic refund
     # Is False by default, if something happens that makes them eligible, will become True
     automatic_refund_eligibility: bool
+
     # String that either points to an ID of a PayPal transaction for events or None (if door or free)
     transaction_id: Optional[str]
-    # String that either points to the line ID of a paypal transaction or None (if door or free)
+
+    # String that either points to the line ID of a PayPal transaction or None (if door or free)
     line_id: Optional[str]
+
     # Boolean that determines if the registration was forced or not
-    is_forced: bool=False
+    is_forced: bool = False
 
 class RegistrationDetails(BaseModel):
     """
@@ -403,6 +420,51 @@ def _apply_uid_registrations(instance_doc: Dict[str, Any], uid: Optional[str]) -
     key = str(uid)
     return (key in details), (details.get(key))
 
+async def increment_amount_refunded_for_line(
+    *,
+    event_instance_id: str,
+    uid: str,
+    person_id: str,   # "SELF" or a family_id
+    amount: float,
+) -> None:
+    """
+    Best-effort helper to increase PaymentDetails.amount_refunded
+    for a single registration line on an event instance.
+
+    It does NOT change seats_filled or registration flags; it only touches the
+    nested payment details blob, and only if that blob already exists.
+    """
+    try:
+        amt = float(amount)
+    except (TypeError, ValueError):
+        return
+
+    if amt <= 0:
+        return
+
+    try:
+        _oid = ObjectId(event_instance_id)
+    except Exception:
+        return
+
+    # Base path to the PaymentDetails object
+    if person_id == "SELF":
+        base = f"registration_details.{uid}.self_payment_details"
+    else:
+        base = f"registration_details.{uid}.family_payment_details.{person_id}"
+
+    field_path = f"{base}.amount_refunded"
+
+    # Only update if a PaymentDetails object is actually there
+    filter_doc = {
+        "_id": _oid,
+        f"{base}.payment_type": {"$exists": True},
+    }
+
+    await DB.db["event_instances"].update_one(
+        filter_doc,
+        {"$inc": {field_path: amt}},
+    )
 
 def _assemble_event_instance_for_read(
     *,

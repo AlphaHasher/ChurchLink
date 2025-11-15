@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 
 const ProfilePage = lazy(() => import("../features/users/pages/ProfilePage"));
 const MyEventsPageV2 = lazy(() => import("../features/eventsV2/pages/MyEventsPageV2"));
+const MyTransactions = lazy(() => import("../features/transactions/MyTransactions"));
 
 export const ProfileRoutes = () => {
     return (
@@ -10,6 +11,7 @@ export const ProfileRoutes = () => {
             <Route path="/" element={<ProfilePage />}>
                 <Route path="my-events" element={<MyEventsPageV2 />} />
                 <Route path="membership" element={<div />} />
+                <Route path="transactions" element={<MyTransactions />} />
             </Route>
         </Routes>
     );

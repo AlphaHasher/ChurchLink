@@ -236,7 +236,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const defaultPublicRoutes = useMemo(
         () => [
             { slug: "live", title: "Live" },
-            { slug: "donations", title: "Donations" },
             { slug: "events", title: "Events" },
             { slug: "sermons", title: "Sermons" },
             { slug: "weekly-bulletin", title: "Weekly Bulletin" },

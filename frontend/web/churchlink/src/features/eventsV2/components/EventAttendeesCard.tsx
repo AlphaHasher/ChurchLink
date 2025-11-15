@@ -49,10 +49,13 @@ type Props = {
             option: "free" | "door" | "paypal" | null;
             price: number | null;
             complete: boolean | null;
+
+            // NEW: richer info for refunds
+            refundableRemaining?: number | null; // how much could still be auto-refunded
+            totalRefunded?: number | null;       // how much has already been refunded
         }
         | null;
 };
-
 
 function Chip({
     children,
@@ -98,7 +101,10 @@ function GenderBadge({ gender }: { gender: Gender }) {
     return <Chip className="bg-gray-100 text-gray-700">—</Chip>;
 }
 
-// Payment chips: method/price stay muted; status is green/red with icons
+// Payment chips: method/price stay muted; status is green/red with icons.
+// For PayPal lines, show refund details:
+//  - "$X.XX partially refunded" when some money has come back
+//  - "$Y.YY refundable" for the remaining auto-refund allowance
 function PaymentBadges({
     info,
 }: {
@@ -107,12 +113,30 @@ function PaymentBadges({
         option: "free" | "door" | "paypal" | null;
         price: number | null;
         complete: boolean | null;
+        refundableRemaining?: number | null;
+        totalRefunded?: number | null;
     }
     | null
     | undefined;
 }) {
     if (!info) return null;
-    const { option, price, complete } = info;
+    const { option, price, complete, refundableRemaining, totalRefunded } = info;
+
+    const isPayPal = option === "paypal";
+
+    const refunded =
+        typeof totalRefunded === "number" && !Number.isNaN(totalRefunded) && totalRefunded > 0
+            ? totalRefunded
+            : 0;
+
+    const hasRefunds = isPayPal && refunded > 0;
+
+    const refundableValue =
+        typeof refundableRemaining === "number" && Number.isFinite(refundableRemaining)
+            ? refundableRemaining
+            : null;
+
+    const showRefundable = isPayPal && refundableValue !== null;
 
     return (
         <div className="flex flex-wrap gap-1">
@@ -121,11 +145,34 @@ function PaymentBadges({
                     {option === "paypal" ? "Paid online" : option === "door" ? "Pay at door" : "Free"}
                 </Chip>
             )}
+
             {typeof price === "number" && (
                 <Chip className="bg-gray-100 text-gray-700" title="Unit price at registration">
                     ${price.toFixed(2)}
                 </Chip>
             )}
+
+            {hasRefunds && (
+                <Chip
+                    className="bg-amber-50 text-amber-800"
+                    title="Amount already refunded for this attendee"
+                >
+                    ${refunded.toFixed(2)}{" "}
+                    {showRefundable && refundableValue && refundableValue > 0
+                        ? "partially refunded"
+                        : "refunded"}
+                </Chip>
+            )}
+
+            {showRefundable && (
+                <Chip
+                    className="bg-emerald-50 text-emerald-700"
+                    title="Maximum amount that can still be automatically refunded for this attendee"
+                >
+                    ${Math.max(refundableValue ?? 0, 0).toFixed(2)} refundable
+                </Chip>
+            )}
+
             {typeof complete === "boolean" && (
                 <Chip
                     className={
@@ -151,7 +198,6 @@ function PaymentBadges({
         </div>
     );
 }
-
 
 export default function EventAttendeesCard(props: Props) {
     const {
@@ -246,7 +292,6 @@ export default function EventAttendeesCard(props: Props) {
                             <Chip className="bg-gray-100 text-gray-700">
                                 DOB: {r.dateOfBirth ? new Date(r.dateOfBirth).toLocaleDateString() : "—"}
                             </Chip>
-
 
                             {/* ineligible hint */}
                             {disabledReason && (

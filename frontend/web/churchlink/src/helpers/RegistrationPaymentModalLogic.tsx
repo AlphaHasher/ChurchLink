@@ -13,6 +13,7 @@ import type {
     ChangeEventRegistration,
     RegistrationChangeResponse,
     RegistrationDetails,
+    PaymentDetails
 } from "@/shared/types/Event";
 import type { ProfileInfo } from "@/shared/types/ProfileInfo";
 import type { PersonDetails } from "@/shared/types/Person";
@@ -116,6 +117,28 @@ function requiresPaymentForUser(event: UserFacingEvent, isMember: boolean | null
     const hasOptions = Array.isArray(event.payment_options) && event.payment_options.length > 0;
     const priceForUser = memberUnitPrice(event, !!isMember);
     return hasOptions && priceForUser > 0;
+}
+
+function hasPayPalInExistingRegistrations(event: UserFacingEvent): boolean {
+    const reg = event.event_registrations as RegistrationDetails | null | undefined;
+    if (!reg) return false;
+
+    const usedPayPal = (pd: PaymentDetails | null | undefined): boolean => {
+        if (!pd) return false;
+        return pd.payment_type === "paypal" && pd.payment_complete === true;
+    };
+
+    if (usedPayPal(reg.self_payment_details)) return true;
+
+    if (reg.family_payment_details) {
+        for (const pd of Object.values(reg.family_payment_details)) {
+            if (usedPayPal(pd as PaymentDetails | null | undefined)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 // -----------------------------
@@ -269,6 +292,31 @@ export function useRegistrationPaymentModalLogic({
 
     function dropTwoDecimalPlaces(n: number) { return Math.trunc(n * 100) / 100; }
 
+    function refundableRemainingFromPaymentDetails(
+        pd: PaymentDetails | null | undefined,
+        fallbackUnitPrice: number
+    ): number {
+        if (!pd) return 0;
+
+        const base =
+            typeof pd.refundable_amount === "number"
+                ? pd.refundable_amount
+                : typeof pd.price === "number"
+                    ? pd.price
+                    : fallbackUnitPrice;
+
+        const already =
+            typeof pd.amount_refunded === "number" && !Number.isNaN(pd.amount_refunded)
+                ? pd.amount_refunded
+                : 0;
+
+        const remaining = base - already;
+        if (!Number.isFinite(remaining)) return 0;
+
+        const clamped = remaining > 0 ? remaining : 0;
+        return dropTwoDecimalPlaces(clamped);
+    }
+
     function calcEffectiveUnit(unit: number, count: number) {
         if (!discount) return unit;
 
@@ -336,10 +384,15 @@ export function useRegistrationPaymentModalLogic({
     const isPayPal = method === "paypal";
     const isDoor = method === "door";
 
+    const showPayPalFeeWarning = useMemo(
+        () => hasPayPalInExistingRegistrations(event) || canUsePayPal,
+        [event, canUsePayPal]
+    );
+
     // Re-init when modal opens or instance changes
     useEffect(() => {
         if (!open) return;
-        setSelfSelected(initialSelfRegistered);
+        setSelfSelected(initialSelfRegistered); showPayPalFeeWarning
         setSelectedFamily(Object.fromEntries((initialFamilyRegistered ?? []).map((id) => [id, true])));
         setMethod(isPaidEvent ? (payOptions.includes("paypal") ? "paypal" : "door") : "free");
     }, [open, instanceId, initialSelfRegistered, initialFamilyRegistered, isPaidEvent, payOptions]);
@@ -585,33 +638,51 @@ export function useRegistrationPaymentModalLogic({
     }, [selfRow, family, profile?.first_name, profile?.last_name, profile?.gender]);
 
     // Payment info for a given row if currently registered
-    function paymentInfoForRow(row: AttendeeRow) {
-        const reg = event.event_registrations;
+    const paymentInfoForRow = (row: AttendeeRow) => {
+        const reg = event.event_registrations as RegistrationDetails | null | undefined;
         if (!reg) return null;
+
+        let pd: PaymentDetails | null | undefined = null;
 
         if (row.isSelf) {
             if (!initialSelfRegistered) return null;
-            const d = reg.self_payment_details;
-            if (!d) return { option: null, price: null, complete: null };
-            return {
-                option: (d.payment_type ?? null) as "free" | "door" | "paypal" | null,
-                price: typeof d.price === "number" ? d.price : null,
-                complete: typeof d.payment_complete === "boolean" ? d.payment_complete : null,
-            };
+            pd = reg.self_payment_details as PaymentDetails | null | undefined;
+        } else {
+            if (!initialFamilyRegisteredSet.has(row.id)) return null;
+            pd = reg.family_payment_details?.[row.id] as PaymentDetails | null | undefined;
         }
 
-        if (!initialFamilyRegisteredSet.has(row.id)) return null;
-        const d = reg.family_payment_details?.[row.id];
-        if (!d) return { option: null, price: null, complete: null };
+        if (!pd) return null;
+
+        const price =
+            typeof pd.price === "number" && !Number.isNaN(pd.price) ? pd.price : null;
+
+        const refundableRemaining = refundableRemainingFromPaymentDetails(
+            pd,
+            typeof price === "number" ? price : 0
+        );
+
+        const totalRefunded =
+            typeof pd.amount_refunded === "number" && !Number.isNaN(pd.amount_refunded)
+                ? pd.amount_refunded
+                : 0;
+
         return {
-            option: (d.payment_type ?? null) as "free" | "door" | "paypal" | null,
-            price: typeof d.price === "number" ? d.price : null,
-            complete: typeof d.payment_complete === "boolean" ? d.payment_complete : null,
+            option: pd.payment_type ?? null,
+            price,
+            complete: pd.payment_complete ?? null,
+            refundableRemaining,
+            totalRefunded,
         };
-    }
+    };
 
     function originalPaymentForRegistrantWithPrice(row: AttendeeRow):
-        | { method: "free" | "door" | "paypal" | null; price: number | null; complete: boolean | null }
+        | {
+            method: "free" | "door" | "paypal" | null;
+            price: number | null;            // original unit price at registration
+            complete: boolean | null;        // whether that payment line was completed
+            refundableRemaining: number;     // how much we can still auto-refund for this line
+        }
         | null {
         const reg = event.event_registrations;
         if (!reg) return null;
@@ -619,19 +690,29 @@ export function useRegistrationPaymentModalLogic({
         if (row.isSelf) {
             if (!initialSelfRegistered) return null;
             const d = reg.self_payment_details;
+            const price = typeof d?.price === "number" ? d!.price : null;
             return {
                 method: (d?.payment_type ?? null) as any,
-                price: typeof d?.price === "number" ? d!.price : null,
+                price,
                 complete: d?.payment_complete ?? null,
+                refundableRemaining: refundableRemainingFromPaymentDetails(
+                    d as PaymentDetails | null | undefined,
+                    typeof price === "number" ? price : unitPrice
+                ),
             };
         }
 
         if (!initialFamilyRegisteredSet.has(row.id)) return null;
         const d = reg.family_payment_details?.[row.id];
+        const price = typeof d?.price === "number" ? d!.price : null;
         return {
             method: (d?.payment_type ?? null) as any,
-            price: typeof d?.price === "number" ? d!.price : null,
+            price,
             complete: d?.payment_complete ?? null,
+            refundableRemaining: refundableRemainingFromPaymentDetails(
+                d as PaymentDetails | null | undefined,
+                typeof price === "number" ? price : unitPrice
+            ),
         };
     }
 
@@ -695,10 +776,14 @@ export function useRegistrationPaymentModalLogic({
             if (!orig?.method) continue;
 
             const priceEach = typeof orig.price === "number" ? orig.price : unitPrice;
+            const refundableEach =
+                typeof orig.refundableRemaining === "number" ? orig.refundableRemaining : 0;
 
             if (orig.method === "paypal" && orig.complete) {
-                refundNow += priceEach;
+                // Show what the backend will actually auto-refund for this line
+                refundNow += refundableEach;
             } else if (orig.method === "door") {
+                // Door payments are “credit at door” for the full line price
                 creditAtDoor += priceEach;
             } else {
                 // free or unknown → no dollar movement
@@ -893,6 +978,7 @@ export function useRegistrationPaymentModalLogic({
         canUseDoor,
         isPayPal,
         isDoor,
+        showPayPalFeeWarning,
 
         attendeeRows,
         disabledReasonFor,

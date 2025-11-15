@@ -15,11 +15,31 @@ from models.form_transaction import (
     mark_form_transaction_captured,
     mark_form_transaction_failed,
     get_form_transaction_by_order_id,
+    record_form_refund
 )
+
+from models.refund_models import TransactionRefund
+
+from pydantic import BaseModel
 
 from helpers.PayPalHelperV2 import PayPalHelperV2
 
+from mongo.database import DB
+
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+
+class AdminRefundFormPayment(BaseModel):
+    """
+    Admin-triggered refund for a PayPal form payment.
+
+    - paypal_capture_id: the PayPal capture id we stored on the form transaction.
+    - amount: optional partial refund amount. If None => full refund.
+    - reason: optional free-text reason (for internal logs / future use).
+    """
+    paypal_capture_id: str
+    amount: Optional[float] = None
+    reason: Optional[str] = None
 
 
 # ---------- internal helpers
@@ -227,4 +247,150 @@ async def capture_and_submit_form(
         "order_id": order_id,
         "transaction_id": capture_id,
         "response": saved,
+    }
+
+async def admin_refund_form_payment(
+    *,
+    request: Request,
+    body: AdminRefundFormPayment,
+) -> Dict[str, Any]:
+    """
+    Admin refund endpoint for form payments.
+
+    Flow:
+      1. Look up the form transaction by paypal_capture_id.
+      2. Compute the remaining refundable amount from the ledger.
+      3. Build a refund request for PayPal:
+         - no amount => refund the remaining amount
+         - amount => partial refund of that amount (bounded by remaining)
+      4. Call /v2/payments/captures/{capture_id}/refund.
+      5. Append a refund record into form_transactions so the ledger reflects it.
+    """
+    paypal_capture_id = (body.paypal_capture_id or "").strip()
+    if not paypal_capture_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="paypal_capture_id is required",
+        )
+
+    # Find the form transaction we're refunding
+    txn_doc = await DB.db.form_transactions.find_one({"paypal_capture_id": paypal_capture_id})
+    if not txn_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Form payment not found for that capture id",
+        )
+
+    original_amount = float(txn_doc.get("amount", 0.0) or 0.0)
+    captured_currency = str(txn_doc.get("currency") or "USD")
+
+    # Compute the total already refunded for this capture
+    refunds_raw = txn_doc.get("refunds") or []
+    refunded_total = 0.0
+    if isinstance(refunds_raw, list):
+        for r in refunds_raw:
+            if not isinstance(r, dict):
+                continue
+            try:
+                refunded_total += float(r.get("amount", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                continue
+    refunded_total = round(refunded_total, 2)
+
+    remaining = round(original_amount - refunded_total, 2)
+    if remaining <= 0.01:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nothing left to refund for this form payment",
+        )
+
+    # Determine how much we want to refund now
+    if body.amount is not None:
+        value = round(float(body.amount), 2)
+        if value <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Refund amount must be > 0",
+            )
+
+        if value - remaining > 0.01:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Refund amount cannot exceed remaining refundable amount ({remaining:.2f})",
+            )
+    else:
+        value = remaining
+
+    json_body: Dict[str, Any] = {
+        "amount": {
+            "value": f"{value:.2f}",
+            "currency_code": captured_currency,
+        }
+    }
+
+    helper = await PayPalHelperV2.get_instance()
+    req_id = f"admin:form-refund:{paypal_capture_id}:{uuid4().hex}"
+    try:
+        resp = await helper.post(
+            f"/v2/payments/captures/{paypal_capture_id}/refund",
+            json_body=json_body,
+            request_id=req_id,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"message": "PayPal refund request failed", "error": str(e)},
+        )
+
+    if resp.status_code not in (200, 201):
+        try:
+            payload = resp.json()
+        except Exception:
+            payload = {"raw": await resp.text()}
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={
+                "message": "PayPal refund failed",
+                "status_code": resp.status_code,
+                "paypal_response": payload,
+            },
+        )
+
+    data = resp.json() or {}
+
+    amount_info = (data.get("amount") or {}) or {}
+    raw_value = amount_info.get("value")
+    refund_value = float(raw_value) if raw_value is not None else float(value)
+    refund_currency = str(amount_info.get("currency_code") or captured_currency)
+    refund_id = data.get("id") or f"paypal:{paypal_capture_id}:{uuid4().hex}"
+    reason = (
+        (body.reason or "").strip()
+        or data.get("reason")
+        or "admin_manual_refund"
+    )
+    admin_uid = getattr(request.state, "uid", None)
+
+    refund_entry = TransactionRefund(
+        refund_id=str(refund_id),
+        amount=refund_value,
+        currency=refund_currency,
+        reason=reason,
+        by_uid=str(admin_uid) if admin_uid is not None else None,
+        source="admin_api",
+        paypal_refund_payload=data,
+    )
+
+    try:
+        await record_form_refund(
+            paypal_capture_id=paypal_capture_id,
+            refund=refund_entry,
+        )
+    except Exception:
+        #Don't hide a successful PayPal refund behind a local DB hiccup.
+        pass
+
+    return {
+        "success": True,
+        "paypal_capture_id": paypal_capture_id,
+        "paypal_refund": data,
     }

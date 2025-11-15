@@ -12,8 +12,7 @@ Ledger for PayPal Subscriptions (v1 /billing/subscriptions).
 
 Notes:
 - We do not manage Products/Plans here. The controller creates the Subscription directly and
-  records the returned `id` plus status. We support per-donor amount via plan-price override
-  (if enabled) or by provisioning multiple plan ids out-of-band.
+  records the returned `id` plus status.
 - Webhooks (BILLING.SUBSCRIPTION.* and PAYMENT.SALE.COMPLETED) should upsert rows via the helpers below.
 """
 
@@ -27,9 +26,8 @@ class DonationSubscription(BaseModel):
     paypal_subscription_id: str
     status: SubStatus
 
-    # donor + org
+    # donor
     donor_uid: Optional[str] = None
-    merchant_org_id: Optional[str] = None
 
     # money + cadence
     amount: float
@@ -57,7 +55,6 @@ async def upsert_subscription_record(
     amount: float,
     currency: str = "USD",
     interval: str = "MONTH",
-    merchant_org_id: Optional[str] = None,
     message: Optional[str] = None,
     meta: Optional[dict] = None,
 ):
@@ -66,7 +63,6 @@ async def upsert_subscription_record(
         "paypal_subscription_id": paypal_subscription_id,
         "status": status,
         "donor_uid": ObjectId(donor_uid) if donor_uid and ObjectId.is_valid(donor_uid) else donor_uid,
-        "merchant_org_id": ObjectId(merchant_org_id) if merchant_org_id and ObjectId.is_valid(merchant_org_id) else merchant_org_id,
         "amount": float(amount),
         "currency": currency,
         "interval": interval,

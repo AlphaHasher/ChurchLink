@@ -9,7 +9,8 @@ from models.event_instance import (
     PaymentDetails,
     get_upcoming_instances_for_user_family,
     _assemble_event_instance_for_admin,
-    get_upcoming_instances_for_user
+    get_upcoming_instances_for_user,
+    increment_amount_refunded_for_line
 )
 from models.event import _coerce_to_aware_utc, get_event_by_id, get_event_doc_by_id
 from models.discount_code import get_discount_code_by_code, get_discount_code_by_id, increment_discount_usage
@@ -21,7 +22,6 @@ from helpers.PayPalHelperV2 import PayPalHelperV2
 from pydantic import BaseModel, Field
 import math
 
-import logging
 
 from models.event_transaction import (
     TransactionItem,
@@ -56,6 +56,31 @@ class AdminForceChange(BaseModel):
     user_id: str
     registrant_id: str = Field(description='"SELF" or a family member id')
     price: Optional[float] = None  # Only used for force-register
+
+class AdminRefundEventTransaction(BaseModel):
+    """
+    Admin-triggered refund for an event transaction.
+
+    - order_id: PayPal order id for the event transaction.
+    - refund_all:
+        * True  -> apply the same refund rule to every refundable line.
+        * False -> use line_map to specify per-line refunds.
+    - refund_amount:
+        * Used only when refund_all is True.
+        * None        -> refund the remaining amount for each line (full for each line).
+        * Some amount -> refund that amount on each line (capped to the line's remaining).
+    - line_map:
+        * Used only when refund_all is False.
+        * { line_id: None }        -> refund that line's full remaining amount.
+        * { line_id: amount }      -> refund that line by `amount` (capped to remaining).
+    - reason:
+        * Optional human-readable reason stored on the refund records.
+    """
+    order_id: str
+    refund_all: bool
+    refund_amount: Optional[float] = None
+    line_map: Optional[Dict[str, Optional[float]]] = None
+    reason: Optional[str] = None
 
 
 # A HELPER THAT ENFORCES A VALIDATION THAT AN INSTANCE IS UPCOMING
@@ -95,13 +120,18 @@ async def create_new_payment_details(
     *,
     transaction_id: Optional[str] = None,
     line_id: Optional[str] = None,
+    refundable_amount: Optional[float] = None,
+    amount_refunded: float = 0.0,
 ) -> PaymentDetails:
     details: Dict[str, Any] = {}
+
+    # Normalize price
+    price = round(float(price or 0.0), 2)
 
     # Set the payment type, price, and discount code based on inputs simply
     details["payment_type"] = payment_type
     details["price"] = price
-    details['discount_code_id'] = discount_code_id
+    details["discount_code_id"] = discount_code_id
 
     # Paypal only ever calls this after the payment is caught and confirmed
     # So payment is complete only if free or paypal is the type
@@ -110,34 +140,50 @@ async def create_new_payment_details(
     else:
         details["payment_complete"] = False
 
-    # Set automatic refund eligibility to False
+    # Set automatic refund eligibility to False initially
     # It is only supposed to be there as an "emergency lever" if the event is changed after a user is registered
-    # Therefore, upon first register, set to False
     details["automatic_refund_eligibility"] = False
 
+    # Refundable amount defaults:
+    # - If caller provided a specific refundable_amount, honor it.
+    # - Else, for PayPal, default to price (no fee breakdown available yet).
+    # - For non-PayPal, leave as None unless explicitly provided.
+    if refundable_amount is not None:
+        details["refundable_amount"] = round(float(refundable_amount or 0.0), 2)
+    elif payment_type == "paypal":
+        details["refundable_amount"] = price
+    else:
+        details["refundable_amount"] = None
 
-    # Set transaction and line IDs to real IDs if using paypal
-    if payment_type == 'paypal':
+    # Start with a known amount_refunded (usually 0.0)
+    details["amount_refunded"] = round(float(amount_refunded or 0.0), 2)
+
+    # Set transaction and line IDs to real IDs if using PayPal
+    if payment_type == "paypal":
         # Conditionally attach transaction lineage
         fields = _paymentdetails_fields()
         if "transaction_id" in fields and transaction_id:
             details["transaction_id"] = transaction_id
         if "line_id" in fields and line_id:
             details["line_id"] = line_id
-
-    # If not using paypal, there is no transaction or line id and we set to None.
     else:
-        details['transaction_id'] = None
-        details['line_id'] = None
+        # If not using paypal, there is no transaction or line id and we set to None.
+        details["transaction_id"] = None
+        details["line_id"] = None
 
     return PaymentDetails(**details)
 
 # Builds PaymentDetails forcefully created by an admin force registration
 def _build_forced_payment_details(kind: Literal["free", "door"], price: float) -> PaymentDetails:
     # payment_complete only for "free"; "door" means pay later
+    base_price = round(float(price or 0.0), 2)
+    refundable = base_price if kind == "free" else None
+
     return PaymentDetails(
         payment_type=kind,
-        price=round(float(price or 0), 2),
+        price=base_price,
+        refundable_amount=refundable,
+        amount_refunded=0.0,
         payment_complete=(kind == "free"),
         discount_code_id=None,
         automatic_refund_eligibility=False,
@@ -157,12 +203,19 @@ async def create_new_reg_details(
     regs: List[str],
     *,
     lineage_map: Optional[Dict[str, Tuple[Optional[str], Optional[str]]]] = None,
+    refundable_map: Optional[Dict[str, float]] = None,
 ) -> RegistrationDetails:
     details: Dict[str, Any] = {}
 
     # Very simply set the registration statuses to our input values
     details["self_registered"] = self_registered
     details["family_registered"] = family_registered
+
+    # Helper to get per-person refundable amount (if any)
+    def _ref_amt(person_id: str) -> Optional[float]:
+        if not refundable_map:
+            return None
+        return refundable_map.get(person_id)
 
     # Set self_payment_details only if the self is registered
     if self_registered:
@@ -171,11 +224,19 @@ async def create_new_reg_details(
             details["self_payment_details"] = old_details.self_payment_details
         # Otherwise, create new payment details
         else:
-            t_id = l_id = None
+            t_id: Optional[str] = None
+            l_id: Optional[str] = None
             if lineage_map and "SELF" in lineage_map:
                 t_id, l_id = lineage_map["SELF"]
+
             details["self_payment_details"] = await create_new_payment_details(
-                registration.payment_type, unit_price, discount_code_id=registration.discount_code_id,transaction_id=t_id, line_id=l_id
+                registration.payment_type,
+                unit_price,
+                registration.discount_code_id,
+                transaction_id=t_id,
+                line_id=l_id,
+                refundable_amount=_ref_amt("SELF"),
+                amount_refunded=0.0,
             )
     # Self payment details should be None if self not signed up
     else:
@@ -186,17 +247,26 @@ async def create_new_reg_details(
     for family in family_registered:
         # If family is in regs that means they are a new registrant and we need to create new PaymentDetails
         if family in regs:
-            t_id = l_id = None
+            t_id: Optional[str] = None
+            l_id: Optional[str] = None
             if lineage_map and family in lineage_map:
                 t_id, l_id = lineage_map[family]
             family_payment_dict[family] = await create_new_payment_details(
-                registration.payment_type, unit_price, discount_code_id=registration.discount_code_id, transaction_id=t_id, line_id=l_id
+                registration.payment_type,
+                unit_price,
+                registration.discount_code_id,
+                transaction_id=t_id,
+                line_id=l_id,
+                refundable_amount=_ref_amt(family),
+                amount_refunded=0.0,
             )
         # Otherwise keep old payment details
         else:
             # Do a quick validation check
-            if old_details and getattr(old_details, "family_payment_details", None) and (
-                family in old_details.family_payment_details
+            if (
+                old_details
+                and getattr(old_details, "family_payment_details", None)
+                and (family in old_details.family_payment_details)
             ):
                 family_payment_dict[family] = old_details.family_payment_details.get(family)  # type: ignore[assignment]
             # If this failed. Panic and create new (defensive default)
@@ -205,12 +275,19 @@ async def create_new_reg_details(
                 if lineage_map and family in lineage_map:
                     t_id, l_id = lineage_map[family]
                 family_payment_dict[family] = await create_new_payment_details(
-                    registration.payment_type, unit_price, discount_code_id=registration.discount_code_id,transaction_id=t_id, line_id=l_id
+                    registration.payment_type,
+                    unit_price,
+                    registration.discount_code_id,
+                    transaction_id=t_id,
+                    line_id=l_id,
+                    refundable_amount=_ref_amt(family),
+                    amount_refunded=0.0,
                 )
 
     details["family_payment_details"] = family_payment_dict
 
     return RegistrationDetails(**details)
+
 
 
 # ----------------------------
@@ -261,6 +338,7 @@ async def process_change_event_registration(
     registration: ChangeEventRegistration,
     *,
     lineage_map: Optional[Dict[str, Tuple[Optional[str], Optional[str]]]] = None,
+    refundable_map: Optional[Dict[str, float]] = None,
 ):
     # Get the Event Instance from the ID
     instance = await get_event_instance_assembly_by_id(registration.event_instance_id)
@@ -282,17 +360,16 @@ async def process_change_event_registration(
     if not validation["success"]:
         return {"success": False, "msg": f"Error! Failed validation! Validation error message: {validation['msg']}"}
 
-    # Give a var from data from validation
     seat_delta = validation["seat_delta"]
     unit_price = validation["unit_price"]
     self_registered = validation["self_registered"]
     family_registered = validation["family_registered"]
     regs = validation["regs"]
-    unregs = validation['unregs']
+    unregs = validation["unregs"]
 
     old_details = assembled.registration_details.get(request.state.uid) or None
 
-    # Try to create proper EventDetails, return error if failure
+    # Try to create proper RegistrationDetails, return error if failure
     try:
         details = await create_new_reg_details(
             registration,
@@ -302,15 +379,16 @@ async def process_change_event_registration(
             unit_price,
             regs,
             lineage_map=lineage_map,
+            refundable_map=refundable_map,
         )
     except Exception as e:
         return {"success": False, "msg": f"Error! Could not assemble new RegistrationDetails: {e}"}
 
     # Handle the final reg update
     res = await update_registration(assembled.id, request.state.uid, details, seat_delta, assembled.max_spots)
-    res['details_map'] = validation['details_map']
+    res["details_map"] = validation["details_map"]
 
-    if not res['success']:
+    if not res["success"]:
         return res
 
     if unregs:
@@ -332,33 +410,23 @@ async def process_change_event_registration(
                     rollback_delta,
                     assembled.max_spots,
                 )
-                if rollback and rollback.get('success'):
-                    res['seats_filled'] = rollback.get('seats_filled', res.get('seats_filled'))
+                if rollback and rollback.get("success"):
+                    res["seats_filled"] = rollback.get("seats_filled")
                     rollback_succeeded = True
-                else:
-                    # Log critical: rollback failed, database inconsistent
-                    logging.error(f"CRITICAL: Rollback failed for user {request.state.uid}, instance {assembled.id}")
-            
-            # Update res to reflect failure, preserving existing fields
-            res['success'] = False
-            if rollback_succeeded:
-                res['msg'] = f"Refunds failed, registration rolled back: {refund_res['msg']}"
-            elif old_details is None:
-                res['msg'] = f"Refunds failed (no prior registration to rollback): {refund_res['msg']}"
-            else:
-                res['msg'] = f"Refunds failed AND rollback failed (critical): {refund_res['msg']}"
-            
-            return res
+
+            if not rollback_succeeded:
+                res["rollback_failed"] = True
+
+            return refund_res
 
     # If registration successful, inc code uses
-    if res['success']:
+    if res["success"]:
         if registration.discount_code_id is not None:
-            code_validation = validation['code_validation']
-            limit = code_validation['uses_left']
+            code_validation = validation["code_validation"]
+            limit = code_validation["uses_left"]
 
             if limit is None or limit >= len(regs):
                 inc = len(regs)
-
             else:
                 inc = limit
 
@@ -907,9 +975,9 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
       1) Capture PayPal order (idempotent) and mirror capture_id onto ALL ledger lines.
       2) Compute delta vs current RegistrationDetails (regs/unregs).
       3) Validate the intended change under PayPal rules for this instance.
-      4) Refund removals first (per-line) using stored lineage in PaymentDetails.
-      5) Apply additions with lineage (order_id, line_id) stamped into new PaymentDetails.
-      6) Persist via update_registration (atomic seat update inside).
+      4) Build lineage (order_id, line_id) for NEW additions from the captured ledger.
+      5) Compute per-person refundable_amount (price minus proportional fee share).
+      6) Apply additions via process_change_event_registration, passing both lineage_map and refundable_map.
     """
     uid = request.state.uid
     order_id = body.order_id
@@ -918,7 +986,8 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
     # 0) Load assembled instance
     instance_doc = await get_event_instance_assembly_by_id(instance_id)
     if not instance_doc:
-        return {"success": False, "msg": f"Error! Could not find instance with ID {instance_id}"}
+        return {"success": False, "msg": f"Could not find event instance with id {instance_id}"}
+
     try:
         assembled = AssembledEventInstance(**instance_doc)
     except Exception as e:
@@ -935,28 +1004,29 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
     )
     if cap_resp.status_code not in (200, 201):
         return {"success": False, "msg": f"PayPal capture failed with status {cap_resp.status_code}."}
-    cap_json = cap_resp.json()
 
-    # 1b) Mirror capture to ledger lines
+    cap_json = cap_resp.json() or {}
+
+    # 1b) Mirror capture -> event_transactions (idempotent)
     tx = await get_transaction_by_order_id(order_id)
     if not tx:
-        return {"success": False, "msg": "Transaction not found for order."}
+        return {"success": False, "msg": "Event transaction not found for this order_id."}
 
-    # If already captured (every line has a capture_id), treat as idempotent and reuse.
-    already_captured = all(bool(it.capture_id) for it in (tx.items or []))
-    if not already_captured:
-        # PayPal often returns a SINGLE capture for the entire order.
-        try:
-            pu = (cap_json.get("purchase_units") or [])[0]
-            captures = (pu.get("payments") or {}).get("captures") or []
-        except Exception:
-            captures = []
-
-        global_cap_id = captures[0]["id"] if captures and "id" in captures[0] else None
+    if tx.status != "captured":
+        # Try to extract a global capture id from the order capture response
+        global_cap_id: Optional[str] = None
+        for pu in cap_json.get("purchase_units") or []:
+            payments = pu.get("payments") or {}
+            captures = payments.get("captures") or []
+            if captures:
+                cid = captures[0].get("id")
+                if cid:
+                    global_cap_id = cid
+                    break
 
         captured_lines: List[Tuple[str, Optional[str], LineStatus]] = []
         for it in (tx.items or []):
-            cap_id = global_cap_id  # stamp the same capture on each line (common for PayPal v2)
+            cap_id = global_cap_id
             status: LineStatus = "captured" if cap_id else "pending"
             captured_lines.append((it.line_id, cap_id, status))
 
@@ -969,17 +1039,12 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
             return {"success": False, "msg": "Failed to update transaction ledger on capture."}
         tx = tx2  # work with the updated ledger
 
-    # Get discount code details
-    meta = getattr(tx, "meta", {}) or {}
-    dc_id = meta.get("discount_code_id")
-    disc_count = int(meta.get("discounted_count") or 0)
-
     # 2) Compute delta vs desired final_details
     old_details = assembled.registration_details.get(uid) or None
     desired = body.final_details
 
-    desired_self = bool(desired.self_registered)
-    desired_fam = list(desired.family_registered or [])
+    desired_self = bool(getattr(desired, "self_registered", False))
+    desired_fam = list(getattr(desired, "family_registered", []) or [])
 
     old_self = bool(old_details.self_registered) if old_details else False
     old_fam = list((old_details.family_registered or []) if old_details else [])
@@ -1000,10 +1065,11 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
         # Nothing to change; success for idempotency (e.g., page reloaded)
         return {"success": True, "msg": "No registration changes requested.", "seats_filled": assembled.seats_filled}
 
-    # 3) Validate the intended change under PayPal context
-    unit_price = assembled.member_price if (assembled.member_price is not None and request.state.user.get("membership")) else assembled.price
-    unit_price = round(float(unit_price), 2)
+    # Discount code info from transaction meta
+    meta = getattr(tx, "meta", {}) or {}
+    dc_id = meta.get("discount_code_id")
 
+    # 3) Validate the intended change under PayPal context
     change = ChangeEventRegistration(
         event_instance_id=instance_id,
         self_registered=(True if "SELF" in regs else (False if "SELF" in unregs else None)),
@@ -1019,12 +1085,61 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
 
     # 4) Build lineage ONLY for NEW ADDITIONS from the (now) captured ledger
     tx = await get_transaction_by_order_id(order_id)
+    if not tx:
+        return {"success": False, "msg": "Event transaction not found after capture."}
+
     captured_by_person: Dict[str, Tuple[str, str]] = {}
     for it in (tx.items or []):
         if it.capture_id:
             captured_by_person[it.person_id] = (order_id, it.line_id)
 
+    # 5) Compute per-person refundable amounts based on total fee
+    #    refundable = unit_price - proportional share of the PayPal fee.
+    refundable_by_person: Dict[str, float] = {}
+
+    # First try whatever the ledger has (if you later start populating fee_amount there)
+    total_fee: float = 0.0
+    try:
+        fee_from_ledger = getattr(tx, "fee_amount", None)
+        if fee_from_ledger is not None:
+            total_fee = float(fee_from_ledger or 0.0)
+    except (TypeError, ValueError, AttributeError):
+        total_fee = 0.0
+
+    # If we don't have a fee there, derive it from the capture payload
+    if not total_fee:
+        _gross, fee_from_capture, _net = _extract_amounts_and_fees_from_capture_order(cap_json)
+        if fee_from_capture is not None:
+            try:
+                total_fee = float(fee_from_capture or 0.0)
+            except (TypeError, ValueError):
+                total_fee = 0.0
+
+    line_items = list(tx.items or [])
+    total_gross = sum((float(it.unit_price or 0.0) for it in line_items), 0.0)
+
+    if total_gross > 0 and total_fee > 0:
+        remaining_fee = round(total_fee, 2)
+        for idx, it in enumerate(line_items):
+            line_price = round(float(it.unit_price or 0.0), 2)
+            if idx == len(line_items) - 1:
+                fee_share = round(remaining_fee, 2)
+            else:
+                fee_share = round((line_price / total_gross) * total_fee, 2)
+                remaining_fee = round(remaining_fee - fee_share, 2)
+
+            refundable = round(line_price - fee_share, 2)
+            if refundable < 0:
+                refundable = 0.0
+            refundable_by_person[it.person_id] = refundable
+    else:
+        # No fee info, or zero fee: fall back to full line price
+        for it in line_items:
+            refundable_by_person[it.person_id] = round(float(it.unit_price or 0.0), 2)
+
     lineage_map: Dict[str, Tuple[Optional[str], Optional[str]]] = {}
+    refundable_map: Dict[str, float] = {}
+
     for pid in regs:
         # Every newly added person must have a captured ledger line we can stamp into PaymentDetails
         if pid in captured_by_person:
@@ -1032,9 +1147,17 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
         else:
             return {"success": False, "msg": f"Missing captured line for registrant {pid}. Aborting."}
 
-    # 5) Apply the change with lineage for additions
-    return await process_change_event_registration(request, change, lineage_map=lineage_map)
+        # If we computed a refundable amount for this person, record it
+        if pid in refundable_by_person:
+            refundable_map[pid] = refundable_by_person[pid]
 
+    # 6) Apply the change with lineage and per-person refundable amounts
+    return await process_change_event_registration(
+        request,
+        change,
+        lineage_map=lineage_map,
+        refundable_map=refundable_map or None,
+    )
 
 async def _process_refunds_for_removals(
     *,
@@ -1120,13 +1243,39 @@ async def _process_refunds_for_removals(
         if not item or not item.capture_id:
             return {"success": False, "msg": f"Unable to refund {label}: captured line not found."}
 
-        # Execute the refund for the line unit price (use original price from PaymentDetails)
-        amount = round(float(pd.price or 0.0), 2)
-        if amount <= 0:
-            # Nothing charged for this line; skip
+         # Compute how much is still refundable for this line:
+        #   base_refundable = refundable_amount (if set) else price
+        #   remaining_from_pd = base_refundable - amount_refunded_so_far
+        base_refundable = pd.refundable_amount if pd.refundable_amount is not None else pd.price
+        try:
+            base_refundable_f = round(float(base_refundable or 0.0), 2)
+        except (TypeError, ValueError):
+            base_refundable_f = 0.0
+
+        already_refunded_pd = 0.0
+        try:
+            already_refunded_pd = round(float(getattr(pd, "amount_refunded", 0.0) or 0.0), 2)
+        except (TypeError, ValueError):
+            already_refunded_pd = 0.0
+
+        remaining_from_pd = round(base_refundable_f - already_refunded_pd, 2)
+        if remaining_from_pd <= 0:
+            # Nothing left to refund for this line from the PaymentDetails perspective
             continue
 
-        req_id = f"refund:{order_id}:{line_id}"
+        # Also respect the ledger-level remaining (in case of prior admin refunds)
+        line_price = round(float(item.unit_price or 0.0), 2)
+        line_refunded_ledger = round(float(item.refunded_total or 0.0), 2)
+        remaining_from_ledger = round(line_price - line_refunded_ledger, 2)
+        if remaining_from_ledger <= 0:
+            continue
+
+        amount = min(remaining_from_pd, remaining_from_ledger)
+        amount = round(amount, 2)
+        if amount <= 0:
+            continue
+
+        req_id = f"refund:{order_id}:{line_id}:{uuid4().hex}"
         resp = await paypal.post(
             f"/v2/payments/captures/{item.capture_id}/refund",
             json_body={"amount": {"currency_code": "USD", "value": f"{amount:.2f}"}},
@@ -1153,6 +1302,17 @@ async def _process_refunds_for_removals(
         )
         if not ok:
             return {"success": False, "msg": f"Refund ledger write failed for {label}."}
+        
+        # Best-effort: bump amount_refunded on the PaymentDetails line as well.
+        try:
+            await increment_amount_refunded_for_line(
+                event_instance_id=instance.id,
+                uid=request.state.uid,
+                person_id=person_id,
+                amount=amount,
+            )
+        except Exception:
+            pass
 
         results.append((label, refund_id, amount))
 
@@ -1570,7 +1730,7 @@ async def unregister_user_across_upcoming(
             if amount <= 0:
                 continue
 
-            req_id = f"refund:acct_delete:{pd.transaction_id}:{pd.line_id}"
+            req_id = f"refund:acct_delete:{pd.transaction_id}:{pd.line_id}:{uuid4().hex}"
             resp = await paypal.post(
                 f"/v2/payments/captures/{item.capture_id}/refund",
                 json_body={"amount": {"currency_code": "USD", "value": f"{amount:.2f}"}},
@@ -1622,3 +1782,293 @@ async def unregister_user_across_upcoming(
         "msg": "Processed upcoming registrations for user.",
         "stats": {"instances_scanned": instances_scanned, "instances_updated": instances_updated, "lines_refunded": lines_refunded},
     }
+
+async def admin_refund_event_transaction(
+    request: Request,
+    body: AdminRefundEventTransaction,
+) -> Dict[str, Any]:
+    """
+    Admin refund entrypoint for an entire event transaction.
+
+    Behavior:
+      - refund_all == True, refund_amount is None:
+            refund every PayPal line item by its full remaining amount.
+      - refund_all == True, refund_amount = X:
+            refund each PayPal line item by min(X, remaining_for_that_line).
+      - refund_all == False:
+            use line_map:
+              * id -> None   => refund that line's full remaining.
+              * id -> amount => refund that line by `amount` (capped by remaining).
+
+    Notes:
+      - Only PayPal lines with a capture_id participate.
+      - Does NOT unregister anyone; it only touches the monetary ledger and PaymentDetails.amount_refunded.
+    """
+    order_id = (body.order_id or "").strip()
+    if not order_id:
+        return {"success": False, "msg": "order_id is required."}
+
+    tx = await get_transaction_by_order_id(order_id)
+    if not tx:
+        return {"success": False, "msg": "Transaction not found for this order_id."}
+
+    # Helper: per-line remaining amount from the ledger
+    def _remaining_for(item: TransactionItem) -> float:
+        try:
+            price = float(item.unit_price or 0.0)
+        except (TypeError, ValueError):
+            price = 0.0
+        refunded = float(item.refunded_total or 0.0)
+        return round(price - refunded, 2)
+
+    actions: List[Tuple[TransactionItem, float]] = []
+
+    # Determine refund plan: which lines, and how much per line.
+    total_refunded_total = sum((it.refunded_total for it in tx.items or []), 0.0)
+    _ = total_refunded_total  # kept for potential logging / debugging
+
+    if body.refund_all:
+        # Ignore line_map in this mode
+        base_amount: Optional[float] = None
+        if body.refund_amount is not None:
+            try:
+                base_amount = round(float(body.refund_amount), 2)
+            except Exception:
+                return {"success": False, "msg": "Invalid refund_amount."}
+            if base_amount <= 0:
+                return {
+                    "success": False,
+                    "msg": "refund_amount must be greater than zero.",
+                }
+
+        for item in tx.items:
+            # Only PayPal-captured lines can be refunded
+            if not item.capture_id:
+                continue
+
+            remaining = _remaining_for(item)
+            if remaining <= 0:
+                continue
+
+            if base_amount is None:
+                amt = remaining  # full remaining for this line
+            else:
+                amt = min(base_amount, remaining)
+
+            if amt > 0:
+                actions.append((item, amt))
+    else:
+        # Per-line mode; line_map is required
+        line_map = body.line_map or {}
+        if not line_map:
+            return {
+                "success": False,
+                "msg": "line_map is required when refund_all is False.",
+            }
+
+        for item in tx.items:
+            if item.line_id not in line_map:
+                continue
+
+            if not item.capture_id:
+                # Non-PayPal / non-captured line: skip
+                continue
+
+            remaining = _remaining_for(item)
+            if remaining <= 0:
+                continue
+
+            raw_req = line_map[item.line_id]
+
+            if raw_req is None:
+                # Full remaining for this line
+                amt = remaining
+            else:
+                try:
+                    amt = round(float(raw_req), 2)
+                except Exception:
+                    return {
+                        "success": False,
+                        "msg": f"Invalid refund amount for line {item.line_id}.",
+                    }
+
+                if amt <= 0:
+                    return {
+                        "success": False,
+                        "msg": f"Refund amount must be > 0 for line {item.line_id}.",
+                    }
+
+                if amt > remaining + 1e-6:
+                    return {
+                        "success": False,
+                        "msg": (
+                            f"Refund amount ({amt:.2f}) exceeds remaining refundable "
+                            f"amount ({remaining:.2f}) for line {item.line_id}."
+                        ),
+                    }
+
+            if amt > 0:
+                actions.append((item, amt))
+
+    if not actions:
+        return {
+            "success": False,
+            "msg": "No refundable lines selected (all already fully refunded or no valid targets).",
+        }
+
+    # Use a single PayPal client for all refunds
+    paypal = await PayPalHelperV2.get_instance()
+    await paypal.start()
+
+    refunds: List[Dict[str, Any]] = []
+
+    for item, amt in actions:
+        req_id = f"admin-event-refund:{order_id}:{item.line_id}:{uuid4().hex}"
+        resp = await paypal.post(
+            f"/v2/payments/captures/{item.capture_id}/refund",
+            json_body={
+                "amount": {
+                    "currency_code": tx.currency,
+                    "value": f"{amt:.2f}",
+                }
+            },
+            request_id=req_id,
+        )
+
+        if resp.status_code not in (200, 201):
+            return {
+                "success": False,
+                "msg": (
+                    f"Refund failed for line {item.line_id}: "
+                    f"PayPal responded {resp.status_code}."
+                ),
+            }
+
+        payload = resp.json() or {}
+        refund_id = payload.get("id")
+        if not refund_id:
+            return {
+                "success": False,
+                "msg": f"Refund failed for line {item.line_id}: missing refund id.",
+            }
+
+        # Mirror to ledger: append refund + update statuses.
+        ok = await append_refund_to_item(
+            order_id=order_id,
+            line_id=item.line_id,
+            refund_id=refund_id,
+            amount=amt,
+            reason=body.reason or "admin_manual_refund",
+            by_uid=getattr(request.state, "uid", None),
+        )
+        if not ok:
+            return {
+                "success": False,
+                "msg": f"Refund ledger write failed for line {item.line_id}.",
+            }
+
+        # Bump amount_refunded on the registration's PaymentDetails, if still present
+        try:
+            await increment_amount_refunded_for_line(
+                event_instance_id=tx.event_instance_id,
+                uid=tx.payer_uid,
+                person_id=item.person_id,
+                amount=amt,
+            )
+        except Exception:
+            # Best-effort; don't break admin refunds if this fails
+            pass
+
+        refunds.append(
+            {
+                "line_id": item.line_id,
+                "refund_id": refund_id,
+                "amount": amt,
+            }
+        )
+
+    # At this point, append_refund_to_item will have re-derived the overall
+    # transaction status (captured / partially_refunded / fully_refunded).
+    updated_tx = await get_transaction_by_order_id(order_id)
+
+    return {
+        "success": True,
+        "order_id": order_id,
+        "currency": tx.currency,
+        "transaction_status": updated_tx.status if updated_tx else tx.status,
+        "refunded_lines": refunds,
+    }
+
+def _extract_amounts_and_fees_from_capture_order(
+    order: Dict[str, Any],
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """
+    Best-effort extraction of (gross, fee, net) from a PayPal
+    /v2/checkout/orders/{id}/capture response.
+
+    It expects either:
+      - an order object with purchase_units[*].payments.captures[*], or
+      - directly a capture-like object with seller_receivable_breakdown.
+    """
+    gross: Optional[float] = None
+    fee: Optional[float] = None
+    net: Optional[float] = None
+
+    if not order:
+        return gross, fee, net
+
+    payload = order or {}
+    r: Dict[str, Any] = payload
+
+    # If this looks like an order, drill into the first capture.
+    if "seller_receivable_breakdown" not in r:
+        purchase_units = payload.get("purchase_units") or []
+        if purchase_units:
+            payments = (purchase_units[0].get("payments") or {})
+            captures = payments.get("captures") or []
+            if captures:
+                r = captures[0]
+
+    srb = r.get("seller_receivable_breakdown") or {}
+    if srb:
+        gross_amount = srb.get("gross_amount") or {}
+        fee_amount = srb.get("paypal_fee") or srb.get("fee_amount") or {}
+        net_amount = srb.get("net_amount") or {}
+
+        v = gross_amount.get("value")
+        if v is not None:
+            try:
+                gross = float(v)
+            except (TypeError, ValueError):
+                pass
+
+        v = fee_amount.get("value")
+        if v is not None:
+            try:
+                fee = float(v)
+            except (TypeError, ValueError):
+                pass
+
+        v = net_amount.get("value")
+        if v is not None:
+            try:
+                net = float(v)
+            except (TypeError, ValueError):
+                pass
+
+    # Fallback to generic amount shape if needed
+    amount = r.get("amount") or {}
+    v = amount.get("value", amount.get("total"))
+    if v is not None and gross is None:
+        try:
+            gross = float(v)
+        except (TypeError, ValueError):
+            pass
+
+    # Derive missing piece if only two of the three are present
+    if gross is not None and net is None and fee is not None:
+        net = round(gross - fee, 2)
+    elif gross is not None and net is not None and fee is None:
+        fee = round(gross - net, 2)
+
+    return gross, fee, net

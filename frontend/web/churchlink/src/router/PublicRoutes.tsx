@@ -14,11 +14,12 @@ const SharableEvent = lazy(() => import("../features/eventsV2/pages/SharableEven
 const EventPaymentSuccessPageV2 = lazy(() => import("../features/eventsV2/pages/PaymentSuccessPageV2"));
 const EventPaymentCancelPageV2 = lazy(() => import("../features/eventsV2/pages/PaymentCancelPageV2"));
 
-const Donations = lazy(() => import("../features/admin/components/WebBuilder/sections/PaypalSection"));
 const Events = lazy(() => import("../features/admin/components/WebBuilder/sections/EventSection"));
 
 const OnetimeDonationSuccess = lazy(() => import("../features/donations/OneTimeDonationSuccess"));
 const DonationSubscriptionSuccess = lazy(() => import("../features/donations/DonationSubscriptionSuccessPage"));
+const OneTimeDonationCancel = lazy(() => import("../features/donations/OneTimeDonationCancelPage"));
+const DonationSubscriptionCancel = lazy(() => import("../features/donations/DonationSubscriptionCancelPage"));
 
 export const PublicRoutes = () => {
   return (
@@ -43,9 +44,10 @@ export const PublicRoutes = () => {
         <Route path="sharable_events/:instanceId" element={<SharableEvent />} />
 
 
-        <Route path="donations" element={<Donations />} />
         <Route path="donations/one-time/success" element={<OnetimeDonationSuccess />} />
         <Route path="donations/subscription/success" element={<DonationSubscriptionSuccess />} />
+        <Route path="donations/one-time/cancel" element={<OneTimeDonationCancel />} />
+        <Route path="donations/subscription/cancel" element={<DonationSubscriptionCancel />} />
 
         <Route path="sermons" element={<SermonsPage />} />
         <Route path="weekly-bulletin" element={<BulletinsPage />} />

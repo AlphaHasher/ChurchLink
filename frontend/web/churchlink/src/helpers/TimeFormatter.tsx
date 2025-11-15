@@ -370,4 +370,17 @@ export function convertSisterInstanceIdentifiersToUserTime<T extends {
     });
 }
 
+export function convertTransactionSummaryToUserTime<T extends {
+    created_at?: MaybeISO;
+    updated_at?: MaybeISO
+}>(sums: T[]): T[] {
+    return sums.map((e) => {
+        return {
+            ...e,
+            created_at: toZonedISOString(e.created_at) as string,
+            updated_at: toZonedISOString(e.updated_at) as string,
+        };
+    });
+}
+
 

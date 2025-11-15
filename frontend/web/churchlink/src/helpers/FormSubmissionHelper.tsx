@@ -7,8 +7,10 @@ import type {
     FormSubmissionBody,
     FormSubmissionResult,
     CreateFormOrderResponse,
-    CaptureFormOrderResponse,       // legacy
-    CaptureAndSubmitFormResponse,   // new combined flow
+    CaptureFormOrderResponse,
+    CaptureAndSubmitFormResponse,
+    AdminRefundFormPaymentRequest,
+    AdminRefundFormPaymentResponse,
 } from "@/shared/types/Form";
 
 // Fetch a public, visible form by slug (Authorization required by backend)
@@ -179,4 +181,55 @@ export async function submitDoorPaymentForm(
     // door payments are intentionally not complete on submission
     payment.payment_complete = false;
     return await submitFormResponse(slug, answers, payment);
+}
+
+/**
+ * Admin: refund a PayPal-backed form payment.
+ * - If amount is omitted => full refund
+ * - If amount is provided => partial refund of that amount
+ */
+export async function adminRefundFormPayment(
+    payload: AdminRefundFormPaymentRequest,
+): Promise<AdminRefundFormPaymentResponse> {
+    try {
+        if (!payload.paypal_capture_id) {
+            return { success: false, msg: "Missing paypal_capture_id" };
+        }
+
+        const body: Record<string, any> = {
+            paypal_capture_id: payload.paypal_capture_id,
+        };
+
+        if (typeof payload.amount === "number" && payload.amount > 0) {
+            body.amount = payload.amount;
+        }
+
+        if (payload.reason) {
+            body.reason = payload.reason;
+        }
+
+        const res = await api.post("/v1/admin/forms/payments/refund", body);
+        const raw = (res?.data ?? {}) as any;
+
+        const success = !!raw.success;
+        return {
+            success,
+            msg:
+                raw.msg ??
+                (success
+                    ? "Form payment refund initiated."
+                    : "Unable to refund form payment."),
+            paypal_capture_id: raw.paypal_capture_id,
+            paypal_refund: raw.paypal_refund,
+        };
+    } catch (err) {
+        console.error(
+            "[FormSubmissionHelper] adminRefundFormPayment() -> error",
+            err,
+        );
+        return {
+            success: false,
+            msg: "Unexpected error refunding form payment.",
+        };
+    }
 }

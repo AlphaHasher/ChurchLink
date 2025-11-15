@@ -2,24 +2,34 @@ import { Ministry } from "./Ministry";
 
 // THIS FILE CONTAINS A GRAND COLLECTION OF TYPES RELATED TO EVENTS.
 
-export type EventRecurrence = "never" | "weekly" | "monthly" | "yearly" | "daily"
+export type EventRecurrence = "never" | "weekly" | "monthly" | "yearly" | "daily";
 
-export type EventGenderOption = "all" | "male" | "female"
+export type EventGenderOption = "all" | "male" | "female";
 
-export type EventPaymentOption = "paypal" | "door"
+export type EventPaymentOption = "paypal" | "door";
 
-export type EventPaymentType = "free" | "paypal" | "door"
+export type EventPaymentType = "free" | "paypal" | "door";
 
 export type PaymentDetails = {
     payment_type: EventPaymentType;
     price: number;
+
+    // Maximum amount that will be automatically refunded for this line.
+    // For PayPal, this is typically the line price minus that line’s share of the
+    // PayPal fee. For other payment types it may be null.
+    refundable_amount: number | null;
+
+    // Cumulative amount that has actually been refunded for this line.
+    // Used by the backend to decide if there is any automatic refund left to do.
+    amount_refunded: number;
+
     payment_complete: boolean;
     discount_code_id: string | null;
     automatic_refund_eligibility: boolean;
     transaction_id: string | null;
     line_id: string | null;
     is_forced?: boolean | null;
-}
+};
 
 export type RegistrationDetails = {
     self_registered: boolean;
@@ -32,7 +42,7 @@ export type EventLocalization = {
     title: string;
     description: string;
     location_info: string;
-}
+};
 
 export type AdminPanelEvent = {
     id: string;
@@ -137,7 +147,6 @@ export type AdminEventInstance = {
     target_date: string;
     overrides_date_updated_on: string;
     event_date: string;
-
 } & AdminPanelEvent;
 
 export type AdminEventInstanceOverrides = {
@@ -160,7 +169,7 @@ export type AdminEventInstanceOverrides = {
     location_address?: string | null;
     image_id?: string | null;
     payment_options?: EventPaymentOption[] | null;
-}
+};
 
 export type AdminEventInstanceSearchStatus = "all" | "upcoming" | "passed";
 
@@ -186,7 +195,6 @@ export type EventsCursor = {
     id: string;             // stringified ObjectId of the last item returned
 };
 
-
 export type UserEventSearchParams = {
     limit: number;
     min_age?: number | null;
@@ -201,7 +209,6 @@ export type UserEventSearchParams = {
     members_only_only?: boolean | null;
     max_price?: number | null;
 };
-
 
 export type UserFacingEvent = {
     id: string;
@@ -239,7 +246,6 @@ export type UserFacingEvent = {
 
     event_date: string;
 
-
     has_registrations: boolean;
     event_registrations: RegistrationDetails | null;
     is_favorited: boolean;
@@ -272,7 +278,7 @@ export type ChangeEventRegistration = {
     family_members_unregistering: string[];
     payment_type: EventPaymentType;
     discount_code_id: string | null;
-}
+};
 
 export type RegistrationChangeResponse = {
     success: boolean;
@@ -312,7 +318,6 @@ export type MyEventsSearchParams = {
 
 export type MyEventsResults = UserEventResults;
 
-
 export type DiscountCodeUpdate = {
     name: string;
     description?: string | null;
@@ -340,7 +345,6 @@ export type DiscountCodesListResponse = {
     codes: DiscountCode[];
 };
 
-
 export type EventDiscountCodesUpdate = {
     event_id: string;
     discount_codes: string[];
@@ -364,7 +368,6 @@ export type DeleteDiscountCodeResponse = {
     msg?: string;
     affected_events?: number;
 };
-
 
 export type DiscountCodeCheckRequest = {
     event_id: string;  // NOTICE: EVENT ID NOT INSTANCE ID!
@@ -401,4 +404,27 @@ export type AdminForceChange = {
     user_id: string;
     registrant_id: "SELF" | string;
     price?: number | null; // register-only; omit for unregister
+};
+
+export type AdminRefundEventTransactionRequest = {
+    order_id: string;
+    refund_all: boolean;
+    refund_amount?: number | null;
+    line_map?: Record<string, number | null> | null;
+    reason?: string | null;
+};
+
+export type AdminRefundEventTransactionResponse = {
+    success: boolean;
+    msg?: string;
+
+    order_id?: string;
+    currency?: string;
+    transaction_status?: string; // e.g. "captured" | "partially_refunded" | "fully_refunded" | ...
+
+    refunded_lines?: {
+        line_id: string;
+        refund_id: string;
+        amount: number;
+    }[];
 };

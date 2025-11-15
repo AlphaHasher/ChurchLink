@@ -185,6 +185,7 @@ export default function ViewEventsWithDiscount({
                                         else if (rows.length === 0) e.api.showNoRowsOverlay();
                                         else e.api.hideOverlay();
                                     }}
+                                    enableCellTextSelection
                                 />
                             </div>
 

@@ -183,6 +183,7 @@ export default function EventsTableV2(props: EventsTableV2Props) {
                     animateRows
                     onGridReady={(ev) => { gridApi.current = ev.api; }}
                     overlayNoRowsTemplate={props.loading ? "Loading..." : "No events found"}
+                    enableCellTextSelection
                 />
             </div>
 

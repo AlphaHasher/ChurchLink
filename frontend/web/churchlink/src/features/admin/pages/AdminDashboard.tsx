@@ -178,8 +178,8 @@ const AdminDashboard: React.FC = () => {
   const getPermissionAssignments = useCallback((requiredPermission: string | string[]): { isAssigned: boolean; assignedRoles: string[] } => {
     if (!requiredPermission) return { isAssigned: true, assignedRoles: [] };
 
-    const permissionsToCheck = Array.isArray(requiredPermission) 
-      ? requiredPermission 
+    const permissionsToCheck = Array.isArray(requiredPermission)
+      ? requiredPermission
       : [requiredPermission];
 
     const assignedRoles: string[] = [];
@@ -187,11 +187,11 @@ const AdminDashboard: React.FC = () => {
     allRoles.forEach(role => {
       // Skip admin roles since they have access to everything by default
       if (role.admin) return;
-      
-      const hasPermission = permissionsToCheck.some(perm => 
+
+      const hasPermission = permissionsToCheck.some(perm =>
         role[perm as keyof AccountPermissions] === true
       );
-      
+
       if (hasPermission) {
         assignedRoles.push(role.name);
       }
@@ -207,7 +207,7 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (allRoles.length > 0) {
       const unassigned: string[] = [];
-      
+
       tiles.forEach(tile => {
         if (tile.requiresPermission) {
           const permissionInfo = getPermissionAssignments(tile.requiresPermission);
@@ -216,7 +216,7 @@ const AdminDashboard: React.FC = () => {
           }
         }
       });
-      
+
       setUnassignedFeatures(unassigned);
     }
   }, [allRoles, getPermissionAssignments]);
@@ -373,7 +373,7 @@ const AdminDashboard: React.FC = () => {
             </AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300">
               The following features don't have any roles assigned yet: <strong>{unassignedFeatures.join(', ')}</strong>.
-              Consider <Link to="/admin/permissions" className="underline hover:no-underline">creating roles</Link> with 
+              Consider <Link to="/admin/permissions" className="underline hover:no-underline">creating roles</Link> with
               appropriate permissions so staff can access these features.
             </AlertDescription>
           </Alert>
@@ -383,73 +383,72 @@ const AdminDashboard: React.FC = () => {
       {/* Action grid */}
       <section className="mt-8">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleTiles.map(({ title, description, icon: Icon, to, requiresPermission }) => {
-              const permissionInfo = permissions?.admin && requiresPermission 
-                ? getPermissionAssignments(requiresPermission)
-                : { isAssigned: true, assignedRoles: [] };
-              
-              const hasNoRoleAssigned = permissions?.admin && requiresPermission && !permissionInfo.isAssigned;
-              const hasLimitedRoles = permissions?.admin && requiresPermission && permissionInfo.isAssigned && permissionInfo.assignedRoles.length > 0;
-              
-              return (
-                <Card
-                  key={title}
-                  className={`group transition-colors hover:border-primary/40 relative ${
-                    hasNoRoleAssigned ? 'border-amber-200 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200' : 
+          {visibleTiles.map(({ title, description, icon: Icon, to, requiresPermission }) => {
+            const permissionInfo = permissions?.admin && requiresPermission
+              ? getPermissionAssignments(requiresPermission)
+              : { isAssigned: true, assignedRoles: [] };
+
+            const hasNoRoleAssigned = permissions?.admin && requiresPermission && !permissionInfo.isAssigned;
+            const hasLimitedRoles = permissions?.admin && requiresPermission && permissionInfo.isAssigned && permissionInfo.assignedRoles.length > 0;
+
+            return (
+              <Card
+                key={title}
+                className={`group transition-colors hover:border-primary/40 relative ${hasNoRoleAssigned ? 'border-amber-200 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200' :
                     hasLimitedRoles ? 'border-blue-200 bg-blue-50/30 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : ''
                   }`}
-                >
-                  {/* Invisible overlay link that makes the entire card clickable */}
-                  <Link
-                    to={to}
-                    aria-label={`Open ${title}`}
-                    className="absolute inset-0 z-10"
-                  />
-                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-md bg-muted p-2">
-                        <Icon className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <CardTitle className="text-base">{title}</CardTitle>
-                          {hasNoRoleAssigned && (
-                            <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-700">
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              No Role
-                            </Badge>
-                          )}
-                          {hasLimitedRoles && (
-                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-700">
-                              {permissionInfo.assignedRoles.length === 1 ? '1 Role' : `${permissionInfo.assignedRoles.length} Roles`}
-                            </Badge>
-                          )}
-                        </div>
+              >
+                {/* Invisible overlay link that makes the entire card clickable */}
+                <Link
+                  to={to}
+                  aria-label={`Open ${title}`}
+                  className="absolute inset-0 z-10"
+                />
+                <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-md bg-muted p-2">
+                      <Icon className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <CardTitle className="text-base">{title}</CardTitle>
+                        {hasNoRoleAssigned && (
+                          <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-700">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            No Role
+                          </Badge>
+                        )}
+                        {hasLimitedRoles && (
+                          <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-700">
+                            {permissionInfo.assignedRoles.length === 1 ? '1 Role' : `${permissionInfo.assignedRoles.length} Roles`}
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="mb-4">
-                      {description}
-                      {hasNoRoleAssigned && (
-                        <span className="block mt-2 text-xs text-amber-600 dark:text-amber-300 font-medium">
-                          ⚠️ This feature has no assigned roles. Staff cannot access it yet.
-                        </span>
-                      )}
-                      {hasLimitedRoles && (
-                        <span className="block mt-2 text-xs text-blue-600 dark:text-blue-300 font-medium">
-                          📋 Available to: <strong>{permissionInfo.assignedRoles.join(', ')}</strong>
-                          {permissionInfo.assignedRoles.length === 1 && (
-                            <span className="text-blue-500 dark:text-blue-300"> (only this role has access)</span>
-                          )}
-                        </span>
-                      )}
-                    </CardDescription>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="mb-4">
+                    {description}
+                    {hasNoRoleAssigned && (
+                      <span className="block mt-2 text-xs text-amber-600 dark:text-amber-300 font-medium">
+                        ⚠️ This feature has no assigned roles. Staff cannot access it yet.
+                      </span>
+                    )}
+                    {hasLimitedRoles && (
+                      <span className="block mt-2 text-xs text-blue-600 dark:text-blue-300 font-medium">
+                        📋 Available to: <strong>{permissionInfo.assignedRoles.join(', ')}</strong>
+                        {permissionInfo.assignedRoles.length === 1 && (
+                          <span className="text-blue-500 dark:text-blue-300"> (only this role has access)</span>
+                        )}
+                      </span>
+                    )}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </section>
     </div>
   );

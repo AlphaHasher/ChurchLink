@@ -84,3 +84,22 @@ export type CaptureAndSubmitFormResponse = {
     // replace `any` with a typed shape.
     response: any;
 };
+
+// -----------------------------
+// Admin operations (forms)
+// -----------------------------
+
+// Admin refund request for a PayPal-backed form payment.
+// `amount` omitted => full refund; otherwise partial refund of that amount.
+export type AdminRefundFormPaymentRequest = {
+    paypal_capture_id: string;
+    amount?: number | null;
+    reason?: string | null;
+};
+
+export type AdminRefundFormPaymentResponse = {
+    success: boolean;
+    msg?: string;
+    paypal_capture_id?: string;
+    paypal_refund?: any; // raw PayPal refund payload
+};

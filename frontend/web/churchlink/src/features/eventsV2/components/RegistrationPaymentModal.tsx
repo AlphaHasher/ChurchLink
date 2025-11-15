@@ -277,43 +277,70 @@ export default function RegistrationPaymentModal({
                         {!L.isPaidEvent ? (
                             <div className="flex items-center gap-2 text-sm">
                                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                {L.baseEventPaid && L.unitPrice === 0 ? "This event is free for members." : "This event is free."}
+                                {L.baseEventPaid && L.unitPrice === 0
+                                    ? "This event is free for members."
+                                    : "This event is free."}
                             </div>
                         ) : (
-                            <div className="flex flex-col gap-3 text-sm sm:flex-row">
-                                {L.canUsePayPal && (
-                                    <label className="inline-flex items-center gap-2">
-                                        <input
-                                            type="radio"
-                                            name="method"
-                                            className="h-4 w-4"
-                                            checked={L.method === "paypal"}
-                                            onChange={() => L.setMethod("paypal")}
-                                        />
-                                        <CreditCard className="h-4 w-4" />
-                                        <span>Pay online</span>
-                                    </label>
-                                )}
-                                {L.canUseDoor && (
-                                    <label className="inline-flex items-center gap-2">
-                                        <input
-                                            type="radio"
-                                            name="method"
-                                            className="h-4 w-4"
-                                            checked={L.method === "door"}
-                                            onChange={() => L.setMethod("door")}
-                                        />
-                                        <DoorOpen className="h-4 w-4" />
-                                        <span>Pay at door</span>
-                                    </label>
-                                )}
-                                {!L.canUseDoor && !L.canUsePayPal && (
-                                    <div className="inline-flex items-center gap-2 text-rose-700">
-                                        <AlertTriangle className="h-4 w-4" />
-                                        No payment methods available
+                            <>
+                                {/* radios row */}
+                                <div className="flex flex-col gap-3 text-sm sm:flex-row">
+                                    {L.canUsePayPal && (
+                                        <label className="inline-flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name="method"
+                                                className="h-4 w-4"
+                                                checked={L.method === "paypal"}
+                                                onChange={() => L.setMethod("paypal")}
+                                            />
+                                            <CreditCard className="h-4 w-4" />
+                                            <span>Pay online</span>
+                                        </label>
+                                    )}
+                                    {L.canUseDoor && (
+                                        <label className="inline-flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name="method"
+                                                className="h-4 w-4"
+                                                checked={L.method === "door"}
+                                                onChange={() => L.setMethod("door")}
+                                            />
+                                            <DoorOpen className="h-4 w-4" />
+                                            <span>Pay at door</span>
+                                        </label>
+                                    )}
+                                    {!L.canUseDoor && !L.canUsePayPal && (
+                                        <div className="inline-flex items-center gap-2 text-rose-700">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            No payment methods available
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* WARNING message that will display if PayPal is a possible payment or refund method. */}
+                                {L.showPayPalFeeWarning && (
+                                    <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                        <div className="flex gap-2">
+                                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                                            <div>
+                                                <div className="font-semibold text-xs">
+                                                    PayPal refunds do not include fees
+                                                </div>
+                                                <p className="mt-0.5 leading-snug">
+                                                    If you pay online using PayPal and later unregister from this
+                                                    event, automatic refunds will return only the ticket amount.
+                                                    Any transaction fees charged by PayPal are non-refundable and
+                                                    will not be returned. This means if you register and then unregister
+                                                    from a $25 event, you may not receive the entire $25 back,
+                                                    and a small portion will be reserved to cover transaction fees.
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
-                            </div>
+                            </>
                         )}
                     </Card>
                 </div>

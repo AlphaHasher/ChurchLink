@@ -180,7 +180,7 @@ const AdminDashboardSideBar = () => {
       icon: Wallet,
       requiresPermission: "finance",
       children: [
-        { title: "Overview", url: "/admin/finance" },
+        { title: "Transactions Management", url: "/admin/finance/view-transactions" },
         { title: "Refund Management", url: "/admin/finance/refunds" },
       ]
     },

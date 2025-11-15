@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from fastapi import APIRouter, Request, Body, HTTPException
 from pydantic import BaseModel
 
 from controllers.form_payment_controller import (
     create_paypal_order_for_form,
     capture_and_submit_form,
+    AdminRefundFormPayment,
+    admin_refund_form_payment
 )
 
 form_payment_router = APIRouter(prefix="/forms/payments", tags=["Forms Payments"])
-
+admin_form_payment_router = APIRouter(prefix="/admin/forms/payments", tags=["Admin Form Payments"])
 
 
 class CreateOrderBody(BaseModel):
@@ -36,3 +38,16 @@ async def capture_and_submit_route(request: Request, body: CaptureAndSubmitBody 
         order_id=body.order_id,
         answers=body.answers or {},
     )
+
+@admin_form_payment_router.post("/refund")
+async def admin_refund_form_payment_route(request: Request, body: AdminRefundFormPayment = Body(...)):
+    """
+    Admin-only endpoint to refund a PayPal-backed form payment.
+
+    Body:
+      {
+        "paypal_capture_id": "CAPTURE_ID",
+        "amount": 3.00   # optional, partial refund; omit for full refund
+      }
+    """
+    return await admin_refund_form_payment(request=request, body=body)

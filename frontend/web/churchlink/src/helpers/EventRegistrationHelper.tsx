@@ -7,7 +7,9 @@ import type {
     EventPaymentType,
     DiscountCodeCheckRequest,
     DiscountCodeCheckResponse,
-    AdminForceChange
+    AdminForceChange,
+    AdminRefundEventTransactionRequest,
+    AdminRefundEventTransactionResponse
 } from "@/shared/types/Event";
 
 
@@ -235,5 +237,87 @@ export async function adminForceUnregister(
     } catch (err) {
         console.error("[EventRegistrationHelper] adminForceUnregister() -> error", err);
         return { success: false, msg: "Force unregistration failed" };
+    }
+}
+
+/**
+ * Admin-only: refund an event transaction.
+ *
+ * Behavior (matches backend):
+ *  - refund_all = true, refund_amount = null
+ *        -> refund each PayPal line item by its full remaining amount.
+ *  - refund_all = true, refund_amount = X
+ *        -> refund each PayPal line item by min(X, remaining_for_that_line).
+ *  - refund_all = false
+ *        -> use line_map:
+ *              { "line-id-1": null,   // full remaining for that line
+ *                "line-id-2": 5.00 }  // refund $5.00 for that line
+ *
+ * NOTE: This does NOT unregister anyone; it only touches the monetary ledger.
+ */
+export async function adminRefundEventTransaction(
+    payload: AdminRefundEventTransactionRequest,
+): Promise<AdminRefundEventTransactionResponse> {
+    try {
+        if (!payload?.order_id) {
+            return { success: false, msg: "Missing order_id" };
+        }
+
+        const body: Record<string, any> = {
+            order_id: payload.order_id,
+            refund_all: payload.refund_all,
+        };
+
+        if (payload.refund_all) {
+            // Global mode: ignore line_map on the wire
+            if (typeof payload.refund_amount === "number" && payload.refund_amount > 0) {
+                body.refund_amount = payload.refund_amount;
+            }
+        } else {
+            // Per-line mode: line_map is required and must not be empty
+            const lineMap = payload.line_map ?? {};
+            const keys = Object.keys(lineMap);
+            if (!keys.length) {
+                return {
+                    success: false,
+                    msg: "line_map is required when refund_all is false",
+                };
+            }
+            body.line_map = lineMap;
+        }
+
+        if (payload.reason) {
+            body.reason = payload.reason;
+        }
+
+        const res = await api.post(
+            "/v1/admin-events-registrations/refund",
+            body,
+        );
+
+        const raw = (res?.data ?? {}) as any;
+        const success = !!raw.success;
+
+        return {
+            success,
+            msg:
+                raw.msg ??
+                (success
+                    ? "Event refund completed."
+                    : "Unable to process event refund."),
+            order_id: raw.order_id,
+            currency: raw.currency,
+            transaction_status: raw.transaction_status,
+            refunded_lines: raw.refunded_lines,
+        };
+    } catch (err) {
+        console.error(
+            "[EventRegistrationHelper] adminRefundEventTransaction() -> error",
+            err,
+        );
+        return {
+            success: false,
+            msg: "Event refund request failed",
+        };
     }
 }
