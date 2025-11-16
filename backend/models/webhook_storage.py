@@ -29,7 +29,3 @@ async def record_event_failure(event_id: str, reason: str, payload: Dict[str, An
         "at": datetime.utcnow(),
     })
 
-async def ensure_webhook_indexes():
-    await DB.db[EVENTS_SEEN_COLL].create_index([("event_type", 1), ("first_seen_at", -1)], name="etype_time")
-    await DB.db[EVENTS_FAIL_COLL].create_index([("reason", 1), ("at", -1)], name="reason_time")
-    # Natural idempotency via _id unique on EVENTS_SEEN_COLL

@@ -46,18 +46,3 @@ async def save_plan(doc: dict) -> dict:
     res = await DB.db.donation_subscription_plans.insert_one(doc)
     doc["_id"] = res.inserted_id
     return doc
-
-
-async def ensure_indexes():
-    # Unique “plan key” so we never create duplicates:
-    # currency + interval + amount
-    await DB.db.donation_subscription_plans.create_index(
-        [
-            ("currency", 1),
-            ("interval", 1),
-            ("amount", 1),
-        ],
-        name="uniq_currency_interval_amount",
-        unique=True,
-        partialFilterExpression={"status": {"$exists": True}},
-    )

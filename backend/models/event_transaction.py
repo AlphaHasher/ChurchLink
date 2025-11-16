@@ -9,27 +9,6 @@ from mongo.database import DB
 from pymongo import ASCENDING, DESCENDING, ReturnDocument
 from models.refund_models import TransactionRefund
 
-
-# ----------------------------
-# Collection handle & indexes
-# ----------------------------
-
-# TODO: THIS NEVER GETS CALLED, THIS IS TO BE MOVED TO MONGO.DB LATER ON WITH A GRAND INDEX CREATION THING
-
-async def ensure_event_transactions_indexes() -> None:
-    """
-    Call this once during startup (next to other ensure_*_indexes) to keep queries snappy.
-    """
-    await DB.db["event_transactions"].create_index([("order_id", ASCENDING)], unique=True, name="uniq_order_id")
-    await DB.db["event_transactions"].create_index([("payer_uid", ASCENDING), ("created_at", DESCENDING)], name="by_payer_time")
-    await DB.db["event_transactions"].create_index([("event_instance_id", ASCENDING), ("created_at", DESCENDING)], name="by_instance_time")
-    await DB.db["event_transactions"].create_index([("event_id", ASCENDING), ("created_at", DESCENDING)], name="by_event_time")
-    await DB.db["event_transactions"].create_index([("status", ASCENDING), ("created_at", DESCENDING)], name="by_status_time")
-    # These two help idempotency checks / quick lookups for refunds & captures
-    await DB.db["event_transactions"].create_index([("items.capture_id", ASCENDING)], sparse=True, name="item_capture_id")
-    await DB.db["event_transactions"].create_index([("items.refunds.refund_id", ASCENDING)], sparse=True, name="item_refund_id")
-
-
 # ----------------------------
 # Pydantic models (ledger)
 # ----------------------------

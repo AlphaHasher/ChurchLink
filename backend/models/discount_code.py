@@ -68,22 +68,6 @@ async def do_discount_code_validation(code: DiscountCodeUpdate):
     # Return success and also return validated code that has modified the actual discount code.
     return {'success':True, 'msg':'Discount Code validated!', 'validated_code': code}
 
-# ----------------------------
-# Indexes
-# ----------------------------
-
-# TODO: MOVE THIS TO MONGO.DB, THIS IS A REFERENCE FOR NOW
-async def ensure_discount_code_indexes() -> None:
-    """
-    Call once at startup. Ensures uniqueness on the normalized 'code' field.
-    Your validator already strips/uppercases 'code', so a unique index on 'code' is sufficient.
-    """
-    await DB.db["discount_codes"].create_index(
-        [("code", ASCENDING)],
-        unique=True,
-        name="uniq_code"
-    )
-
 
 # ----------------------------
 # CRUD Operations
