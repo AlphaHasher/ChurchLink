@@ -31,14 +31,12 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 import { Pencil, Trash } from 'lucide-react';
 
+import { fetchMinistries as ApiFetchMinistries } from '@/helpers/MinistriesHelper';
+
+import { Ministry } from '@/shared/types/Ministry';
+
 ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
-type Ministry = {
-    id: string;
-    name: string;
-    created_at: string;
-    updated_at: string;
-};
 
 type GridContext = {
     openRename: (ministry: Ministry) => void;
@@ -102,8 +100,8 @@ const Ministries = () => {
     const fetchMinistries = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await api.get('/v1/ministries');
-            setMinistries(response.data || []);
+            const response = await ApiFetchMinistries();
+            setMinistries(response);
         } catch (error) {
             console.error('Failed to load ministries', error);
             showStatus({ type: 'error', message: 'Failed to load ministries. Please try again.' });

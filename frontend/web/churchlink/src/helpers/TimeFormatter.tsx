@@ -384,6 +384,19 @@ export function convertTransactionSummaryToUserTime<T extends {
         };
     });
 }
+export { convertTransactionSummaryToUserTime as convertMinistryToUserTime };
+
+
+export function convertFormResponsesToUserTime<T extends {
+    submitted_at?: MaybeISO;
+}>(sums: T[]): T[] {
+    return sums.map((e) => {
+        return {
+            ...e,
+            submitted_at: toZonedISOString(e.submitted_at) as string,
+        };
+    });
+}
 
 
 export function convertRefundRequestsToUserTime<T extends {
@@ -435,5 +448,6 @@ export function convertFinancialReportsToUserTime<T extends {
         };
     });
 }
+
 
 

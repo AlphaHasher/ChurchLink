@@ -156,7 +156,7 @@ export default function DiscountCodeInputs({ value, disabled, onChange }: Props)
                 </div>
 
                 <div className="flex flex-col gap-1">
-                    <Label>Max Uses (optional)</Label>
+                    <Label>Max Uses (optional and per-account)</Label>
                     <Input
                         type="text"
                         inputMode="numeric"

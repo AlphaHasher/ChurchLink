@@ -15,6 +15,7 @@ import {
   AlertTitle,
   AlertDescription,
 } from "@/shared/components/ui/alert";
+import { Switch } from "@/shared/components/ui/switch";
 import useUserPermissions from "@/hooks/useUserPermissions";
 import { fetchPermissions } from "@/helpers/PermissionsHelper";
 import { AccountPermissions } from "@/shared/types/AccountPermissions";
@@ -99,7 +100,7 @@ const tiles: Tile[] = [
     description: "Create and manage upcoming events.",
     icon: CalendarFold,
     to: "/admin/events",
-    requiresPermission: ["event_management", "event_editing"],
+    requiresPermission: "event_editing",
   },
   {
     title: "Forms",
@@ -149,6 +150,7 @@ const AdminDashboard: React.FC = () => {
   const { permissions, loading, error } = useUserPermissions();
   const [allRoles, setAllRoles] = useState<AccountPermissions[]>([]);
   const [unassignedFeatures, setUnassignedFeatures] = useState<string[]>([]);
+  const [showPermissionVisualization, setShowPermissionVisualization] = useState(false);
 
   // Helper function to check if user has full access
   const hasFullAccess = (requiresPermission?: string | string[]): boolean => {
@@ -168,49 +170,58 @@ const AdminDashboard: React.FC = () => {
 
     // Check if user has the required permission(s)
     if (Array.isArray(requiresPermission)) {
-      return requiresPermission.some(perm => permissions[perm as keyof typeof permissions]);
+      return requiresPermission.some(
+        (perm) => permissions[perm as keyof typeof permissions]
+      );
     } else {
       return !!permissions[requiresPermission as keyof typeof permissions];
     }
   };
 
   // Helper function to check if a permission is assigned to any role and get role names
-  const getPermissionAssignments = useCallback((requiredPermission: string | string[]): { isAssigned: boolean; assignedRoles: string[] } => {
-    if (!requiredPermission) return { isAssigned: true, assignedRoles: [] };
+  const getPermissionAssignments = useCallback(
+    (
+      requiredPermission: string | string[]
+    ): { isAssigned: boolean; assignedRoles: string[] } => {
+      if (!requiredPermission) return { isAssigned: true, assignedRoles: [] };
 
-    const permissionsToCheck = Array.isArray(requiredPermission)
-      ? requiredPermission
-      : [requiredPermission];
+      const permissionsToCheck = Array.isArray(requiredPermission)
+        ? requiredPermission
+        : [requiredPermission];
 
-    const assignedRoles: string[] = [];
+      const assignedRoles: string[] = [];
 
-    allRoles.forEach(role => {
-      // Skip admin roles since they have access to everything by default
-      if (role.admin) return;
+      allRoles.forEach((role) => {
+        // Skip admin roles since they have access to everything by default
+        if (role.admin) return;
 
-      const hasPermission = permissionsToCheck.some(perm =>
-        role[perm as keyof AccountPermissions] === true
-      );
+        const hasPermission = permissionsToCheck.some(
+          (perm) => role[perm as keyof AccountPermissions] === true
+        );
 
-      if (hasPermission) {
-        assignedRoles.push(role.name);
-      }
-    });
+        if (hasPermission) {
+          assignedRoles.push(role.name);
+        }
+      });
 
-    return {
-      isAssigned: assignedRoles.length > 0,
-      assignedRoles
-    };
-  }, [allRoles]);
+      return {
+        isAssigned: assignedRoles.length > 0,
+        assignedRoles,
+      };
+    },
+    [allRoles]
+  );
 
   // Check for unassigned features when roles data changes
   useEffect(() => {
     if (allRoles.length > 0) {
       const unassigned: string[] = [];
 
-      tiles.forEach(tile => {
+      tiles.forEach((tile) => {
         if (tile.requiresPermission) {
-          const permissionInfo = getPermissionAssignments(tile.requiresPermission);
+          const permissionInfo = getPermissionAssignments(
+            tile.requiresPermission
+          );
           if (!permissionInfo.isAssigned) {
             unassigned.push(tile.title);
           }
@@ -229,7 +240,7 @@ const AdminDashboard: React.FC = () => {
           const rolesData = await fetchPermissions();
           setAllRoles(rolesData || []);
         } catch (error) {
-          console.error('Failed to fetch permissions:', error);
+          console.error("Failed to fetch permissions:", error);
         }
       }
     };
@@ -238,7 +249,9 @@ const AdminDashboard: React.FC = () => {
   }, [loading, permissions]);
 
   // Filter tiles to only show those with full access
-  const visibleTiles = tiles.filter(tile => hasFullAccess(tile.requiresPermission));
+  const visibleTiles = tiles.filter((tile) =>
+    hasFullAccess(tile.requiresPermission)
+  );
 
   // Handle permission load failures with explicit error
   if (!loading && !permissions && error) {
@@ -250,7 +263,8 @@ const AdminDashboard: React.FC = () => {
             Permission Load Failed
           </AlertTitle>
           <AlertDescription className="text-red-700 dark:text-red-300">
-            Unable to load your permissions. This may be due to a network issue or server problem.
+            Unable to load your permissions. This may be due to a network issue
+            or server problem.
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => window.location.reload()}
@@ -259,7 +273,7 @@ const AdminDashboard: React.FC = () => {
                 Retry
               </button>
               <button
-                onClick={() => window.location.href = '/admin'}
+                onClick={() => (window.location.href = "/admin")}
                 className="px-3 py-1 bg-muted text-muted-foreground rounded text-sm hover:bg-muted/80 border border-input dark:bg-muted/30"
               >
                 Go to Admin Home
@@ -284,7 +298,8 @@ const AdminDashboard: React.FC = () => {
             Permission Data Missing
           </AlertTitle>
           <AlertDescription className="text-amber-700 dark:text-amber-300">
-            Your permission data could not be loaded. This may be a temporary issue.
+            Your permission data could not be loaded. This may be a temporary
+            issue.
             <div className="mt-3 flex gap-2">
               <button
                 onClick={() => window.location.reload()}
@@ -293,7 +308,7 @@ const AdminDashboard: React.FC = () => {
                 Refresh Page
               </button>
               <button
-                onClick={() => window.location.href = '/logout'}
+                onClick={() => (window.location.href = "/logout")}
                 className="px-3 py-1 bg-muted text-muted-foreground rounded text-sm hover:bg-muted/80 border border-input dark:bg-muted/30"
               >
                 Sign Out & Back In
@@ -314,13 +329,18 @@ const AdminDashboard: React.FC = () => {
           <div className="h-4 bg-muted/60 dark:bg-muted/30 rounded w-2/3 mb-8"></div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-32 bg-muted/60 dark:bg-muted/30 rounded-lg"></div>
+              <div
+                key={i}
+                className="h-32 bg-muted/60 dark:bg-muted/30 rounded-lg"
+              ></div>
             ))}
           </div>
         </div>
       </div>
     );
   }
+
+  const showAdminInsights = permissions?.admin && showPermissionVisualization;
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10">
@@ -336,8 +356,9 @@ const AdminDashboard: React.FC = () => {
             </h1>
             <p className="text-muted-foreground">
               This is your administrative home base. Use the menu on the left to
-              jump into an adminsitrative section. Don't know where to go? Feel free to
-              use the information below as a guide, and you may click any of the cards to navigate to any of the areas below..
+              jump into an adminsitrative section. Don't know where to go? Feel
+              free to use the information below as a guide, and you may click
+              any of the cards to navigate to any of the areas below..
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-2">
               <Badge variant="secondary">Secure Area</Badge>
@@ -358,96 +379,165 @@ const AdminDashboard: React.FC = () => {
         <Alert>
           <AlertTitle className="font-medium">Quick tip</AlertTitle>
           <AlertDescription className="text-muted-foreground">
-            You can bookmark this page as a
-            safe landing page. From here, hop to any tool using the sidebar to
-            the left, or click any of the cards below.
+            You can bookmark this page as a safe landing page. From here, hop to
+            any tool using the sidebar to the left, or click any of the cards
+            below.
           </AlertDescription>
         </Alert>
 
-        {/* Unassigned Features Warning - Only show for admins */}
-        {permissions?.admin && unassignedFeatures.length > 0 && (
-          <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
-            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-            <AlertTitle className="font-medium text-amber-800 dark:text-amber-200">
-              Permission Assignment Needed
-            </AlertTitle>
-            <AlertDescription className="text-amber-700 dark:text-amber-300">
-              The following features don't have any roles assigned yet: <strong>{unassignedFeatures.join(', ')}</strong>.
-              Consider <Link to="/admin/permissions" className="underline hover:no-underline">creating roles</Link> with
-              appropriate permissions so staff can access these features.
-            </AlertDescription>
-          </Alert>
+        {/* Admin visibility toggle - only for admins, sits between Quick Tip and navigation cards */}
+        {permissions?.admin && (
+          <Card>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-md bg-muted p-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">
+                    Permission & role visibility
+                  </CardTitle>
+                  <CardDescription>
+                    Turn this on to highlight which pages in the admin panel are wired to
+                    which permission roles, and surface warnings for features
+                    that don&apos;t have any roles assigned yet.
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="admin-permission-visualization"
+                  checked={showPermissionVisualization}
+                  onCheckedChange={setShowPermissionVisualization}
+                  aria-label="Toggle permission and role visualization for admin tiles"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+            </CardContent>
+          </Card>
         )}
+
+        {/* Unassigned Features Warning - Only show for admins when visualization is on */}
+        {permissions?.admin &&
+          showPermissionVisualization &&
+          unassignedFeatures.length > 0 && (
+            <Alert className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+              <AlertTitle className="font-medium text-amber-800 dark:text-amber-200">
+                Permission Assignment Needed
+              </AlertTitle>
+              <AlertDescription className="text-amber-700 dark:text-amber-300">
+                The following features don&apos;t have any roles assigned yet:{" "}
+                <strong>{unassignedFeatures.join(", ")}</strong>. Consider{" "}
+                <Link
+                  to="/admin/permissions"
+                  className="underline hover:no-underline"
+                >
+                  creating roles
+                </Link>{" "}
+                with appropriate permissions so staff can access these features.
+              </AlertDescription>
+            </Alert>
+          )}
       </div>
 
       {/* Action grid */}
       <section className="mt-8">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleTiles.map(({ title, description, icon: Icon, to, requiresPermission }) => {
-            const permissionInfo = permissions?.admin && requiresPermission
-              ? getPermissionAssignments(requiresPermission)
-              : { isAssigned: true, assignedRoles: [] };
+          {visibleTiles.map(
+            ({ title, description, icon: Icon, to, requiresPermission }) => {
+              const permissionInfo =
+                showAdminInsights && requiresPermission
+                  ? getPermissionAssignments(requiresPermission)
+                  : { isAssigned: true, assignedRoles: [] };
 
-            const hasNoRoleAssigned = permissions?.admin && requiresPermission && !permissionInfo.isAssigned;
-            const hasLimitedRoles = permissions?.admin && requiresPermission && permissionInfo.isAssigned && permissionInfo.assignedRoles.length > 0;
+              const hasNoRoleAssigned =
+                showAdminInsights &&
+                requiresPermission &&
+                !permissionInfo.isAssigned;
+              const hasLimitedRoles =
+                showAdminInsights &&
+                requiresPermission &&
+                permissionInfo.isAssigned &&
+                permissionInfo.assignedRoles.length > 0;
 
-            return (
-              <Card
-                key={title}
-                className={`group transition-colors hover:border-primary/40 relative ${hasNoRoleAssigned ? 'border-amber-200 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200' :
-                  hasLimitedRoles ? 'border-blue-200 bg-blue-50/30 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : ''
-                  }`}
-              >
-                {/* Invisible overlay link that makes the entire card clickable */}
-                <Link
-                  to={to}
-                  aria-label={`Open ${title}`}
-                  className="absolute inset-0 z-10"
-                />
-                <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-md bg-muted p-2">
-                      <Icon className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <CardTitle className="text-base">{title}</CardTitle>
-                        {hasNoRoleAssigned && (
-                          <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-700">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            No Role
-                          </Badge>
-                        )}
-                        {hasLimitedRoles && (
-                          <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-700">
-                            {permissionInfo.assignedRoles.length === 1 ? '1 Role' : `${permissionInfo.assignedRoles.length} Roles`}
-                          </Badge>
-                        )}
+              return (
+                <Card
+                  key={title}
+                  className={`group transition-colors hover:border-primary/40 relative ${hasNoRoleAssigned
+                    ? "border-amber-200 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200"
+                    : hasLimitedRoles
+                      ? "border-blue-200 bg-blue-50/30 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200"
+                      : ""
+                    }`}
+                >
+                  {/* Invisible overlay link that makes the entire card clickable */}
+                  <Link
+                    to={to}
+                    aria-label={`Open ${title}`}
+                    className="absolute inset-0 z-10"
+                  />
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-md bg-muted p-2">
+                        <Icon className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CardTitle className="text-base">{title}</CardTitle>
+                          {hasNoRoleAssigned && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-700"
+                            >
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              No Role
+                            </Badge>
+                          )}
+                          {hasLimitedRoles && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/20 dark:text-blue-200 dark:border-blue-700"
+                            >
+                              {permissionInfo.assignedRoles.length === 1
+                                ? "1 Role"
+                                : `${permissionInfo.assignedRoles.length} Roles`}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="mb-4">
-                    {description}
-                    {hasNoRoleAssigned && (
-                      <span className="block mt-2 text-xs text-amber-600 dark:text-amber-300 font-medium">
-                        ⚠️ This feature has no assigned roles. Staff cannot access it yet.
-                      </span>
-                    )}
-                    {hasLimitedRoles && (
-                      <span className="block mt-2 text-xs text-blue-600 dark:text-blue-300 font-medium">
-                        📋 Available to: <strong>{permissionInfo.assignedRoles.join(', ')}</strong>
-                        {permissionInfo.assignedRoles.length === 1 && (
-                          <span className="text-blue-500 dark:text-blue-300"> (only this role has access)</span>
-                        )}
-                      </span>
-                    )}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="mb-4">
+                      {description}
+                      {hasNoRoleAssigned && (
+                        <span className="block mt-2 text-xs text-amber-600 dark:text-amber-300 font-medium">
+                          ⚠️ This feature has no assigned roles. Staff without
+                          full administrator access cannot access it yet.
+                        </span>
+                      )}
+                      {hasLimitedRoles && (
+                        <span className="block mt-2 text-xs text-blue-600 dark:text-blue-300 font-medium">
+                          📋 Available to:{" "}
+                          <strong>
+                            {permissionInfo.assignedRoles.join(", ")}
+                          </strong>
+                          {permissionInfo.assignedRoles.length === 1 && (
+                            <span className="text-blue-500 dark:text-blue-300">
+                              {" "}
+                              (only this role has access)
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              );
+            }
+          )}
         </div>
       </section>
     </div>

@@ -61,19 +61,19 @@ export const AdminRoutes = () => {
         <Route path="/ministries" element={<PermissionGuard requiredPermission="ministries_management">
           <Ministries />
         </PermissionGuard>} />
-        <Route path="/events" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+        <Route path="/events" element={<PermissionGuard requiredPermission="event_editing">
           <Events />
         </PermissionGuard>} />
-        <Route path="/events/discount-codes" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+        <Route path="/events/discount-codes" element={<PermissionGuard requiredPermission="event_editing">
           <DiscountCodes />
         </PermissionGuard>} />
-        <Route path="/events/:eventId" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+        <Route path="/events/:eventId" element={<PermissionGuard requiredPermission="event_editing">
           <EventInstances />
         </PermissionGuard>} />
-        <Route path="/events/:eventId/instance_details/:instanceId" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+        <Route path="/events/:eventId/instance_details/:instanceId" element={<PermissionGuard requiredPermission="event_editing">
           <EventInstancesDetails />
         </PermissionGuard>} />
-        <Route path="/events/:eventId/instance_details/:instanceId/user_registrations/:userId" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
+        <Route path="/events/:eventId/instance_details/:instanceId/user_registrations/:userId" element={<PermissionGuard requiredPermission="event_editing">
           <ViewUserRegistration />
         </PermissionGuard>} />
         <Route path="/finance/view-transactions" element={<PermissionGuard requiredPermission="finance">

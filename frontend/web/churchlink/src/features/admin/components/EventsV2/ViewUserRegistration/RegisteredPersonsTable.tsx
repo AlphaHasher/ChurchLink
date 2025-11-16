@@ -188,8 +188,7 @@ export default function RegisteredPersonsTable({
             {
                 headerName: "Actions",
                 pinned: "right",
-                minWidth: 120,
-                maxWidth: 160,
+                width: 90,
                 cellRenderer: (p: any) => {
                     const row = p?.data as Row | null;
                     if (!row) return null;

@@ -294,7 +294,7 @@ export default function ViewTransactionDialog({ tx }: Props) {
                             value={formatDateTime(tx.created_at)}
                         />
                         <DetailRow
-                            label="Last Updated"
+                            label="Updated"
                             value={formatDateTime(tx.updated_at)}
                         />
                         <div className="sm:col-span-2 flex justify-between items-center pt-1">

@@ -50,7 +50,7 @@ export default function EventsV2() {
     const [query, setQuery] = useState<string>("");
 
     const languageDisplayNames = useMemo(
-        () => Object.keys(localizationNameToCode).sort((a, b) => a.localeCompare(b)),
+        () => Object.keys(localizationNameToCode),
         [],
     );
     const defaultLanguageName = useMemo(() => {

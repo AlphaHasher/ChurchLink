@@ -84,6 +84,7 @@ export default function EventInstancesTable(props: Props) {
             valueFormatter: (p) => (p.value ? "Yes" : "No"),
             minWidth: 160, flex: 1.2,
         },
+        { headerName: "Instance ID", field: "id", minWidth: 120, flex: 2 },
         {
             headerName: "Actions",
             cellRenderer: (p: ICellRendererParams<AdminEventInstance>) => (
@@ -107,8 +108,7 @@ export default function EventInstancesTable(props: Props) {
                 </div>
             ),
             pinned: "right",
-            minWidth: 160,
-            maxWidth: 200,
+            width: 110,
         },
     ], [props.onInstanceSaved]);
 

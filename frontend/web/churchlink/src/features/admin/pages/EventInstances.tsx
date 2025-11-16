@@ -46,7 +46,7 @@ export default function EventInstances() {
     const [sortBySeriesIndexAsc, setSortBySeriesIndexAsc] = useState<boolean>(true);
 
     const languageDisplayNames = useMemo(
-        () => Object.keys(localizationNameToCode).sort((a, b) => a.localeCompare(b)),
+        () => Object.keys(localizationNameToCode),
         []
     );
     const searchPreferredLang = searchParams.get("preferred_lang") || "en";

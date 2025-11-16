@@ -15,6 +15,8 @@ from models.financial_report import (
     FinancialReportStats,
     RefundProcessingSummary,
     RefundRequestSummary,
+    SubscriptionIntervalStats,
+    SubscriptionPlansStats,
     insert_financial_report,
     get_financial_report_by_id,
     search_financial_reports,
@@ -159,6 +161,7 @@ async def _compute_financial_stats_for_config(
       - totals by kind+currency
       - refund aggregates
       - refund request aggregates
+      - subscription plan aggregates (non-monetary)
     """
     txs = await _collect_unified_transactions_for_config(config, admin_uid)
 
@@ -168,9 +171,17 @@ async def _compute_financial_stats_for_config(
     total_refund_entries = 0
     total_refunded_amount = 0.0
 
+    # Only count monetary transactions; plan rows are handled separately.
+    monetary_tx_count = 0
+
     for tx in txs:
-        currency = tx.currency or "USD"
         kind = tx.kind
+
+        # donation_subscription == plan setup, not a money movement
+        if kind == "donation_subscription":
+            continue
+
+        currency = tx.currency or "USD"
 
         gross = tx.gross_amount if tx.gross_amount is not None else (tx.amount or 0.0)
         fee = tx.fee_amount or 0.0
@@ -185,6 +196,8 @@ async def _compute_financial_stats_for_config(
             if tx.net_amount is not None
             else net_before - refunded
         )
+
+        monetary_tx_count += 1
 
         # Global per-currency totals
         _accumulate_currency_bucket(
@@ -223,17 +236,20 @@ async def _compute_financial_stats_for_config(
     }
 
     refund_requests_summary = await _compute_refund_request_summary(config)
+    subscription_plans_summary = await _compute_subscription_plan_stats(config)
 
     return FinancialReportStats(
-        total_transactions=len(txs),
+        total_transactions=monetary_tx_count,
         totals_by_currency=totals_by_currency,
         totals_by_kind=totals_by_kind,
+        subscription_plans=subscription_plans_summary,
         refunds=RefundProcessingSummary(
             total_refund_entries=total_refund_entries,
             total_refunded_amount=total_refunded_amount,
         ),
         refund_requests=refund_requests_summary,
     )
+
 
 
 async def generate_and_save_financial_report(
@@ -324,3 +340,133 @@ async def get_saved_financial_report_or_404(id: str) -> Dict[str, Any]:
             detail="Financial report not found.",
         )
     return report.model_dump()
+
+async def _compute_subscription_plan_stats(
+    config: FinancialReportConfig,
+) -> SubscriptionPlansStats:
+    """
+    Aggregate donation subscription plan metrics for the report window.
+
+    We treat donation_subscriptions similarly to refund requests: they are
+    reported separately from monetary totals.
+    """
+    # If the caller explicitly excluded donation_subscription from the kinds
+    # filter, skip this computation.
+    if "donation_subscription" not in (config.kinds or []):
+        return SubscriptionPlansStats()
+
+    coll = DB.db["donation_subscriptions"]
+
+    # ---------- Plans CREATED / ACTIVATED (by created_at) ----------
+    created_query: Dict[str, Any] = {}
+    if config.created_from or config.created_to:
+        time_filter: Dict[str, Any] = {}
+        if config.created_from:
+            time_filter["$gte"] = config.created_from
+        if config.created_to:
+            time_filter["$lte"] = config.created_to
+        created_query["created_at"] = time_filter
+
+    created_docs = await coll.find(created_query).to_list(length=None)
+
+    # Local accumulator per interval:
+    #   interval -> {
+    #       "created_count", "created_amount",
+    #       "cancelled_count", "cancelled_amount",
+    #   }
+    interval_buckets: Dict[str, Dict[str, float]] = {}
+
+    def _norm_interval(raw: Any) -> str:
+        if raw is None:
+            return "MONTH"
+        iv = str(raw).upper()
+        if iv not in ("WEEK", "MONTH", "YEAR"):
+            return "MONTH"
+        return iv
+
+    def _amount(doc: Dict[str, Any]) -> float:
+        try:
+            return float(doc.get("amount") or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    for doc in created_docs:
+        interval = _norm_interval(doc.get("interval"))
+        bucket = interval_buckets.setdefault(
+            interval,
+            {
+                "created_count": 0,
+                "created_amount": 0.0,
+                "cancelled_count": 0,
+                "cancelled_amount": 0.0,
+            },
+        )
+        bucket["created_count"] += 1
+        bucket["created_amount"] += _amount(doc)
+
+    # ---------- Plans CANCELLED (by updated_at when status becomes CANCELLED) ----------
+    cancel_query: Dict[str, Any] = {"status": "CANCELLED"}
+    if config.created_from or config.created_to:
+        time_filter: Dict[str, Any] = {}
+        if config.created_from:
+            time_filter["$gte"] = config.created_from
+        if config.created_to:
+            time_filter["$lte"] = config.created_to
+        cancel_query["updated_at"] = time_filter
+
+    cancelled_docs = await coll.find(cancel_query).to_list(length=None)
+    for doc in cancelled_docs:
+        interval = _norm_interval(doc.get("interval"))
+        bucket = interval_buckets.setdefault(
+            interval,
+            {
+                "created_count": 0,
+                "created_amount": 0.0,
+                "cancelled_count": 0,
+                "cancelled_amount": 0.0,
+            },
+        )
+        bucket["cancelled_count"] += 1
+        bucket["cancelled_amount"] += _amount(doc)
+
+    # ---------- Build stats model ----------
+    total_created_count = 0
+    total_created_amount = 0.0
+    total_cancelled_count = 0
+    total_cancelled_amount = 0.0
+
+    by_interval_models: Dict[str, SubscriptionIntervalStats] = {}
+
+    for interval, counts in interval_buckets.items():
+        created_count = int(counts.get("created_count", 0) or 0)
+        created_amount = float(counts.get("created_amount", 0.0) or 0.0)
+        cancelled_count = int(counts.get("cancelled_count", 0) or 0)
+        cancelled_amount = float(counts.get("cancelled_amount", 0.0) or 0.0)
+
+        net_count = created_count - cancelled_count
+        net_amount = created_amount - cancelled_amount
+
+        total_created_count += created_count
+        total_created_amount += created_amount
+        total_cancelled_count += cancelled_count
+        total_cancelled_amount += cancelled_amount
+
+        by_interval_models[interval] = SubscriptionIntervalStats(
+            interval=interval,  # type: ignore[arg-type]
+            created_or_activated_count=created_count,
+            created_or_activated_amount_total=created_amount,
+            cancelled_count=cancelled_count,
+            cancelled_amount_total=cancelled_amount,
+            net_active_delta=net_count,
+            net_amount_delta=net_amount,
+        )
+
+    return SubscriptionPlansStats(
+        total_created_or_activated=total_created_count,
+        total_created_or_activated_amount=total_created_amount,
+        total_cancelled=total_cancelled_count,
+        total_cancelled_amount=total_cancelled_amount,
+        total_net_active_delta=total_created_count - total_cancelled_count,
+        total_net_amount_delta=total_created_amount - total_cancelled_amount,
+        by_interval=by_interval_models,
+    )

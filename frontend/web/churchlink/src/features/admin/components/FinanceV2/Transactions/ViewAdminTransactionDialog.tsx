@@ -8,12 +8,16 @@ import {
     DialogTrigger,
 } from "@/shared/components/ui/Dialog";
 import { Button } from "@/shared/components/ui/button";
-import type { TransactionSummary } from "@/shared/types/Transactions";
+import type {
+    TransactionSummary,
+    TransactionRefundEntry,
+} from "@/shared/types/Transactions";
 import {
     SoftPill,
     formatKindWithExtras,
     getStatusDisplay,
 } from "@/features/transactions/MyTransactionsFormatting";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
     tx: TransactionSummary;
@@ -74,6 +78,7 @@ function getLineItemStatus(line: any): { label: string; className: string } {
 
 function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
     const extra = tx.extra || {};
+    const navigate = useNavigate();
 
     switch (tx.kind) {
         case "donation_one_time":
@@ -114,15 +119,39 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
                 (extra.line_items as any[] | undefined) ||
                 (extra.lineItems as any[] | undefined) ||
                 [];
+            const userUid = tx.user_uid;
+
+            const hasAllIds = !!(eventId && instanceId && userUid);
+            const registrationPath = hasAllIds
+                ? `/admin/events/${eventId}/instance_details/${instanceId}/user_registrations/${userUid}`
+                : null;
 
             return (
                 <div className="space-y-3">
                     <DetailRow label="Event ID" value={eventId || "—"} />
                     <DetailRow label="Instance ID" value={instanceId || "—"} />
+
+                    {registrationPath && (
+                        <DetailRow
+                            label="Registration"
+                            value={
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => navigate(registrationPath)}
+                                >
+                                    Go to Registration
+                                </Button>
+                            }
+                        />
+                    )}
+
                     <DetailRow
                         label="Line Items"
                         value={
-                            typeof itemsCount === "number" ? itemsCount : lineItems.length || "—"
+                            typeof itemsCount === "number"
+                                ? itemsCount
+                                : lineItems.length || "—"
                         }
                     />
 
@@ -133,15 +162,22 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
                             </div>
                             <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
                                 {lineItems.map((li, idx) => {
-                                    const name = li.display_name ?? li.displayName ?? "Registrant";
-                                    const amount = li.unit_price ?? li.unitPrice ?? null;
-                                    const refunds = Array.isArray(li.refunds) ? li.refunds : [];
+                                    const name =
+                                        li.display_name ??
+                                        li.displayName ??
+                                        "Registrant";
+                                    const amount =
+                                        li.unit_price ?? li.unitPrice ?? null;
+                                    const refunds = Array.isArray(li.refunds)
+                                        ? li.refunds
+                                        : [];
                                     const refundedTotal =
                                         typeof li.refunded_total === "number"
                                             ? li.refunded_total
                                             : refunds.reduce(
                                                 (acc: number, r: any) =>
-                                                    acc + Number(r.amount ?? 0),
+                                                    acc +
+                                                    Number(r.amount ?? 0),
                                                 0,
                                             );
 
@@ -158,7 +194,9 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
                                                 </span>
                                                 <span className="text-xs text-muted-foreground">
                                                     {amount != null
-                                                        ? `USD ${Number(amount).toFixed(2)}`
+                                                        ? `USD ${Number(
+                                                            amount,
+                                                        ).toFixed(2)}`
                                                         : "—"}
                                                 </span>
                                             </div>
@@ -169,7 +207,9 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
                                                 {refundedTotal > 0 && (
                                                     <span>
                                                         Refunded: USD{" "}
-                                                        {refundedTotal.toFixed(2)}
+                                                        {refundedTotal.toFixed(
+                                                            2,
+                                                        )}
                                                     </span>
                                                 )}
                                             </div>
@@ -197,6 +237,63 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
     }
 }
 
+// Refund history row (for each individual refund)
+function RefundRow({
+    refund,
+    currencyFallback,
+}: {
+    refund: TransactionRefundEntry;
+    currencyFallback: string;
+}) {
+    const currency = refund.currency || currencyFallback;
+    const amount = typeof refund.amount === "number" ? refund.amount : NaN;
+
+    const hasReason = !!refund.reason && refund.reason.trim().length > 0;
+
+    const lineBits: string[] = [];
+    if (refund.person_display_name) lineBits.push(refund.person_display_name);
+    if (refund.person_id) lineBits.push(`person_id: ${refund.person_id}`);
+    if (refund.line_id) lineBits.push(`line_id: ${refund.line_id}`);
+    const lineInfo = lineBits.join(" — ");
+
+    return (
+        <div className="rounded-md border p-3 bg-card text-sm">
+            <div>
+                <span className="font-medium">Amount:</span>{" "}
+                {Number.isFinite(amount)
+                    ? `${currency} ${amount.toFixed(2)}`
+                    : "—"}
+            </div>
+            <div>
+                <span className="font-medium">Created:</span>{" "}
+                {formatDateTime(refund.created_at)}
+            </div>
+            {refund.by_uid && (
+                <div>
+                    <span className="font-medium">By:</span>{" "}
+                    <span className="break-all">{refund.by_uid}</span>
+                </div>
+            )}
+            {refund.source && (
+                <div>
+                    <span className="font-medium">Source:</span> {refund.source}
+                </div>
+            )}
+            {lineInfo && (
+                <div className="mt-1">
+                    <span className="font-medium">Event Line:</span>{" "}
+                    {lineInfo}
+                </div>
+            )}
+            {hasReason && (
+                <div className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {refund.reason}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function ViewAdminTransactionDialog({ tx }: Props) {
     const typeLabel = formatKindWithExtras(tx);
     const rawStatus = tx.status;
@@ -205,11 +302,14 @@ export default function ViewAdminTransactionDialog({ tx }: Props) {
 
     const itemsCount =
         tx.kind === "event"
-            ? (extra.items_count as number | undefined) ??
-            (extra.itemsCount as number | undefined)
+            ? ((extra.items_count as number | undefined) ??
+                (extra.itemsCount as number | undefined))
             : 1;
 
     const currency = tx.currency || "USD";
+    const refunds: TransactionRefundEntry[] = Array.isArray(tx.refunds)
+        ? tx.refunds
+        : [];
 
     const gross =
         (typeof tx.gross_amount === "number" ? tx.gross_amount : null) ??
@@ -240,12 +340,17 @@ export default function ViewAdminTransactionDialog({ tx }: Props) {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label="Review refund request"
+                    title="Review refund request">
                     <Eye className="h-4 w-4" />
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="max-w-4xl z-500">
+            <DialogContent className="max-w-4xl sm:max-w-[100vh] max-h-[80vh] overflow-y-auto z-500">
                 <DialogHeader>
                     <DialogTitle>{typeLabel}</DialogTitle>
                     <DialogDescription>
@@ -284,7 +389,9 @@ export default function ViewAdminTransactionDialog({ tx }: Props) {
                             label="Net Before Refunds"
                             value={
                                 netBeforeRefunds != null
-                                    ? `${currency} ${netBeforeRefunds.toFixed(2)}`
+                                    ? `${currency} ${netBeforeRefunds.toFixed(
+                                        2,
+                                    )}`
                                     : "—"
                             }
                         />
@@ -292,23 +399,54 @@ export default function ViewAdminTransactionDialog({ tx }: Props) {
                             label="Net After Refunds"
                             value={
                                 netAfterRefunds != null
-                                    ? `${currency} ${netAfterRefunds.toFixed(2)}`
+                                    ? `${currency} ${netAfterRefunds.toFixed(
+                                        2,
+                                    )}`
                                     : "—"
                             }
                         />
                         <DetailRow label="Items" value={itemsCount ?? "—"} />
-                        <DetailRow label="Created" value={formatDateTime(tx.created_at)} />
                         <DetailRow
-                            label="Last Updated"
+                            label="Created"
+                            value={formatDateTime(tx.created_at)}
+                        />
+                        <DetailRow
+                            label="Updated"
                             value={formatDateTime(tx.updated_at)}
                         />
                         <div className="sm:col-span-3 flex justify-between items-center pt-1">
                             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                                 Status
                             </span>
-                            <SoftPill className={status.className}>{status.label}</SoftPill>
+                            <SoftPill className={status.className}>
+                                {status.label}
+                            </SoftPill>
                         </div>
                     </div>
+
+                    {/* Refund history */}
+                    {refunds.length > 0 && (
+                        <details className="rounded-md border bg-card">
+                            <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium">
+                                Refund History ({refunds.length})
+                            </summary>
+                            <div className="p-3 space-y-2 max-h-[260px] overflow-y-auto">
+                                {refunds
+                                    .slice()
+                                    .reverse()
+                                    .map((r, idx) => (
+                                        <RefundRow
+                                            key={
+                                                r.refund_id ??
+                                                `${idx}-${r.created_at ?? ""}`
+                                            }
+                                            refund={r}
+                                            currencyFallback={currency}
+                                        />
+                                    ))}
+                            </div>
+                        </details>
+                    )}
 
                     {/* Context / identifiers */}
                     <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
@@ -317,14 +455,19 @@ export default function ViewAdminTransactionDialog({ tx }: Props) {
                                 Identifiers
                             </div>
                             <div className="space-y-2 rounded-md border p-3">
-                                <DetailRow label="Order ID" value={tx.paypal_order_id || "—"} />
+                                <DetailRow
+                                    label="Order ID"
+                                    value={tx.paypal_order_id || "—"}
+                                />
                                 <DetailRow
                                     label="Capture ID"
                                     value={tx.paypal_capture_id || "—"}
                                 />
                                 <DetailRow
                                     label="Subscription ID"
-                                    value={tx.paypal_subscription_id || "—"}
+                                    value={
+                                        tx.paypal_subscription_id || "—"
+                                    }
                                 />
                                 <DetailRow label="Internal ID" value={tx.id} />
                             </div>
@@ -335,14 +478,18 @@ export default function ViewAdminTransactionDialog({ tx }: Props) {
                                 Context
                             </div>
                             <div className="space-y-2 rounded-md border p-3">
-                                <DetailRow label="User UID" value={tx.user_uid || "—"} />
+                                <DetailRow
+                                    label="User UID"
+                                    value={tx.user_uid || "—"}
+                                />
                                 <DetailRow
                                     label="Source Collection"
                                     value={tx.source_collection}
                                 />
                                 <DetailRow
                                     label="Kind"
-                                    value={`${tx.kind}${tx.extra && Object.keys(tx.extra).length > 0
+                                    value={`${tx.kind}${tx.extra &&
+                                        Object.keys(tx.extra).length > 0
                                         ? " (has extra payload)"
                                         : ""
                                         }`}

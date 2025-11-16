@@ -31,9 +31,7 @@ type AdminTransactionsTableProps = {
     pageSize: number;   // 10/25/50
     total: number;
 
-    // 🔑 callback supplied by ViewAdminTransactions
     onAfterRefund?: () => void;
-
     onPageChange?: (page: number) => void;
     onPageSizeChange?: (size: number) => void;
 };
@@ -98,7 +96,6 @@ const ActionsCellRenderer = (
 
     return (
         <div className="flex items-center justify-end gap-2">
-            <ViewAdminTransactionDialog tx={row} />
 
             {showRefund && (
                 <TransactionRefundDialog
@@ -108,6 +105,7 @@ const ActionsCellRenderer = (
             )}
 
             <CancelDonationSubscriptionDialog tx={row} onAfterCancel={onAfterRefund} />
+            <ViewAdminTransactionDialog tx={row} />
         </div>
     );
 };
@@ -198,14 +196,12 @@ export default function AdminTransactionsTable(props: AdminTransactionsTableProp
             headerName: "Actions",
             cellRenderer: ActionsCellRenderer as any,
             pinned: "right",
-            minWidth: 130,
-            maxWidth: 150,
-            // 🔑 actually pass the callback into the renderer
+            width: 100,
             cellRendererParams: {
                 onAfterRefund: props.onAfterRefund,
             },
         },
-    ], [props.onAfterRefund]); // 🔑 memo depends on this
+    ], [props.onAfterRefund]);
 
     const defaultColDef = useMemo<ColDef>(() => ({
         sortable: false,

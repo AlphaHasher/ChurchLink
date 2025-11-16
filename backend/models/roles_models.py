@@ -10,7 +10,6 @@ class PermissionSchema(BaseModel):
     admin: bool = False
     finance: bool = False
     website_management: bool = False
-    event_management: bool = False
     page_management: bool = False
 
 

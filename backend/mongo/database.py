@@ -53,7 +53,6 @@ class DB:
                 ["permissions.web_builder_management"],
                 ["permissions.mobile_ui_management"],
                 ["permissions.event_editing"],
-                ["permissions.event_management"],
                 ["permissions.media_management"],
                 ["permissions.sermon_editing"],
                 ["permissions.bulletin_editing"],
@@ -309,20 +308,6 @@ class DB:
                 ["created_at"],                     # reporting by time
             ],
         },
-        {
-            "name": "webhook_events_seen",
-            "compound_indexes": [
-                ["event_type", "first_seen_at"],    # scan events by type + time
-            ],
-        },
-        {
-            "name": "webhook_failures",
-            "compound_indexes": [
-                ["reason", "at"],                   # group failures by reason over time
-                ["at"],                             # global failure timeline
-            ],
-        },
-
         {
             "name": "form_transactions",
             "compound_indexes": [

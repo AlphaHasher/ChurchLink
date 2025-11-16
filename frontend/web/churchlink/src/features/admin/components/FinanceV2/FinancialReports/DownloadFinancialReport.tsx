@@ -179,6 +179,9 @@ export default function DownloadFinancialReport({ report }: Props) {
                 FinancialReportCurrencyTotals
             >;
             const kindTotals = stats?.totals_by_kind ?? {};
+            const subscriptionPlans = stats?.subscription_plans;
+            const hasDonationSubscriptionInConfig =
+                !!config?.kinds?.includes("donation_subscription");
 
             //
             // Header
@@ -339,6 +342,118 @@ export default function DownloadFinancialReport({ report }: Props) {
                         rows,
                     );
                 });
+            }
+
+            //
+            // Recurring donation plans (subscription setup)
+            //
+            if (
+                hasDonationSubscriptionInConfig &&
+                subscriptionPlans &&
+                (
+                    subscriptionPlans.total_created_or_activated > 0 ||
+                    subscriptionPlans.total_cancelled > 0 ||
+                    subscriptionPlans.total_created_or_activated_amount > 0 ||
+                    subscriptionPlans.total_cancelled_amount > 0 ||
+                    Math.abs(subscriptionPlans.total_net_amount_delta ?? 0) > 0 ||
+                    Object.keys(subscriptionPlans.by_interval || {}).length > 0
+                )
+            ) {
+                addSectionHeader("Recurring donation plans (subscription setup)");
+
+                // Overall totals
+                addLabelValue(
+                    "Plans created / activated (count)",
+                    String(subscriptionPlans.total_created_or_activated ?? 0),
+                );
+                addLabelValue(
+                    "Plans created / activated (amount)",
+                    formatMoney(
+                        subscriptionPlans.total_created_or_activated_amount ?? 0,
+                        "USD",
+                    ),
+                );
+                addLabelValue(
+                    "Plans cancelled (count)",
+                    String(subscriptionPlans.total_cancelled ?? 0),
+                );
+                addLabelValue(
+                    "Plans cancelled (amount)",
+                    formatMoney(
+                        subscriptionPlans.total_cancelled_amount ?? 0,
+                        "USD",
+                    ),
+                );
+                addLabelValue(
+                    "Net change (count)",
+                    String(subscriptionPlans.total_net_active_delta ?? 0),
+                );
+                addLabelValue(
+                    "Net change (amount)",
+                    formatMoney(
+                        subscriptionPlans.total_net_amount_delta ?? 0,
+                        "USD",
+                    ),
+                );
+
+                addBlank();
+
+                const byInterval = subscriptionPlans.by_interval || {};
+                const order = ["WEEK", "MONTH", "YEAR"];
+                const labelMap: Record<string, string> = {
+                    WEEK: "Weekly",
+                    MONTH: "Monthly",
+                    YEAR: "Yearly",
+                };
+
+                const intervalRows: string[][] = order
+                    .map((key) => byInterval[key])
+                    .filter((row: any) => !!row)
+                    .map((row: any) => [
+                        labelMap[row.interval] || row.interval,
+                        String(row.created_or_activated_count ?? 0),
+                        formatMoney(
+                            row.created_or_activated_amount_total ?? 0,
+                            "USD",
+                        ),
+                        String(row.cancelled_count ?? 0),
+                        formatMoney(row.cancelled_amount_total ?? 0, "USD"),
+                        String(row.net_active_delta ?? 0),
+                        formatMoney(row.net_amount_delta ?? 0, "USD"),
+                    ]);
+
+                if (intervalRows.length) {
+                    addTable(
+                        [
+                            { header: "Interval", width: 80, align: "left" },
+                            {
+                                header: "Created / activated (count)",
+                                width: 120,
+                                align: "right",
+                            },
+                            {
+                                header: "Created amount",
+                                width: 100,
+                                align: "right",
+                            },
+                            {
+                                header: "Cancelled (count)",
+                                width: 110,
+                                align: "right",
+                            },
+                            {
+                                header: "Cancelled amount",
+                                width: 110,
+                                align: "right",
+                            },
+                            { header: "Net (count)", width: 80, align: "right" },
+                            { header: "Net amount", width: 100, align: "right" },
+                        ],
+                        intervalRows,
+                    );
+                } else {
+                    addParagraph("No subscription plan activity in this window.");
+                }
             }
 
             //

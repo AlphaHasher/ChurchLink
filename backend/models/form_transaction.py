@@ -163,7 +163,7 @@ async def create_form_transaction(
     metadata: Optional[Dict[str, Any]] = None,
 ) -> dict:
     doc = {
-        "form_id": ObjectId(form_id) if ObjectId.is_valid(form_id) else form_id,
+        "form_id": form_id,
         "user_id": ObjectId(user_id) if user_id and ObjectId.is_valid(user_id) else user_id,
         "status": "created",
         "amount": float(amount),

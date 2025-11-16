@@ -110,8 +110,7 @@ export function EventInstanceRegistrationsTable({
             headerName: "Actions",
             cellRenderer: ActionsRenderer as any,
             pinned: "right",
-            minWidth: 110,
-            maxWidth: 160,
+            width: 90,
         },
     ], [ActionsRenderer]);
 

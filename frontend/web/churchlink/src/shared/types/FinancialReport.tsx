@@ -68,8 +68,49 @@ export type FinancialReportRefundRequestSummary = {
     unresolved_count: number;
 };
 
+// Subscription plan (recurring donation) stats describe how many plans were
+// created/cancelled in the window, by recurrence interval, and the nominal
+// amounts associated with those plans.
+
+export type FinancialReportSubscriptionIntervalStats = {
+    // Cadence of the plan (matches backend Literal)
+    interval: "WEEK" | "MONTH" | "YEAR";
+
+    // Counts for this interval
+    // Count of plans created/activated in the window
+    created_or_activated_count: number;
+    // Sum of amounts for created/activated plans
+    created_or_activated_amount_total: number;
+
+    // Count of plans cancelled in the window
+    cancelled_count: number;
+    // Sum of amounts for cancelled plans
+    cancelled_amount_total: number;
+
+    // created_or_activated_count - cancelled_count
+    net_active_delta: number;
+    // created_or_activated_amount_total - cancelled_amount_total
+    net_amount_delta: number;
+};
+
+export type FinancialReportSubscriptionPlansStats = {
+    // Totals across all intervals (counts)
+    total_created_or_activated: number;
+    total_cancelled: number;
+    total_net_active_delta: number;
+
+    // Totals across all intervals (amounts)
+    total_created_or_activated_amount: number;
+    total_cancelled_amount: number;
+    total_net_amount_delta: number;
+
+    // interval -> stats (keys will be "WEEK" / "MONTH" / "YEAR")
+    by_interval: Record<string, FinancialReportSubscriptionIntervalStats>;
+};
+
 export type FinancialReportStats = {
-    // Count of unified transactions considered for this report
+    // Count of unified *monetary* transactions considered for this report
+    // (subscription plans themselves are excluded; their counts live in subscription_plans)
     total_transactions: number;
 
     // Aggregates grouped by currency, across all kinds
@@ -78,6 +119,9 @@ export type FinancialReportStats = {
     // Aggregates grouped by kind then currency:
     //   kind -> currency -> totals
     totals_by_kind: Record<string, Record<string, FinancialReportCurrencyTotals>>;
+
+    // Subscription-plan breakdown (recurring donation plans)
+    subscription_plans: FinancialReportSubscriptionPlansStats;
 
     // Refunds applied to the underlying transactions
     refunds: FinancialReportRefundProcessingSummary;

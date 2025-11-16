@@ -160,7 +160,7 @@ export default function RefundRequestTable({
                 cellRenderer: ActionsCellRenderer,
                 sortable: false,
                 filter: false,
-                width: 260,
+                width: 195,
             },
         ],
         [],

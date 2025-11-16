@@ -1,11 +1,13 @@
 import api from "../api/api"
 import { Ministry } from "@/shared/types/Ministry"
+import { convertMinistryToUserTime } from "./TimeFormatter";
 
 // Fetch canonical ministries list
 export const fetchMinistries = async (): Promise<Ministry[]> => {
     try {
         const res = await api.get("/v1/ministries");
-        return res.data?.map((m: any) => m) || [];
+        const data = convertMinistryToUserTime(res.data);
+        return data.map((m: any) => m) || [];
     } catch (err) {
         console.error("Failed to fetch ministries:", err);
         return [];
@@ -15,7 +17,8 @@ export const fetchMinistries = async (): Promise<Ministry[]> => {
 export const fetchMinistriesAsStringArray = async (): Promise<string[]> => {
     try {
         const res = await api.get("/v1/ministries");
-        const arr = Array.isArray(res.data) ? res.data : [];
+        const data = convertMinistryToUserTime(res.data);
+        const arr = Array.isArray(data) ? data : [];
         return arr
             .map((m: any) => (m?.name ?? "").toString().trim())
             .filter((s: string) => s.length > 0);

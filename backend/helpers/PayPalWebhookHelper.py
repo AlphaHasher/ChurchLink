@@ -461,20 +461,11 @@ async def handle_paypal_event(event: Dict[str, Any]) -> Dict[str, Any]:
             )
             return {"handled": "subscription_payment_refund_recorded", "txn_id": txn_id}
 
-        # Fallback for weird ordering / legacy behavior:
-        # if the SALE row doesn't exist yet, keep the old "boolean + payload" behavior.
-        await DB.db.donation_subscription_payments.update_one(
-            {"paypal_txn_id": txn_id},
-            {
-                "$set": {
-                    "refunded": True,
-                    "refund_payload": r,
-                    "refunded_at": datetime.utcnow(),
-                }
-            },
-            upsert=True,
-        )
-        return {"handled": "subscription_payment_refund_legacy", "txn_id": txn_id}
+        # "Panic" type behavior if no sale is found
+        return {
+            "handled": "subscription_payment_refund_no_payment_doc",
+            "txn_id": txn_id,
+        }
 
     # ---- One-time captures (donations/forms/events) ----
     elif et == "PAYMENT.CAPTURE.COMPLETED":

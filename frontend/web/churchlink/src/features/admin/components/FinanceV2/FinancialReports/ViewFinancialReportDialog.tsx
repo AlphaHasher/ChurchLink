@@ -62,6 +62,21 @@ export default function ViewFinancialReportDialog({ report }: Props) {
     const currencyTotals = stats?.totals_by_currency ?? {};
     const kindTotals = stats?.totals_by_kind ?? {};
 
+    const subscriptionPlans = stats?.subscription_plans;
+    const hasDonationSubscriptionInConfig =
+        !!config?.kinds?.includes("donation_subscription");
+    const showSubscriptionPlansSection =
+        !!subscriptionPlans &&
+        hasDonationSubscriptionInConfig &&
+        (
+            subscriptionPlans.total_created_or_activated > 0 ||
+            subscriptionPlans.total_cancelled > 0 ||
+            subscriptionPlans.total_created_or_activated_amount > 0 ||
+            subscriptionPlans.total_cancelled_amount > 0 ||
+            Math.abs(subscriptionPlans.total_net_amount_delta ?? 0) > 0 ||
+            Object.keys(subscriptionPlans.by_interval || {}).length > 0
+        );
+
     const generationSummary = useMemo(() => {
         if (!generation_ms || generation_ms <= 0) return "—";
         if (generation_ms < 1000) return `${generation_ms.toFixed(0)} ms`;
@@ -362,6 +377,174 @@ export default function ViewFinancialReportDialog({ report }: Props) {
                             </div>
                         ))}
                     </section>
+
+                    {/* Recurring donation plans (subscription setup) */}
+                    {showSubscriptionPlansSection && (
+                        <section className="rounded-md border bg-muted/40 p-3 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-semibold">
+                                    Donation plans (recurring)
+                                </div>
+                                <SoftPill className="bg-slate-50 text-slate-700">
+                                    {subscriptionPlans?.total_net_active_delta ?? 0} plans /{" "}
+                                    {formatMoney(
+                                        subscriptionPlans?.total_net_amount_delta ?? 0,
+                                        "USD",
+                                    )}
+                                </SoftPill>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 text-sm">
+                                <div className="rounded border bg-background/50 p-2">
+                                    <div className="text-xs uppercase text-muted-foreground">
+                                        Plans created / activated
+                                    </div>
+                                    <div className="text-lg font-semibold">
+                                        {subscriptionPlans?.total_created_or_activated ?? 0}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                        Nominal amount:&nbsp;
+                                        {formatMoney(
+                                            subscriptionPlans?.total_created_or_activated_amount ??
+                                            0,
+                                            "USD",
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded border bg-background/50 p-2">
+                                    <div className="text-xs uppercase text-muted-foreground">
+                                        Plans cancelled
+                                    </div>
+                                    <div className="text-lg font-semibold">
+                                        {subscriptionPlans?.total_cancelled ?? 0}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                        Nominal amount:&nbsp;
+                                        {formatMoney(
+                                            subscriptionPlans?.total_cancelled_amount ?? 0,
+                                            "USD",
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded border bg-background/50 p-2">
+                                    <div className="text-xs uppercase text-muted-foreground">
+                                        Net change
+                                    </div>
+                                    <div className="text-lg font-semibold">
+                                        {subscriptionPlans?.total_net_active_delta ?? 0}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                        Nominal amount:&nbsp;
+                                        {formatMoney(
+                                            subscriptionPlans?.total_net_amount_delta ?? 0,
+                                            "USD",
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-2">
+                                <div className="mb-1 text-xs font-semibold text-muted-foreground">
+                                    By interval
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full text-xs md:text-sm">
+                                        <thead>
+                                            <tr className="border-b text-xs uppercase text-muted-foreground">
+                                                <th className="py-1 pr-3 text-left">Interval</th>
+                                                <th className="py-1 pr-3 text-right">
+                                                    Created / activated
+                                                </th>
+                                                <th className="py-1 pr-3 text-right">
+                                                    Created amount
+                                                </th>
+                                                <th className="py-1 pr-3 text-right">
+                                                    Cancelled
+                                                </th>
+                                                <th className="py-1 pr-3 text-right">
+                                                    Cancelled amount
+                                                </th>
+                                                <th className="py-1 pr-3 text-right">Net</th>
+                                                <th className="py-1 pr-3 text-right">
+                                                    Net amount
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(() => {
+                                                const byInterval =
+                                                    subscriptionPlans?.by_interval || {};
+                                                const order = ["WEEK", "MONTH", "YEAR"];
+                                                const labelMap: Record<string, string> = {
+                                                    WEEK: "Weekly",
+                                                    MONTH: "Monthly",
+                                                    YEAR: "Yearly",
+                                                };
+
+                                                const rows = order
+                                                    .map((key) => byInterval[key])
+                                                    .filter(Boolean);
+
+                                                if (!rows.length) {
+                                                    return (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={7}
+                                                                className="py-2 text-sm text-muted-foreground text-center"
+                                                            >
+                                                                No subscription plan activity in
+                                                                this window.
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                }
+
+                                                return rows.map((row: any) => (
+                                                    <tr
+                                                        key={row.interval}
+                                                        className="border-b last:border-0"
+                                                    >
+                                                        <td className="py-1 pr-3 text-left">
+                                                            {labelMap[row.interval] ||
+                                                                row.interval}
+                                                        </td>
+                                                        <td className="py-1 pr-3 text-right">
+                                                            {row.created_or_activated_count}
+                                                        </td>
+                                                        <td className="py-1 pr-3 text-right">
+                                                            {formatMoney(
+                                                                row.created_or_activated_amount_total ??
+                                                                0,
+                                                                "USD",
+                                                            )}
+                                                        </td>
+                                                        <td className="py-1 pr-3 text-right">
+                                                            {row.cancelled_count}
+                                                        </td>
+                                                        <td className="py-1 pr-3 text-right">
+                                                            {formatMoney(
+                                                                row.cancelled_amount_total ?? 0,
+                                                                "USD",
+                                                            )}
+                                                        </td>
+                                                        <td className="py-1 pr-3 text-right">
+                                                            {row.net_active_delta}
+                                                        </td>
+                                                        <td className="py-1 pr-3 text-right">
+                                                            {formatMoney(
+                                                                row.net_amount_delta ?? 0,
+                                                                "USD",
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ));
+                                            })()}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+                    )}
 
                     {/* Refund requests summary – only if enabled in config */}
                     {config?.include_refund_requests && (

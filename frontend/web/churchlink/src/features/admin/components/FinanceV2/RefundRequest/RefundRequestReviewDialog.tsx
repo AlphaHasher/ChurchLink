@@ -113,14 +113,13 @@ export default function RefundRequestReviewDialog({
     return (
         <>
             <Button
-                variant="outline"
-                className="border shadow-sm hover:bg-accent hover:text-accent-foreground"
+                variant="ghost"
+                className="hover:bg-accent hover:text-accent-foreground"
                 onClick={open}
                 aria-label="Review refund request"
                 title="Review refund request"
             >
-                <Stamp className="mr-1 h-4 w-4" />
-                Review
+                <Stamp />
             </Button>
 
             <Dialog open={isOpen} onOpenChange={handleOpenChange}>

@@ -96,8 +96,8 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
     return (
         <>
             <Button
-                variant="outline"
-                className="border shadow-sm hover:bg-accent hover:text-accent-foreground"
+                variant="ghost"
+                className="hover:bg-accent hover:text-accent-foreground"
                 onClick={open}
                 aria-label="Review membership request"
                 title="Review membership request"
@@ -185,7 +185,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                                     className={decision === "approve"
                                         ? "!bg-primary !text-primary-foreground"
                                         : "hover:bg-accent hover:text-green-600"
-                                        }
+                                    }
                                     onClick={() => setDecision("approve")}
                                 >
                                     Approve
@@ -196,7 +196,7 @@ export default function MembershipReviewDialog({ request, onUpdated }: Membershi
                                     className={decision === "deny"
                                         ? "!bg-destructive !text-destructive-foreground"
                                         : "bg-background text-foreground hover:bg-accent hover:text-red-600"
-                                        }
+                                    }
                                     onClick={() => setDecision("deny")}
                                 >
                                     Deny

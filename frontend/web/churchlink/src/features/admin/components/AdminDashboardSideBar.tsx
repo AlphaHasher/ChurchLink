@@ -82,7 +82,7 @@ const AdminDashboardSideBar = () => {
 
   const webBuilderChildren = useMemo(
     () => [
-      { title: "Pages", url: "/admin/webbuilder" },
+      { title: "Pages", url: "/admin/webbuilder/" },
       { title: "Header", url: "/admin/webbuilder/header" },
       { title: "Footer", url: "/admin/webbuilder/footer" },
       { title: "Website Settings", url: "/admin/webbuilder/settings" },
@@ -139,7 +139,7 @@ const AdminDashboardSideBar = () => {
     },
 
     {
-      title: "Events", icon: CalendarFold, requiresPermission: ["event_management", "event_editing"], children: [
+      title: "Events", icon: CalendarFold, requiresPermission: "event_editing", children: [
         { title: "Manage Events", url: "/admin/events/" },
         { title: "Manage Discount Codes", url: "/admin/events/discount-codes" },
       ]

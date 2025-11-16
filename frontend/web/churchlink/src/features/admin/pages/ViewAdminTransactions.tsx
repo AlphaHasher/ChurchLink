@@ -165,7 +165,7 @@ export default function ViewAdminTransactions() {
 
     return (
         <div className="p-6 overflow-x-hidden">
-            <h1 className="text-xl font-bold mb-4">Transactions (Admin)</h1>
+            <h1 className="text-xl font-bold mb-4">View and Manage Transactions</h1>
 
             {/* Filters */}
             <div className="flex flex-col gap-3 mb-4">
@@ -287,7 +287,7 @@ export default function ViewAdminTransactions() {
                             className="w-[220px]"
                             value={orderId}
                             onChange={(e) => setOrderId(e.target.value)}
-                            placeholder="Exact order id"
+                            placeholder="PayPal Order ID"
                             disabled={loading}
                         />
                     </div>
@@ -354,6 +354,10 @@ export default function ViewAdminTransactions() {
                     </div>
                 </div>
             </div>
+
+            <span className="text-xs text-muted-foreground">
+                Search inputs will not be active until "Search" is clicked.
+            </span>
 
             {/* Table */}
             <div className="h-[600px] border rounded-md overflow-hidden bg-background">

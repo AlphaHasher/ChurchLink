@@ -66,11 +66,43 @@ class RefundRequestSummary(BaseModel):
     resolved_count: int = 0
     unresolved_count: int = 0
 
+class SubscriptionIntervalStats(BaseModel):
+    interval: Literal["WEEK", "MONTH", "YEAR"]
+
+    # How many plans were created/activated in the window
+    created_or_activated_count: int = 0
+    # Sum of their nominal amounts (same units as donation_subscriptions.amount)
+    created_or_activated_amount_total: float = 0.0
+
+    # How many plans were cancelled in the window
+    cancelled_count: int = 0
+    # Sum of the nominal amounts for cancelled plans
+    cancelled_amount_total: float = 0.0
+
+    # Count delta = created_or_activated_count - cancelled_count
+    net_active_delta: int = 0
+    # Money delta = created_or_activated_amount_total - cancelled_amount_total
+    net_amount_delta: float = 0.0
+
+
+class SubscriptionPlansStats(BaseModel):
+    # Totals across all intervals (counts)
+    total_created_or_activated: int = 0
+    total_cancelled: int = 0
+    total_net_active_delta: int = 0
+
+    # Totals across all intervals (money, using donation_subscriptions.amount)
+    total_created_or_activated_amount: float = 0.0
+    total_cancelled_amount: float = 0.0
+    total_net_amount_delta: float = 0.0
+
+    # interval -> SubscriptionIntervalStats
+    by_interval: Dict[str, SubscriptionIntervalStats] = Field(default_factory=dict)
+
 
 class FinancialReportStats(BaseModel):
     """
-    Computed metrics. This is intended to be "dense" but structured enough
-    that the frontend can drill into it.
+    Computed metrics...
     """
     total_transactions: int = 0
 
@@ -79,6 +111,9 @@ class FinancialReportStats(BaseModel):
 
     # kind -> currency -> CurrencyTotals
     totals_by_kind: Dict[str, Dict[str, CurrencyTotals]] = Field(default_factory=dict)
+
+    # Breakdown of subscription plan stats
+    subscription_plans: SubscriptionPlansStats = Field(default_factory=SubscriptionPlansStats)
 
     refunds: RefundProcessingSummary = Field(default_factory=RefundProcessingSummary)
     refund_requests: RefundRequestSummary = Field(default_factory=RefundRequestSummary)

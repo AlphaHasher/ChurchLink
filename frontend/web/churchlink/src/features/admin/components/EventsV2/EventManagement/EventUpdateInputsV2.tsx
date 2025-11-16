@@ -142,7 +142,7 @@ export default function EventUpdateInputsV2({
 
     const locRecord = toRecordFromMap(draft.localizations);
     const languageDisplayNames = useMemo(
-        () => Object.keys(localizationNameToCode).sort((a, b) => a.localeCompare(b)),
+        () => Object.keys(localizationNameToCode),
         [],
     );
     const [activeLang, setActiveLang] = useState<string>(() => {
@@ -499,6 +499,7 @@ export default function EventUpdateInputsV2({
                                 </PopoverContent>
                             </Popover>
                         </div>
+                        <p className="mt-1 text-xs text-muted-foreground">When editing an event, changing the event date will change the date of the next upcoming date to be set to this date. Historical event instances will not be changed.</p>
                     </div>
 
                     <div className="mt-4">
@@ -580,6 +581,7 @@ export default function EventUpdateInputsV2({
                                 ))}
                             </SelectContent>
                         </Select>
+                        <p className="mt-1 text-xs text-muted-foreground">When changing a recurrence, it will be required to change the Event Date to match the NEXT upcoming Event Instance date as the "anchor" other dates get calculated based off of.</p>
                     </div>
                 </div>
             </section>
@@ -868,7 +870,9 @@ export default function EventUpdateInputsV2({
                             disabled={disabled || !draft.rsvp_required}
                             placeholder="(optional)"
                         />
+                        <p className="mt-1 text-xs text-muted-foreground">Special discounted price offered to members only. Can be left blank if you wish for everyone to pay the same price.</p>
                     </div>
+
                 </div>
 
                 <div className="mt-4">
@@ -947,6 +951,7 @@ export default function EventUpdateInputsV2({
                             }
                             disabled={disabled}
                         />
+                        <p className="mt-1 text-xs text-muted-foreground">Leave blank if no minimum age restriction</p>
                     </div>
                     <div className="w-32">
                         <Label htmlFor="maxAge">Max age</Label>
@@ -960,6 +965,7 @@ export default function EventUpdateInputsV2({
                             }
                             disabled={disabled}
                         />
+                        <p className="mt-1 text-xs text-muted-foreground">Leave blank if no maximum age restriction</p>
                     </div>
                 </div>
             </section>
@@ -1056,6 +1062,7 @@ export default function EventUpdateInputsV2({
                             disabled={disabled || draft.recurring === "never"}
                             placeholder="1"
                         />
+                        <p className="mt-1 text-xs text-muted-foreground">Lowering this value after event instances are published will not delete the event instances.</p>
                     </div>
                 </div>
 
@@ -1071,7 +1078,7 @@ export default function EventUpdateInputsV2({
                         <div className="flex flex-col">
                             <Label htmlFor="regAllowed">Registration allowed</Label>
                             <span className="text-xs text-muted-foreground">
-                                Turn this off to temporarily stop new signups without unpublishing.
+                                Disabling this switch will prohibit all registration. Toggle it as you wish.
                             </span>
                         </div>
                     </div>
@@ -1086,7 +1093,7 @@ export default function EventUpdateInputsV2({
                         <div className="flex flex-col">
                             <Label htmlFor="hidden">Hidden</Label>
                             <span className="text-xs text-muted-foreground">
-                                Hidden events are not listed publicly but remain accessible by direct link.
+                                Hidden events are not available to be seen by non-admins
                             </span>
                         </div>
                     </div>

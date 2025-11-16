@@ -103,7 +103,7 @@ export function AssignRolesDialog({
         <>
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 onClick={async () => {
                     setCheckingPerms(true)

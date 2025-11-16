@@ -84,8 +84,7 @@ export default function DiscountCodesTable({
             headerName: "Actions",
             cellRenderer: ActionsRendererFactory(onEdited) as any,
             pinned: "right",
-            minWidth: 160,
-            maxWidth: 200,
+            width: 150,
         },
     ], [onEdited]);
 

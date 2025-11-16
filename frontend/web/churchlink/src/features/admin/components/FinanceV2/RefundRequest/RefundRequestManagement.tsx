@@ -145,7 +145,7 @@ const RefundRequestManagement = () => {
                 <div className="flex flex-wrap gap-3 items-center">
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Request status:</span>
-                        <div className="inline-flex rounded-md border border-border bg-card p-1 shadow-sm">
+                        <div className="inline-flex gap-3 p-1">
                             <Button
                                 type="button"
                                 size="sm"

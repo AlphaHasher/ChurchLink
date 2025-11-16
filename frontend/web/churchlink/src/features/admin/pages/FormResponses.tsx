@@ -25,6 +25,7 @@ import {
   SidebarProvider,
 } from '@/shared/components/ui/sidebar';
 import { adminMarkFormResponsePaid } from '@/helpers/FormSubmissionHelper';
+import { convertFormResponsesToUserTime } from '@/helpers/TimeFormatter';
 
 const useQuery = () => new URLSearchParams(useLocation().search);
 
@@ -132,6 +133,7 @@ const FormResponses = () => {
       const resp = await api.get(`/v1/forms/${formId}/responses`);
       let fetched = resp.data?.items || [];
       if (!Array.isArray(fetched)) fetched = [];
+      fetched = convertFormResponsesToUserTime(fetched);
       setResponses(fetched as ResponseItem[]);
 
       const uniqueUserIds = [...new Set(fetched.map((item: any) => item.user_id).filter(Boolean))] as string[];

@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Tuple, Literal, Dict
+from typing import Any, List, Optional, Tuple, Literal
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
-from fastapi import HTTPException, status
 
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
@@ -459,7 +458,10 @@ async def check_form_slug_status(slug: str) -> Tuple[str, Optional[dict]]:
         if not doc_any.get("visible", False):
             return "not_visible", doc_any
         # If visible, check expiry
+        # Important to jump through these hoops so that way datetime.now() actually gets UTC time
         now = datetime.now(timezone.utc)
+        # Timezone naivety previously enforced so this keeps that pattern
+        now = now.astimezone().replace(tzinfo=None)
         expires = doc_any.get("expires_at")
         if expires is None:
             return "ok", doc_any

@@ -22,6 +22,10 @@ import {
 } from "@/helpers/DonationHelper";
 import { adminRefundFormPayment } from "@/helpers/FormSubmissionHelper";
 import { adminRefundEventTransaction } from "@/helpers/EventRegistrationHelper";
+import {
+    SoftPill,
+    getStatusDisplay,
+} from "@/features/transactions/MyTransactionsFormatting";
 
 type Props = {
     tx: TransactionSummary;
@@ -40,6 +44,42 @@ function formatCurrency(amount?: number | null, currency?: string | null) {
     } catch {
         return `${code} ${amount.toFixed(2)}`;
     }
+}
+
+// Per-line-item status pill (events)
+function getLineItemStatus(line: any): { label: string; className: string } {
+    const rawStatus = line.status as string | undefined;
+    const amount = Number(line.unit_price ?? line.unitPrice ?? 0) || 0;
+    const refunds = Array.isArray(line.refunds) ? line.refunds : [];
+    const refundedTotal =
+        typeof line.refunded_total === "number"
+            ? line.refunded_total
+            : refunds.reduce(
+                (acc: number, r: any) => acc + Number(r.amount ?? 0),
+                0,
+            );
+
+    if (refundedTotal > 0 && amount > 0) {
+        if (refundedTotal >= amount) {
+            return {
+                label: "Refunded",
+                className: "bg-sky-50 text-sky-700",
+            };
+        }
+        return {
+            label: "Partially Refunded",
+            className: "bg-amber-50 text-amber-700",
+        };
+    }
+
+    if (rawStatus) {
+        return getStatusDisplay(rawStatus, "event");
+    }
+
+    return {
+        label: "Paid",
+        className: "bg-emerald-50 text-emerald-700",
+    };
 }
 
 export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
@@ -74,7 +114,7 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
     const netAmount =
         tx.net_amount ?? (baseAmount != null ? baseAmount - refundedTotal : null);
 
-    const leftToRefund = Math.max(((baseAmount ?? 0) - refundedTotal), 0)
+    const leftToRefund = Math.max((baseAmount ?? 0) - refundedTotal, 0);
 
     const extra: any = tx.extra || {};
     const eventLineItems: any[] = useMemo(() => {
@@ -268,10 +308,10 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className={isEventPayment ? "max-w-2xl" : "max-w-xl"}>
+            <DialogContent className="max-w-4xl sm:max-w-[100vh] max-h-[80vh] overflow-y-auto z-500">
                 <DialogHeader>
                     <DialogTitle>{friendlyTitle}</DialogTitle>
-                    <DialogDescription>{friendlyDescription}</DialogDescription>
+                    <DialogDescription>{`${friendlyDescription} — You cannot refund more than the user paid.`}</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
@@ -303,6 +343,71 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                                 : "—"}
                         </div>
                     </div>
+
+                    {isEventPayment && eventLineItems.length > 0 && (
+                        <div className="space-y-2 text-sm">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Line Item Breakdown
+                            </div>
+                            <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                                {eventLineItems.map((li, idx) => {
+                                    const name =
+                                        li.display_name ??
+                                        li.displayName ??
+                                        "Registrant";
+                                    const amount =
+                                        li.unit_price ?? li.unitPrice ?? null;
+                                    const refunds = Array.isArray(li.refunds)
+                                        ? li.refunds
+                                        : [];
+                                    const refundedPerLine =
+                                        typeof li.refunded_total === "number"
+                                            ? li.refunded_total
+                                            : refunds.reduce(
+                                                (acc: number, r: any) =>
+                                                    acc +
+                                                    Number(r.amount ?? 0),
+                                                0,
+                                            );
+
+                                    const pill = getLineItemStatus(li);
+
+                                    return (
+                                        <div
+                                            key={li.line_id ?? li.person_id ?? idx}
+                                            className="flex flex-col gap-1 rounded bg-background px-3 py-2"
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-medium truncate">
+                                                    {name}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {amount != null
+                                                        ? `USD ${Number(
+                                                            amount,
+                                                        ).toFixed(2)}`
+                                                        : "—"}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                                <SoftPill className={pill.className}>
+                                                    {pill.label}
+                                                </SoftPill>
+                                                {refundedPerLine > 0 && (
+                                                    <span>
+                                                        Refunded: USD{" "}
+                                                        {refundedPerLine.toFixed(
+                                                            2,
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {isEventPayment ? (
                         <div className="space-y-3 rounded-md border p-3">
@@ -337,23 +442,31 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                                         placeholder="Leave blank to refund the remaining balance for each line"
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        If you enter an amount, that amount is refunded on each
-                                        PayPal line, up to its remaining balance. Leaving it blank
-                                        refunds each line in full.
+                                        If you enter an amount, that amount is
+                                        refunded on each PayPal line, up to its
+                                        remaining balance. Leaving it blank refunds
+                                        each line in full. WARNING: It is
+                                        recommended to either refund the full
+                                        transaction or to refund by line by selecting
+                                        "refund specific line items" above. Refunds
+                                        are done by-line item, and it is easy to
+                                        confuse "each line item by $20" versus
+                                        "refund the whole transaction by $20".
                                     </p>
                                 </div>
                             ) : (
                                 <div className="space-y-3">
                                     <p className="text-xs text-muted-foreground">
-                                        Select which lines to refund and optionally specify a
-                                        partial amount per line. Leaving an amount blank will refund
-                                        the remaining balance for that line.
+                                        Select which lines to refund and optionally
+                                        specify a partial amount per line. Leaving
+                                        an amount blank will refund the remaining
+                                        balance for that line.
                                     </p>
                                     <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                                         {eventLineItems.length === 0 && (
                                             <div className="text-sm text-muted-foreground">
-                                                No line item breakdown available for this
-                                                transaction.
+                                                No line item breakdown available for
+                                                this transaction.
                                             </div>
                                         )}
                                         {eventLineItems.map((li, idx) => {
@@ -371,7 +484,8 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                                             const lineAmount =
                                                 typeof li.amount === "number"
                                                     ? li.amount
-                                                    : typeof li.price === "number"
+                                                    : typeof li.price ===
+                                                        "number"
                                                         ? li.price
                                                         : null;
                                             const checked = !!lineSelection[key];
@@ -384,14 +498,18 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                                                     <Checkbox
                                                         checked={checked}
                                                         onCheckedChange={(val) =>
-                                                            setLineSelection((prev) => ({
-                                                                ...prev,
-                                                                [key]: !!val,
-                                                            }))
+                                                            setLineSelection(
+                                                                (prev) => ({
+                                                                    ...prev,
+                                                                    [key]: !!val,
+                                                                }),
+                                                            )
                                                         }
                                                     />
                                                     <div className="flex-1 text-sm">
-                                                        <div className="font-medium">{label}</div>
+                                                        <div className="font-medium">
+                                                            {label}
+                                                        </div>
                                                         {lineAmount != null && (
                                                             <div className="text-xs text-muted-foreground">
                                                                 Line amount:{" "}
@@ -408,12 +526,20 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                                                             min={0}
                                                             step={0.01}
                                                             disabled={!checked}
-                                                            value={lineAmounts[key] ?? ""}
+                                                            value={
+                                                                lineAmounts[key] ??
+                                                                ""
+                                                            }
                                                             onChange={(e) =>
-                                                                setLineAmounts((prev) => ({
-                                                                    ...prev,
-                                                                    [key]: e.target.value,
-                                                                }))
+                                                                setLineAmounts(
+                                                                    (prev) => ({
+                                                                        ...prev,
+                                                                        [key]:
+                                                                            e
+                                                                                .target
+                                                                                .value,
+                                                                    }),
+                                                                )
                                                             }
                                                             placeholder="Full"
                                                         />
@@ -441,8 +567,9 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                                     placeholder="Leave blank to refund the remaining balance"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Leaving the amount blank will refund the remaining balance of
-                                    this payment, up to the original amount.
+                                    Leaving the amount blank will refund the
+                                    remaining balance of this payment, up to the
+                                    original amount.
                                 </p>
                             </div>
 

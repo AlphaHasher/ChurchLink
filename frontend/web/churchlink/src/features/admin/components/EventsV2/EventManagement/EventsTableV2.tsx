@@ -123,38 +123,32 @@ export default function EventsTableV2(props: EventsTableV2Props) {
     );
 
     const colDefs = useMemo<ColDef<ReadAdminPanelEvent>[]>(() => [
-        { headerName: "Title", field: "default_title", flex: 2, minWidth: 220 },
-        { headerName: "Updated On", valueGetter: (p) => p.data?.updated_on, valueFormatter: (p) => formatDate(p.value), minWidth: 150 },
-        { headerName: "Registration Allowed", field: "registration_allowed", valueFormatter: (p) => formatBool(p.value), minWidth: 150, initialWidth: 160 },
-        { headerName: "Event Hidden", field: "hidden", valueFormatter: (p) => formatBool(p.value), minWidth: 110, initialWidth: 130 },
-        { headerName: "Members Only", field: "members_only", valueFormatter: (p) => formatBool(p.value), minWidth: 110, initialWidth: 130 },
+        { headerName: "Title", field: "default_title" },
+        { headerName: "Updated On", valueGetter: (p) => p.data?.updated_on, valueFormatter: (p) => formatDate(p.value) },
+        { headerName: "Registration Allowed", field: "registration_allowed", valueFormatter: (p) => formatBool(p.value) },
+        { headerName: "Event Hidden", field: "hidden", valueFormatter: (p) => formatBool(p.value) },
+        { headerName: "Members Only", field: "members_only", valueFormatter: (p) => formatBool(p.value) },
         { // Age Range Allowed Display
             headerName: "Age Range",
             valueGetter: (p) => ({ min: p.data?.min_age ?? null, max: p.data?.max_age ?? null }),
             valueFormatter: (p) => formatAgeRange(p.value?.min, p.value?.max),
-            minWidth: 100,
-            initialWidth: 130,
         },
         { // Gender Allowed Display
             headerName: "Gender",
             valueGetter: (p) => p.data?.gender ?? "all",
             valueFormatter: (p) => formatGenderLabel(p.value),
-            minWidth: 100,
-            initialWidth: 120,
         },
         {  // Discount Codes count
             headerName: "Discount Codes",
             valueGetter: (p) => (Array.isArray(p.data?.discount_codes) ? p.data!.discount_codes.length : 0),
-            minWidth: 130, initialWidth: 140,
         },
         {
             // Ministries Display
             headerName: "Ministries",
             valueGetter: (p) => p.data?.ministries,
             valueFormatter: (p) => formatMinistries(p.value, props.ministryMap),
-            flex: 1,
-            minWidth: 200,
         },
+        { headerName: "Event ID", field: "id", minWidth: 220 },
         // Actions
         { headerName: "Actions", cellRenderer: ActionsRenderer as any, pinned: "right", minWidth: 110 },
     ], [props.ministryMap, ActionsRenderer]);
