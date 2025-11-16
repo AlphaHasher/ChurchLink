@@ -15,7 +15,7 @@ class UserHandler:
     ## Operations ##
     ################
     @staticmethod
-    async def create_schema(first_name:str, last_name:str, email:str, verified:bool, uid:str, roles:list, phone=None, birthday=None, address=None, ministries=None, favorite_events=None):
+    async def create_schema(first_name:str, last_name:str, email:str, verified:bool, uid:str, roles:list, phone=None, birthday=None, address=None, favorite_events=None):
         return {
             "first_name": first_name,
             "last_name": last_name,
@@ -24,7 +24,6 @@ class UserHandler:
             "membership": False,
             "uid": uid,
             "roles": await RoleHandler.names_to_ids(roles),
-            "ministries": ministries or [],
             "favorite_events": favorite_events or [],
             "phone": phone,
             "birthday": birthday,
@@ -49,7 +48,7 @@ class UserHandler:
         }
 
     @staticmethod
-    async def create_user(first_name, last_name, email, uid, roles, verified=False, phone=None, birthday=None, address=None, ministries=None, favorite_events=None):
+    async def create_user(first_name, last_name, email, uid, roles, verified=False, phone=None, birthday=None, address=None,favorite_events=None):
         """
         'roles' is a list of role names
         """
@@ -68,7 +67,6 @@ class UserHandler:
                 phone,
                 birthday,
                 address,
-                ministries,
                 favorite_events
             ))
         except Exception as e:
