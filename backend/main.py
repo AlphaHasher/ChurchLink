@@ -46,7 +46,6 @@ from routes.common_routes.app_config_routes import app_config_public_router, app
 from routes.common_routes.dashboard_app_config_routes import dashboard_app_config_public_router, dashboard_app_config_private_router
 from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
 
-from routes.finance_routes.finance_routes import finance_router
 from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
 from routes.page_management_routes.header_routes import mod_header_router, public_header_router
 from routes.page_management_routes.page_routes import mod_page_router, public_page_router
@@ -77,6 +76,8 @@ from routes.webhook_listener_routes.youtube_listener_routes import youtube_liste
 from routes.webhook_listener_routes.paypal_central_webhook_routes import paypal_central_webhook_router
 
 from routes.transactions_routes import transactions_router, admin_transactions_router
+from routes.refund_request_routes import refund_private_router, admin_refund_router
+from routes.financial_report_routes import admin_financial_report_router
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -332,6 +333,7 @@ private_router.include_router(event_registration_router)
 private_router.include_router(form_payment_router)
 private_router.include_router(transactions_router)
 private_router.include_router(private_donation_router)
+private_router.include_router(refund_private_router)
 
 
 #####################################################
@@ -392,10 +394,11 @@ web_builder_management_protected_router.include_router(webbuilder_config_private
 
 # FINANCE MANAGEMENT CORE
 finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Finance Management"], required_perms=["finance"])
-finance_management_protected_router.include_router(finance_router)
 finance_management_protected_router.include_router(admin_transactions_router)
 finance_management_protected_router.include_router(admin_donation_router)
 finance_management_protected_router.include_router(admin_form_payment_router)
+finance_management_protected_router.include_router(admin_financial_report_router)
+finance_management_protected_router.include_router(admin_refund_router)
 
 # EVENT PAYMENT ROUTES
 ##app.include_router(event_payment_router, prefix="/api/v1")

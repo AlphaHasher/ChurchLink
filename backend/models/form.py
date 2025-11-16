@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any, List, Optional, Tuple, Literal, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
 from fastapi import HTTPException, status
@@ -257,8 +257,8 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "expires_at": expires_val,
             "form_width": width,
             "supported_locales": getattr(form, "supported_locales", []),
-            "created_at": datetime.now(),
-            "updated_at": datetime.now(),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
 
         }
         result = await DB.db.forms.insert_one(doc)
@@ -353,7 +353,7 @@ async def search_all_forms(
 
 async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         cursor = (
             DB.db.forms.find(
                 {
@@ -383,7 +383,7 @@ async def search_visible_forms(
     limit: int = 100,
 ) -> List[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         query: dict = {
             "visible": True,
             "$or": [
@@ -423,7 +423,7 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
 
 async def get_form_by_slug(slug: str) -> Optional[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         doc = await DB.db.forms.find_one(
             {
                 "slug": slug,
@@ -459,7 +459,7 @@ async def check_form_slug_status(slug: str) -> Tuple[str, Optional[dict]]:
         if not doc_any.get("visible", False):
             return "not_visible", doc_any
         # If visible, check expiry
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         expires = doc_any.get("expires_at")
         if expires is None:
             return "ok", doc_any
@@ -492,7 +492,7 @@ async def get_form_by_id_unrestricted(form_id: str) -> Optional[FormOut]:
 
 async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         doc = await DB.db.forms.find_one(
             {
                 "_id": ObjectId(form_id),
@@ -885,7 +885,7 @@ async def add_response_by_slug(
                 return False, err
 
         # Build response entry
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         entry: dict = {
             "response": response_canon,
             "submitted_at": now,
@@ -931,7 +931,7 @@ async def update_form(
     form_id: str, user_id: str, update: FormUpdate
 ) -> Optional[FormOut]:
     try:
-        update_doc = {"updated_at": datetime.now()}
+        update_doc = {"updated_at": datetime.now(timezone.utc)}
         if update.title is not None:
             update_doc["title"] = update.title
         if update.description is not None:

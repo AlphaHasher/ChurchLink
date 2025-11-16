@@ -133,7 +133,7 @@ const tiles: Tile[] = [
     title: "Finance",
     description: "View financial information from donations and purchases",
     icon: Wallet,
-    to: "/admin/finance",
+    to: "/admin/finance/view-transactions",
     requiresPermission: "finance",
   },
   {
@@ -395,7 +395,7 @@ const AdminDashboard: React.FC = () => {
               <Card
                 key={title}
                 className={`group transition-colors hover:border-primary/40 relative ${hasNoRoleAssigned ? 'border-amber-200 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200' :
-                    hasLimitedRoles ? 'border-blue-200 bg-blue-50/30 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : ''
+                  hasLimitedRoles ? 'border-blue-200 bg-blue-50/30 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200' : ''
                   }`}
               >
                 {/* Invisible overlay link that makes the entire card clickable */}

@@ -181,7 +181,8 @@ const AdminDashboardSideBar = () => {
       requiresPermission: "finance",
       children: [
         { title: "Transactions Management", url: "/admin/finance/view-transactions" },
-        { title: "Refund Management", url: "/admin/finance/refunds" },
+        { title: "Refund Management", url: "/admin/finance/manage-refunds" },
+        { title: "Financial Reports", url: "/admin/finance/view-reports" },
       ]
     },
     {

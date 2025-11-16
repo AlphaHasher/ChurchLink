@@ -65,10 +65,6 @@ class DB:
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
         },
         {
-            "name": "transactions",
-            "indexes": ["transaction_id"]
-        },
-        {
             "name": "settings",
             "indexes": ["key"]
         }

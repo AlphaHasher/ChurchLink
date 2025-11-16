@@ -74,17 +74,7 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
     const netAmount =
         tx.net_amount ?? (baseAmount != null ? baseAmount - refundedTotal : null);
 
-    const statusLower = (tx.status || "").toLowerCase();
-    const isFullyRefundedStatus =
-        statusLower === "fully_refunded" || statusLower === "fully refunded";
-    const hasNoRemainingAmount =
-        netAmount != null && !Number.isNaN(netAmount) && netAmount <= 0.01;
-    const isFullyRefunded = isFullyRefundedStatus || hasNoRemainingAmount;
-
-    // If there is nothing left to refund, skip rendering.
-    if (isFullyRefunded) {
-        return null;
-    }
+    const leftToRefund = Math.max(((baseAmount ?? 0) - refundedTotal), 0)
 
     const extra: any = tx.extra || {};
     const eventLineItems: any[] = useMemo(() => {
@@ -115,7 +105,7 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
             return "Issue a full or partial refund for this form payment. This will create a PayPal refund and mark the associated response as refunded.";
         }
         if (isEventPayment) {
-            return "Refund this event payment. You can refund the entire transaction or target specific line items.";
+            return "Refund this event payment. You can refund the entire transaction or target specific line items. WARNING: Refunding this payment will NOT result in an event unregistration.";
         }
         return "Issue a refund for this transaction.";
     })();
@@ -303,7 +293,11 @@ export default function TransactionRefundDialog({ tx, onAfterRefund }: Props) {
                             {refundedTotal > 0 ? formatCurrency(refundedTotal, currency) : "—"}
                         </div>
                         <div>
-                            <span className="font-medium text-foreground">Remaining (net):</span>{" "}
+                            <span className="font-medium text-foreground">Unrefunded Sum:</span>{" "}
+                            {refundedTotal > 0 ? formatCurrency(leftToRefund, currency) : "—"}
+                        </div>
+                        <div>
+                            <span className="font-medium text-foreground">Net Income:</span>{" "}
                             {netAmount != null && !Number.isNaN(netAmount)
                                 ? formatCurrency(netAmount, currency)
                                 : "—"}

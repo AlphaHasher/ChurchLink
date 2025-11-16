@@ -231,6 +231,9 @@ export default function MyTransactions() {
                         // Re-fetch with current filters/page
                         refresh();
                     }}
+                    onAfterRefundRequest={() => {
+                        refresh();
+                    }}
                 />
             </div>
         </div>

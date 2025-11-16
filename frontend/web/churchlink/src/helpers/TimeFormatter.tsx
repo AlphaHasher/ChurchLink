@@ -1,5 +1,7 @@
 // This file is mainly due to correcting a bane of my existence: Daylight Savings Time related bugs.
 
+import { TransactionSummary } from "@/shared/types/Transactions";
+
 export type MaybeISO = string | null | undefined;
 
 const ADMIN_TZ = import.meta.env.VITE_ADMIN_TZ ?? "America/Los_Angeles";
@@ -379,6 +381,57 @@ export function convertTransactionSummaryToUserTime<T extends {
             ...e,
             created_at: toZonedISOString(e.created_at) as string,
             updated_at: toZonedISOString(e.updated_at) as string,
+        };
+    });
+}
+
+
+export function convertRefundRequestsToUserTime<T extends {
+    transaction?: TransactionSummary | null;
+    created_on?: MaybeISO;
+    responded_to?: MaybeISO;
+}>(items: T[]): T[] {
+    return items.map((e) => {
+        const tx = e.transaction ?? null;
+
+        let convertedTx: TransactionSummary | null = null;
+        if (tx) {
+            const [first] = convertTransactionSummaryToUserTime([tx]) as TransactionSummary[];
+            convertedTx = first ?? null;
+        }
+
+        return {
+            ...e,
+            transaction: convertedTx,
+            created_on: toZonedISOString(e.created_on) as string,
+            responded_to: toZonedISOString(e.responded_to) as string,
+        };
+    });
+}
+
+export function convertFinancialReportsToUserTime<T extends {
+    created_at?: MaybeISO;
+    config?: {
+        created_from?: MaybeISO;
+        created_to?: MaybeISO;
+        [key: string]: any;
+    } | null;
+}>(items: T[]): T[] {
+    return items.map((e) => {
+        const cfg = e.config ?? null;
+
+        const convertedConfig = cfg
+            ? {
+                ...cfg,
+                created_from: toZonedISOString(cfg.created_from) as string,
+                created_to: toZonedISOString(cfg.created_to) as string,
+            }
+            : cfg;
+
+        return {
+            ...e,
+            created_at: toZonedISOString(e.created_at) as string,
+            config: convertedConfig,
         };
     });
 }

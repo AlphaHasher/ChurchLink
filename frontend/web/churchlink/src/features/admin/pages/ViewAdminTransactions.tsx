@@ -372,7 +372,6 @@ export default function ViewAdminTransactions() {
                         setPageSize(s);
                         refresh({ page: 1, page_size: s });
                     }}
-                    // NEW: refresh the list after a successful refund
                     onAfterRefund={() => {
                         // Preserve current filters/page; just re-fetch
                         refresh();

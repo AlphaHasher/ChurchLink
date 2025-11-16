@@ -9,8 +9,8 @@ import PermissionGuard from "../features/auth/guards/PermissionGuard";
 const AdminDashboard = lazy(() => import("../features/admin/pages/AdminDashboard"));
 const Permissions = lazy(() => import("../features/admin/pages/Permissions"));
 const Notification = lazy(() => import("../features/admin/pages/Notification"));
-const Finance = lazy(() => import("../features/admin/pages/Finance"));
 const ViewAdminTransactions = lazy(() => import("../features/admin/pages/ViewAdminTransactions"));
+const ManageRefundRequests = lazy(() => import("../features/admin/components/FinanceV2/RefundRequest/RefundRequestManagement"));
 const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
 const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditPage"));
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
@@ -31,7 +31,7 @@ const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
 const Ministries = lazy(() => import("../features/admin/pages/Ministries"));
-const RefundManagement = lazy(() => import("../features/admin/pages/RefundManagement"));
+const FinancialReportPage = lazy(() => import("../features/admin/components/FinanceV2/FinancialReports/FinancialReportPage"));
 
 const MobileUITab = lazy(() => import("../features/admin/pages/MobileUITab"));
 const MobileUIPages = lazy(() => import("../features/admin/pages/MobileUIPages"));
@@ -76,14 +76,14 @@ export const AdminRoutes = () => {
         <Route path="/events/:eventId/instance_details/:instanceId/user_registrations/:userId" element={<PermissionGuard requiredPermission={["event_management", "event_editing"]}>
           <ViewUserRegistration />
         </PermissionGuard>} />
-        <Route path="/finance" element={<PermissionGuard requiredPermission="finance">
-          <Finance />
-        </PermissionGuard>} />
         <Route path="/finance/view-transactions" element={<PermissionGuard requiredPermission="finance">
           <ViewAdminTransactions />
         </PermissionGuard>} />
-        <Route path="/finance/refunds" element={<PermissionGuard requiredPermission="finance">
-          <RefundManagement />
+        <Route path="/finance/manage-refunds" element={<PermissionGuard requiredPermission="finance">
+          <ManageRefundRequests />
+        </PermissionGuard>} />
+        <Route path="/finance/view-reports" element={<PermissionGuard requiredPermission="finance">
+          <FinancialReportPage />
         </PermissionGuard>} />
         <Route path="/sermons" element={<PermissionGuard requiredPermission="sermon_editing">
           <Sermons />

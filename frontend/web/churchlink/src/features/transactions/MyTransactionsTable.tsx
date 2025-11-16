@@ -34,6 +34,7 @@ type MyTransactionsTableProps = {
     onPageChange?: (page: number) => void;
     onPageSizeChange?: (size: number) => void;
     onAfterCancelSubscription?: () => void;
+    onAfterRefundRequest?: () => void;
 };
 
 function formatDate(iso?: string | null) {
@@ -99,6 +100,7 @@ const StatusCellRenderer = (props: ICellRendererParams<TransactionSummary>) => {
 const ActionsCellRenderer = (
     props: ICellRendererParams<TransactionSummary> & {
         onAfterCancelSubscription?: () => void;
+        onAfterRefundRequest?: () => void;
     },
 ) => {
     const row = props.data;
@@ -117,6 +119,8 @@ const ActionsCellRenderer = (
 
     const onAfterCancel =
         (props as any).onAfterCancelSubscription as (() => void) | undefined;
+    const onAfterRefundRequest =
+        (props as any).onAfterRefundRequest as (() => void) | undefined;
 
     return (
         <div className="flex items-center justify-end gap-2">
@@ -127,9 +131,11 @@ const ActionsCellRenderer = (
             />
 
             {/* User-initiated refund request (events/forms) */}
-            {showRefundRequest && <RequestRefundDialog tx={row} />}
+            {showRefundRequest && (
+                <RequestRefundDialog tx={row} onSubmitted={onAfterRefundRequest} />
+            )}
 
-            {/* View details */}
+            {/* View details (ALWAYS) */}
             <ViewTransactionDialog tx={row} />
         </div>
     );
@@ -224,10 +230,11 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                 width: 95,
                 cellRendererParams: {
                     onAfterCancelSubscription: props.onAfterCancelSubscription,
+                    onAfterRefundRequest: props.onAfterRefundRequest,
                 },
             },
         ],
-        [props.onAfterCancelSubscription],
+        [props.onAfterCancelSubscription, props.onAfterRefundRequest],
     );
 
     const defaultColDef = useMemo<ColDef>(

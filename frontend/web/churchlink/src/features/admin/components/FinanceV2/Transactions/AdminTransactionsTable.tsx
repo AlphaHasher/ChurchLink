@@ -90,15 +90,7 @@ const ActionsCellRenderer = (
 
     const onAfterRefund = (props as any).onAfterRefund as (() => void) | undefined;
 
-    const net = row.net_amount ?? row.amount ?? 0;
-    const statusLower = (row.status || "").toLowerCase();
-    const isFullyRefunded =
-        statusLower === "fully_refunded" ||
-        statusLower === "fully refunded" ||
-        net <= 0.01;
-
     const showRefund =
-        !isFullyRefunded &&
         (row.kind === "donation_one_time" ||
             row.kind === "donation_subscription_payment" ||
             row.kind === "form" ||
