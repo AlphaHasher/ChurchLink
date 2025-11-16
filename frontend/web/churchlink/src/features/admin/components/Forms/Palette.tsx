@@ -17,11 +17,11 @@ const items = [
   { type: "switch", label: "Switch" },
   { type: "time", label: "Time" },
   { type: "pricelabel", label: "Price (for label purpose)" },
-  { type: "price", label: "Payment Method" },
 ] as const;
 
 export function Palette() {
   const addField = useBuilderStore((s) => s.addField);
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="p-3 pb-2">

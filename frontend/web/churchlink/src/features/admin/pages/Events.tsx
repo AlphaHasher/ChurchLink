@@ -32,7 +32,7 @@ const Events = () => {
     if (loading) return <p>Loading Events...</p>;
 
     return (
-        <div className="p-6">
+        <div>
             <h1 className="text-xl font-bold mb-4">Events Management</h1>
             <EventsTable data={events} permData={perms} onSave={loadData}></EventsTable>
         </div>
