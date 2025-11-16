@@ -194,7 +194,9 @@ const FormResponses = () => {
       const name = userData?.name || (userId ? 'Loading...' : 'Anonymous');
       const email = userData?.email || '';
       const key =
-        (response as any).id || (response as any)._id || `${userId || 'anonymous'}-${response.submitted_at || index}-${index}`;
+        (response as any).id ||
+        (response as any)._id ||
+        `${userId || 'anonymous'}-${response.submitted_at || index}-${index}`;
 
       const payment: PaymentDetails | undefined =
         (response as any).payment || (response.response as any)?.payment;
@@ -204,6 +206,7 @@ const FormResponses = () => {
 
       return {
         key,
+        id: (response as any).id || (response as any)._id || undefined,
         name,
         email,
         submitted: response.submitted_at,
@@ -245,11 +248,24 @@ const FormResponses = () => {
 
   const handleMarkPaid = async () => {
     if (!formId) return;
-    if (!selectedItem || !selectedItem.submitted) return;
+    if (!selectedItem) return;
+
+    const responseId =
+      (selectedItem as any).id ||
+      (selectedItem.response as any)?.id ||
+      (selectedItem.response as any)?._id ||
+      undefined;
+
+    const submittedAt = selectedItem.submitted;
+
+    if (!responseId && !submittedAt) return;
 
     try {
       setMarkingPaid(true);
-      const result = await adminMarkFormResponsePaid(formId, selectedItem.submitted);
+      const result = await adminMarkFormResponsePaid(formId, {
+        responseId,
+        submittedAt,
+      });
       if (!result.success) {
         setError(result.msg || 'Failed to mark response as paid.');
         return;

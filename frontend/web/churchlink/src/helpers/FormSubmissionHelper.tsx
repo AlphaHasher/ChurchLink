@@ -239,13 +239,23 @@ export async function adminRefundFormPayment(
 
 export async function adminMarkFormResponsePaid(
     formId: string,
-    submittedAt: string
+    opts: { responseId?: string | null; submittedAt?: string | null }
 ): Promise<{ success: boolean; msg?: string }> {
     try {
-        const res = await api.post("/v1/admin/forms/payments/mark-paid", {
+        const body: Record<string, any> = {
             form_id: formId,
-            submitted_at: submittedAt,
-        });
+        };
+
+        if (opts.responseId) {
+            body.response_id = opts.responseId;
+        }
+
+        // Keep submitted_at as a fallback for old responses without ids
+        if (opts.submittedAt) {
+            body.submitted_at = opts.submittedAt;
+        }
+
+        const res = await api.post("/v1/admin/forms/payments/mark-paid", body);
         const data = res.data as { success: boolean; msg?: string };
         return data;
     } catch (err: any) {

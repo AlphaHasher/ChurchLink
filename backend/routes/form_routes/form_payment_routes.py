@@ -83,7 +83,8 @@ async def admin_mark_form_paid_route(body: AdminMarkFormPaid = Body(...)):
     Body:
       {
         "form_id": "...",
-        "submitted_at": "2025-11-15T02:34:56.123456"
+        "response_id": "6489f3c2e4c3e123456789ab",   # preferred
+        "submitted_at": "2025-11-15T02:34:56.123456"  # optional legacy fallback
       }
     """
     return await admin_mark_form_response_paid(body=body)

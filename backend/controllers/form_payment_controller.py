@@ -52,10 +52,12 @@ class AdminMarkFormPaid(BaseModel):
     Admin-triggered mark-as-paid action for a single form response.
 
     - form_id:      The form's Mongo id as a string.
-    - submitted_at: The response's submitted_at ISO string returned by get_form_responses.
+    - response_id:  The response's id (preferred, stable identifier).
+    - submitted_at: Optional legacy fallback; the response's submitted_at ISO string.
     """
     form_id: str
-    submitted_at: str
+    response_id: Optional[str] = None
+    submitted_at: Optional[str] = None
 
 
 async def _assert_form_payable(slug: str):
@@ -813,6 +815,7 @@ async def admin_mark_form_response_paid(*, body: AdminMarkFormPaid) -> Dict[str,
     """
     ok, msg = await mark_form_response_paid(
         form_id=body.form_id,
+        response_id=body.response_id,
         submitted_at=body.submitted_at,
     )
 

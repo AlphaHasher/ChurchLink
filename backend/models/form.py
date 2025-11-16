@@ -839,7 +839,7 @@ async def add_response_by_slug(
 
     Returns:
         (True, response_identifier) or (False, error_message).
-        The identifier is the ISO timestamp of when the response was recorded.
+        The identifier is a stable id for the stored response.
     """
     try:
         status_str, doc_any = await check_form_slug_status(slug)
@@ -888,7 +888,9 @@ async def add_response_by_slug(
 
         # Build response entry
         now = datetime.now(timezone.utc)
+        response_oid = ObjectId()
         entry: dict = {
+            "_id": response_oid,
             "response": response_canon,
             "submitted_at": now,
         }
@@ -922,11 +924,12 @@ async def add_response_by_slug(
             # Shouldn't happen, but indicates failure
             return False, "Failed to store response"
 
-        # Return the timestamp as a stable identifier for the recorded response
-        return True, now.isoformat()
+        # Return the response id as a stable identifier for the recorded response
+        return True, str(response_oid)
     except Exception as e:
         logger.error(f"Error adding response for slug {slug}: {e}")
         return False, "Server error"
+
 
 
 async def update_form(
@@ -1038,84 +1041,87 @@ async def delete_form_responses(form_id: str, user_id: str) -> bool:
 
 async def get_form_responses(
     form_id: str,
-    user_id: str,
     skip: int = 0,
-    limit: int | None = None,
+    limit: Optional[int] = 100,
 ) -> Optional[dict]:
-    """Return responses for a form owned by the given user.
-
-    Results include total count and a slice of items sorted by submitted_at DESC.
-    The submitted_at values are returned as ISO strings for JSON serialization.
-
-    Each item includes a `payment` block summarizing how the submission was paid.
-    """
     try:
-        agg_doc = await DB.db.form_responses.find_one({"form_id": ObjectId(form_id)})
-        if not agg_doc:
-            return {"form_id": form_id, "count": 0, "items": []}
-
-        responses = agg_doc.get("responses", []) or []
-
-        # Sort by submitted_at desc (handle missing gracefully)
-        def _to_dt(x: dict) -> datetime:
-            val = x.get("submitted_at")
-            if isinstance(val, datetime):
-                return val
-            return datetime.min
-
-        responses_sorted = sorted(responses, key=_to_dt, reverse=True)
-        total = len(responses_sorted)
-
-        # Apply pagination
-        start = max(0, int(skip))
-        if limit is None:
-            page_items = responses_sorted[start:]
-        else:
-            end = max(start, start + int(limit))
-            page_items = responses_sorted[start:end]
-
-        items: list[dict] = []
-        for r in page_items:
-            submitted = r.get("submitted_at")
-            if isinstance(submitted, datetime):
-                submitted_iso = submitted.isoformat()
-            else:
-                submitted_iso = str(submitted) if submitted is not None else None
-
-            uid = r.get("user_id")
-            if isinstance(uid, ObjectId):
-                uid_str = str(uid)
-            else:
-                uid_str = str(uid) if uid is not None else None
-
-            # Normalize payment block for the frontend
-            raw_payment = r.get("payment") or {}
-            try:
-                payment_obj = FormResponsePaymentDetails(**raw_payment)
-            except Exception:
-                payment_obj = FormResponsePaymentDetails()
-
-            items.append(
-                {
-                    "submitted_at": submitted_iso,
-                    "user_id": uid_str,
-                    "response": _canonicalize_response(r.get("response", {})),
-                    "payment": payment_obj.model_dump(exclude_none=True),
-                }
-            )
-
-        return {"form_id": form_id, "count": total, "items": items}
-    except Exception as e:
-        logger.error(f"Error getting form responses: {e}")
+        form_oid = ObjectId(form_id)
+    except Exception:
         return None
+
+    agg_doc = await DB.db.form_responses.find_one({"form_id": form_oid})
+    if not agg_doc:
+        return {"form_id": form_id, "count": 0, "items": []}
+
+    responses = agg_doc.get("responses", []) or []
+
+    def _to_dt(resp: dict) -> datetime:
+        val = resp.get("submitted_at")
+        if isinstance(val, datetime):
+            return val
+        return datetime.min
+
+    responses_sorted = sorted(responses, key=_to_dt, reverse=True)
+    total = len(responses_sorted)
+
+    # Apply pagination
+    start = max(0, int(skip))
+    if limit is None:
+        page_items = responses_sorted[start:]
+    else:
+        end = max(start, start + int(limit))
+        page_items = responses_sorted[start:end]
+
+    items: list[dict] = []
+    for r in page_items:
+        submitted = r.get("submitted_at")
+        if isinstance(submitted, datetime):
+            submitted_iso = submitted.isoformat()
+        else:
+            submitted_iso = str(submitted) if submitted is not None else None
+
+        uid = r.get("user_id")
+        if isinstance(uid, ObjectId):
+            uid_str = str(uid)
+        else:
+            uid_str = str(uid) if uid is not None else None
+
+        resp_id_raw = r.get("_id") or r.get("id")
+        if isinstance(resp_id_raw, ObjectId):
+            resp_id = str(resp_id_raw)
+        else:
+            resp_id = str(resp_id_raw) if resp_id_raw is not None else None
+
+        # Normalize payment block for the frontend
+        raw_payment = r.get("payment") or {}
+        try:
+            payment_obj = FormResponsePaymentDetails(**raw_payment)
+        except Exception:
+            payment_obj = FormResponsePaymentDetails()
+
+        items.append(
+            {
+                "id": resp_id,
+                "submitted_at": submitted_iso,
+                "user_id": uid_str,
+                "response": _canonicalize_response(r.get("response", {})),
+                "payment": payment_obj.model_dump(exclude_none=True),
+            }
+        )
+
+    return {"form_id": form_id, "count": total, "items": items}
 
 async def mark_form_response_paid(
     form_id: str,
-    submitted_at: str,
+    *,
+    response_id: Optional[str] = None,
+    submitted_at: Optional[str] = None,
 ) -> Tuple[bool, str]:
     """
-    Mark a single stored form response as paid (payment_complete = True),
-    identified by (form_id, submitted_at ISO string).
+    Mark a single stored form response as paid (payment_complete = True).
+
+    Primary identifier is (form_id, response_id). For legacy responses that do
+    not have an id, we can fall back to (form_id, submitted_at ISO string).
 
     Returns (success, message).
     """
@@ -1128,43 +1134,77 @@ async def mark_form_response_paid(
     if not agg_doc:
         return False, "No responses found for this form"
 
-    raw_submitted = (submitted_at or "").strip()
-    if not raw_submitted:
-        return False, "submitted_at is required"
-
-    target_dt = None
-    try:
-        target_dt = datetime.fromisoformat(raw_submitted)
-    except Exception:
-        # If parsing fails, we'll compare as plain string
-        target_dt = None
-
     responses = agg_doc.get("responses", []) or []
     changed = False
 
-    for r in responses:
-        stored = r.get("submitted_at")
-
-        match = False
-        if isinstance(stored, datetime) and target_dt is not None:
-            match = stored == target_dt
-        elif isinstance(stored, str):
-            match = stored == raw_submitted
-
-        if not match:
-            continue
-
-        # Normalize / rebuild payment block
-        payment_raw = r.get("payment") or {}
+    # Prefer matching by response_id when provided
+    raw_response_id = (response_id or "").strip()
+    target_oid: Optional[ObjectId] = None
+    if raw_response_id:
         try:
-            payment_obj = FormResponsePaymentDetails(**payment_raw)
+            target_oid = ObjectId(raw_response_id)
         except Exception:
-            payment_obj = FormResponsePaymentDetails()
+            target_oid = None
 
-        payment_obj.payment_complete = True
-        r["payment"] = payment_obj.model_dump(exclude_none=True)
-        changed = True
-        break
+        for r in responses:
+            stored = r.get("_id") or r.get("id")
+
+            match = False
+            if isinstance(stored, ObjectId) and target_oid is not None:
+                match = stored == target_oid
+            elif isinstance(stored, (str, int)):
+                match = str(stored) == raw_response_id
+
+            if not match:
+                continue
+
+            payment_raw = r.get("payment") or {}
+            try:
+                payment_obj = FormResponsePaymentDetails(**payment_raw)
+            except Exception:
+                payment_obj = FormResponsePaymentDetails()
+
+            payment_obj.payment_complete = True
+            r["payment"] = payment_obj.model_dump(exclude_none=True)
+            changed = True
+            break
+
+    # Legacy fallback: match by submitted_at if we didn't succeed above
+    if not changed:
+        raw_submitted = (submitted_at or "").strip()
+        if not raw_submitted and not raw_response_id:
+            return False, "response_id or submitted_at is required"
+
+        target_dt: Optional[datetime] = None
+        if raw_submitted:
+            try:
+                target_dt = datetime.fromisoformat(raw_submitted)
+            except Exception:
+                target_dt = None
+
+        if raw_submitted:
+            for r in responses:
+                stored = r.get("submitted_at")
+
+                match = False
+                if isinstance(stored, datetime) and target_dt is not None:
+                    match = stored == target_dt
+                elif isinstance(stored, str):
+                    match = stored == raw_submitted
+
+                if not match:
+                    continue
+
+                payment_raw = r.get("payment") or {}
+                try:
+                    payment_obj = FormResponsePaymentDetails(**payment_raw)
+                except Exception:
+                    payment_obj = FormResponsePaymentDetails()
+
+                payment_obj.payment_complete = True
+                r["payment"] = payment_obj.model_dump(exclude_none=True)
+                changed = True
+                break
 
     if not changed:
         return False, "Matching response not found"
