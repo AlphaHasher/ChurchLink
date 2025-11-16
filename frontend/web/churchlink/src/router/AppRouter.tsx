@@ -7,6 +7,7 @@ import PrivateRoute from "../features/auth/guards/PrivateRoute";
 import { AdminRoutes } from "./AdminRoutes";
 import InitRoute from "@/features/auth/guards/InitRoute";
 import { ProfileRoutes } from "./ProfileRoutes";
+import { MyTransactionRoutes } from "./MyTransactionRoutes";
 import AdminRoute from "@/features/auth/guards/AdminRoute";
 import VerificationRoute from "@/features/auth/guards/VerificationRoute";
 import PaypalThankYouPage from "../features/paypal/pages/thank-you";
@@ -19,7 +20,7 @@ const VerifyEmail = lazy(() => import("../features/users/pages/VerifyEmailPage")
 
 export const AppRouter = () => {
   return (
-  <Suspense fallback={<div className="p-6"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-6 w-full mt-2" /></div>}>
+    <Suspense fallback={<div className="p-6"><Skeleton className="h-8 w-1/3" /><Skeleton className="h-6 w-full mt-2" /></div>}>
       <Routes>
         <Route
           path="/auth/login"
@@ -81,6 +82,16 @@ export const AppRouter = () => {
             </PrivateRoute>
           }
         />
+
+        <Route
+          path="/my-transactions/*"
+          element={
+            <PrivateRoute>
+              <MyTransactionRoutes />
+            </PrivateRoute>
+          }
+        />
+
         <Route
           path="/admin/*"
           element={

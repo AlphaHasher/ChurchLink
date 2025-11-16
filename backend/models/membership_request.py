@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional, List, Literal, Dict, Tuple, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 from mongo.database import DB
@@ -113,7 +113,7 @@ async def _create_update(uid: str, payload: MembershipRequestIn) -> Dict[str, An
         approved=existing.get("approved"),
         reason=existing.get("reason"),
         muted=existing.get("muted", False),
-        created_on=existing.get("created_on", datetime.now()),
+        created_on=existing.get("created_on", datetime.now(timezone.utc)),
         responded_to=existing.get("responded_to"),
     ).model_dump()
 
@@ -125,7 +125,7 @@ async def _create_update(uid: str, payload: MembershipRequestIn) -> Dict[str, An
             "approved": None,
             "reason": None,
             "responded_to": None,
-            "created_on": datetime.now(),
+            "created_on": datetime.now(timezone.utc),
         },
         "$setOnInsert": {"uid": uid, "muted": existing.get("muted", False)}
     }
@@ -266,7 +266,7 @@ async def update_membership_request_admin(update: MembershipRequestAdminUpdate) 
 
     updates: Dict[str, Any] = {
         "resolved": True,
-        "responded_to": datetime.now(),
+        "responded_to": datetime.now(timezone.utc),
     }
     if update.approved is not None:
         updates["approved"] = update.approved

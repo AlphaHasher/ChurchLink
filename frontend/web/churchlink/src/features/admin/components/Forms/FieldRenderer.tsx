@@ -49,33 +49,52 @@ type Props = {
   field: AnyField;
   control: Control<any>;
   error?: string;
+  dynamicTotal?: number; // Total computed from all user selections
 };
 
-export function FieldRenderer({ field, control, error }: Props) {
+export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
   const colClass = cn("col-span-12", widthToCols(field.width));
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const allFields = useBuilderStore((s) => s.schema.data);
   const translations = useBuilderStore((s) => s.translations);
-  
+
 
   // Handle price field separately to avoid double layout
   if (field.type === "price") {
     const priceField = field as any;
-    let amount = priceField.amount || 0;
-    
-    // Calculate total from pricelabel fields if they exist
-    const pricelabelFields = allFields.filter(f => f.type === 'pricelabel') as any[];
-    const calculatedTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
-    
-    // Use calculated total if pricelabel fields exist, otherwise use manual amount
-    if (pricelabelFields.length > 0) {
-      amount = calculatedTotal;
+
+    // Use dynamicTotal if provided (from computeTotal in preview), otherwise calculate from pricelabel fields
+    let amount = dynamicTotal !== undefined ? dynamicTotal : priceField.amount || 0;
+
+    if (dynamicTotal === undefined) {
+      // Fallback: Calculate total from pricelabel fields if they exist (builder preview mode)
+      const pricelabelFields = allFields.filter(f => f.type === 'pricelabel') as any[];
+      const calculatedTotal = pricelabelFields.reduce((sum, f) => sum + (f.amount || 0), 0);
+
+      if (pricelabelFields.length > 0) {
+        amount = calculatedTotal;
+      }
     }
-    
+
+    // Don't show Payment Method if total is $0 (no paid options selected)
+    if (amount == 0) {
+      return null;
+    }
+
     const paymentMethods = priceField.paymentMethods || {};
     const allowPayPal = paymentMethods.allowPayPal !== false; // default true
     const allowInPerson = paymentMethods.allowInPerson !== false; // default true
-    const localizedLabel = priceField.label;
+
+    // Localization function for price field label
+    const t = (key: 'label', base?: string) => {
+      if (!activeLocale || activeLocale === 'en') return base;
+      const fieldTranslations = translations[field.id]?.[activeLocale];
+      if (!fieldTranslations) return base;
+      const val = (fieldTranslations as any)[key];
+      return (val != null && val !== '') ? val : base;
+    };
+
+    const priceSummaryLabel = t('label', 'Price Summary');
 
     // Determine UI behavior based on enabled payment methods
     const paypalOnly = allowPayPal && !allowInPerson;
@@ -84,19 +103,6 @@ export function FieldRenderer({ field, control, error }: Props) {
 
     return (
       <div className={cn("flex flex-col gap-3", colClass)}>
-        {/* Price field header */}
-        {localizedLabel && (
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium flex items-center gap-1">
-              <span>{localizedLabel}</span>
-              {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
-            </Label>
-            <span className="text-lg font-semibold text-primary">
-              ${amount.toFixed(2)}
-            </span>
-          </div>
-        )}
-
         {/* Scenario 1: PayPal Only - Show PayPal info */}
         {paypalOnly && (
           <div className="border rounded-lg p-4 space-y-3 bg-blue-50">
@@ -109,6 +115,16 @@ export function FieldRenderer({ field, control, error }: Props) {
             <p className="text-sm text-blue-600">
               This form requires payment through PayPal. You'll be redirected to PayPal to complete the payment when submitting.
             </p>
+            {/* Price display */}
+            <div className="flex items-center justify-between pt-2 border-t border-blue-200">
+              <Label className="text-sm font-medium flex items-center gap-1 text-blue-900">
+                <span>{priceSummaryLabel}</span>
+                {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
+              </Label>
+              <span className="text-lg font-semibold text-blue-700">
+                ${amount.toFixed(2)}
+              </span>
+            </div>
           </div>
         )}
 
@@ -125,6 +141,16 @@ export function FieldRenderer({ field, control, error }: Props) {
               This payment will be collected in-person at the event or location.
               You can submit the form now and complete payment when you arrive.
             </p>
+            {/* Price display */}
+            <div className="flex items-center justify-between pt-2 border-t border-green-200">
+              <Label className="text-sm font-medium flex items-center gap-1 text-green-900">
+                <span>{priceSummaryLabel}</span>
+                {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
+              </Label>
+              <span className="text-lg font-semibold text-green-700">
+                ${amount.toFixed(2)}
+              </span>
+            </div>
           </div>
         )}
 
@@ -184,8 +210,15 @@ export function FieldRenderer({ field, control, error }: Props) {
               )}
             />
 
-            <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-              Submit button will adapt based on your selection
+            {/* Price display */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <span>{priceSummaryLabel}</span>
+                {field.required ? <span className="text-destructive" aria-hidden>*</span> : null}
+              </Label>
+              <span className="text-lg font-semibold text-primary">
+                ${amount.toFixed(2)}
+              </span>
             </div>
           </div>
         )}
@@ -201,27 +234,27 @@ export function FieldRenderer({ field, control, error }: Props) {
       </div>
     );
   }
-  
+
   // Handle pricelabel field separately for display
   if (field.type === "pricelabel") {
     const pricelabelField = field as any;
     const amount = pricelabelField.amount || 0;
-    
+
     const t = (key: 'label', base?: string) => {
       // If no active locale or it's English, return base
       if (!activeLocale || activeLocale === 'en') return base;
-      
+
       // Get translations for this field
       const fieldTranslations = translations[field.id]?.[activeLocale];
       if (!fieldTranslations) return base;
-      
+
       // Check if translation exists
       const val = (fieldTranslations as any)[key];
       return (val != null && val !== '') ? val : base;
     };
-    
+
     const localizedLabel = t('label', pricelabelField.label);
-    
+
     return (
       <div className={cn("flex items-center justify-between py-2", colClass)}>
         <Label className="text-sm font-medium">
@@ -233,7 +266,7 @@ export function FieldRenderer({ field, control, error }: Props) {
       </div>
     );
   }
-  
+
 
   const t = (key: 'label' | 'placeholder' | 'helpText' | 'content', base?: string) => {
     // If no active locale or it's English, return base
@@ -410,11 +443,19 @@ export function FieldRenderer({ field, control, error }: Props) {
                 );
               }
               return (
-                <Select value={rhf.value} onValueChange={rhf.onChange}>
+                <Select value={rhf.value || ""} onValueChange={(val) => {
+                  // If field is not required, allow clearing by selecting the clear value
+                  rhf.onChange(val === "__clear__" ? undefined : val);
+                }}>
                   <SelectTrigger id={field.name}>
                     <SelectValue placeholder={localizedPlaceholder || "Choose"} />
                   </SelectTrigger>
                   <SelectContent>
+                    {!field.required && (
+                      <SelectItem value="__clear__">
+                        <span className="text-muted-foreground italic">None</span>
+                      </SelectItem>
+                    )}
                     {safeOpts.map((o: any, idx: number) => (
                       <SelectItem key={o.value} value={o.value}>
                         {tOption(idx, o.label)}

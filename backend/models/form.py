@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Tuple
-from datetime import datetime
+from typing import Any, List, Optional, Tuple, Literal, Dict
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator
 from bson import ObjectId
+from fastapi import HTTPException, status
 
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
@@ -68,14 +69,6 @@ class FormBase(BaseModel):
 
     supported_locales: List[str] = Field(default_factory=list)
 
-    # Payment configuration fields
-    requires_payment: bool = Field(False)
-    payment_amount: Optional[float] = Field(None)
-    payment_type: Optional[str] = Field("fixed")  # "fixed" | "donation" | "variable"
-    payment_description: Optional[str] = Field(None)
-    min_payment_amount: Optional[float] = Field(None)
-    max_payment_amount: Optional[float] = Field(None)
-
     @field_validator("form_width", mode="before")
     def validate_form_width(cls, v):
         return _validate_form_width(v)
@@ -122,14 +115,6 @@ class FormUpdate(BaseModel):
     form_width: Optional[str] = None
     supported_locales: Optional[List[str]] = None
 
-    # Payment configuration fields
-    requires_payment: Optional[bool] = None
-    payment_amount: Optional[float] = None
-    payment_type: Optional[str] = None
-    payment_description: Optional[str] = None
-    min_payment_amount: Optional[float] = None
-    max_payment_amount: Optional[float] = None
-
     @field_validator("slug", mode="before")
     @classmethod
     def validate_slug_update(cls, v):
@@ -167,14 +152,6 @@ class Form(MongoBaseModel, FormBase):
     slug: Optional[str]
     form_width: Optional[str]
     supported_locales: List[str] = Field(default_factory=list)
-
-    # Payment configuration fields
-    requires_payment: bool = Field(False)
-    payment_amount: Optional[float] = Field(None)
-    payment_type: Optional[str] = Field("fixed")
-    payment_description: Optional[str] = Field(None)
-    min_payment_amount: Optional[float] = Field(None)
-    max_payment_amount: Optional[float] = Field(None)
     expires_at: Optional[datetime]
 
 
@@ -193,13 +170,16 @@ class FormOut(BaseModel):
     form_width: Optional[str]
     supported_locales: List[str] = Field(default_factory=list)
 
-    # Payment configuration fields
-    requires_payment: bool = Field(False)
-    payment_amount: Optional[float] = Field(None)
-    payment_type: Optional[str] = Field("fixed")
-    payment_description: Optional[str] = Field(None)
-    min_payment_amount: Optional[float] = Field(None)
-    max_payment_amount: Optional[float] = Field(None)
+
+class FormResponsePaymentDetails(BaseModel):
+    payment_type: Literal["free", "paypal", "door"] = "free"
+    price: float = 0.0
+    payment_complete: bool = False
+    # Optional when not PayPal
+    transaction_id: Optional[str] = None
+    # Optional, for bookkeeping
+    currency: Optional[str] = "USD"
+    captured_amount: Optional[float] = None
 
 
 def _doc_to_out(doc: dict) -> FormOut:
@@ -235,12 +215,6 @@ def _doc_to_out(doc: dict) -> FormOut:
         updated_at=doc.get("updated_at"),
         form_width=normalized_width or DEFAULT_FORM_WIDTH,
         supported_locales=doc.get("supported_locales", []),
-        requires_payment=doc.get("requires_payment", False),
-        payment_amount=doc.get("payment_amount"),
-        payment_type=doc.get("payment_type", "fixed"),
-        payment_description=doc.get("payment_description"),
-        min_payment_amount=doc.get("min_payment_amount"),
-        max_payment_amount=doc.get("max_payment_amount"),
     )
 
 
@@ -271,7 +245,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
         except MinistryNotFoundError as exc:
             logger.warning("Form creation failed: %s", exc)
             return None
-
+    
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
             "ministries": ministries_list,
@@ -283,15 +257,9 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "expires_at": expires_val,
             "form_width": width,
             "supported_locales": getattr(form, "supported_locales", []),
-            "created_at": datetime.now(),
-            "updated_at": datetime.now(),
-            # Payment configuration fields
-            "requires_payment": getattr(form, "requires_payment", False),
-            "payment_amount": getattr(form, "payment_amount", None),
-            "payment_type": getattr(form, "payment_type", "fixed"),
-            "payment_description": getattr(form, "payment_description", None),
-            "min_payment_amount": getattr(form, "min_payment_amount", None),
-            "max_payment_amount": getattr(form, "max_payment_amount", None),
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+
         }
         result = await DB.db.forms.insert_one(doc)
         if result.inserted_id:
@@ -385,7 +353,7 @@ async def search_all_forms(
 
 async def list_visible_forms(skip: int = 0, limit: int = 100) -> List[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         cursor = (
             DB.db.forms.find(
                 {
@@ -415,7 +383,7 @@ async def search_visible_forms(
     limit: int = 100,
 ) -> List[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         query: dict = {
             "visible": True,
             "$or": [
@@ -455,7 +423,7 @@ async def get_form_by_id(form_id: str, user_id: str) -> Optional[FormOut]:
 
 async def get_form_by_slug(slug: str) -> Optional[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         doc = await DB.db.forms.find_one(
             {
                 "slug": slug,
@@ -491,7 +459,7 @@ async def check_form_slug_status(slug: str) -> Tuple[str, Optional[dict]]:
         if not doc_any.get("visible", False):
             return "not_visible", doc_any
         # If visible, check expiry
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         expires = doc_any.get("expires_at")
         if expires is None:
             return "ok", doc_any
@@ -524,7 +492,7 @@ async def get_form_by_id_unrestricted(form_id: str) -> Optional[FormOut]:
 
 async def get_visible_form_by_id(form_id: str) -> Optional[FormOut]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         doc = await DB.db.forms.find_one(
             {
                 "_id": ObjectId(form_id),
@@ -856,16 +824,20 @@ def _canonicalize_response(resp: Any) -> Any:
         canonical[base] = variants[first_key]
     return canonical
 
-
 async def add_response_by_slug(
-    slug: str, response: Any, user_id: Optional[str] = None
+    slug: str,
+    response: Any,
+    user_id: Optional[str] = None,
+    passed_payment: Optional[dict] = None,
 ) -> Tuple[bool, Optional[str]]:
-    """Validate the response against the stored form schema and append it to a single
-    aggregated response document for the form (one document per form_id) in the
-    form_responses collection under the `responses` array.
+    """Validate a response against the stored form schema and persist it.
 
-    Returns (True, response_identifier) or (False, error_message). The identifier is
-    the ISO timestamp of when the response was recorded.
+    The response is appended into a single aggregated document in `form_responses`
+    (one document per form_id) under the `responses` array.
+
+    Returns:
+        (True, response_identifier) or (False, error_message).
+        The identifier is the ISO timestamp of when the response was recorded.
     """
     try:
         status_str, doc_any = await check_form_slug_status(slug)
@@ -875,9 +847,11 @@ async def add_response_by_slug(
             return False, "Form not available"
         if status_str == "expired":
             return False, "Form expired"
+
         doc = doc_any
         if not doc:
             return False, "Form not found"
+
         form_id = doc.get("_id")
         try:
             schema_fields = _get_schema_fields(doc.get("data"))
@@ -890,9 +864,13 @@ async def add_response_by_slug(
         # Validate each declared field against the provided response payload
         # Only validate fields that are visible based on their visibility conditions
         for f in schema_fields:
-            name = f.get("name")
+            if not isinstance(f, dict):
+                continue
 
-            # Check if field is visible based on conditional visibility
+            name = f.get("name")
+            if not name:
+                continue
+
             visible_if = f.get("visibleIf")
             is_visible = _evaluate_visibility(visible_if, response_canon)
 
@@ -906,16 +884,32 @@ async def add_response_by_slug(
             if not valid:
                 return False, err
 
-        # Upsert a single aggregated responses document per form_id and push the new response
-        now = datetime.now()
-        # Build response entry and include user_id if provided
-        entry: dict = {"response": response_canon, "submitted_at": now}
+        # Build response entry
+        now = datetime.now(timezone.utc)
+        entry: dict = {
+            "response": response_canon,
+            "submitted_at": now,
+        }
+
+        # Attach user_id when provided
         if user_id:
             try:
                 entry["user_id"] = ObjectId(user_id)
             except Exception:
-                # fallback to plain string if not a valid ObjectId
                 entry["user_id"] = user_id
+
+        # Attach payment details (authoritative snapshot for this submission)
+        if passed_payment:
+            try:
+                payment_model = FormResponsePaymentDetails(**passed_payment)
+            except Exception as exc:
+                logger.error(f"Invalid payment payload for form response: {exc}")
+                payment_model = FormResponsePaymentDetails()
+        else:
+            # Default to "free" unless the controller passes in PayPal/door data
+            payment_model = FormResponsePaymentDetails()
+
+        entry["payment"] = payment_model.model_dump(exclude_none=True)
 
         update_result = await DB.db.form_responses.update_one(
             {"form_id": form_id},
@@ -925,6 +919,7 @@ async def add_response_by_slug(
         if update_result.matched_count == 0 and update_result.upserted_id is None:
             # Shouldn't happen, but indicates failure
             return False, "Failed to store response"
+
         # Return the timestamp as a stable identifier for the recorded response
         return True, now.isoformat()
     except Exception as e:
@@ -936,7 +931,7 @@ async def update_form(
     form_id: str, user_id: str, update: FormUpdate
 ) -> Optional[FormOut]:
     try:
-        update_doc = {"updated_at": datetime.now()}
+        update_doc = {"updated_at": datetime.now(timezone.utc)}
         if update.title is not None:
             update_doc["title"] = update.title
         if update.description is not None:
@@ -956,20 +951,6 @@ async def update_form(
             update_doc["expires_at"] = expires_val
         if update.supported_locales is not None:
             update_doc["supported_locales"] = update.supported_locales
-
-        # Handle payment configuration updates
-        if update.requires_payment is not None:
-            update_doc["requires_payment"] = update.requires_payment
-        if update.payment_amount is not None:
-            update_doc["payment_amount"] = update.payment_amount
-        if update.payment_type is not None:
-            update_doc["payment_type"] = update.payment_type
-        if update.payment_description is not None:
-            update_doc["payment_description"] = update.payment_description
-        if update.min_payment_amount is not None:
-            update_doc["min_payment_amount"] = update.min_payment_amount
-        if update.max_payment_amount is not None:
-            update_doc["max_payment_amount"] = update.max_payment_amount
 
         try:
             provided = update.model_dump(exclude_unset=True)
@@ -1054,12 +1035,17 @@ async def delete_form_responses(form_id: str, user_id: str) -> bool:
 
 
 async def get_form_responses(
-    form_id: str, user_id: str, skip: int = 0, limit: int | None = None
+    form_id: str,
+    user_id: str,
+    skip: int = 0,
+    limit: int | None = None,
 ) -> Optional[dict]:
     """Return responses for a form owned by the given user.
 
     Results include total count and a slice of items sorted by submitted_at DESC.
     The submitted_at values are returned as ISO strings for JSON serialization.
+
+    Each item includes a `payment` block summarizing how the submission was paid.
     """
     try:
         agg_doc = await DB.db.form_responses.find_one({"form_id": ObjectId(form_id)})
@@ -1069,39 +1055,50 @@ async def get_form_responses(
         responses = agg_doc.get("responses", []) or []
 
         # Sort by submitted_at desc (handle missing gracefully)
-        def _to_dt(x):
-            return x.get("submitted_at") or datetime.min
+        def _to_dt(x: dict) -> datetime:
+            val = x.get("submitted_at")
+            if isinstance(val, datetime):
+                return val
+            return datetime.min
 
         responses_sorted = sorted(responses, key=_to_dt, reverse=True)
-
         total = len(responses_sorted)
+
         # Apply pagination
         start = max(0, int(skip))
         if limit is None:
-            # No limit - return all items from start
             page_items = responses_sorted[start:]
         else:
             end = max(start, start + int(limit))
             page_items = responses_sorted[start:end]
 
-        items = []
+        items: list[dict] = []
         for r in page_items:
             submitted = r.get("submitted_at")
             if isinstance(submitted, datetime):
                 submitted_iso = submitted.isoformat()
             else:
                 submitted_iso = str(submitted) if submitted is not None else None
-            # Convert user_id to string if present
+
             uid = r.get("user_id")
             if isinstance(uid, ObjectId):
                 uid_str = str(uid)
             else:
                 uid_str = str(uid) if uid is not None else None
+
+            # Normalize payment block for the frontend
+            raw_payment = r.get("payment") or {}
+            try:
+                payment_obj = FormResponsePaymentDetails(**raw_payment)
+            except Exception:
+                payment_obj = FormResponsePaymentDetails()
+
             items.append(
                 {
                     "submitted_at": submitted_iso,
                     "user_id": uid_str,
                     "response": _canonicalize_response(r.get("response", {})),
+                    "payment": payment_obj.model_dump(exclude_none=True),
                 }
             )
 
@@ -1109,3 +1106,70 @@ async def get_form_responses(
     except Exception as e:
         logger.error(f"Error getting form responses: {e}")
         return None
+
+async def mark_form_response_paid(
+    form_id: str,
+    submitted_at: str,
+) -> Tuple[bool, str]:
+    """
+    Mark a single stored form response as paid (payment_complete = True),
+    identified by (form_id, submitted_at ISO string).
+
+    Returns (success, message).
+    """
+    try:
+        form_oid = ObjectId(form_id)
+    except Exception:
+        return False, "Invalid form_id"
+
+    agg_doc = await DB.db.form_responses.find_one({"form_id": form_oid})
+    if not agg_doc:
+        return False, "No responses found for this form"
+
+    raw_submitted = (submitted_at or "").strip()
+    if not raw_submitted:
+        return False, "submitted_at is required"
+
+    target_dt = None
+    try:
+        target_dt = datetime.fromisoformat(raw_submitted)
+    except Exception:
+        # If parsing fails, we'll compare as plain string
+        target_dt = None
+
+    responses = agg_doc.get("responses", []) or []
+    changed = False
+
+    for r in responses:
+        stored = r.get("submitted_at")
+
+        match = False
+        if isinstance(stored, datetime) and target_dt is not None:
+            match = stored == target_dt
+        elif isinstance(stored, str):
+            match = stored == raw_submitted
+
+        if not match:
+            continue
+
+        # Normalize / rebuild payment block
+        payment_raw = r.get("payment") or {}
+        try:
+            payment_obj = FormResponsePaymentDetails(**payment_raw)
+        except Exception:
+            payment_obj = FormResponsePaymentDetails()
+
+        payment_obj.payment_complete = True
+        r["payment"] = payment_obj.model_dump(exclude_none=True)
+        changed = True
+        break
+
+    if not changed:
+        return False, "Matching response not found"
+
+    await DB.db.form_responses.update_one(
+        {"_id": agg_doc["_id"]},
+        {"$set": {"responses": responses}},
+    )
+
+    return True, "Marked response as paid"

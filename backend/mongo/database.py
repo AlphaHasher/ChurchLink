@@ -25,8 +25,15 @@ class DB:
         },
         {
             "name": "events",
-            # Reverting indexes back to original based on user feedback
-            "indexes": ["name"]
+            "indexes": []
+        },
+        {
+            "name": "event_instances",
+            "indexes": []
+        },
+        {
+            "name": "event_transactions",
+            "indexes": []
         },
         {
             "name": "ministries",
@@ -56,14 +63,6 @@ class DB:
         {
             "name": "bible_notes",
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
-        },
-        {
-            "name": "donations_subscriptions",
-            "indexes": ["subscription_id"]
-        },
-        {
-            "name": "transactions",
-            "indexes": ["transaction_id"]
         },
         {
             "name": "settings",

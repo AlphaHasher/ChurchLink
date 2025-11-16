@@ -28,7 +28,7 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
     });
     const [submitting, setSubmitting] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-	const [open, setOpen] = React.useState(false);
+    const [open, setOpen] = React.useState(false);
 
     const isValid =
         info.firstName.trim().length > 0 &&
@@ -73,7 +73,7 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
             if (res?.success) {
                 onCreated?.();
                 resetForm();
-				setOpen(false);
+                setOpen(false);
             } else {
                 setError(localize("Failed to add family member. Please try again."));
             }
@@ -84,8 +84,8 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
         }
     };
 
-	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button
                     variant="outline"
@@ -95,7 +95,7 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg z-500">
                 <DialogHeader>
                     <DialogTitle>{localize("Add Family Member")}</DialogTitle>
                     <DialogDescription>{localize("Enter the person’s details below.")}</DialogDescription>
@@ -109,22 +109,22 @@ export const AddPersonDialog: React.FC<AddPersonDialogProps> = ({ onCreated }) =
                     </div>
                 )}
 
-				<DialogFooter>
-					<DialogClose asChild>
-						<Button
-							variant="outline"
-							type="button"
-							className="!bg-transparent !text-foreground hover:!bg-muted"
-							disabled={submitting}
-						>
-							{localize("Cancel")}
-						</Button>
-					</DialogClose>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button
+                            variant="outline"
+                            type="button"
+                            className="!bg-transparent !text-foreground hover:!bg-muted"
+                            disabled={submitting}
+                        >
+                            {localize("Cancel")}
+                        </Button>
+                    </DialogClose>
 
-					<Button type="button" onClick={handleCreate} disabled={!isValid || submitting}>
-						{submitting ? localize("Creating...") : localize("Create")}
-					</Button>
-				</DialogFooter>
+                    <Button type="button" onClick={handleCreate} disabled={!isValid || submitting}>
+                        {submitting ? localize("Creating...") : localize("Create")}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

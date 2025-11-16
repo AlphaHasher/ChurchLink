@@ -327,332 +327,331 @@ const EditPage = ({ onPageDataChange }: EditPageProps = {}) => {
               Add Section
             </Button>
           </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-          <div className="flex flex-col gap-4">
-            {sections.map((section, index) => (
-              <SortableItem key={section.id} id={section.id}>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col gap-4">
+                {sections.map((section, index) => (
+                  <SortableItem key={section.id} id={section.id}>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="capitalize">{section.type.replace("-", " ")} Section</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                  {section.type === "text" && (
-                    <TextSection
-                      data={section.content as TextContent}
-                      isEditing
-                      onChange={(newContent) => handleContentChange(index, newContent)}
-                    />
-                  )}
-                  {section.type === "image" && (
-                    <div className="flex flex-col gap-2">
-                      {typeof section.content === "string" && section.content && (
-                        <img src={section.content} alt="Preview" className="max-w-full h-auto rounded border mt-2" />
-                      )}
-                      <Input
-                        type="text"
-                        placeholder="Image URL"
-                        value={typeof section.content === "string" ? section.content : ""}
-                        onChange={(e) => {
-                          const updatedSections = [...sections];
-                          updatedSections[index].content = e.target.value;
-                          setSections(updatedSections);
-                        }}
-                      />
-
-                    </div>
-                  )}
-                  {section.type === "video" && (
-                    <div>
-                      <Input
-                        type="text"
-                        placeholder="YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
-                        value={typeof section.content === "string" ? section.content : ""}
-                        onChange={(e) => {
-                          const input = e.target.value;
-                          let embedUrl = input;
-
-                          // Auto-convert watch URLs to embed
-                          const youtubeMatch = input.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/);
-                          if (youtubeMatch) {
-                            const videoId = youtubeMatch[1];
-                            embedUrl = `https://www.youtube.com/embed/${videoId}`;
-                          }
-
-                          handleContentChange(index, embedUrl);
-                        }}
-                      />
-                      {section.content && (
-                        <div className="mt-2">
-                          <iframe
-                            src={typeof section.content === "string" ? section.content : ""}
-                            className="w-full aspect-video"
-                            allowFullScreen
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="capitalize">{section.type.replace("-", " ")} Section</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {section.type === "text" && (
+                          <TextSection
+                            data={section.content as TextContent}
+                            isEditing
+                            onChange={(newContent) => handleContentChange(index, newContent)}
                           />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {section.type === "hero" && (
-                    <HeroSection
-                      data={section.content as HeroContent}
-                      isEditing
-                      onChange={(newContent) => handleContentChange(index, newContent)}
-                    />
-                  )}
-                  {section.type === "paypal" && (
-                    <PaypalSection
-                      data={section.content as PaypalSectionContent}
-                      isEditing
-                      onChange={(newContent) => handleContentChange(index, newContent)}
-                      editableFields={["backgroundImageUrl", "title", "subtitle", "buttonText"]}
-                    />
-                  )}
-                  {section.type === "service-times" && (
-                    <ServiceTimesSection
-                      data={section.content as ServiceTimesContent}
-                      isEditing
-                      onChange={(newContent) => handleContentChange(index, newContent)}
-                    />
-                  )}
-                  {section.type === "menu" && (
-                    <MenuSection
-                      data={section.content as MenuSectionContent}
-                      isEditing
-                      onChange={(newContent) => handleContentChange(index, newContent)}
-                    />
-                  )}
-                  {section.type === "contact-info" && (
-                    <ContactInfoSection
-                      data={section.content as ContactInfoContent}
-                      isEditing
-                      onChange={(newContent) => handleContentChange(index, newContent)}
-                    />
-                  )}
-                  {section.type === "map" && (
-                    <MapSection
-                      data={section.content as { embedUrl?: string }}
-                      isEditing
-                      onChange={(newContent) => handleContentChange(index, newContent)}
-                    />
-                  )}
-                  {section.type === "event" && (
-                    <div className="pointer-events-none opacity-60">
-                      <EventSection
-                        showFilters={section.settings?.showFilters !== false}
-                        eventName={section.settings?.eventName}
-                        lockedFilters={section.settings?.lockedFilters}
-                        title={section.settings?.title}
-                        showTitle={section.settings?.showTitle !== false}
-                      />
-                      <p className="text-center text-sm text-gray-500 mt-2">This section is preview-only and not editable.</p>
-                    </div>
-                  )}
-                  {section.type === "event" && (
-                    <div className="mt-2 flex flex-col gap-2">
-                      <label className="text-sm flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={
-                            !!section.settings?.showFilters &&
-                            !(
-                              (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
-                              !!section.settings?.lockedFilters?.ministry ||
-                              !!section.settings?.lockedFilters?.ageRange
-                            )
-                          }
-                          disabled={
-                            (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
-                            !!section.settings?.lockedFilters?.ministry ||
-                            !!section.settings?.lockedFilters?.ageRange
-                          }
-                          onChange={(e) => {
-                            const updatedSections = [...sections];
-                            const updatedSettings = {
-                              ...(section.settings || {}),
-                              showFilters: e.target.checked,
-                            };
-                            updatedSections[index] = { ...section, settings: updatedSettings };
-                            setSections(updatedSections);
-                          }}
-                          className="mr-1"
-                        />
-                        Show Filters
-                        {(section.settings?.eventName?.length || section.settings?.lockedFilters?.ministry || section.settings?.lockedFilters?.ageRange) && (
-                          <span className="text-xs text-gray-500 ml-2">(Disabled when using specific event or locked filter)</span>
                         )}
-                      </label>
-                      <MultiTagInput
-                        label="Specific Event Names"
-                        value={Array.isArray(section.settings?.eventName) ? section.settings.eventName : section.settings?.eventName ? [section.settings.eventName] : []}
-                        onChange={(newTags) => {
-                          const updatedSections = [...sections];
-                          const updatedSettings = { ...(section.settings || {}), eventName: newTags };
-                          updatedSections[index] = { ...section, settings: updatedSettings };
-                          setSections(updatedSections);
-                        }}
-                        placeholder="Add event name"
-                        suggestions={eventSuggestions}
-                        datalistId={`eventSuggestions-${index}`}
-                      />
-                      <label className="text-sm">
-                        Lock Ministry Filter:
-                        <select
-                          className="ml-2 border px-2 py-1 rounded"
-                          value={section.settings?.lockedFilters?.ministry || ""}
-                          onChange={(e) => {
-                            const updatedSections = [...sections];
-                            const updatedSettings = {
-                              ...(section.settings || {}),
-                              lockedFilters: {
-                                ...(section.settings?.lockedFilters || {}),
-                                ministry: e.target.value || undefined
-                              }
-                            };
-                            updatedSections[index] = { ...section, settings: updatedSettings };
-                            setSections(updatedSections);
-                          }}
-                        >
-                          <option value="">-- None --</option>
-                          <option value="Youth">Youth</option>
-                          <option value="Young Adults">Young Adults</option>
-                          <option value="Men">Men</option>
-                          <option value="Women">Women</option>
-                        </select>
-                      </label>
-                      <label className="text-sm">
-                        Lock Age Range Filter:
-                        <select
-                          className="ml-2 border px-2 py-1 rounded"
-                          value={section.settings?.lockedFilters?.ageRange || ""}
-                          onChange={(e) => {
-                            const updatedSections = [...sections];
-                            const updatedSettings = {
-                              ...(section.settings || {}),
-                              lockedFilters: {
-                                ...(section.settings?.lockedFilters || {}),
-                                ageRange: e.target.value || undefined
-                              }
-                            };
-                            updatedSections[index] = { ...section, settings: updatedSettings };
-                            setSections(updatedSections);
-                          }}
-                        >
-                          <option value="">-- None --</option>
-                          <option value="0-12">0–12</option>
-                          <option value="13-17">13–17</option>
-                          <option value="18-35">18–35</option>
-                          <option value="36-60">36–60</option>
-                          <option value="60+">60+</option>
-                        </select>
-                      </label>
-                      <label className="text-sm">
-                        Section Title:
-                        <input
-                          type="text"
-                          className="ml-2 border px-2 py-1 rounded w-full"
-                          placeholder="Upcoming Events"
-                          value={section.settings?.title || ""}
-                          onChange={(e) => {
-                            const updatedSections = [...sections];
-                            const updatedSettings = { ...(section.settings || {}), title: e.target.value };
-                            updatedSections[index] = { ...section, settings: updatedSettings };
-                            setSections(updatedSections);
-                          }}
-                        />
-                      </label>
-                      <label className="text-sm flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={section.settings?.showTitle !== false}
-                          onChange={(e) => {
-                            const updatedSections = [...sections];
-                            const updatedSettings = {
-                              ...(section.settings || {}),
-                              showTitle: e.target.checked,
-                            };
-                            updatedSections[index] = { ...section, settings: updatedSettings };
-                            setSections(updatedSections);
-                          }}
-                        />
-                        Show Title
-                      </label>
-                    </div>
-                  )}
-                    <Button
-                      onClick={() => handleRemoveSection(index)}
-                      variant="destructive"
-                      className="mt-4"
-                    >
-                      Remove Section
-                    </Button>
-                  </CardContent>
-                </Card>
-              </SortableItem>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
-      <Button
-        onClick={async () => {
-          if (!slug) return;
-          setPublishError(null);
-          setIsPublishing(true);
-          try {
-            // Ensure latest content is saved to staging before publishing
-            await pageApi.saveStaging(slug, { title: pageData?.title, slug, sections, visible: pageData?.visible });
-            await pageApi.publish(slug);
-            setIsPublishSuccessOpen(true);
-          } catch (e: any) {
-            console.error("Publish failed", e);
-            setPublishError(e?.response?.data?.detail || "Failed to publish. See console.");
-            setIsPublishSuccessOpen(true); // reuse dialog to show error
-          } finally {
-            setIsPublishing(false);
-          }
-        }}
-        className="mt-6 bg-blue-600 hover:bg-blue-700"
-        disabled={isPublishing}
-      >
-        Publish
-      </Button>
+                        {section.type === "image" && (
+                          <div className="flex flex-col gap-2">
+                            {typeof section.content === "string" && section.content && (
+                              <img src={section.content} alt="Preview" className="max-w-full h-auto rounded border mt-2" />
+                            )}
+                            <Input
+                              type="text"
+                              placeholder="Image URL"
+                              value={typeof section.content === "string" ? section.content : ""}
+                              onChange={(e) => {
+                                const updatedSections = [...sections];
+                                updatedSections[index].content = e.target.value;
+                                setSections(updatedSections);
+                              }}
+                            />
 
-      {/* Publish Result Dialog */}
-      <AlertDialog open={isPublishSuccessOpen} onOpenChange={setIsPublishSuccessOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{publishError ? "Publish failed" : "Published successfully"}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {publishError ? publishError : "Your draft has been published to the live site."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setIsPublishSuccessOpen(false)} className="bg-blue-600 hover:bg-blue-700">
-              OK
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                          </div>
+                        )}
+                        {section.type === "video" && (
+                          <div>
+                            <Input
+                              type="text"
+                              placeholder="YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
+                              value={typeof section.content === "string" ? section.content : ""}
+                              onChange={(e) => {
+                                const input = e.target.value;
+                                let embedUrl = input;
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently remove this section from the page.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteSection} className="bg-red-600 hover:bg-red-700">
-              Delete Section
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      </CardContent>
+                                // Auto-convert watch URLs to embed
+                                const youtubeMatch = input.match(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/);
+                                if (youtubeMatch) {
+                                  const videoId = youtubeMatch[1];
+                                  embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                                }
+
+                                handleContentChange(index, embedUrl);
+                              }}
+                            />
+                            {section.content && (
+                              <div className="mt-2">
+                                <iframe
+                                  src={typeof section.content === "string" ? section.content : ""}
+                                  className="w-full aspect-video"
+                                  allowFullScreen
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {section.type === "hero" && (
+                          <HeroSection
+                            data={section.content as HeroContent}
+                            isEditing
+                            onChange={(newContent) => handleContentChange(index, newContent)}
+                          />
+                        )}
+                        {section.type === "paypal" && (
+                          <PaypalSection
+                            data={section.content as PaypalSectionContent}
+                            isEditing
+                            onChange={(newContent) => handleContentChange(index, newContent)}
+                            editableFields={["backgroundImageUrl", "title", "subtitle", "buttonText"]}
+                          />
+                        )}
+                        {section.type === "service-times" && (
+                          <ServiceTimesSection
+                            data={section.content as ServiceTimesContent}
+                            isEditing
+                            onChange={(newContent) => handleContentChange(index, newContent)}
+                          />
+                        )}
+                        {section.type === "menu" && (
+                          <MenuSection
+                            data={section.content as MenuSectionContent}
+                            isEditing
+                            onChange={(newContent) => handleContentChange(index, newContent)}
+                          />
+                        )}
+                        {section.type === "contact-info" && (
+                          <ContactInfoSection
+                            data={section.content as ContactInfoContent}
+                            isEditing
+                            onChange={(newContent) => handleContentChange(index, newContent)}
+                          />
+                        )}
+                        {section.type === "map" && (
+                          <MapSection
+                            data={section.content as { embedUrl?: string }}
+                            isEditing
+                            onChange={(newContent) => handleContentChange(index, newContent)}
+                          />
+                        )}
+                        {section.type === "event" && (
+                          <div className="pointer-events-none opacity-60">
+                            <EventSection
+                              showFilters={section.settings?.showFilters !== false}
+                              lockedFilters={section.settings?.lockedFilters}
+                              title={section.settings?.title}
+                              showTitle={section.settings?.showTitle !== false}
+                            />
+                            <p className="text-center text-sm text-gray-500 mt-2">This section is preview-only and not editable.</p>
+                          </div>
+                        )}
+                        {section.type === "event" && (
+                          <div className="mt-2 flex flex-col gap-2">
+                            <label className="text-sm flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  !!section.settings?.showFilters &&
+                                  !(
+                                    (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
+                                    !!section.settings?.lockedFilters?.ministry ||
+                                    !!section.settings?.lockedFilters?.ageRange
+                                  )
+                                }
+                                disabled={
+                                  (Array.isArray(section.settings?.eventName) && section.settings.eventName.length > 0) ||
+                                  !!section.settings?.lockedFilters?.ministry ||
+                                  !!section.settings?.lockedFilters?.ageRange
+                                }
+                                onChange={(e) => {
+                                  const updatedSections = [...sections];
+                                  const updatedSettings = {
+                                    ...(section.settings || {}),
+                                    showFilters: e.target.checked,
+                                  };
+                                  updatedSections[index] = { ...section, settings: updatedSettings };
+                                  setSections(updatedSections);
+                                }}
+                                className="mr-1"
+                              />
+                              Show Filters
+                              {(section.settings?.eventName?.length || section.settings?.lockedFilters?.ministry || section.settings?.lockedFilters?.ageRange) && (
+                                <span className="text-xs text-gray-500 ml-2">(Disabled when using specific event or locked filter)</span>
+                              )}
+                            </label>
+                            <MultiTagInput
+                              label="Specific Event Names"
+                              value={Array.isArray(section.settings?.eventName) ? section.settings.eventName : section.settings?.eventName ? [section.settings.eventName] : []}
+                              onChange={(newTags) => {
+                                const updatedSections = [...sections];
+                                const updatedSettings = { ...(section.settings || {}), eventName: newTags };
+                                updatedSections[index] = { ...section, settings: updatedSettings };
+                                setSections(updatedSections);
+                              }}
+                              placeholder="Add event name"
+                              suggestions={eventSuggestions}
+                              datalistId={`eventSuggestions-${index}`}
+                            />
+                            <label className="text-sm">
+                              Lock Ministry Filter:
+                              <select
+                                className="ml-2 border px-2 py-1 rounded"
+                                value={section.settings?.lockedFilters?.ministry || ""}
+                                onChange={(e) => {
+                                  const updatedSections = [...sections];
+                                  const updatedSettings = {
+                                    ...(section.settings || {}),
+                                    lockedFilters: {
+                                      ...(section.settings?.lockedFilters || {}),
+                                      ministry: e.target.value || undefined
+                                    }
+                                  };
+                                  updatedSections[index] = { ...section, settings: updatedSettings };
+                                  setSections(updatedSections);
+                                }}
+                              >
+                                <option value="">-- None --</option>
+                                <option value="Youth">Youth</option>
+                                <option value="Young Adults">Young Adults</option>
+                                <option value="Men">Men</option>
+                                <option value="Women">Women</option>
+                              </select>
+                            </label>
+                            <label className="text-sm">
+                              Lock Age Range Filter:
+                              <select
+                                className="ml-2 border px-2 py-1 rounded"
+                                value={section.settings?.lockedFilters?.ageRange || ""}
+                                onChange={(e) => {
+                                  const updatedSections = [...sections];
+                                  const updatedSettings = {
+                                    ...(section.settings || {}),
+                                    lockedFilters: {
+                                      ...(section.settings?.lockedFilters || {}),
+                                      ageRange: e.target.value || undefined
+                                    }
+                                  };
+                                  updatedSections[index] = { ...section, settings: updatedSettings };
+                                  setSections(updatedSections);
+                                }}
+                              >
+                                <option value="">-- None --</option>
+                                <option value="0-12">0–12</option>
+                                <option value="13-17">13–17</option>
+                                <option value="18-35">18–35</option>
+                                <option value="36-60">36–60</option>
+                                <option value="60+">60+</option>
+                              </select>
+                            </label>
+                            <label className="text-sm">
+                              Section Title:
+                              <input
+                                type="text"
+                                className="ml-2 border px-2 py-1 rounded w-full"
+                                placeholder="Upcoming Events"
+                                value={section.settings?.title || ""}
+                                onChange={(e) => {
+                                  const updatedSections = [...sections];
+                                  const updatedSettings = { ...(section.settings || {}), title: e.target.value };
+                                  updatedSections[index] = { ...section, settings: updatedSettings };
+                                  setSections(updatedSections);
+                                }}
+                              />
+                            </label>
+                            <label className="text-sm flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={section.settings?.showTitle !== false}
+                                onChange={(e) => {
+                                  const updatedSections = [...sections];
+                                  const updatedSettings = {
+                                    ...(section.settings || {}),
+                                    showTitle: e.target.checked,
+                                  };
+                                  updatedSections[index] = { ...section, settings: updatedSettings };
+                                  setSections(updatedSections);
+                                }}
+                              />
+                              Show Title
+                            </label>
+                          </div>
+                        )}
+                        <Button
+                          onClick={() => handleRemoveSection(index)}
+                          variant="destructive"
+                          className="mt-4"
+                        >
+                          Remove Section
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </SortableItem>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+          <Button
+            onClick={async () => {
+              if (!slug) return;
+              setPublishError(null);
+              setIsPublishing(true);
+              try {
+                // Ensure latest content is saved to staging before publishing
+                await pageApi.saveStaging(slug, { title: pageData?.title, slug, sections, visible: pageData?.visible });
+                await pageApi.publish(slug);
+                setIsPublishSuccessOpen(true);
+              } catch (e: any) {
+                console.error("Publish failed", e);
+                setPublishError(e?.response?.data?.detail || "Failed to publish. See console.");
+                setIsPublishSuccessOpen(true); // reuse dialog to show error
+              } finally {
+                setIsPublishing(false);
+              }
+            }}
+            className="mt-6 bg-blue-600 hover:bg-blue-700"
+            disabled={isPublishing}
+          >
+            Publish
+          </Button>
+
+          {/* Publish Result Dialog */}
+          <AlertDialog open={isPublishSuccessOpen} onOpenChange={setIsPublishSuccessOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{publishError ? "Publish failed" : "Published successfully"}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {publishError ? publishError : "Your draft has been published to the live site."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogAction onClick={() => setIsPublishSuccessOpen(false)} className="bg-blue-600 hover:bg-blue-700">
+                  OK
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently remove this section from the page.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeleteSection} className="bg-red-600 hover:bg-red-700">
+                  Delete Section
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardContent>
       </Card>
     </WebBuilderLayout>
   );

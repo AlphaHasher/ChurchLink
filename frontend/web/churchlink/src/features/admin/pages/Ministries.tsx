@@ -267,6 +267,7 @@ const Ministries = () => {
                     loading={loading}
                     overlayNoRowsTemplate={loading ? '<span>Loading ministries...</span>' : '<span>No ministries found.</span>'}
                     context={context}
+                    enableCellTextSelection
                 />
             </div>
 

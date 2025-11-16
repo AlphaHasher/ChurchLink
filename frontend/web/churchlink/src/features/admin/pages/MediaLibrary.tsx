@@ -262,22 +262,22 @@ const MediaLibrary: React.FC<{
 
   const handleCreateFolder = async () => {
     const trimmedName = newFolderName.trim();
-    
+
     if (!trimmedName) {
       setCreateFolderError('Folder name cannot be empty');
       return;
     }
-    
+
     try {
       setCreateFolderError(null);
       const path = currentFolder ? `${currentFolder}/${trimmedName}` : trimmedName;
       const res = await createFolderHelper(path);
-      
+
       if (res?.details?.created === false && res?.details?.reason === 'duplicate') {
         setCreateFolderError('A folder with that name already exists here.');
         return;
       }
-      
+
       // Success - close dialog and refresh
       setCreateFolderOpen(false);
       setNewFolderName('');
@@ -292,7 +292,7 @@ const MediaLibrary: React.FC<{
   const visibleCount = debouncedQ ? assets.length : assets.length + subfolders.length;
 
   return (
-    <div className="p-6">
+    <div>
       <div
         className="mx-auto max-w-[1400px] rounded-2xl border shadow-sm bg-background overflow-hidden"
         onContextMenu={(e) => {
@@ -353,7 +353,7 @@ const MediaLibrary: React.FC<{
                 fileInputRef.current?.click();
               }}>Upload</Button>
             )}
-            
+
             {/* New Folder button - always show regardless of selection mode */}
             <Button onClick={openCreateFolderDialog}>New Folder</Button>
             <input
@@ -509,7 +509,7 @@ const MediaLibrary: React.FC<{
               <Upload className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-base font-medium text-gray-900 mb-1">No items</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                {selectionMode 
+                {selectionMode
                   ? "Right-click to create a folder or use the 'New Folder' button above."
                   : "Right-click to create a folder or drag files here to upload."}
               </p>

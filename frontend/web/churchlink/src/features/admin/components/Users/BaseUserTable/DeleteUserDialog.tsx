@@ -39,10 +39,10 @@ export const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
         try {
             // Call admin endpoint to delete user
             await api.delete(`/v1/users/delete-user/${userId}`);
-            
+
             // Refresh the users list
             await onDeleted();
-            
+
             // Close the dialog
             setOpen(false);
         } catch (err: any) {
@@ -91,7 +91,7 @@ export const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({
                                     <p className="text-sm text-amber-800">Email: {userEmail}</p>
                                 </div>
                                 <p className="text-sm text-gray-600">
-                                    The user will be permanently deleted from both MongoDB and Firebase Authentication.
+                                    The user will be permanently deleted from both MongoDB and Firebase Authentication. This user will automatically be refunded for and unregistered from any upcoming events.
                                 </p>
                                 {error && (
                                     <p className="rounded bg-red-50 p-2 text-sm text-red-700">

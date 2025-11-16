@@ -45,40 +45,6 @@ async def get_form_by_slug_route(slug: str, request: Request) -> FormOut:
     return form
 
 
-@public_forms_router.post("/slug/{slug}/responses")
-async def submit_response_by_slug(slug: str, request: Request):
-    try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
-    
-    uid = None
-    
-    # In E2E test mode, skip authentication
-    if E2E_TEST_MODE:
-        uid = "e2e-test-user-id"
-    else:
-        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
-        if not auth_header:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
-
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
-
-        token = parts[1]
-        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-        try:
-            uid = await authenticate_uid(creds)
-        except HTTPException:
-            raise
-
-    ok, info = await add_response_by_slug(slug, payload, user_id=uid)
-    if not ok:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or "Failed to store response")
-    return {"message": "Response recorded", "response_id": info}
-
-
 @public_forms_router.get("/public", response_model=List[FormOut])
 async def list_public_visible_forms(request: Request, skip: int = 0, limit: int = 100) -> List[FormOut]:
     """Return public forms which are visible and not expired, using server time for expiry checks."""

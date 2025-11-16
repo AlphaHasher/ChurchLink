@@ -588,7 +588,7 @@ const ManageForms = () => {
   };
 
   return (
-    <div className="p-6">
+    <div>
       <h1 className="text-2xl font-semibold mb-4">Forms</h1>
 
       <FormsTabs />
