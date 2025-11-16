@@ -256,36 +256,6 @@ async def get_my_notification_preferences(request: Request):
 
 # Device-specific notification preference management
 
-
-@bible_notification_router.post("/device-preference")
-async def update_device_bible_plan_preference(
-    request: DeviceNotificationPreferenceRequest,
-):
-    """Update Bible plan notification preference for a specific device token"""
-    try:
-        result = await update_bible_plan_notification_preference(
-            token=request.token, enabled=request.enabled
-        )
-
-        if result.get("success"):
-            return {
-                "success": True,
-                "message": f"Bible plan notifications {'enabled' if request.enabled else 'disabled'} for device",
-                "enabled": request.enabled,
-            }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to update device preference",
-            )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update device preference: {str(e)}",
-        )
-
-
 @bible_notification_router.get("/device-preference/{token}")
 async def get_device_bible_plan_preference_endpoint(token: str):
     """Get Bible plan notification preference for a specific device token"""
