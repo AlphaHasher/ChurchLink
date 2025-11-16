@@ -43,9 +43,8 @@ const initializeLayouts = (nodes: Node[], parentYu = 0, isNested = false): Node[
 
     newNode.layout = layout;
 
-    if (!hasYu) {
-      currentYu += isNested ? 1 : 2;
-    }
+    const spacing = isNested ? 1 : 2;
+    currentYu = Math.max(currentYu, assignedYu + assignedHu + spacing);
 
     if (newNode.children && newNode.children.length > 0) {
       newNode.children = initializeLayouts(newNode.children, 0, true); // Reset yu for nested
