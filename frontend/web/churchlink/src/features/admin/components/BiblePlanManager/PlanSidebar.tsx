@@ -22,7 +22,7 @@ import {
 } from '@/shared/components/ui/alert-dialog';
 import { ReadingPlan, BiblePassage } from '@/shared/types/BiblePlan';
 import BiblePassageSelector from './BiblePassageSelector';
-import { Download, Upload, Save, ChevronDown } from 'lucide-react';
+import { Download, Upload, Save, ChevronDown, RefreshCw } from 'lucide-react';
 
 interface PlanSidebarProps {
   plan: ReadingPlan;
@@ -73,6 +73,32 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
     }
   }, [status]);
 
+  // Function to refresh templates (clears cache and refetches)
+  const refreshTemplates = async () => {
+    templatesCache = null; // Clear the cache
+    setLoadingTemplates(true);
+    try {
+      const response = await api.get('/v1/bible-plans/templates');
+      const freshTemplates = response.data as ReadingPlanWithId[] || [];
+      templatesCache = freshTemplates; // Update cache
+      setTemplates(freshTemplates);
+      setStatus({
+        type: 'success',
+        title: 'Templates Refreshed',
+        message: 'Bible plan templates have been reloaded.'
+      });
+    } catch (error) {
+      console.error('Failed to refresh templates:', error);
+      setStatus({
+        type: 'error',
+        title: 'Failed to refresh templates',
+        message: 'Could not reload Bible plan templates. Please try again.'
+      });
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
   // Load templates using cache/in-flight promise
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +111,9 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
       templatesInFlight = api.get('/v1/bible-plans/templates')
         .then(r => r.data as ReadingPlanWithId[])
         .then(data => {
-          return data || [];
+          const templates = data || [];
+          templatesCache = templates; // Cache the fetched templates
+          return templates;
         })
         .finally(() => {
           templatesInFlight = null;
@@ -159,10 +187,25 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
     plans: ReadingPlanWithId[],
     type: 'template' | 'userPlan',
     isLoading = false,
-    emptyMessage = 'No items available'
+    emptyMessage = 'No items available',
+    onRefresh?: () => void
   ) => (
     <div className="space-y-2">
-      <Label>{label}</Label>
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        {onRefresh && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isLoading}
+            className="h-6 w-6 p-0"
+            title="Refresh templates"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
+      </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -231,7 +274,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
 
       let resp;
       if (shouldUpdate) {
-        resp = await api.put(`/v1/bible-plans/${planId}`, {
+        resp = await api.put(`/v1/bible-plans/by-id/${planId}`, {
           name: trimmedName,
           duration: plan.duration,
           readings: plan.readings
@@ -259,7 +302,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
     if (!overrideTargetId) return;
     try {
       const trimmedName = (planName || '').trim();
-      const resp = await api.put(`/v1/bible-plans/${overrideTargetId}`, {
+      const resp = await api.put(`/v1/bible-plans/by-id/${overrideTargetId}`, {
         name: trimmedName,
         duration: plan.duration,
         readings: plan.readings
@@ -351,7 +394,8 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
           templates,
           'template',
           loadingTemplates,
-          'No templates available'
+          'No templates available',
+          refreshTemplates
         )}
 
         {/* Bible Passage Selector */}

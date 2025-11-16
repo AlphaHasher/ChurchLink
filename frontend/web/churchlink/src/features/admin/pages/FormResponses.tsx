@@ -550,7 +550,7 @@ const FormResponses = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Button variant="ghost" onClick={() => navigate('/admin/forms/manage-forms')} title="Back to Manage Forms">

@@ -327,3 +327,39 @@ async def get_published_reading_plans() -> List[ReadingPlanOut]:
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching published reading plans: {e}")
 
+
+async def create_template_from_plan(plan_id: str, user_id: str) -> Optional[ReadingPlanTemplateOut]:
+    """Create a template from an existing Bible plan"""
+    try:
+        # Get the plan
+        plan = await get_reading_plan_by_id(plan_id, user_id)
+        if not plan:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+        
+        # Create template document (without user_id, created_at, updated_at, visible)
+        template_doc = {
+            "name": plan.name,
+            "duration": plan.duration,
+            "readings": {k: [p.model_dump() for p in v] for k, v in plan.readings.items()}
+        }
+        
+        # Insert into bible_plan_templates collection
+        result = await DB.db.bible_plan_templates.insert_one(template_doc)
+        
+        if result.inserted_id:
+            created = await DB.db.bible_plan_templates.find_one({"_id": result.inserted_id})
+            if created:
+                readings = {k: [BiblePassage(**p) for p in v] for k, v in created.get("readings", {}).items()}
+                return ReadingPlanTemplateOut(
+                    id=str(created.get("_id")),
+                    name=created["name"],
+                    duration=created["duration"],
+                    readings=readings
+                )
+        
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating template from plan: {e}")
+
