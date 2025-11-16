@@ -24,6 +24,7 @@ import 'package:app/services/fcm_token_service.dart';
 import 'package:app/gates/auth_gate.dart';
 import 'package:app/theme/app_theme.dart';
 import 'package:app/theme/theme_controller.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -62,16 +63,19 @@ Future<void> main() async {
   // Startup connectivity service
   ConnectivityService().start();
 
-  RemoteMessage? initialMessage =
-      await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMessage != null) {
-    initialNotificationData = initialMessage.data;
-    // Store the initial message for handling after the app is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      DeepLinkingService.handleNotificationData(initialMessage.data);
-    });
-  }
+    RemoteMessage? initialMessage =
+        await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) {
+      initialNotificationData = initialMessage.data;
+      // Store the initial message for handling after the app is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeepLinkingService.handleNotificationData(initialMessage.data);
+      });
+    }
+  
 
+  // Initialize localization
+  await LocalizationHelper.init();
 
   runApp(
     MultiProvider(
@@ -99,33 +103,65 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = ThemeController.instance;
+    final appName = dotenv.env['APP_NAME'] ?? 'ChurchLink';
 
     return AnimatedBuilder(
       animation: c,
       builder: (_, child) {
-        final appName = dotenv.env['APP_NAME'] ?? 'ChurchLink';
-        return MaterialApp(
+        return _LocalizationRebuilder(
+        child: MaterialApp(
           title: appName,
           navigatorKey: navigatorKey,
           theme: AppTheme.light, // Colors are defined in app_theme.dart
           darkTheme: AppTheme.dark,
           themeMode: c.mode,
-
-          home: kTestMode ? const MyHomePage() : AuthGate(child: const MyHomePage()),
-          routes: {
-            '/home': (context) => const DashboardPage(),
-            '/bible': (context) => const BiblePage(),
-            '/sermons': (context) => const SermonsPage(),
-            '/events': (context) => const EventsPage(),
-            '/profile': (context) => const UserSettings(),
-            '/live': (context) => const JoinLive(),
-            '/bulletin': (context) => const WeeklyBulletin(),
-            '/giving': (context) => const Giving(),
-          },
+          home: kTestMode
+                ? MyHomePage(key: ValueKey('home-' + LocalizationHelper.currentLocale + '-' + LocalizationHelper.uiVersion.toString()))
+                : AuthGate(child: MyHomePage(key: ValueKey('home-' + LocalizationHelper.currentLocale + '-' + LocalizationHelper.uiVersion.toString()))),
+            routes: {
+              '/home': (context) => const DashboardPage(),
+              '/bible': (context) => const BiblePage(),
+              '/sermons': (context) => const SermonsPage(),
+              '/events': (context) => const EventsPage(),
+              '/profile': (context) => const UserSettings(),
+              '/live': (context) => const JoinLive(),
+              '/bulletin': (context) => const WeeklyBulletin(),
+              '/giving': (context) => const Giving(),
+            },
+          ),
         );
       },
     );
   }
+}
+
+class _LocalizationRebuilder extends StatefulWidget {
+  final Widget child;
+  const _LocalizationRebuilder({required this.child});
+
+  @override
+  State<_LocalizationRebuilder> createState() => _LocalizationRebuilderState();
+}
+
+class _LocalizationRebuilderState extends State<_LocalizationRebuilder> {
+  void _onLocaleChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    LocalizationHelper.addListener(_onLocaleChanged);
+  }
+
+  @override
+  void dispose() {
+    LocalizationHelper.removeListener(_onLocaleChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 
@@ -141,12 +177,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   User? user;
   bool isLoggedIn = false;
+  final Map<String, int> _tabReloadVersion = {};
+
+  void _onLocaleChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
+    LocalizationHelper.addListener(_onLocaleChanged);
 
     // Register FCM token for every device (no consent logic)
     FCMTokenService.registerDeviceToken(consent: {}, userId: user?.uid);
@@ -160,19 +202,33 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  @override
+  void dispose() {
+    LocalizationHelper.removeListener(_onLocaleChanged);
+    super.dispose();
+  }
+
   final Map<String, GlobalKey<NavigatorState>> _navKeyForTab = {};
 
   Widget _buildTabNavigator({
     required GlobalKey<NavigatorState> navKey,
     required Widget root,
     required bool isActive,
+    required String tabName,
   }) {
     return TickerMode(
       enabled: isActive,
       child: Offstage(
         offstage: !isActive,
         child: Navigator(
-          key: navKey,
+          key: ValueKey(
+            'nav-$tabName-' +
+                LocalizationHelper.currentLocale +
+                '-' +
+                LocalizationHelper.uiVersion.toString() +
+                '-' +
+                (_tabReloadVersion[tabName] ?? 0).toString(),
+          ),
           onGenerateRoute: (settings) => MaterialPageRoute(
             builder: (_) => root,
             settings: const RouteSettings(name: 'root'),
@@ -218,13 +274,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     final tabs = tabProvider.tabs;
-    final List<Widget> tabRoots = tabs
-        .map((t) => _getScreenForTab((t['name'] as String).toLowerCase()))
-        .toList();
-    final List<GlobalKey<NavigatorState>> navKeys = tabs.map((t) {
-      final name = (t['name'] as String).toLowerCase();
-      return _navKeyForTab.putIfAbsent(name, () => GlobalKey<NavigatorState>());
-    }).toList();
+    final List<String> tabNames =
+        tabs.map((t) => (t['name'] as String).toLowerCase()).toList();
+    final List<Widget> tabRoots =
+        tabNames.map((name) => _getScreenForTab(name)).toList();
+    final List<GlobalKey<NavigatorState>> navKeys =
+        tabNames.map((name) => _navKeyForTab.putIfAbsent(name, () => GlobalKey<NavigatorState>())).toList();
 
     final theme = Theme.of(context);
 
@@ -251,14 +306,19 @@ class _MyHomePageState extends State<MyHomePage> {
           index: tabProvider.currentIndex,
           children: List.generate(
             tabRoots.length,
-            (i) => _buildTabNavigator(
-              navKey: navKeys[i],
-              root: tabRoots[i],
-              isActive: tabProvider.currentIndex == i,
-            ),
+            (i) {
+              final tabName = tabNames[i];
+              return _buildTabNavigator(
+                navKey: navKeys[i],
+                root: tabRoots[i],
+                isActive: tabProvider.currentIndex == i,
+                tabName: tabName,
+              );
+            },
           ),
         ),
         bottomNavigationBar: BottomNavigationBar(
+          key: ValueKey('nav-' + LocalizationHelper.currentLocale + '-' + LocalizationHelper.uiVersion.toString()),
           type: BottomNavigationBarType.fixed,
           currentIndex: tabProvider.currentIndex,
           onTap: (value) {
@@ -272,6 +332,9 @@ class _MyHomePageState extends State<MyHomePage> {
               final targetName = (tabs[value]['name'] as String).toLowerCase();
               final targetKey = _navKeyForTab[targetName];
               targetKey?.currentState?.popUntil((route) => route.isFirst);
+              _tabReloadVersion[targetName] =
+                  (_tabReloadVersion[targetName] ?? 0) + 1;
+              setState(() {});
               tabProvider.setTab(value);
             }
           },
@@ -300,8 +363,40 @@ class _MyHomePageState extends State<MyHomePage> {
       final displayName = (tab['displayName'] as String?) ?? name;
       final iconName = (tab['icon'] as String?) ?? name;
 
+      // Use stable English bases for translation so we don't feed in a string
+      // that was already translated from a previous locale.
+      String labelBase;
+      switch (name) {
+        case 'home':
+          labelBase = 'Home';
+          break;
+        case 'bible':
+          labelBase = 'Bible';
+          break;
+        case 'sermons':
+          labelBase = 'Sermons';
+          break;
+        case 'events':
+          labelBase = 'Events';
+          break;
+        case 'profile':
+          labelBase = 'Profile';
+          break;
+        case 'bulletins':
+          labelBase = 'Bulletins';
+          break;
+        case 'giving':
+          labelBase = 'Giving';
+          break;
+        case 'live':
+          labelBase = 'Live';
+          break;
+        default:
+          labelBase = displayName; // fallback
+      }
+
       return BottomNavigationBarItem(
-        label: displayName,
+        label: LocalizationHelper.localize(labelBase),
         icon: Semantics(
           label: 'tab-$name',
           child: _getTabIcon(name, iconName, false),

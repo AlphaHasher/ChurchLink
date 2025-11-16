@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/service_bulletin.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 /// Full-page view displaying detailed information about a service bulletin
 class ServiceDetailPage extends StatelessWidget {
@@ -107,7 +108,7 @@ class ServiceDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'No timeline available for this service',
+                        LocalizationHelper.localize('No timeline available for this service'),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.6),
                         ),

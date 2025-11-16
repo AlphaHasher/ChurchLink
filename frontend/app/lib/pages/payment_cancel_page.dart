@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../helpers/localization_helper.dart';
 
 class PaymentCancelPage extends StatelessWidget {
   final String? paymentId;
@@ -19,7 +20,7 @@ class PaymentCancelPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.orange.shade50,
       appBar: AppBar(
-        title: const Text('Payment Cancelled'),
+        title: Text(LocalizationHelper.localize('Payment Cancelled', capitalize: true)),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -49,7 +50,7 @@ class PaymentCancelPage extends StatelessWidget {
               
               // Cancel Title
               Text(
-                'Payment Cancelled',
+                LocalizationHelper.localize('Payment Cancelled', capitalize: true),
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.orange.shade700,
                   fontWeight: FontWeight.bold,
@@ -61,7 +62,7 @@ class PaymentCancelPage extends StatelessWidget {
               
               // Cancel Message
               Text(
-                'Your payment was cancelled and no charges were made.',
+                LocalizationHelper.localize('Your payment was cancelled and no charges were made.', capitalize: true),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey.shade700,
                 ),
@@ -71,7 +72,7 @@ class PaymentCancelPage extends StatelessWidget {
               if (eventName != null) ...[
                 const SizedBox(height: 16),
                 Text(
-                  'You have not been registered for: $eventName',
+                  LocalizationHelper.localize('You have not been registered for: $eventName', capitalize: true),
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.grey.shade600,
                   ),
@@ -164,9 +165,9 @@ class PaymentCancelPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'Try Again',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      child: Text(
+                        LocalizationHelper.localize('Try Again', capitalize: true),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -188,7 +189,7 @@ class PaymentCancelPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'Back to Events',
+                        LocalizationHelper.localize('Back to Events', capitalize: true),
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.orange.shade700,

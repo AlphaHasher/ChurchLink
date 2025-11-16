@@ -12,6 +12,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../helpers/localization_helper.dart';
 
 final _apiBaseUrl = dotenv.get('BACKEND_URL');
 
@@ -26,27 +27,27 @@ class _PageSpec {
 // Defines expected Pages and their fallback default colors
 final Map<String, _PageSpec> _kDashboardPages = {
   'join-live': _PageSpec(
-    'Join Live',
+    LocalizationHelper.localize('Join Live'),
     Colors.indigo.shade600,
     (c) => const JoinLive(),
   ),
   'weekly-bulletin': _PageSpec(
-    'Weekly Bulletin',
+    LocalizationHelper.localize('Weekly Bulletin'),
     Colors.teal.shade600,
     (c) => const BulletinsPage(),
   ),
   'sermons': _PageSpec(
-    'Sermons',
+    LocalizationHelper.localize('Sermons'),
     Colors.deepPurple.shade600,
     (c) => const SermonsPage(),
   ),
   'events': _PageSpec(
-    'Events',
+    LocalizationHelper.localize('Events'),
     Colors.orange.shade600,
     (c) => const EventsPage(),
   ),
-  'giving': _PageSpec('Giving', Colors.green.shade600, (c) => const Giving()),
-  'forms': _PageSpec('Forms', Colors.brown.shade600, (c) => const Forms()),
+  'giving': _PageSpec(LocalizationHelper.localize('Giving', capitalize: true), Colors.green.shade600, (c) => const Giving()),
+  'forms': _PageSpec(LocalizationHelper.localize('Forms', capitalize: true), Colors.brown.shade600, (c) => const Forms()),
 };
 
 class DashboardPage extends StatefulWidget {
@@ -201,7 +202,7 @@ class _DashboardPageState extends State<DashboardPage> {
                               if (title.isNotEmpty)
                                 Center(
                                   child: Text(
-                                    title,
+                                    LocalizationHelper.localize(title),
                                     textAlign: TextAlign.center,
                                     style: Theme.of(
                                       ctx,

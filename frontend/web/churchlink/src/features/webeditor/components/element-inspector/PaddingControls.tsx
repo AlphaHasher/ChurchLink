@@ -5,24 +5,16 @@ import { NumericDragInput } from '@/shared/components/NumericDragInput';
 import { Node } from '@/shared/types/pageV2';
 import { Label } from '@/shared/components/ui/label';
 import { Switch } from '@/shared/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select';
 
 type PaddingControlsProps = {
   node: Node;
   onUpdate: (updater: (node: Node) => Node) => void;
 };
 
-type PaddingUnit = 'spacing' | 'px' | 'rem';
+type PaddingUnit = 'spacing';
 
-const REM_STEP = 0.1;
-const REM_MAX = 10; // 40 * 0.25
-const PX_MAX = 160; // 40 * 4
+const SPACING_STEP = 0.5;
+const SPACING_MAX = 40;
 
 export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate }) => {
   const sectionId = BuilderState.selection?.sectionId ?? null;
@@ -51,7 +43,7 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
     return !(top === bottom && right === left && top === right);
   });
 
-  const [unit, setUnit] = React.useState<PaddingUnit>('rem');
+  const unit: PaddingUnit = 'spacing';
 
   React.useEffect(() => {
     if (!sectionId) return;
@@ -62,51 +54,23 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
   }, [sectionId, node.id, padding.top, padding.right, padding.bottom, padding.left, unit]);
 
   const toDisplay = React.useCallback((value: number) => {
-    switch (unit) {
-      case 'px':
-        return Math.round(value * 4);
-      case 'rem':
-        return Number((value * 0.25).toFixed(2));
-      default:
-        return Number(value.toFixed(2));
-    }
-  }, [unit]);
+    return Number(value.toFixed(3));
+  }, []);
 
   const toSpacing = React.useCallback((value: number) => {
     if (!Number.isFinite(value)) return 0;
-    switch (unit) {
-      case 'px':
-        return value / 4;
-      case 'rem':
-        return value / 0.25;
-      default:
-        return value;
-    }
-  }, [unit]);
+    return value;
+  }, []);
 
   const getStep = React.useCallback(() => {
-    switch (unit) {
-      case 'px':
-        return 1;
-      case 'rem':
-        return REM_STEP;
-      default:
-        return 0.5;
-    }
-  }, [unit]);
+    return SPACING_STEP;
+  }, []);
 
   const getMax = React.useCallback(() => {
-    switch (unit) {
-      case 'px':
-        return PX_MAX;
-      case 'rem':
-        return REM_MAX;
-      default:
-        return 40;
-    }
-  }, [unit]);
+    return SPACING_MAX;
+  }, []);
 
-  const unitLabel = unit === 'spacing' ? 'Tailwind spacing units' : unit === 'px' ? 'pixels' : 'rem';
+  const unitLabel = 'grid units';
 
   const publishOverlay = React.useCallback((values: [number, number, number, number]) => {
     if (!sectionId) return;
@@ -204,19 +168,6 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
         <Label className="text-sm">Padding</Label>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span>Units</span>
-            <Select value={unit} onValueChange={(val) => setUnit(val as PaddingUnit)}>
-              <SelectTrigger className="h-7 w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="spacing">Tailwind (spacing)</SelectItem>
-                <SelectItem value="rem">rem</SelectItem>
-                <SelectItem value="px">px</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
             <span>Split sides</span>
             <Switch checked={split} onCheckedChange={toggleSplit} />
           </div>
@@ -229,6 +180,7 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
             min={0}
             max={getMax()}
             step={getStep()}
+            transformValue={(v) => Number((v).toFixed(3))}
             value={toDisplay(Math.max(padding.top, padding.right, padding.bottom, padding.left))}
             onChange={handleGlobal}
             onChangeEnd={() => {
@@ -256,6 +208,7 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               min={0}
               max={getMax()}
               step={getStep()}
+            transformValue={(v) => Number((v).toFixed(3))}
               value={toDisplay(padding.top)}
               onChange={(val) => handleSplit('top', val)}
               onChangeEnd={() => {
@@ -277,6 +230,7 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               min={0}
               max={getMax()}
               step={getStep()}
+            transformValue={(v) => Number((v).toFixed(3))}
               value={toDisplay(padding.right)}
               onChange={(val) => handleSplit('right', val)}
               onChangeEnd={() => {
@@ -298,6 +252,7 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               min={0}
               max={getMax()}
               step={getStep()}
+            transformValue={(v) => Number((v).toFixed(3))}
               value={toDisplay(padding.bottom)}
               onChange={(val) => handleSplit('bottom', val)}
               onChangeEnd={() => {
@@ -319,6 +274,7 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
               min={0}
               max={getMax()}
               step={getStep()}
+            transformValue={(v) => Number((v).toFixed(3))}
               value={toDisplay(padding.left)}
               onChange={(val) => handleSplit('left', val)}
               onChangeEnd={() => {
@@ -336,9 +292,7 @@ export const PaddingControls: React.FC<PaddingControlsProps> = ({ node, onUpdate
           </div>
         </div>
       )}
-      <p className="text-xs text-muted-foreground">
-        Displaying values in {unitLabel}. Stored as Tailwind spacing units (1 = 0.25rem).
-      </p>
+      <p className="text-xs text-muted-foreground">Displaying values and storing as grid units.</p>
     </div>
   );
 };

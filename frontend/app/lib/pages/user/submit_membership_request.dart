@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app/helpers/membership_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class SubmitMembershipRequestScreen extends StatefulWidget {
   final bool resubmission;
@@ -60,8 +61,8 @@ class _SubmitMembershipRequestScreenState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong. Please try again.'),
+        SnackBar(
+          content: Text(LocalizationHelper.localize('Something went wrong. Please try again.')),
         ),
       );
     } finally {
@@ -76,22 +77,24 @@ class _SubmitMembershipRequestScreenState
     final isResubmit = widget.resubmission;
     final title =
         isResubmit
-            ? 'Re-Submit Membership Request'
-            : 'Submit Membership Request';
+            ? LocalizationHelper.localize('Re-Submit Membership Request')
+            : LocalizationHelper.localize('Submit Membership Request');
     final hint =
         isResubmit
-            ? 'Optionally explain why you are re-submitting…'
-            : 'Optional message to accompany your request…';
-    final btn = isResubmit ? 'Re-Submit Request' : 'Submit Request';
+            ? LocalizationHelper.localize('Optionally explain why you are re-submitting…')
+            : LocalizationHelper.localize('Optional message to accompany your request…');
+    final btn = isResubmit ? LocalizationHelper.localize('Re-Submit Request') : LocalizationHelper.localize('Submit Request');
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title)
+      ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 50, 16, 24),
         child: Column(
           children: [
             Text(
-              "Optionally, you may include a message to pass to the reviewer of your request which may include your reasonings for wanting to be marked as an official member",
+              LocalizationHelper.localize("Optionally, you may include a message to pass to the reviewer of your request which may include your reasonings for wanting to be marked as an official member"),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
@@ -117,7 +120,7 @@ class _SubmitMembershipRequestScreenState
                   ),
                 ),
                 child: Text(
-                  _submitting ? 'Submitting…' : btn,
+                  _submitting ? LocalizationHelper.localize('Submitting…') : btn,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

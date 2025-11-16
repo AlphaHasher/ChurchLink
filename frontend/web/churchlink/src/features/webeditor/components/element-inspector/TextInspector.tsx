@@ -20,6 +20,7 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/shared/components/ui/toggle-group';
 import { Node, TextNode } from '@/shared/types/pageV2';
 import { BuilderState } from '@/features/webeditor/state/BuilderState';
+import { roundToTwoOrFiveThousandths } from '@/shared/utils/rounding';
 
 import FontPicker from '../FontPicker';
 import { PaddingControls } from './PaddingControls';
@@ -311,13 +312,14 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="font-size">Font Size (rem)</Label>
+          <Label htmlFor="font-size">Font Size (grid units)</Label>
           <NumericDragInput
             id="font-size"
             min={0.5}
             max={10}
             step={0.125}
-            value={(node.style as any)?.fontSize ?? 1}
+            transformValue={roundToTwoOrFiveThousandths}
+            value={roundToTwoOrFiveThousandths((node.style as any)?.fontSize ?? 1)}
             onChange={(val) =>
               onUpdate((n) =>
                 n.type === 'text'
@@ -325,7 +327,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
                       ...n,
                       style: {
                         ...(n.style || {}),
-                        fontSize: val,
+                        fontSize: roundToTwoOrFiveThousandths(val),
                       },
                     } as Node)
                   : n

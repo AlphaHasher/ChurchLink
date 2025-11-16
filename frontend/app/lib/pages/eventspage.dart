@@ -7,6 +7,7 @@ import 'package:app/models/event_registration_summary.dart';
 import 'package:app/services/event_registration_service.dart';
 import 'package:app/pages/event_showcase.dart';
 import 'package:app/widgets/event_card.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 // ICS sharing + open
 import 'dart:io';
@@ -192,20 +193,20 @@ class _EventsPageState extends State<EventsPage> {
               child: Wrap(
                 runSpacing: 12,
                 children: [
-                  const Text(
-                    "Filter Events",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    LocalizationHelper.localize("Filter Events"),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: "Search by Name",
+                    decoration: InputDecoration(
+                      labelText: LocalizationHelper.localize("Search by Name"),
                     ),
                     onChanged: (value) => setModalState(() => tempName = value),
                   ),
                   TextField(
                     controller: _maxPriceController,
-                    decoration: const InputDecoration(labelText: "Max Price"),
+                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Max Price")),
                     keyboardType: TextInputType.number,
                     onChanged:
                         (value) => setModalState(
@@ -213,7 +214,7 @@ class _EventsPageState extends State<EventsPage> {
                         ),
                   ),
                   DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: "Gender"),
+                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Gender")),
                     initialValue: tempGender,
                     items:
                         [
@@ -224,9 +225,13 @@ class _EventsPageState extends State<EventsPage> {
                         ].map((g) {
                           String label;
                           if (g == null) {
-                            label = 'Show All';
+                            label = LocalizationHelper.localize('Show All');
                           } else if (g == 'all') {
-                            label = 'All Genders Allowed';
+                            label = LocalizationHelper.localize('All Genders Allowed');
+                          } else if (g == 'male') {
+                            label = LocalizationHelper.localize('Male Only');
+                          } else if (g == 'female') {
+                            label = LocalizationHelper.localize('Female Only');
                           } else {
                             label =
                                 '${g[0].toUpperCase()}${g.substring(1)} Only';
@@ -241,14 +246,14 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   TextField(
                     controller: _ageController,
-                    decoration: const InputDecoration(labelText: "Age"),
+                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Age")),
                     keyboardType: TextInputType.number,
                     onChanged:
                         (value) =>
                             setModalState(() => tempAge = int.tryParse(value)),
                   ),
                   DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: "Ministry"),
+                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Ministry")),
                     initialValue: tempMinistry,
                     items:
                         [
@@ -266,7 +271,7 @@ class _EventsPageState extends State<EventsPage> {
                         ].map((m) {
                           return DropdownMenuItem<String>(
                             value: m,
-                            child: Text(m ?? 'All Ministries'),
+                            child: Text(LocalizationHelper.localize(m ?? 'All Ministries')),
                           );
                         }).toList(),
                     onChanged:
@@ -275,9 +280,9 @@ class _EventsPageState extends State<EventsPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Date Range",
-                        style: TextStyle(fontWeight: FontWeight.w500),
+                      Text(
+                        LocalizationHelper.localize("Date Range"),
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       RangeSlider(
                         values: tempDateRange,
@@ -321,9 +326,9 @@ class _EventsPageState extends State<EventsPage> {
                             _ageController.clear();
                           });
                         },
-                        child: const Text(
-                          "Reset Filters",
-                          style: TextStyle(color: Colors.red),
+                        child: Text(
+                          LocalizationHelper.localize("Reset Filters"),
+                          style: const TextStyle(color: Colors.red),
                         ),
                       ),
                       ElevatedButton(
@@ -344,7 +349,7 @@ class _EventsPageState extends State<EventsPage> {
                           Navigator.pop(context);
                           _loadEvents();
                         },
-                        child: const Text("Apply Filters"),
+                        child: Text(LocalizationHelper.localize("Apply Filters")),
                       ),
                     ],
                   ),
@@ -420,8 +425,8 @@ END:VCALENDAR
       );
       await Share.shareXFiles(
         [xfile],
-        subject: 'Add to Calendar',
-        text: 'Open this to add the event to your calendar.',
+        subject: LocalizationHelper.localize('Add to Calendar'),
+        text: LocalizationHelper.localize('Open this to add the event to your calendar.'),
       );
     }
   }
@@ -490,7 +495,7 @@ END:VCALENDAR
       key: const ValueKey('screen-events'),
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Events'),
+        title: Text(LocalizationHelper.localize('Events')),
         leading:
             showBackButton
                 ? IconButton(
@@ -516,10 +521,10 @@ END:VCALENDAR
                       child: Center(child: CircularProgressIndicator()),
                     )
                     : _events.isEmpty
-                    ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 50),
-                      child: Text("No events found."),
-                    )
+                    ? Padding(
+                       padding: EdgeInsets.symmetric(vertical: 50),
+                       child: Text(LocalizationHelper.localize("No events found.")),
+                     )
                     : ListView.builder(
                       physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
@@ -538,7 +543,7 @@ END:VCALENDAR
                               bottom: 12,
                               right: 12,
                               child: IconButton(
-                                tooltip: 'Add to Calendar',
+                                tooltip: LocalizationHelper.localize('Add to Calendar'),
                                 icon: const Icon(Icons.calendar_month_outlined),
                                 onPressed: () => _onAddToCalendar(event),
                               ),

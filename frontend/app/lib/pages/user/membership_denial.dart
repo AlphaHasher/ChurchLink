@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app/pages/user/submit_membership_request.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class ReadMembershipDenialScreen extends StatefulWidget {
   final bool muted;
@@ -52,7 +53,7 @@ class _ReadMembershipDenialScreenState
     final borderColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Membership Request')),
+      appBar: AppBar(title: Text(LocalizationHelper.localize('Membership Request'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 50, 16, 24),
         children: [
@@ -69,21 +70,21 @@ class _ReadMembershipDenialScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Request Denied',
+                    LocalizationHelper.localize('Request Denied'),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Your previous membership request was denied.',
+                    LocalizationHelper.localize('Your previous membership request was denied.'),
                     style: theme.textTheme.bodyMedium,
                   ),
                   if (widget.reason != null &&
                       widget.reason!.trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
-                      'Reason provided by reviewer:',
+                      LocalizationHelper.localize('Reason provided by reviewer:'),
                       style: theme.textTheme.bodySmall,
                     ),
                     Text(
@@ -111,7 +112,7 @@ class _ReadMembershipDenialScreenState
                   ),
                 ),
                 child: Text(
-                  _navigating ? 'Opening…' : 'Re-Submit Request',
+                  _navigating ? LocalizationHelper.localize('Opening…') : LocalizationHelper.localize('Re-Submit Request'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/services/connectivity_service.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
   final VoidCallback? onVerified;
@@ -122,8 +123,8 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not send verification email. Please try again.'),
+        SnackBar(
+          content: Text(LocalizationHelper.localize('Could not send verification email. Please try again.', capitalize: true)),
         ),
       );
     } finally {
@@ -144,10 +145,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     final disabled = !_online || _cooldown > 0 || _sending;
     final label =
         _cooldown > 0
-            ? 'Resend in $_cooldown s'
+            ? LocalizationHelper.localize('Resend in $_cooldown seconds')
             : _hasSent
-            ? 'Re-send verification email'
-            : 'Send verification email';
+                ? LocalizationHelper.localize('Re-send verification email')
+                : LocalizationHelper.localize('Send verification email');
 
     return PopScope(
       canPop: false,
@@ -177,26 +178,29 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.orange.shade200),
                           ),
-                          child: const Text(
-                            'Offline — some actions are disabled. We\'ll resume automatically when you\'re back online.',
+                          child: Text(
+                            LocalizationHelper.localize('Offline — some actions are disabled. We\'ll resume automatically when you\'re back online.'),
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.orange),
+                            style: const TextStyle(color: Colors.orange),
                           ),
                         ),
-                      const Text(
-                        'Verify your email',
-                        style: TextStyle(
+                      Text(
+                        LocalizationHelper.localize('Verify your email', capitalize: true),
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Please verify your email: ${_email.isNotEmpty ? _email : "(unknown)"} to continue. '
-                        'Check your spam folder if you can’t find the message.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.black54),
-                      ),
+                      () {
+                        final emailDisplay = _email.isNotEmpty ? _email : 'unknown';
+                        final fullMessage = 'Please verify your email: $emailDisplay to continue. Check your spam folder if you can’t find the message.';
+                        return Text(
+                          LocalizationHelper.localize(fullMessage, capitalize: true),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.black54),
+                        );
+                      }(),
                       const SizedBox(height: 20),
                       Icon(
                         Icons.mark_email_unread_rounded,
@@ -216,7 +220,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                         width: 280,
                         child: OutlinedButton(
                           onPressed: _logout,
-                          child: const Text('Logout'),
+                          child: Text(LocalizationHelper.localize('Logout', capitalize: true)),
                         ),
                       ),
                     ],

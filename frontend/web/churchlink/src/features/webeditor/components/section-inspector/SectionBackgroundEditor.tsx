@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Label } from "@/shared/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { ColorPicker, ColorPickerAlpha, ColorPickerHue, ColorPickerSelection, ColorPickerOutput } from "@/shared/components/ui/shadcn-io/color-picker";
@@ -84,6 +84,17 @@ export const SectionBackgroundEditor: React.FC<SectionBackgroundEditorProps> = (
   const [c1, setC1] = React.useState<string>(parsedC1);
   const [c2, setC2] = React.useState<string>(parsedC2);
   const [custom, setCustom] = React.useState<string>(hasBackground ? bgString : '');
+
+  useEffect(() => {
+    if (!open) return;
+    const nextMode = hasBackground ? (isLinear ? 'gradient' : 'custom') : 'solid';
+    if (mode !== nextMode) setMode(nextMode);
+    if (angle !== parsedAngle) setAngle(parsedAngle);
+    if (c1 !== parsedC1) setC1(parsedC1);
+    if (c2 !== parsedC2) setC2(parsedC2);
+    const nextCustom = hasBackground ? bgString : '';
+    if (custom !== nextCustom) setCustom(nextCustom);
+  }, [open, section.id, hasBackground, isLinear, parsedAngle, parsedC1, parsedC2, bgString, mode, angle, c1, c2, custom]);
 
   // Ignore ColorPicker's initial notify on mount/open to prevent feedback loops
   const skipInitialRef = React.useRef(true);

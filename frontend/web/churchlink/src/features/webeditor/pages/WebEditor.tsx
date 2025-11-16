@@ -99,12 +99,11 @@ const WebEditor: React.FC = () => {
   }, [sections, sectionsMobile, isMobileMode, managedSections.length, setSections]);
 
   React.useEffect(() => {
-    if (managedSections.length > 0) {
-      if (isMobileMode) {
-        setPageSectionsMobile(managedSections);
-      } else {
-        setPageSections(managedSections);
-      }
+    if (!page) return;
+    if (isMobileMode) {
+      setPageSectionsMobile(managedSections);
+    } else {
+      setPageSections(managedSections);
     }
   }, [managedSections, isMobileMode, setPageSections, setPageSectionsMobile]);
 

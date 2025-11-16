@@ -6,6 +6,7 @@ import 'package:app/widgets/sermon_detail_sheet.dart';
 import 'package:app/widgets/sermon_filter_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../helpers/localization_helper.dart';
 
 class SermonsPage extends StatefulWidget {
   const SermonsPage({super.key});
@@ -18,6 +19,7 @@ class _SermonsPageState extends State<SermonsPage> {
   @override
   void initState() {
     super.initState();
+    LocalizationHelper.addListener(_onLocaleChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<SermonsProvider>();
       if (provider.items.isEmpty) {
@@ -26,12 +28,23 @@ class _SermonsPageState extends State<SermonsPage> {
     });
   }
 
+  void _onLocaleChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    LocalizationHelper.removeListener(_onLocaleChanged);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: const ValueKey('screen-sermons'),
       appBar: AppBar(
-        title: const Text('Sermons'),
+        title: Text(LocalizationHelper.localize('Sermons', capitalize: true)),
         actions: [
           IconButton(icon: const Icon(Icons.search), onPressed: _openFilters),
         ],
@@ -64,7 +77,7 @@ class _SermonsPageState extends State<SermonsPage> {
                         provider.items.isEmpty
                             ? ListView(
                               physics: const AlwaysScrollableScrollPhysics(),
-                              children: const [
+                              children: [
                                 SizedBox(height: 120),
                                 Icon(
                                   Icons.menu_book_outlined,
@@ -74,7 +87,7 @@ class _SermonsPageState extends State<SermonsPage> {
                                 SizedBox(height: 12),
                                 Center(
                                   child: Text(
-                                    'No sermons available yet. Pull to refresh.',
+                                    LocalizationHelper.localize('No Sermons available yet. Pull to refresh.', capitalize: true),
                                     style: TextStyle(color: Colors.grey),
                                   ),
                                 ),
@@ -168,7 +181,9 @@ class _ErrorBanner extends StatelessWidget {
       color: theme.colorScheme.error.withValues(alpha: 0.1),
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
-        title: Text(message, style: TextStyle(color: theme.colorScheme.error)),
+        title: Text(
+          LocalizationHelper.localize(message, capitalize: true),
+        ),
         trailing: IconButton(
           icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,

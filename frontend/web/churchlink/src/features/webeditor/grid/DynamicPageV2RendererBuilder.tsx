@@ -29,13 +29,6 @@ function tailwindSpacingToPx(value?: number | null) {
   return value * TAILWIND_SPACING_UNIT_PX;
 }
 
-function tailwindSpacingToRem(value?: number | null) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return undefined;
-  if (value === 0) return '0';
-  const rem = value * 0.25;
-  const formatted = rem.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
-  return formatted.length ? `${formatted}rem` : `${rem}rem`;
-}
 
 type PaddingOverlayProps = {
   layer: ActivePaddingOverlay | null;
@@ -239,12 +232,12 @@ const renderNode = (
 
       // Build inline styles
 
-      const paddingStyles: React.CSSProperties = {
-        ...(typeof paddingTop === 'number' ? { paddingTop: tailwindSpacingToRem(paddingTop) } : {}),
-        ...(typeof paddingBottom === 'number' ? { paddingBottom: tailwindSpacingToRem(paddingBottom) } : {}),
-        ...(typeof paddingLeft === 'number' ? { paddingLeft: tailwindSpacingToRem(paddingLeft) } : {}),
-        ...(typeof paddingRight === 'number' ? { paddingRight: tailwindSpacingToRem(paddingRight) } : {}),
-      };
+      const paddingStyles: React.CSSProperties = transform ? {
+        ...(typeof paddingTop === 'number' ? { paddingTop: paddingTop * transform.cellPx } : {}),
+        ...(typeof paddingBottom === 'number' ? { paddingBottom: paddingBottom * transform.cellPx } : {}),
+        ...(typeof paddingLeft === 'number' ? { paddingLeft: paddingLeft * transform.cellPx } : {}),
+        ...(typeof paddingRight === 'number' ? { paddingRight: paddingRight * transform.cellPx } : {}),
+      } : {};
 
       const wrapperStyle: React.CSSProperties = {
         ...nodeStyle,
