@@ -3,13 +3,6 @@ import React from 'react';
 import { Label } from '@/shared/components/ui/label';
 import { Button } from '@/shared/components/ui/button';
 import { NumericDragInput } from '@/shared/components/NumericDragInput';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select';
 import { Node, SectionV2 } from '@/shared/types/pageV2';
 import { BuilderState } from '@/features/webeditor/state/BuilderState';
 import { makeVirtualTransform } from '@/features/webeditor/grid/virtualGrid';
@@ -22,7 +15,6 @@ type PositionControlsProps = {
   sectionId?: string;
 };
 
-const REM_STEP = 0.1;
 
 export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpdateNode, section, sectionId: explicitSectionId }) => {
   const xu = node.layout?.units?.xu ?? 0;
@@ -137,20 +129,14 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
     []
   );
 
-  const [xUnit, setXUnit] = React.useState<'units' | 'px' | 'rem'>('units');
-  const [yUnit, setYUnit] = React.useState<'units' | 'px' | 'rem'>('units');
   const [xVal, setXVal] = React.useState<number>(xu);
   const [yVal, setYVal] = React.useState<number>(yu);
 
   React.useEffect(() => {
-    const pxX = xu * cellPx;
-    const pxY = yu * cellPx;
-    const formatUnits = (val: number) => Number(val.toFixed(2));
-    const formatPx = (val: number) => Math.round(val);
-    const formatRem = (px: number) => Number((px / 16).toFixed(2));
-    setXVal(xUnit === 'units' ? formatUnits(xu) : xUnit === 'px' ? formatPx(pxX) : formatRem(pxX));
-    setYVal(yUnit === 'units' ? formatUnits(yu) : yUnit === 'px' ? formatPx(pxY) : formatRem(pxY));
-  }, [xu, yu, cellPx, xUnit, yUnit]);
+    const formatUnits = (val: number) => Number(val.toFixed(3));
+    setXVal(formatUnits(xu));
+    setYVal(formatUnits(yu));
+  }, [xu, yu]);
 
   const commitX = React.useCallback((val: number) => {
     const nodeUnits = normalizeUnits(node);
@@ -160,11 +146,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
         prevDescendantsRef.current = snapshotDescendantUnits(node.children);
       }
     }
-    const nextXu = xUnit === 'units'
-      ? Math.max(0, Math.round(val))
-      : xUnit === 'px'
-      ? Math.max(0, Math.round(val / cellPx))
-      : Math.max(0, Math.round((val * 16) / cellPx));
+    const nextXu = Math.max(0, Math.round(val));
     onUpdateNode((n) => {
       const normalized = normalizeUnits(n);
       const deltaXu = nextXu - normalized.xu;
@@ -182,7 +164,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
         children: nextChildren,
       } as Node;
     });
-  }, [cellPx, normalizeUnits, node, onUpdateNode, xUnit, shiftDescendantUnits, snapshotDescendantUnits]);
+  }, [cellPx, normalizeUnits, node, onUpdateNode, shiftDescendantUnits, snapshotDescendantUnits]);
 
   const commitY = React.useCallback((val: number) => {
     const nodeUnits = normalizeUnits(node);
@@ -192,11 +174,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
         prevDescendantsRef.current = snapshotDescendantUnits(node.children);
       }
     }
-    const nextYu = yUnit === 'units'
-      ? Math.max(0, Math.round(val))
-      : yUnit === 'px'
-      ? Math.max(0, Math.round(val / cellPx))
-      : Math.max(0, Math.round((val * 16) / cellPx));
+    const nextYu = Math.max(0, Math.round(val));
     onUpdateNode((n) => {
       const normalized = normalizeUnits(n);
       const deltaYu = nextYu - normalized.yu;
@@ -214,9 +192,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
         children: nextChildren,
       } as Node;
     });
-  }, [cellPx, normalizeUnits, node, onUpdateNode, yUnit, shiftDescendantUnits, snapshotDescendantUnits]);
-
-  const getStep = (unit: 'units' | 'px' | 'rem') => (unit === 'rem' ? REM_STEP : 1);
+  }, [normalizeUnits, node, onUpdateNode, shiftDescendantUnits, snapshotDescendantUnits]);
 
   const centerHorizontally = React.useCallback(() => {
     const parentUnits = resolveParentUnits();
@@ -357,7 +333,8 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
           <div className="flex items-center gap-2">
             <NumericDragInput
               min={0}
-              step={getStep(xUnit)}
+              step={1}
+              transformValue={(v) => Number((v).toFixed(3))}
               value={Number.isFinite(xVal) ? xVal : 0}
               onChange={(val) => {
                 setXVal(val);
@@ -368,11 +345,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const nextXu = xUnit === 'units'
-                  ? Math.max(0, Math.round(xVal))
-                  : xUnit === 'px'
-                  ? Math.max(0, Math.round(xVal / cellPx))
-                  : Math.max(0, Math.round((xVal * 16) / cellPx));
+                const nextXu = Math.max(0, Math.round(xVal));
                 const nodeUnits = normalizeUnits(node);
                 const nextUnits = { ...nodeUnits, xu: nextXu };
                 const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
@@ -402,11 +375,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const nextXu = xUnit === 'units'
-                  ? Math.max(0, Math.round(xVal))
-                  : xUnit === 'px'
-                  ? Math.max(0, Math.round(xVal / cellPx))
-                  : Math.max(0, Math.round((xVal * 16) / cellPx));
+                const nextXu = Math.max(0, Math.round(xVal));
                 const nodeUnits = normalizeUnits(node);
                 const nextUnits = { ...nodeUnits, xu: nextXu };
                 const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
@@ -432,14 +401,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               }
             }}
             />
-            <Select value={xUnit} onValueChange={(v) => setXUnit(v as any)}>
-              <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="units">units</SelectItem>
-                <SelectItem value="px">px</SelectItem>
-                <SelectItem value="rem">rem</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="text-xs text-muted-foreground">units</div>
           </div>
         </div>
         <div className="space-y-2">
@@ -447,7 +409,8 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
           <div className="flex items-center gap-2">
             <NumericDragInput
               min={0}
-              step={getStep(yUnit)}
+              step={1}
+              transformValue={(v) => Number((v).toFixed(3))}
               value={Number.isFinite(yVal) ? yVal : 0}
               onChange={(val) => {
                 setYVal(val);
@@ -458,11 +421,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const nextYu = yUnit === 'units'
-                  ? Math.max(0, Math.round(yVal))
-                  : yUnit === 'px'
-                  ? Math.max(0, Math.round(yVal / cellPx))
-                  : Math.max(0, Math.round((yVal * 16) / cellPx));
+                const nextYu = Math.max(0, Math.round(yVal));
                 const nodeUnits = normalizeUnits(node);
                 const nextUnits = { ...nodeUnits, yu: nextYu };
                 const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
@@ -492,11 +451,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               const nodeId = BuilderState.selection?.nodeId;
               if (sectionId && nodeId && prevUnitsRef.current) {
                 const prevUnits = { ...prevUnitsRef.current };
-                const nextYu = yUnit === 'units'
-                  ? Math.max(0, Math.round(yVal))
-                  : yUnit === 'px'
-                  ? Math.max(0, Math.round(yVal / cellPx))
-                  : Math.max(0, Math.round((yVal * 16) / cellPx));
+                const nextYu = Math.max(0, Math.round(yVal));
                 const nodeUnits = normalizeUnits(node);
                 const nextUnits = { ...nodeUnits, yu: nextYu };
                 const deltaXu = (nextUnits.xu ?? 0) - (prevUnits.xu ?? 0);
@@ -522,14 +477,7 @@ export const PositionControls: React.FC<PositionControlsProps> = ({ node, onUpda
               }
             }}
             />
-            <Select value={yUnit} onValueChange={(v) => setYUnit(v as any)}>
-              <SelectTrigger className="w-[84px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="units">units</SelectItem>
-                <SelectItem value="px">px</SelectItem>
-                <SelectItem value="rem">rem</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="text-xs text-muted-foreground">units</div>
           </div>
         </div>
       </div>

@@ -42,7 +42,7 @@ async def process_is_init(request: Request):
 # Mod Router
 @user_mod_router.get("/check-mod")
 async def process_check_mod(request:Request):
-    if type(request.state.roles) == list and len(request.state.roles) > 0:
+    if isinstance(request.state.roles, list) and len(request.state.roles) > 0:
         return {'success':True}
     else:
         return {'success':False}
@@ -260,6 +260,17 @@ async def update_user_language(request: Request, data: dict = Body(...)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating language: {str(e)}")
+
+# Private Router
+@user_private_router.get("/language", response_model=dict)
+async def get_user_language(request: Request):
+    try:
+        language = request.state.user.get("language", "en")
+        if not isinstance(language, str) or not language.strip():
+            language = "en"
+        return {"success": True, "language": language}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching language: {str(e)}")
     
     # Private Router
 @user_private_router.get("/me/people", response_model=dict)

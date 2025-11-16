@@ -13,18 +13,26 @@ type LanguageContextValue = {
 	refreshSiteLocales: () => void;
 };
 
-const LOCAL_STORAGE_KEY = "preferredLocale";
-
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [locale, setLocaleState] = useState<string>(() => {
-        if (typeof window === "undefined") return "en";
-        return window.localStorage.getItem(LOCAL_STORAGE_KEY) || "en";
-    });
+    const [locale, setLocaleState] = useState<string>("en");
     const [languages, setLanguages] = useState<LanguageOption[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [siteLocales, setSiteLocales] = useState<string[]>([]);
+
+    const loadUserLocale = useCallback(async (): Promise<string | undefined> => {
+        try {
+            const res = await api.get("/v1/users/language");
+            const lang = res?.data?.language;
+            if (typeof lang === "string" && lang.trim().length) {
+                return lang;
+            }
+        } catch (err) {
+            console.error("Failed to fetch user language preference", err);
+        }
+        return undefined;
+    }, []);
 
 	const loadSiteLocales = useCallback(async () => {
 		try {
@@ -80,6 +88,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return () => { alive = false; };
     }, []);
 
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const lang = await loadUserLocale();
+            if (!cancelled && lang) {
+                setLocaleState(lang);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [loadUserLocale]);
+
 	useEffect(() => {
 		let cancelled = false;
 		(async () => {
@@ -90,32 +109,18 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 	}, [loadSiteLocales]);
 
     const setLocale = useCallback(async (code: string) => {
+        if (!code) return;
         setLocaleState(code);
         try {
-            window.localStorage.setItem(LOCAL_STORAGE_KEY, code);
-            window.dispatchEvent(new CustomEvent("preferred-locale-changed", { detail: { locale: code } }));
-
-            // NEW: Persist to backend
             await api.patch("/v1/users/update-language", { language: code });
         } catch (err) {
             console.error("Failed to persist language preference", err);
-        }
-    }, []);
-
-    // Stay in sync if anything else updates the locale
-    useEffect(() => {
-        const handler = (e: Event) => {
-            const detail = (e as CustomEvent).detail as { locale?: string } | undefined;
-            if (detail?.locale && typeof detail.locale === "string") {
-                setLocaleState(detail.locale);
-            } else {
-                const ls = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-                if (ls) setLocaleState(ls);
+            const fallback = await loadUserLocale();
+            if (fallback) {
+                setLocaleState(fallback);
             }
-        };
-        window.addEventListener("preferred-locale-changed", handler as EventListener);
-        return () => window.removeEventListener("preferred-locale-changed", handler as EventListener);
-    }, []);
+        }
+    }, [loadUserLocale]);
 
 	const addSiteLocale = useCallback((code: string) => {
 		if (!code) return;

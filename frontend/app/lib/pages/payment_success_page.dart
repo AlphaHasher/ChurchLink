@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../helpers/localization_helper.dart';
 
 class PaymentSuccessPage extends StatelessWidget {
   final String? paymentId;
@@ -19,7 +20,7 @@ class PaymentSuccessPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
-        title: const Text('Payment Successful'),
+        title: Text(LocalizationHelper.localize('Payment Successful', capitalize: true)),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -62,8 +63,8 @@ class PaymentSuccessPage extends StatelessWidget {
               // Success Message
               Text(
                 paymentId != null 
-                    ? 'Your payment has been processed successfully.'
-                    : 'Your registration has been completed successfully.',
+                    ? LocalizationHelper.localize('Your payment was processed successfully.', capitalize: true)
+                    : LocalizationHelper.localize('Your registration has been completed successfully.', capitalize: true),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey.shade700,
                 ),
@@ -158,9 +159,9 @@ class PaymentSuccessPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'View All Events',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      child: Text(
+                        LocalizationHelper.localize('View All Events', capitalize: true),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
@@ -181,7 +182,7 @@ class PaymentSuccessPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'Go to Home',
+                        LocalizationHelper.localize('Back to Home', capitalize: true),
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.green.shade700,

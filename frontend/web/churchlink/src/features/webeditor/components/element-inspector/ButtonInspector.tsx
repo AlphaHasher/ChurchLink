@@ -6,6 +6,7 @@ import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
 import { Node } from '@/shared/types/pageV2';
 import { BuilderState } from '@/features/webeditor/state/BuilderState';
+import { roundToTwoOrFiveThousandths } from '@/shared/utils/rounding';
 
 type ButtonInspectorProps = {
   node: Node;
@@ -77,13 +78,14 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="button-font-size">Font Size (rem)</Label>
+        <Label htmlFor="button-font-size">Font Size (grid units)</Label>
         <NumericDragInput
           id="button-font-size"
           min={0.5}
           max={6}
           step={0.125}
-          value={fontSize}
+          transformValue={roundToTwoOrFiveThousandths}
+          value={roundToTwoOrFiveThousandths(fontSize)}
           onChange={(val) =>
             onUpdate((n) =>
               n.type === 'button'
@@ -91,7 +93,7 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
                     ...n,
                     style: {
                       ...(n.style || {}),
-                      fontSize: val,
+                      fontSize: roundToTwoOrFiveThousandths(val),
                     },
                   } as Node)
                 : n
