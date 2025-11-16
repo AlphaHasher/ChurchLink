@@ -1,6 +1,8 @@
 import React, { Fragment, useMemo } from "react";
-import { CheckCircle2, Circle, Pencil, Trash2, AlertCircle, XCircle, Mars, Venus } from "lucide-react";
+import { CheckCircle2, Circle, AlertCircle, XCircle, Mars, Venus } from "lucide-react";
 import { AddPersonDialog } from "@/features/users/components/Profile/AddPersonDialog";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 export type Gender = "M" | "F" | null;
 
@@ -50,7 +52,6 @@ type Props = {
             price: number | null;
             complete: boolean | null;
 
-            // NEW: richer info for refunds
             refundableRemaining?: number | null; // how much could still be auto-refunded
             totalRefunded?: number | null;       // how much has already been refunded
         }
@@ -82,11 +83,12 @@ function Chip({
 
 // Gender chip: icon + label; blue for Male, pink for Female
 function GenderBadge({ gender }: { gender: Gender }) {
+    const localize = useLocalize();
     if (gender === "M") {
         return (
             <Chip className="bg-blue-50 text-blue-700">
                 <Mars className="mr-1 h-3.5 w-3.5" />
-                Male
+                {localize("Male")}
             </Chip>
         );
     }
@@ -94,7 +96,7 @@ function GenderBadge({ gender }: { gender: Gender }) {
         return (
             <Chip className="bg-pink-50 text-pink-700">
                 <Venus className="mr-1 h-3.5 w-3.5" />
-                Female
+                {localize("Female")}
             </Chip>
         );
     }
@@ -120,6 +122,17 @@ function PaymentBadges({
     | undefined;
 }) {
     if (!info) return null;
+    const localize = useLocalize();
+    const lang = useLanguage().locale;
+
+    let free: string;
+    if (lang === "en") {
+        free = "Free";
+    }
+    else {
+        free = localize("Free of cost");
+    }
+
     const { option, price, complete, refundableRemaining, totalRefunded } = info;
 
     const isPayPal = option === "paypal";
@@ -141,13 +154,13 @@ function PaymentBadges({
     return (
         <div className="flex flex-wrap gap-1">
             {option && (
-                <Chip className="bg-gray-100 text-gray-700" title="Chosen payment method">
-                    {option === "paypal" ? "Paid online" : option === "door" ? "Pay at door" : "Free"}
+                <Chip className="bg-gray-100 text-gray-700" title={localize("Chosen payment method")}>
+                    {option === "paypal" ? localize("Paid online") : option === "door" ? localize("Pay at door") : free}
                 </Chip>
             )}
 
             {typeof price === "number" && (
-                <Chip className="bg-gray-100 text-gray-700" title="Unit price at registration">
+                <Chip className="bg-gray-100 text-gray-700" title={localize("Unit price at registration")}>
                     ${price.toFixed(2)}
                 </Chip>
             )}
@@ -155,21 +168,21 @@ function PaymentBadges({
             {hasRefunds && (
                 <Chip
                     className="bg-amber-50 text-amber-800"
-                    title="Amount already refunded for this attendee"
+                    title={localize("Amount already refunded for this attendee")}
                 >
                     ${refunded.toFixed(2)}{" "}
                     {showRefundable && refundableValue && refundableValue > 0
-                        ? "partially refunded"
-                        : "refunded"}
+                        ? localize("partially refunded")
+                        : localize("refunded")}
                 </Chip>
             )}
 
             {showRefundable && (
                 <Chip
                     className="bg-emerald-50 text-emerald-700"
-                    title="Maximum amount that can still be automatically refunded for this attendee"
+                    title={localize("Maximum amount that can still be automatically refunded for this attendee")}
                 >
-                    ${Math.max(refundableValue ?? 0, 0).toFixed(2)} refundable
+                    ${Math.max(refundableValue ?? 0, 0).toFixed(2)} {localize("refundable")}
                 </Chip>
             )}
 
@@ -180,17 +193,17 @@ function PaymentBadges({
                             ? "bg-emerald-50 text-emerald-700"
                             : "bg-rose-50 text-rose-700"
                     }
-                    title="Payment status"
+                    title={localize("Payment status")}
                 >
                     {complete ? (
                         <>
                             <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                            Complete
+                            {localize("Complete")}
                         </>
                     ) : (
                         <>
                             <XCircle className="mr-1 h-3.5 w-3.5" />
-                            Not Paid
+                            {localize("Not Paid")}
                         </>
                     )}
                 </Chip>
@@ -200,8 +213,9 @@ function PaymentBadges({
 }
 
 export default function EventAttendeesCard(props: Props) {
+    const localize = useLocalize();
     const {
-        title = "Choose Attendees",
+        title = localize("Choose Attendees"),
         rows,
         initialSelfRegistered,
         initialFamilyRegistered,
@@ -211,11 +225,11 @@ export default function EventAttendeesCard(props: Props) {
         onChangeFamily,
         disabledReasonFor,
         personReasonsFor,
-        onEditPerson,
-        onDeletePerson,
         onAddFamilyMember,
         paymentInfoFor,
     } = props;
+
+
 
     // split by initial registration snapshot
     const initialGroups = useMemo(() => {
@@ -290,14 +304,14 @@ export default function EventAttendeesCard(props: Props) {
 
                             {/* Age & DOB (legacy parity) */}
                             <Chip className="bg-gray-100 text-gray-700">
-                                DOB: {r.dateOfBirth ? new Date(r.dateOfBirth).toLocaleDateString() : "—"}
+                                {localize("Day of Birth:")} {r.dateOfBirth ? new Date(r.dateOfBirth).toLocaleDateString() : "—"}
                             </Chip>
 
                             {/* ineligible hint */}
                             {disabledReason && (
                                 <Chip className="bg-gray-100 text-gray-700" title={disabledReason}>
                                     <AlertCircle className="mr-1 inline-block" size={12} />
-                                    Not Eligible
+                                    {localize("Not Eligible")}
                                 </Chip>
                             )}
                         </div>
@@ -305,37 +319,11 @@ export default function EventAttendeesCard(props: Props) {
                         {extraReasons && extraReasons.length > 0 && (
                             <ul className="mt-1 list-disc pl-5 text-xs text-gray-600">
                                 {extraReasons.map((m, i) => (
-                                    <li key={i}>{m}</li>
+                                    <li key={i}>{localize(m)}</li>
                                 ))}
                             </ul>
                         )}
                     </div>
-
-                    {/* family actions */}
-                    {!r.isSelf && (
-                        <div className="flex items-center gap-2">
-                            {onEditPerson && (
-                                <button
-                                    type="button"
-                                    onClick={() => onEditPerson(r)}
-                                    className="rounded-md border px-2 py-1 text-xs hover:bg-gray-50"
-                                    title="Edit person"
-                                >
-                                    <Pencil size={14} />
-                                </button>
-                            )}
-                            {onDeletePerson && (
-                                <button
-                                    type="button"
-                                    onClick={() => onDeletePerson(r)}
-                                    className="rounded-md border px-2 py-1 text-xs hover:bg-gray-50"
-                                    title="Remove person"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
         );
@@ -349,7 +337,7 @@ export default function EventAttendeesCard(props: Props) {
             {initialGroups.registered.length > 0 && (
                 <Fragment>
                     <div className="mb-2 text-sm font-semibold text-gray-700">
-                        Registered Attendees
+                        {localize("Registered Attendees")}
                     </div>
                     <div className="mb-4 space-y-2">
                         {initialGroups.registered.map((r) => renderRow(r, true))}
@@ -358,7 +346,7 @@ export default function EventAttendeesCard(props: Props) {
             )}
 
             {/* Unregistered */}
-            <div className="mb-2 text-sm font-semibold text-gray-700">Not Registered</div>
+            <div className="mb-2 text-sm font-semibold text-gray-700">{localize("Not Registered")}</div>
             <div className="space-y-2">
                 {initialGroups.unregistered.map((r) => renderRow(r, false))}
             </div>

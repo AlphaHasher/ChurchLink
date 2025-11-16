@@ -122,13 +122,31 @@ async def search_my_events(
     )
 
 @private_event_router.get("/private-event-instance-details/{instance_id}")
-async def get_private_instance_details(request: Request, instance_id:str):
-    return await get_instance_details(instance_id=instance_id, uid=request.state.uid, favorite_events=request.state.user.get("favorite_events"))
+async def get_private_instance_details(
+    request: Request,
+    instance_id: str,
+    preferred_lang: Optional[str] = Query("en"),
+):
+    return await get_instance_details(
+        instance_id=instance_id,
+        uid=request.state.uid,
+        favorite_events=request.state.user.get("favorite_events"),
+        preferred_lang=preferred_lang,
+    )
 
 
 @public_event_router.get("/public-event-instance-details/{instance_id}")
-async def get_public_instance_details(request: Request, instance_id:str):
-    return await get_instance_details(instance_id=instance_id, uid=None, favorite_events=None)
+async def get_public_instance_details(
+    request: Request,
+    instance_id: str,
+    preferred_lang: Optional[str] = Query("en"),
+):
+    return await get_instance_details(
+        instance_id=instance_id,
+        uid=None,
+        favorite_events=None,
+        preferred_lang=preferred_lang,
+    )
 
 @private_event_router.put("/add-favorite/{event_id}")
 async def add_favorite_event(request: Request, event_id: str):

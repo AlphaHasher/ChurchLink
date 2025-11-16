@@ -9,21 +9,35 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui
 import MyTransactions from "@/features/transactions/MyTransactions";
 import MyRefundRequests from "./RefundRequests/MyRefundRequests";
 import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const TransactionsHomePage: React.FC = () => {
     const localize = useLocalize();
-    const [tabValue, setTabValue] = React.useState<"transactions" | "summary">(
-        "transactions",
-    );
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Derive tab from pathname (and optionally query/hash if you want later)
+    // Derive tab from the specific sub-route
+    let tabValue: "transactions" | "refund-requests";
+
+    if (location.pathname.includes("/my-transactions/refund-requests")) {
+        tabValue = "refund-requests";
+    } else {
+        tabValue = "transactions";
+    }
 
     return (
         <Layout>
             <div className="mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
                 <Tabs
                     value={tabValue}
-                    onValueChange={(v) =>
-                        setTabValue((v as "transactions" | "summary") || "transactions")
-                    }
+                    onValueChange={(v) => {
+                        if (v === "refund-requests") {
+                            navigate("/my-transactions/refund-requests");
+                        } else {
+                            navigate("/my-transactions/view-transactions");
+                        }
+                    }}
                     className="w-full"
                 >
                     {/* Tab switcher header */}
@@ -44,7 +58,7 @@ const TransactionsHomePage: React.FC = () => {
                                 </TabsTrigger>
 
                                 <TabsTrigger
-                                    value="summary"
+                                    value="refund-requests"
                                     className="group mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-neutral-200 px-4 py-3 text-base font-['Playfair_Display'] font-semibold text-neutral-800 transition-all duration-300 ease-out hover:bg-neutral-300 hover:text-black data-[state=active]:bg-black data-[state=active]:text-white sm:mt-0 sm:flex-1 sm:px-6 sm:py-4 sm:text-lg"
                                 >
                                     <FileText className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12 group-data-[state=active]:rotate-12" />
@@ -62,7 +76,7 @@ const TransactionsHomePage: React.FC = () => {
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="summary" className="min-h-[60vh]">
+                    <TabsContent value="refund-requests" className="min-h-[60vh]">
                         <div className="mx-auto w-full max-w-7xl">
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}

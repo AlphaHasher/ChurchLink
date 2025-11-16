@@ -9,8 +9,11 @@ import { useAuth } from "@/features/auth/hooks/auth-context";
 import {
   captureAndSubmitFormPayment,
 } from "@/helpers/FormSubmissionHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 export default function FormPaymentSuccessPage() {
+  const localize = useLocalize();
+
   const params = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -111,25 +114,25 @@ export default function FormPaymentSuccessPage() {
             {status === "processing" && (
               <>
                 <Loader2 className="mx-auto h-12 w-12 text-blue-600 animate-spin" />
-                <h2 className="mt-4 text-xl font-semibold text-gray-900">Processing Payment</h2>
-                <p className="mt-2 text-sm text-gray-600">{message}</p>
+                <h2 className="mt-4 text-xl font-semibold text-gray-900">{localize("Processing Payment")}</h2>
+                <p className="mt-2 text-sm text-gray-600">{localize(message)}</p>
               </>
             )}
 
             {status === "success" && (
               <>
                 <CheckCircle className="mx-auto h-12 w-12 text-green-600" />
-                <h2 className="mt-4 text-xl font-semibold text-gray-900">Payment Successful!</h2>
-                <p className="mt-2 text-sm text-gray-600">{message}</p>
+                <h2 className="mt-4 text-xl font-semibold text-gray-900">{localize("Payment Successful!")}</h2>
+                <p className="mt-2 text-sm text-gray-600">{localize(message)}</p>
                 {transactionId && (
-                  <p className="mt-2 text-xs text-gray-500">Transaction ID: {transactionId}</p>
+                  <p className="mt-2 text-xs text-gray-500">{localize("Transaction ID")}: {transactionId}</p>
                 )}
                 <div className="mt-6 space-y-3">
                   <Button onClick={handleGoHome} className="w-full">
-                    Return to Home
+                    {localize("Return to Home")}
                   </Button>
                   <Button onClick={handleReturnToForm} variant="outline" className="w-full">
-                    Submit Another Form
+                    {localize("Submit Another Form")}
                   </Button>
                 </div>
               </>
@@ -138,14 +141,14 @@ export default function FormPaymentSuccessPage() {
             {status === "error" && (
               <>
                 <AlertCircle className="mx-auto h-12 w-12 text-red-600" />
-                <h2 className="mt-4 text-xl font-semibold text-gray-900">Payment Error</h2>
-                <p className="mt-2 text-sm text-gray-600">{message}</p>
+                <h2 className="mt-4 text-xl font-semibold text-gray-900">{localize("Payment Error")}</h2>
+                <p className="mt-2 text-sm text-gray-600">{localize(message)}</p>
                 <div className="mt-6 space-y-3">
                   <Button onClick={handleReturnToForm} className="w-full">
-                    Try Again
+                    {localize("Try Again")}
                   </Button>
                   <Button onClick={handleGoHome} variant="outline" className="w-full">
-                    Return to Home
+                    {localize("Return to Home")}
                   </Button>
                 </div>
               </>

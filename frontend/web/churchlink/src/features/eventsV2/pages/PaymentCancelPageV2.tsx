@@ -20,8 +20,15 @@ import { fmtDateTime } from "@/helpers/RegistrationPaymentModalLogic";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
 
 import type { EventDetailsResponse, UserFacingEvent } from "@/shared/types/Event";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
+import { fetchMinistries, buildMinistryNameMap } from "@/helpers/MinistriesHelper";
+import type { Ministry } from "@/shared/types/Ministry";
 
 const PaymentCancelPageV2: React.FC = () => {
+    const localize = useLocalize();
+    const lang = useLanguage().locale;
+
     const navigate = useNavigate();
     const { instanceId } = useParams<{ instanceId: string }>();
     const [params] = useSearchParams();
@@ -31,7 +38,14 @@ const PaymentCancelPageV2: React.FC = () => {
 
     const { fetchEventInstanceDetails } = useFetchEventInstanceDetails();
     const [resp, setResp] = useState<EventDetailsResponse | null>(null);
+
     const [loading, setLoading] = useState<boolean>(true);
+
+    const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
+    const ministryNameMap = useMemo(
+        () => buildMinistryNameMap(allMinistries),
+        [allMinistries]
+    );
 
     useEffect(() => {
         let mounted = true;
@@ -54,6 +68,22 @@ const PaymentCancelPageV2: React.FC = () => {
         };
     }, [instanceId, fetchEventInstanceDetails]);
 
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            try {
+                const mins = await fetchMinistries();
+                if (!alive) return;
+                setAllMinistries(Array.isArray(mins) ? mins : []);
+            } catch {
+                setAllMinistries([]);
+            }
+        })();
+        return () => {
+            alive = false;
+        };
+    }, []);
+
     const eventDetails: UserFacingEvent | null = useMemo(
         () => resp?.event_details ?? null,
         [resp]
@@ -73,13 +103,26 @@ const PaymentCancelPageV2: React.FC = () => {
                     <CardContent className="pt-6">
                         <div className="text-center">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4" />
-                            <h2 className="text-lg font-semibold text-gray-900 mb-1">Loading event</h2>
-                            <p className="text-gray-600">Please wait…</p>
+                            <h2 className="text-lg font-semibold text-gray-900 mb-1">{localize("Loading event")}</h2>
+                            <p className="text-gray-600">{localize("Please wait…")}</p>
                         </div>
                     </CardContent>
                 </Card>
             </div>
         );
+    }
+
+    let title: string;
+    if (eventDetails === null) {
+        title = localize("Event");
+    }
+    else {
+        if (eventDetails.default_localization === lang) {
+            title = eventDetails.default_title
+        }
+        else {
+            title = localize(eventDetails.default_title)
+        }
     }
 
     return (
@@ -91,47 +134,47 @@ const PaymentCancelPageV2: React.FC = () => {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-red-700">
                                 <XCircle className="h-6 w-6" />
-                                Payment Cancelled
+                                {localize("Payment Cancelled")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <Alert className="border-amber-200 bg-amber-50">
                                 <AlertDescription className="text-sm text-amber-900">
-                                    No payment was captured and your registration was not completed.
-                                    Your spot has <strong>not</strong> been reserved.
+                                    {localize("No payment was captured and your registration was not completed.")}
+                                    {localize("Your spot has")} <strong>{localize("not")}</strong> {localize("been reserved.")}
                                 </AlertDescription>
                             </Alert>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-3 rounded-md bg-white border">
-                                    <div className="text-xs text-gray-500 mb-1">Order Reference</div>
+                                    <div className="text-xs text-gray-500 mb-1">{localize("Order Reference")}</div>
                                     <div className="text-sm font-mono truncate">{orderId || "—"}</div>
                                 </div>
                                 <div className="p-3 rounded-md bg-white border">
-                                    <div className="text-xs text-gray-500 mb-1">Status</div>
-                                    <div className="text-sm font-semibold text-red-700">Cancelled</div>
+                                    <div className="text-xs text-gray-500 mb-1">{localize("Status")}</div>
+                                    <div className="text-sm font-semibold text-red-700">{localize("Cancelled")}</div>
                                 </div>
                             </div>
 
                             <Separator />
 
                             <div className="space-y-2 text-sm text-gray-700">
-                                <div>What happened?</div>
+                                <div>{localize("What happened?")}</div>
                                 <ul className="list-disc pl-5 space-y-1">
-                                    <li>You left or canceled during PayPal checkout.</li>
-                                    <li>No money was charged for this order.</li>
-                                    <li>If you still want to attend, you can try again below.</li>
+                                    <li>{localize("You left or canceled during PayPal checkout.")}</li>
+                                    <li>{localize("No money was charged for this order.")}</li>
+                                    <li>{localize("If you still want to attend, you can try again below.")}</li>
                                 </ul>
                             </div>
 
                             <div className="flex gap-3 pt-2">
                                 <Button onClick={backToEvent} className="flex items-center">
                                     <ArrowLeft className="h-4 w-4 mr-2" />
-                                    Back to Event
+                                    {localize("Back to Event")}
                                 </Button>
                                 <Button variant="outline" onClick={toMyEvents} className="flex items-center">
                                     <Users className="h-4 w-4 mr-2" />
-                                    View My Events
+                                    {localize("View My Events")}
                                 </Button>
                             </div>
                         </CardContent>
@@ -145,7 +188,7 @@ const PaymentCancelPageV2: React.FC = () => {
                             {heroUrl ? (
                                 <img
                                     src={heroUrl}
-                                    alt={eventDetails.default_title || "Event image"}
+                                    alt={title}
                                     className="block w-full h-auto object-cover max-h-64"
                                     loading="lazy"
                                     decoding="async"
@@ -155,8 +198,8 @@ const PaymentCancelPageV2: React.FC = () => {
                             )}
 
                             <CardHeader className="pb-0">
-                                <CardTitle className="flex items-start justify-between gap-4">
-                                    <span className="font-semibold">{eventDetails.default_title || "Event"}</span>
+                                <CardTitle className="flex items-start justify-between gap-4 pt-4">
+                                    <span className="font-semibold">{title}</span>
                                 </CardTitle>
                             </CardHeader>
 
@@ -164,13 +207,20 @@ const PaymentCancelPageV2: React.FC = () => {
                                 {eventDetails.ministries && eventDetails.ministries.length > 0 && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <Church className="h-4 w-4" />
-                                        <span>{eventDetails.ministries.join(" • ")}</span>
+                                        <span>
+                                            {eventDetails.ministries
+                                                .map((id: string) => {
+                                                    const name = ministryNameMap[id];
+                                                    return name ? localize(name) : id;
+                                                })
+                                                .join(" • ")}
+                                        </span>
                                     </div>
                                 )}
 
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Calendar className="h-4 w-4" />
-                                    <span>{fmtDateTime(eventDetails.date)}</span>
+                                    <span>{localize(fmtDateTime(eventDetails.date))}</span>
                                 </div>
 
                                 {eventDetails.default_location_info && (
@@ -185,10 +235,10 @@ const PaymentCancelPageV2: React.FC = () => {
                                         <DollarSign className="h-4 w-4" />
                                         <span>
                                             {eventDetails.member_price != null
-                                                ? `$${Number(eventDetails.member_price).toFixed(2)} (member) • $${Number(
+                                                ? `$${Number(eventDetails.member_price).toFixed(2)} (${localize("member")}) • $${Number(
                                                     eventDetails.price ?? 0
-                                                ).toFixed(2)} (standard)`
-                                                : `$${Number(eventDetails.price ?? 0).toFixed(2)} per person`}
+                                                ).toFixed(2)} (${localize("standard")})`
+                                                : `$${Number(eventDetails.price ?? 0).toFixed(2)} ${localize("per person")}`}
                                         </span>
                                     </div>
                                 )}

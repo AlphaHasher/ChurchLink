@@ -39,7 +39,12 @@ async def process_remove_favorite_event(request:Request, event_id: str):
     
     return {'success':True, 'msg':f'Successly removed event with id {event_id} from favorites!'}
 
-async def get_instance_details(instance_id: str, uid: str=None, favorite_events: List[str]=None):
+async def get_instance_details(
+    instance_id: str,
+    uid: str | None = None,
+    favorite_events: List[str] | None = None,
+    preferred_lang: str | None = "en",
+):
     """
     Controller used by both public and private routes.
     Returns:
@@ -52,11 +57,14 @@ async def get_instance_details(instance_id: str, uid: str=None, favorite_events:
       }
     """
     try:
+        # Normalize / default language
+        lang = preferred_lang or "en"
+
         # Assemble single instance for read (parent + overrides + per-user annotations)
         event_details = await get_event_instance_for_read_by_id(
             instance_id,
             uid=uid,
-            preferred_lang="en",  # could be parameterized later
+            preferred_lang=lang,
             favorites_event_ids=favorite_events or [],
         )
 

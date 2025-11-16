@@ -2,6 +2,8 @@ import * as React from "react";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { MapPin, Map as MapIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider"; // <-- add this
 
 type Props = {
     locationInfo?: string | null;
@@ -11,14 +13,25 @@ type Props = {
 
 const EventMapCard: React.FC<Props> = ({ locationInfo, locationAddress, className }) => {
     const apiKey = import.meta.env.VITE_GOOGLE_API as string | undefined;
+    const localize = useLocalize();
+    const locale = useLanguage().locale;
 
     const src = React.useMemo(() => {
         const q = (locationAddress || "").trim();
         if (!apiKey || !q) return null;
-        // Always use Embed API search mode with text query
-        const encoded = encodeURIComponent(q);
-        return `https://www.google.com/maps/embed/v1/search?key=${apiKey}&q=${encoded}`;
-    }, [apiKey, locationAddress]);
+
+        const encodedQuery = encodeURIComponent(q);
+
+        // Normalize locale to simple language code like "en", "ru", "es"
+        const lang = (locale || "en").split("-")[0];
+
+        return `https://www.google.com/maps/embed/v1/search` +
+            `?key=${apiKey}` +
+            `&q=${encodedQuery}` +
+            `&language=${encodeURIComponent(lang)}`;
+        // If you ever want to bias region too:
+        // + `&region=${lang === "en" ? "US" : lang.toUpperCase()}`
+    }, [apiKey, locationAddress, locale]);
 
     const showMap = !!src;
 
@@ -27,7 +40,7 @@ const EventMapCard: React.FC<Props> = ({ locationInfo, locationAddress, classNam
             {/* Match ViewEventDetails card header style */}
             <div className="flex items-center gap-2 font-semibold">
                 <MapIcon className="h-4 w-4 text-muted-foreground" />
-                Location
+                {localize("Location")}
             </div>
 
             <CardContent className="space-y-4 px-0">
@@ -45,7 +58,7 @@ const EventMapCard: React.FC<Props> = ({ locationInfo, locationAddress, classNam
                     </div>
                 ) : (
                     <div className="grid h-[280px] w-full place-items-center rounded-lg bg-muted text-sm text-muted-foreground ring-1 ring-border md:h-[340px]">
-                        No Map Provided
+                        {localize("No Map Provided")}
                     </div>
                 )}
 
@@ -58,7 +71,9 @@ const EventMapCard: React.FC<Props> = ({ locationInfo, locationAddress, classNam
                         </p>
 
                         {locationInfo ? (
-                            <p className="m-0 mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{locationInfo}</p>
+                            <p className="m-0 mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                                {locationInfo}
+                            </p>
                         ) : null}
                     </div>
                 </div>

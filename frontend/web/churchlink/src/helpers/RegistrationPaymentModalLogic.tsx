@@ -23,6 +23,7 @@ import { changeRegistration, createPaidRegistration } from "@/helpers/EventRegis
 import { toast } from "react-toastify";
 
 import type { AttendeeRow } from "@/features/eventsV2/components/EventAttendeesCard";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 // -----------------------------
 // Display helpers (exported so UI can reuse)
@@ -168,6 +169,8 @@ export function useRegistrationPaymentModalLogic({
     onSuccess,
     onError,
 }: HookArgs) {
+    const localize = useLocalize();
+
     // Household state
     const [loading, setLoading] = useState(false);
     const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -224,14 +227,14 @@ export function useRegistrationPaymentModalLogic({
                 const res: any = await getAllPeople();
                 if (cancelled) return;
                 if (!res?.success) {
-                    setLoadErr(res?.msg || "Failed to load your people.");
+                    setLoadErr(localize(res?.msg || "Failed to load your people."));
                     setLoading(false);
                     return;
                 }
                 setProfile(res.profile_info as ProfileInfo);
                 setFamily(Array.isArray(res.family_members) ? res.family_members : []);
             } catch (e: any) {
-                if (!cancelled) setLoadErr(e?.message || "Failed to load your people.");
+                if (!cancelled) setLoadErr(localize(e?.message || "Failed to load your people."));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -405,7 +408,7 @@ export function useRegistrationPaymentModalLogic({
         return {
             kind: "self",
             id: null,
-            displayName: `${displayName} (You)`,
+            displayName: `${displayName} ${localize("(You)")}`,
             gender: (profile.gender || null) as "M" | "F" | null,
             dateOfBirth: profile.birthday ? new Date(profile.birthday) : null,
             membership: !!profile.membership,
@@ -428,10 +431,10 @@ export function useRegistrationPaymentModalLogic({
     // Eligibility helpers (exposed via callbacks)
     function personEligibilityReasons(r: Registrant): string[] {
         const reasons: string[] = [];
-        if (event.members_only && !r.membership) reasons.push("This event is for Members Only");
+        if (event.members_only && !r.membership) reasons.push(localize("This event is for Members Only"));
         if (!genderMatches(event.gender, r.gender ?? null)) {
-            if (event.gender === "male") reasons.push("This event is for Men Only");
-            else if (event.gender === "female") reasons.push("This event is for Women Only");
+            if (event.gender === "male") reasons.push(localize("This event is for Men Only"));
+            else if (event.gender === "female") reasons.push(localize("This event is for Women Only"));
         }
         const age = getAgeOn(r.dateOfBirth, eventDate);
         const min = event.min_age;
@@ -439,21 +442,21 @@ export function useRegistrationPaymentModalLogic({
         const ageBad = !withinAgeRange(min, max, age);
         if (ageBad) {
             if (typeof min === "number" && typeof max === "number") {
-                reasons.push(`This event is for Ages ${min}–${max}`);
+                reasons.push(`${localize('This event is for Ages:')} ${min}–${max}`);
             } else if (typeof min === "number") {
-                reasons.push(`This event is for Ages ${min}+`);
+                reasons.push(`${localize('This event is for Ages:')} ${min}+`);
             } else if (typeof max === "number") {
-                reasons.push(`This event is for Ages ≤ ${max}`);
+                reasons.push(`${localize('This event is for Ages:')} ≤ ${max}`);
             }
         }
         return reasons;
     }
 
     function hardIneligible(r: Registrant): string | null {
-        if (regPhase !== "open") return "Registration not open";
-        if (full) return "Event full";
+        if (regPhase !== "open") return localize("Registration not open");
+        if (full) return localize("Event full");
         const reasons = personEligibilityReasons(r);
-        return reasons.length ? "Does not meet requirements" : null;
+        return reasons.length ? localize("Does not meet requirements") : null;
     }
 
     const selectedFamilyIds = useMemo(
@@ -536,15 +539,14 @@ export function useRegistrationPaymentModalLogic({
 
             const resp = await changeRegistration(body);
             if (!resp?.success) {
-                alert(resp?.msg || "Could not update registration.");
+                alert(localize(resp?.msg || "Could not update registration."));
                 return false;
             }
 
-            toast.success("Registration updated.");
-
+            toast.success(localize("Registration updated."));
             const amt = opts?.refundNowAmount ?? 0;
             if (amt > 0) {
-                toast.success(`${money(amt)} PayPal refund processed.`);
+                toast.success(`${money(amt)} ${localize("PayPal refund processed.")}`);
             }
 
             onSuccess?.(
@@ -566,18 +568,18 @@ export function useRegistrationPaymentModalLogic({
             (body.family_members_registering && body.family_members_registering.length > 0);
 
         if (!addsExist) {
-            toast.error("No new attendees selected to pay for.");
+            toast.error(localize("No new attendees selected to pay for."));
             return;
         }
 
         if (!canUsePayPal) {
-            toast.error("Online payment is not available for this event.");
+            toast.error(localize("Online payment is not available for this event."));
             return;
         }
 
         const res = await createPaidRegistration({ ...body, payment_type: "paypal" });
         if (!res?.success || !res.approve_url) {
-            toast.error(res?.msg || "Could not start payment.");
+            toast.error(localize(res?.msg || "Could not start payment."));
             return;
         }
 
@@ -807,7 +809,7 @@ export function useRegistrationPaymentModalLogic({
 
     const signMoney = (n: number) => `${n >= 0 ? "+" : "−"}${money(Math.abs(n))}`;
 
-    const headerLabel = hasExistingReg ? "Change Registration" : "Register for Event";
+    const headerLabel = hasExistingReg ? localize("Change Registration") : localize("Register for Event");
 
     // Card helpers (exposed to UI so it doesn't inline closures)
     const disabledReasonFor = useCallback(
@@ -817,11 +819,11 @@ export function useRegistrationPaymentModalLogic({
                 : initialFamilyRegisteredSet.has(row.id);
 
             if (regPhase !== "open") {
-                return initiallyRegistered ? null : "Registration not open";
+                return initiallyRegistered ? null : localize("Registration not open");
             }
 
             if (eventIsFull(event) && !initiallyRegistered) {
-                return "Event full";
+                return localize("Event full");
             }
 
             if (!initiallyRegistered) {
@@ -837,7 +839,7 @@ export function useRegistrationPaymentModalLogic({
                     };
 
                 const reasons = personEligibilityReasons(r);
-                if (reasons.length) return "Does not meet requirements";
+                if (reasons.length) return localize("Does not meet requirements");
             }
 
             return null;
@@ -866,7 +868,7 @@ export function useRegistrationPaymentModalLogic({
                 };
             const reasons = personEligibilityReasons(r);
             const age = getAgeOn(r.dateOfBirth, eventDate);
-            reasons.unshift(`Age at time of Event: ${age ?? "—"}`);
+            reasons.unshift(`${localize("Age at time of Event:")} ${age ?? "—"}`);
             return reasons;
         },
         [selfRow, profile?.membership, eventDate]
@@ -896,7 +898,7 @@ export function useRegistrationPaymentModalLogic({
                     personEligibilityReasons(r).length === 0
             );
             if (!selfEligible && !famEligible) {
-                onError?.("Select at least one eligible registrant.");
+                onError?.(localize("Select at least one eligible registrant."));
                 return;
             }
         }
@@ -904,7 +906,7 @@ export function useRegistrationPaymentModalLogic({
         try {
             setSubmitting(true);
             if (isNoop()) {
-                toast.error("No changes selected.");
+                toast.error(localize("No changes selected."));
                 return;
             }
 

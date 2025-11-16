@@ -22,6 +22,7 @@ import {
 import ViewTransactionDialog from "./ViewTransactionDialog";
 import RequestRefundDialog from "./RequestRefundDialog";
 import CancelDonationSubscriptionUserDialog from "./CancelDonationSubscriptionUserDialog";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type MyTransactionsTableProps = {
     rows: TransactionSummary[];
@@ -90,11 +91,16 @@ function getUserNet(row: TransactionSummary | null | undefined): number | null {
     return net > 0 ? net : 0;
 }
 
+function getLocalized(s: string) {
+    const localize = useLocalize();
+    return localize(s);
+}
+
 const StatusCellRenderer = (props: ICellRendererParams<TransactionSummary>) => {
     const row = props.data;
     if (!row) return null;
     const { label, className } = getStatusDisplay(row.status, row.kind);
-    return <SoftPill className={className}>{label}</SoftPill>;
+    return <SoftPill className={className}>{getLocalized(label)}</SoftPill>;
 };
 
 const ActionsCellRenderer = (
@@ -103,6 +109,7 @@ const ActionsCellRenderer = (
         onAfterRefundRequest?: () => void;
     },
 ) => {
+
     const row = props.data;
     if (!row) return null;
 
@@ -142,26 +149,27 @@ const ActionsCellRenderer = (
 };
 
 export default function MyTransactionsTable(props: MyTransactionsTableProps) {
+    const localize = useLocalize();
     const gridApi = useRef<GridApi | null>(null);
 
     const columnDefs = useMemo<ColDef<TransactionSummary>[]>(
         () => [
             {
-                headerName: "Date",
+                headerName: localize("Date"),
                 field: "created_at",
                 minWidth: 170,
                 valueFormatter: (p) => formatDate(p.value),
             },
             {
-                headerName: "Type",
+                headerName: localize("Type"),
                 field: "kind",
                 minWidth: 180,
                 valueGetter: (p) => p.data,
                 valueFormatter: (p) =>
-                    formatKindWithExtras(p.value as TransactionSummary | null),
+                    localize(formatKindWithExtras(p.value as TransactionSummary | null)),
             },
             {
-                headerName: "Items",
+                headerName: localize("Items"),
                 minWidth: 90,
                 maxWidth: 110,
                 valueGetter: (p) => getLineItemCount(p.data!),
@@ -169,7 +177,7 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                     p.value == null ? "—" : String(p.value),
             },
             {
-                headerName: "Amount",
+                headerName: localize("Amount"),
                 minWidth: 110,
                 valueGetter: (p) => ({
                     amount: p.data?.amount ?? null,
@@ -179,7 +187,7 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                     formatAmount(p.value?.amount, p.value?.currency),
             },
             {
-                headerName: "Refunded",
+                headerName: localize("Refunded"),
                 minWidth: 110,
                 valueGetter: (p) => ({
                     amount: p.data?.refunded_total ?? null,
@@ -189,7 +197,7 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                     formatAmount(p.value?.amount, p.value?.currency),
             },
             {
-                headerName: "Net",
+                headerName: localize("Net"),
                 minWidth: 110,
                 valueGetter: (p) => ({
                     amount: getUserNet(p.data!) ?? null,
@@ -199,20 +207,20 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                     formatAmount(p.value?.amount, p.value?.currency),
             },
             {
-                headerName: "Status",
+                headerName: localize("Status"),
                 field: "status",
                 minWidth: 150,
                 cellRenderer: StatusCellRenderer as any,
             },
             {
-                headerName: "Order ID",
+                headerName: localize("Order ID"),
                 field: "paypal_order_id",
                 flex: 1,
                 minWidth: 180,
                 valueFormatter: (p) => p.value || "—",
             },
             {
-                headerName: "Capture / Sub ID",
+                headerName: localize("Capture / Sub ID"),
                 flex: 1,
                 minWidth: 190,
                 valueGetter: (p) =>
@@ -222,7 +230,7 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                 valueFormatter: (p) => p.value || "—",
             },
             {
-                headerName: "Actions",
+                headerName: localize("Actions"),
                 cellRenderer: ActionsCellRenderer as any,
                 pinned: "right",
                 minWidth: 95,
@@ -277,7 +285,7 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                         gridApi.current = ev.api;
                     }}
                     overlayNoRowsTemplate={
-                        props.loading ? "Loading..." : "No transactions found"
+                        props.loading ? localize("Loading...") : localize("No transactions found")
                     }
                     enableCellTextSelection
                 />
@@ -285,10 +293,10 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
 
             {/* Pager (server-controlled) */}
             <div className="flex items-center justify-between py-2 text-sm">
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground pl-3">
                     {props.loading
-                        ? "Loading…"
-                        : `Showing ${from}-${to} of ${props.total}`}
+                        ? localize("Loading…")
+                        : `${localize("Showing")} ${from}-${to} ${localize("up to")} ${props.total}`}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -299,11 +307,11 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                         }
                         disabled={props.loading || !canPrev}
                     >
-                        Prev
+                        {localize("Previous")}
                     </button>
 
                     <span>
-                        Page {page} of {totalPages}
+                        {localize("Page")} {page} {localize("up to")} {totalPages}
                     </span>
 
                     <button
@@ -313,7 +321,7 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                         }
                         disabled={props.loading || !canNext}
                     >
-                        Next
+                        {localize("Next")}
                     </button>
 
                     <select
@@ -328,7 +336,7 @@ export default function MyTransactionsTable(props: MyTransactionsTableProps) {
                     >
                         {[10, 25, 50].map((s) => (
                             <option key={s} value={s}>
-                                {s}/page
+                                {s}{" "}{localize("per page")}
                             </option>
                         ))}
                     </select>

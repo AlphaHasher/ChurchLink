@@ -15,6 +15,7 @@ import {
     getStatusDisplay,
 } from "./MyTransactionsFormatting";
 import { useNavigate } from "react-router-dom";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type Props = {
     tx: TransactionSummary;
@@ -27,10 +28,11 @@ function formatDateTime(iso?: string | null) {
 }
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
+    const localize = useLocalize();
     return (
         <div className="flex justify-between gap-4 text-sm">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {label}
+                {localize(label)}
             </span>
             <span className="text-right break-all">{value ?? "—"}</span>
         </div>
@@ -39,6 +41,8 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 // Per-line-item status pill (events)
 function getLineItemStatus(line: any): { label: string; className: string } {
+    const localize = useLocalize();
+
     const rawStatus = line.status as string | undefined;
     const amount = Number(line.unit_price ?? line.unitPrice ?? 0) || 0;
     const refunds = Array.isArray(line.refunds) ? line.refunds : [];
@@ -53,34 +57,35 @@ function getLineItemStatus(line: any): { label: string; className: string } {
     if (refundedTotal > 0 && amount > 0) {
         if (refundedTotal >= amount) {
             return {
-                label: "Refunded",
+                label: localize("Refunded"),
                 className: "bg-sky-50 text-sky-700",
             };
         }
         return {
-            label: "Partially Refunded",
+            label: localize("Partially Refunded"),
             className: "bg-amber-50 text-amber-700",
         };
     }
 
     if (rawStatus) {
-        return getStatusDisplay(rawStatus, "event");
+        return getStatusDisplay(localize(rawStatus), "event");
     }
 
     return {
-        label: "Paid",
+        label: localize("Paid"),
         className: "bg-emerald-50 text-emerald-700",
     };
 }
 
 function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
     const extra = tx.extra || {};
+    const localize = useLocalize();
 
     switch (tx.kind) {
         case "donation_one_time":
             return (
                 <div className="space-y-2">
-                    <DetailRow label="Message" value={extra.message || "—"} />
+                    <DetailRow label={localize("Message")} value={extra.message || "—"} />
                 </div>
             );
 
@@ -92,8 +97,8 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
 
             return (
                 <div className="space-y-2">
-                    <DetailRow label="Billing Interval" value={rawInterval || "—"} />
-                    <DetailRow label="Message" value={extra.message || "—"} />
+                    <DetailRow label={localize("Billing Interval")} value={localize(rawInterval) || "—"} />
+                    <DetailRow label={localize("Message")} value={extra.message || "—"} />
                 </div>
             );
         }
@@ -102,7 +107,7 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
             const subId = extra.subscription_id || tx.paypal_subscription_id;
             return (
                 <div className="space-y-2">
-                    <DetailRow label="Plan Subscription ID" value={subId || "—"} />
+                    <DetailRow label={localize("Plan Subscription ID")} value={subId || "—"} />
                 </div>
             );
         }
@@ -118,10 +123,10 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
 
             return (
                 <div className="space-y-3">
-                    <DetailRow label="Event ID" value={eventId || "—"} />
-                    <DetailRow label="Instance ID" value={instanceId || "—"} />
+                    <DetailRow label={localize("Event ID")} value={eventId || "—"} />
+                    <DetailRow label={localize("Instance ID")} value={instanceId || "—"} />
                     <DetailRow
-                        label="Line Items"
+                        label={localize("Line Items")}
                         value={
                             typeof itemsCount === "number"
                                 ? itemsCount
@@ -132,14 +137,14 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
                     {lineItems.length > 0 && (
                         <div className="mt-3 space-y-2">
                             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Line Item Breakdown
+                                {localize("Line Item Breakdown")}
                             </div>
                             <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-sm">
                                 {lineItems.map((li, idx) => {
                                     const name =
                                         li.display_name ??
                                         li.displayName ??
-                                        `Line ${idx + 1}`;
+                                        `${localize("Line")} ${idx + 1}`;
                                     const amount = li.unit_price ?? li.unitPrice ?? null;
                                     const refunds = Array.isArray(li.refunds)
                                         ? li.refunds
@@ -176,7 +181,7 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
                                                 </SoftPill>
                                                 {refundedTotal > 0 && (
                                                     <span>
-                                                        Refunded: USD{" "}
+                                                        {localize("Refunded")}: USD{" "}
                                                         {refundedTotal.toFixed(2)}
                                                     </span>
                                                 )}
@@ -195,7 +200,7 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
             const formId = extra.form_id || extra.formId;
             return (
                 <div className="space-y-2">
-                    <DetailRow label="Form ID" value={formId || "—"} />
+                    <DetailRow label={localize("Form ID")} value={formId || "—"} />
                 </div>
             );
         }
@@ -206,6 +211,8 @@ function KindSpecificDetails({ tx }: { tx: TransactionSummary }) {
 }
 
 export default function ViewTransactionDialog({ tx }: Props) {
+
+    const localize = useLocalize();
     const navigate = useNavigate();
 
     const typeLabel = formatKindWithExtras(tx);
@@ -247,17 +254,17 @@ export default function ViewTransactionDialog({ tx }: Props) {
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="h-7 w-7" title={localize("View Transaction Details")} aria-label={localize("View Transaction Details")}>
                     <Eye className="h-4 w-4" />
                 </Button>
             </DialogTrigger>
 
             {/* wider dialog */}
-            <DialogContent className="max-w-3xl z-500">
+            <DialogContent className="max-w-4xl sm:max-w-[100vh] max-h-[80vh] overflow-y-auto z-500">
                 <DialogHeader>
-                    <DialogTitle>{typeLabel}</DialogTitle>
+                    <DialogTitle>{localize(typeLabel)}</DialogTitle>
                     <DialogDescription>
-                        Transaction details for your {typeLabel.toLowerCase()}.
+                        {localize(`Transaction details for your ${typeLabel.toLowerCase()}`)}.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -265,7 +272,7 @@ export default function ViewTransactionDialog({ tx }: Props) {
                     {/* Summary */}
                     <div className="grid grid-cols-1 gap-4 rounded-md border bg-muted/40 p-4 text-sm sm:grid-cols-2">
                         <DetailRow
-                            label="Original Amount"
+                            label={localize("Original Amount")}
                             value={
                                 originalAmount != null
                                     ? `${currency} ${originalAmount.toFixed(2)}`
@@ -273,7 +280,7 @@ export default function ViewTransactionDialog({ tx }: Props) {
                             }
                         />
                         <DetailRow
-                            label="Refunded"
+                            label={localize("Refunded")}
                             value={
                                 refundedTotal > 0
                                     ? `${currency} ${refundedTotal.toFixed(2)}`
@@ -281,28 +288,28 @@ export default function ViewTransactionDialog({ tx }: Props) {
                             }
                         />
                         <DetailRow
-                            label="Net Amount"
+                            label={localize("Net Amount")}
                             value={
                                 netAmount != null
                                     ? `${currency} ${netAmount.toFixed(2)}`
                                     : "—"
                             }
                         />
-                        <DetailRow label="Items" value={itemsCount ?? "—"} />
+                        <DetailRow label={localize("Items")} value={itemsCount ?? "—"} />
                         <DetailRow
-                            label="Created"
+                            label={localize("Created")}
                             value={formatDateTime(tx.created_at)}
                         />
                         <DetailRow
-                            label="Updated"
+                            label={localize("Updated")}
                             value={formatDateTime(tx.updated_at)}
                         />
                         <div className="sm:col-span-2 flex justify-between items-center pt-1">
                             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                Status
+                                {localize("Status")}
                             </span>
                             <SoftPill className={status.className}>
-                                {status.label}
+                                {localize(status.label)}
                             </SoftPill>
                         </div>
                     </div>
@@ -310,22 +317,22 @@ export default function ViewTransactionDialog({ tx }: Props) {
                     {/* Identifiers */}
                     <div className="space-y-2 text-sm">
                         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Identifiers
+                            {localize("Identifiers")}
                         </div>
                         <div className="space-y-2 rounded-md border p-3">
                             <DetailRow
-                                label="Order ID"
+                                label={localize("Order ID")}
                                 value={tx.paypal_order_id || "—"}
                             />
                             <DetailRow
-                                label="Capture ID"
+                                label={localize("Capture ID")}
                                 value={tx.paypal_capture_id || "—"}
                             />
                             <DetailRow
-                                label="Subscription ID"
+                                label={localize("Subscription ID")}
                                 value={tx.paypal_subscription_id || "—"}
                             />
-                            <DetailRow label="Internal ID" value={tx.id} />
+                            <DetailRow label={localize("Internal ID")} value={tx.id} />
                         </div>
                     </div>
 
@@ -333,7 +340,7 @@ export default function ViewTransactionDialog({ tx }: Props) {
                     <div className="space-y-3 text-sm">
                         <div className="flex items-start justify-between gap-4">
                             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Additional Info
+                                {localize("Additional Info")}
                             </div>
 
                             <div className="flex flex-col items-end gap-2">
@@ -343,8 +350,11 @@ export default function ViewTransactionDialog({ tx }: Props) {
                                         variant="outline"
                                         onClick={handleGoToEvent}
                                         className="text-xs"
+                                        title={localize("Go to Event")}
+                                        aria-label={localize("Go to Event")}
+
                                     >
-                                        Go to Event
+                                        {localize("Go to Event")}
                                     </Button>
                                 )}
                             </div>

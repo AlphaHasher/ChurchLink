@@ -5,6 +5,7 @@ import { QrCode, Download } from "lucide-react";
 import * as QRCode from "qrcode";
 import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { useFetchEventInstanceDetails } from "@/helpers/EventUserHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type InstanceLike = {
     id: string;                 // instance id
@@ -43,6 +44,7 @@ const fmtDateTime = (iso?: string | null) => {
 };
 
 export default function EventTicketCard({ instance, userId }: Props) {
+    const localize = useLocalize();
     // Build deep link (not displayed)
     const rawHost = import.meta.env.VITE_WEB_DOMAIN?.trim();
     const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "";
@@ -249,7 +251,7 @@ export default function EventTicketCard({ instance, userId }: Props) {
         <Card className="p-4">
             <div className="flex items-center gap-2 mb-3 font-semibold">
                 <QrCode className="h-4 w-4 text-muted-foreground" />
-                Ticket
+                {localize("Ticket")}
             </div>
 
             <div className="space-y-3">
@@ -263,18 +265,17 @@ export default function EventTicketCard({ instance, userId }: Props) {
                 </div>
 
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                    This QR code can be scanned to show an event administrator all of the registrations on your account.
-                    You do not need a code per registrant—this single code is valid for all of your registrants.
+                    {localize("This QR code can be scanned to show an event administrator all of the registrations on your account. You do not need a code per registrant—this single code is valid for all of your registrants.")}
                 </p>
 
                 <div className="text-xs text-muted-foreground">
-                    Registrants: <span className="font-medium text-foreground">{Math.max(0, registrantCount)}</span>{" "}
-                    <span className="text-muted-foreground">(Code will remain valid even if registrants added/dropped)</span>
+                    {localize("Registrants")}: <span className="font-medium text-foreground">{Math.max(0, registrantCount)}</span>{" "}
+                    <span className="text-muted-foreground">({localize("Code will remain valid even if registrants added/dropped")})</span>
                 </div>
 
                 <Button onClick={onDownloadPdf} disabled={pdfBusy} className="w-full gap-2">
                     <Download className="h-4 w-4" />
-                    {pdfBusy ? "Preparing…" : "Download PDF"}
+                    {pdfBusy ? localize("Preparing…") : localize("Download PDF")}
                 </Button>
             </div>
         </Card>

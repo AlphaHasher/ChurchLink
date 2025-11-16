@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, CheckCircle, XCircle, ArrowLeft, ExternalLink, CircleDollarSign } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, ArrowLeft, ExternalLink, CreditCard } from "lucide-react";
 
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -12,6 +12,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 
 import { captureOneTimeDonation } from "@/helpers/DonationHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 /**
  * One-time Donation PayPal success page.
@@ -34,6 +35,7 @@ type CaptureState =
     | { phase: "error"; message: string };
 
 const OnetimeDonationSuccess: React.FC = () => {
+    const localize = useLocalize();
     const navigate = useNavigate();
     const [params] = useSearchParams();
 
@@ -90,7 +92,7 @@ const OnetimeDonationSuccess: React.FC = () => {
 
         async function run() {
             if (!orderId) {
-                setState({ phase: "error", message: "Missing PayPal order id in the URL." });
+                setState({ phase: "error", message: localize("Missing PayPal order id in the URL.") });
                 return;
             }
 
@@ -124,7 +126,7 @@ const OnetimeDonationSuccess: React.FC = () => {
                     release(lockKey, false);
                     setState({
                         phase: "error",
-                        message: res.msg || "We couldn't finalize your donation. Please try again.",
+                        message: localize(res.msg || "We couldn't finalize your donation. Please try again."),
                     });
                     return;
                 }
@@ -142,7 +144,7 @@ const OnetimeDonationSuccess: React.FC = () => {
                 release(lockKey, false);
                 setState({
                     phase: "error",
-                    message: "Something went wrong while capturing your donation.",
+                    message: localize("Something went wrong while capturing your donation."),
                 });
             }
         }
@@ -155,7 +157,7 @@ const OnetimeDonationSuccess: React.FC = () => {
     }, [orderId]);
 
     const goHome = () => navigate("/");
-    const goGive = () => navigate("/donations");
+    const goMyTransactions = () => navigate("/my-transactions");
 
     // ---------- render ----------
     if (state.phase === "loading") {
@@ -165,10 +167,10 @@ const OnetimeDonationSuccess: React.FC = () => {
                     <CardContent className="pt-6">
                         <div className="text-center">
                             <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto mb-4" />
-                            <h2 className="text-xl font-semibold text-gray-900 mb-2">Finalizing Donation</h2>
-                            <p className="text-gray-600">We’re capturing your payment with PayPal…</p>
+                            <h2 className="text-xl font-semibold text-gray-900 mb-2">{localize("Finalizing Donation")}</h2>
+                            <p className="text-gray-600">{localize("We’re capturing your payment with PayPal…")}</p>
                             <div className="mt-4 text-sm text-gray-500">
-                                <p>Order ID: {orderId || "—"}</p>
+                                <p>{localize("Order ID")}: {orderId || "—"}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -184,17 +186,17 @@ const OnetimeDonationSuccess: React.FC = () => {
                     <CardContent className="pt-6">
                         <div className="text-center">
                             <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Processing Failed</h2>
+                            <h2 className="text-xl font-semibold text-gray-900 mb-4">{localize("Payment Processing Failed")}</h2>
                             <Alert variant="destructive" className="mb-6 text-left">
                                 <AlertDescription>{state.message}</AlertDescription>
                             </Alert>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                <Button onClick={goGive} variant="outline" className="w-full sm:w-auto">
-                                    <ArrowLeft className="h-4 w-4 mr-2" />
-                                    Back to Donations
+                                <Button onClick={goMyTransactions} variant="outline" className="w-full sm:w-auto">
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    {localize("Go to My Transactions")}
                                 </Button>
                                 <Button onClick={goHome} variant="outline" className="w-full sm:w-auto">
-                                    Home
+                                    {localize("Home")}
                                 </Button>
                             </div>
                         </div>
@@ -212,33 +214,33 @@ const OnetimeDonationSuccess: React.FC = () => {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-700">
                             <CheckCircle className="h-6 w-6" />
-                            Donation Successful
+                            {localize("Donation Successful")}
                         </CardTitle>
                     </CardHeader>
 
                     <CardContent className="space-y-6">
                         <div className="flex flex-wrap gap-2">
                             <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                                Payment {state.status === "already_captured" ? "Previously Captured" : "Captured"}
+                                {localize("Payment")} {state.status === "already_captured" ? localize("Previously Captured") : localize("Captured")}
                             </Badge>
-                            <Badge variant="secondary">PayPal</Badge>
+                            <Badge variant="secondary">{localize("PayPal")}</Badge>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <Label htmlFor="orderId">PayPal Order ID</Label>
+                                <Label htmlFor="orderId">{localize("PayPal Order ID")}</Label>
                                 <Input id="orderId" readOnly value={state.order_id || orderId} />
                             </div>
                             <div>
-                                <Label htmlFor="payerId">Payer ID</Label>
+                                <Label htmlFor="payerId">{localize("Payer ID")}</Label>
                                 <Input id="payerId" readOnly value={payerId || "—"} />
                             </div>
                             <div>
-                                <Label htmlFor="captureId">Capture ID</Label>
+                                <Label htmlFor="captureId">{localize("Capture ID")}</Label>
                                 <Input id="captureId" readOnly value={state.capture_id || "—"} />
                             </div>
                             <div>
-                                <Label htmlFor="amount">Amount</Label>
+                                <Label htmlFor="amount">{localize("Amount")}</Label>
                                 <Input
                                     id="amount"
                                     readOnly
@@ -255,13 +257,13 @@ const OnetimeDonationSuccess: React.FC = () => {
 
                         <div className="flex flex-col sm:flex-row gap-3 sm:justify-between">
                             <div className="flex gap-2">
-                                <Button onClick={goGive} className="flex items-center">
-                                    <CircleDollarSign className="h-4 w-4 mr-2" />
-                                    Give Again
+                                <Button onClick={goMyTransactions} className="flex items-center">
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    {localize("Go to My Transactions")}
                                 </Button>
                                 <Button onClick={goHome} variant="outline" className="flex items-center">
                                     <ArrowLeft className="h-4 w-4 mr-2" />
-                                    Home
+                                    {localize("Home")}
                                 </Button>
                             </div>
 
@@ -270,7 +272,7 @@ const OnetimeDonationSuccess: React.FC = () => {
                                 onClick={() => window.open(`https://www.paypal.com/activity/payment/${state.capture_id || state.order_id}`, "_blank")}
                                 disabled={!state.capture_id && !state.order_id}
                             >
-                                View in PayPal
+                                {localize("View in PayPal")}
                                 <ExternalLink className="h-4 w-4 ml-2" />
                             </Button>
                         </div>

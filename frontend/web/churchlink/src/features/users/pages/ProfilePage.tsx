@@ -184,8 +184,8 @@ const ProfilePage: React.FC = () => {
                                 birthday={profile.birthday}
                                 gender={profile.gender}
                                 footer={
-                                    <div className="grid w-full gap-2">
-                                        <div className="grid grid-cols-2 gap-2 [&_button]:w-full">
+                                    <div className="grid w-full gap-4 pt-4">
+                                        <div className="grid grid-cols-2 gap-4 [&_button]:w-full">
                                             <ChangeEmailDialog />
                                             <ChangePasswordDialog />
                                         </div>

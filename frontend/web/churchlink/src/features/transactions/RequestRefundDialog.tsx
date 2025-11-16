@@ -20,6 +20,8 @@ import { BanknoteArrowDown, Loader2, Info } from "lucide-react";
 import type { TransactionSummary } from "@/shared/types/Transactions";
 import { SoftPill, formatKindWithExtras, getStatusDisplay } from "./MyTransactionsFormatting";
 import { createRefundRequest } from "@/helpers/RefundRequestHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 type Props = {
     tx: TransactionSummary;
@@ -33,6 +35,9 @@ function formatDate(iso?: string | null) {
 }
 
 export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
+
+    const localize = useLocalize();
+
     const [open, setOpen] = React.useState(false);
     const [message, setMessage] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
@@ -71,12 +76,12 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
     const handleSubmit = async () => {
         const trimmed = message.trim();
         if (!trimmed) {
-            setError("Please describe what you are asking for with this refund request.");
+            setError(localize("Please describe what you are asking for with this refund request."));
             return;
         }
 
         if (!isRefundableKind) {
-            setError("Only event and form transactions may be used for refund requests.");
+            setError(localize("Only event and form transactions may be used for refund requests."));
             return;
         }
 
@@ -92,7 +97,7 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
 
             const result = await createRefundRequest(payload);
             if (!result.success) {
-                setError(result.msg || "Failed to submit refund request. Please try again.");
+                setError(localize(result.msg || "Failed to submit refund request. Please try again."));
                 return;
             }
 
@@ -100,11 +105,21 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
             onSubmitted?.();
         } catch (err) {
             console.error("[RequestRefundDialog] handleSubmit() error", err);
-            setError("Something went wrong. Please try again.");
+            setError(localize("Something went wrong. Please try again."));
         } finally {
             setSubmitting(false);
         }
     };
+
+    const lang = useLanguage().locale;
+
+    let close: string;
+    if (lang === "en") {
+        close = "Close";
+    }
+    else {
+        close = localize("Close Dialog");
+    }
 
     if (!isRefundableKind) {
         // Extra safety, though the button shouldn't show for other kinds.
@@ -113,22 +128,22 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
 
     const label =
         tx.kind === "event"
-            ? "Request refund for this event payment"
-            : "Request refund for this form payment";
+            ? localize("Request refund for this event payment")
+            : localize("Request refund for this form payment");
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7" title={label}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" title={localize(label)} aria-label={localize(label)}>
                     <BanknoteArrowDown className="h-4 w-4" />
                 </Button>
             </DialogTrigger>
 
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>Request Refund</DialogTitle>
+                    <DialogTitle>{localize("Request Refund")}</DialogTitle>
                     <DialogDescription>
-                        {`You're requesting a refund for this ${typeLabel}. Use the message box below to explain what you're asking for (partial refund, full refund, specific line items, etc.).`}
+                        {localize(`You're requesting a refund for this ${typeLabel}. Use the message box below to explain what you're asking for (partial refund, full refund, specific line items, etc.).`)}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -138,19 +153,19 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
                         <div className="flex items-start justify-between gap-3 mb-2">
                             <div>
                                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Transaction
+                                    {localize("Transaction")}
                                 </div>
-                                <div className="font-medium">{formatKindWithExtras(tx)}</div>
+                                <div className="font-medium">{localize(formatKindWithExtras(tx))}</div>
                                 <div className="text-xs text-muted-foreground">
-                                    Internal ID: <span className="break-all">{tx.id}</span>
+                                    {localize("Internal ID:")} <span className="break-all">{tx.id}</span>
                                 </div>
                             </div>
-                            <SoftPill className={status.className}>{status.label}</SoftPill>
+                            <SoftPill className={status.className}>{localize(status.label)}</SoftPill>
                         </div>
 
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                             <div>
-                                <Label>Original Amount</Label>
+                                <Label>{localize("Original Amount")}</Label>
                                 <div>
                                     {originalAmount != null
                                         ? `${currency} ${originalAmount.toFixed(2)}`
@@ -158,7 +173,7 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
                                 </div>
                             </div>
                             <div>
-                                <Label>Refunded so far</Label>
+                                <Label>{localize("Refunded so far")}</Label>
                                 <div>
                                     {refundedTotal > 0
                                         ? `${currency} ${refundedTotal.toFixed(2)}`
@@ -166,7 +181,7 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
                                 </div>
                             </div>
                             <div>
-                                <Label>Net Amount</Label>
+                                <Label>{localize("Net Amount")}</Label>
                                 <div>
                                     {netAmount != null
                                         ? `${currency} ${netAmount.toFixed(2)}`
@@ -174,11 +189,11 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
                                 </div>
                             </div>
                             <div>
-                                <Label>Created</Label>
+                                <Label>{localize("Created")}</Label>
                                 <div>{formatDate(tx.created_at)}</div>
                             </div>
                             <div>
-                                <Label>Last Updated</Label>
+                                <Label>{localize("Last Updated")}</Label>
                                 <div>{formatDate(tx.updated_at)}</div>
                             </div>
                         </div>
@@ -186,9 +201,7 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
                         <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
                             <Info className="mt-0.5 h-4 w-4" />
                             <span>
-                                This dialog does not immediately move money. An admin will review
-                                your request and either process an appropriate refund or respond
-                                with more questions.
+                                {localize("This dialog does not immediately move money. An admin will review your request and either process an appropriate refund or respond with more questions.")}
                             </span>
                         </div>
                     </div>
@@ -201,13 +214,13 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
                     )}
 
                     <div className="space-y-2">
-                        <Label htmlFor="refund-request-message">Describe your request</Label>
+                        <Label htmlFor="refund-request-message">{localize("Describe your request")}</Label>
                         <Textarea
                             id="refund-request-message"
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             rows={5}
-                            placeholder="For example: “I’d like a refund for one ticket because I can no longer attend”, or “Please refund $4.00 because …”"
+                            placeholder={localize("For example: “I’d like a refund for one ticket because I can no longer attend”, or “Please refund $4.00 because …”")}
                         />
                     </div>
                 </div>
@@ -218,11 +231,11 @@ export default function RequestRefundDialog({ tx, onSubmitted }: Props) {
                         onClick={() => setOpen(false)}
                         disabled={submitting}
                     >
-                        Close
+                        {close}
                     </Button>
                     <Button onClick={handleSubmit} disabled={submitting}>
                         {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Submit Request
+                        {localize("Submit Request")}
                     </Button>
                 </DialogFooter>
             </DialogContent>

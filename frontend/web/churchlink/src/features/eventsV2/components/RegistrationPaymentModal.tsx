@@ -45,6 +45,9 @@ import {
 
 import ApplyDiscountCodes from "@/features/eventsV2/components/ApplyDiscountCodes";
 
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
+
 type PaymentMethod = "free" | "door" | "paypal";
 
 type Props = {
@@ -85,13 +88,58 @@ export default function RegistrationPaymentModal({
         onError,
     });
 
+    const localize = useLocalize();
+    const lang = useLanguage().locale;
+
+    let freeMsg: string;
+    let freeForMembers: string;
+    let freeForAll: string;
+    let free: string;
+    let changeMsg: string;
+    let netMsg: string;
+    let netLater: string;
+    let netTotal: string;
+    let payAtDoor: string;
+    let refundOnline: string;
+    let lessAtDoor: string;
+    let back: string;
+
+    if (lang === "en") {
+        freeMsg = "Free for members";
+        free = "Free";
+        freeForMembers = "This event is free for members.";
+        freeForAll = "This event is free.";
+        changeMsg = `You are changing ${L.addsCount} add(s) and ${L.removesCount} removal(s).`;
+        netMsg = `NET now: ${L.signMoney(L.netOnlineNow)}`;
+        netLater = `NET later: ${L.signMoney(L.netAtDoorLater)}`;
+        netTotal = "NET now + NET later";
+        payAtDoor = `You will pay ${money(L.payAtDoor)} at the door.`;
+        refundOnline = `We’ll refund ${money(L.refundNow)} online.`;
+        lessAtDoor = `You’ll pay ${money(L.creditAtDoor)} less at the door.`;
+        back = "Back";
+    }
+    else {
+        freeMsg = "No cost for members";
+        free = "No cost";
+        freeForMembers = "This event has no cost for members.";
+        freeForAll = "This event has no cost.";
+        changeMsg = `${localize("You are registering this amount of people:")} ${L.addsCount} ${localize("And you are unregistering this amount of people:")} ${L.removesCount}.`;
+        netMsg = `${localize("NET payment charge now")}: ${L.signMoney(L.netOnlineNow)}`
+        netLater = `${localize("NET payment charge later")}: ${L.signMoney(L.netAtDoorLater)}`
+        netTotal = localize("NET payment charge in total");
+        payAtDoor = `${localize("The amount you will pay at the door:")} ${money(L.payAtDoor)}.`;
+        refundOnline = `${localize("The amount we’ll refund online:")} ${money(L.refundNow)}.`;
+        lessAtDoor = `${localize("The amount you’ll pay less at the door:")} ${money(L.creditAtDoor)}.`;
+        back = localize("Go Back");
+    }
+
     const Content = (
         <div className="p-0">
             {inline && (
                 <div className="top-0 z-10 px-3 py-2">
                     <Button variant="outline" size="sm" className="gap-1" onClick={onBack}>
                         <ChevronLeft className="h-4 w-4" />
-                        Go back to Event Details
+                        {localize("Go back to Event Details")}
                     </Button>
                 </div>
             )}
@@ -99,7 +147,7 @@ export default function RegistrationPaymentModal({
             <div className="p-5 md:p-6">
                 <div className="mb-4">
                     <h2 className="text-xl font-semibold">{L.headerLabel}</h2>
-                    <p className="text-sm text-muted-foreground">Choose who’s attending and how you’ll pay.</p>
+                    <p className="text-sm text-muted-foreground">{localize("Choose who’s attending and how you’ll pay.")}</p>
                 </div>
 
                 {/* Event facts / status */}
@@ -108,19 +156,19 @@ export default function RegistrationPaymentModal({
                         <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                             <div>
-                                <div className="font-medium">Event takes place on</div>
-                                <div>{fmtDateTime(event.date)}</div>
+                                <div className="font-medium">{localize("Event takes place on")}</div>
+                                <div>{localize(fmtDateTime(event.date))}</div>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-2">
                             <Repeat2 className="h-4 w-4 text-muted-foreground" />
                             <div>
-                                <div className="font-medium">Series</div>
+                                <div className="font-medium">{localize("Series")}</div>
                                 <div>
                                     {(event.recurring as EventRecurrence) === "never"
-                                        ? "One-time"
-                                        : `Repeats ${event.recurring}`}
+                                        ? localize("One-time")
+                                        : localize(`Repeats ${event.recurring}`)}
                                 </div>
                             </div>
                         </div>
@@ -128,16 +176,16 @@ export default function RegistrationPaymentModal({
                         <div className="flex items-center gap-2">
                             <Wallet className="h-4 w-4 text-muted-foreground" />
                             <div>
-                                <div className="font-medium">Price</div>
+                                <div className="font-medium">{localize("Price")}</div>
                                 {L.unitPrice === 0 ? (
                                     <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">
-                                        Free for members
+                                        {localize(freeMsg)}
                                     </Badge>
                                 ) : L.baseEventPaid ? (
-                                    <div className="font-semibold">{money(L.unitPrice)} per person</div>
+                                    <div className="font-semibold">{money(L.unitPrice)} {localize("per person")}</div>
                                 ) : (
                                     <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">
-                                        Free
+                                        {localize(free)}
                                     </Badge>
                                 )}
                             </div>
@@ -154,13 +202,13 @@ export default function RegistrationPaymentModal({
                                 <Shield className="h-4 w-4 text-rose-600" />
                             )}
                             <div>
-                                <div className="font-medium">Registration</div>
-                                {L.regPhase === "closed" && <span className="text-rose-700">Closed</span>}
-                                {L.regPhase === "not_open_yet" && <span className="text-rose-700">Not open yet</span>}
+                                <div className="font-medium">{localize("Registration")}</div>
+                                {L.regPhase === "closed" && <span className="text-rose-700">{localize("Closed")}</span>}
+                                {L.regPhase === "not_open_yet" && <span className="text-rose-700">{localize("Not open yet")}</span>}
                                 {L.regPhase === "deadline_passed" && (
-                                    <span className="text-rose-700">Deadline passed</span>
+                                    <span className="text-rose-700">{localize("Deadline passed")}</span>
                                 )}
-                                {L.regPhase === "open" && <span className="text-emerald-700">Open</span>}
+                                {L.regPhase === "open" && <span className="text-emerald-700">{localize("Open")}</span>}
                             </div>
                         </div>
 
@@ -168,8 +216,8 @@ export default function RegistrationPaymentModal({
                             <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                    <div className="font-medium">Registration Opens</div>
-                                    <div>{fmtDateTime(event.registration_opens)}</div>
+                                    <div className="font-medium">{localize("Registration Opens")}</div>
+                                    <div>{localize(fmtDateTime(event.registration_opens))}</div>
                                 </div>
                             </div>
                         )}
@@ -178,8 +226,8 @@ export default function RegistrationPaymentModal({
                             <div className="flex items-center gap-2">
                                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                    <div className="font-medium">Registration Deadline</div>
-                                    <div>{fmtDateTime(event.registration_deadline)}</div>
+                                    <div className="font-medium">{localize("Registration Deadline")}</div>
+                                    <div>{localize(fmtDateTime(event.registration_deadline))}</div>
                                 </div>
                             </div>
                         )}
@@ -188,8 +236,8 @@ export default function RegistrationPaymentModal({
                             <div className="flex items-center gap-2 md:col-span-2">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
                                 <div>
-                                    <div className="font-medium">Automatic Refund Deadline</div>
-                                    <div>{fmtDateTime(L.refundDeadlineAt.toISOString())}</div>
+                                    <div className="font-medium">{localize("Automatic Refund Deadline")}</div>
+                                    <div>{localize(fmtDateTime(L.refundDeadlineAt.toISOString()))}</div>
                                 </div>
                             </div>
                         )}
@@ -200,47 +248,47 @@ export default function RegistrationPaymentModal({
                 <Card className="mb-6 p-4">
                     <div className="mb-2 flex items-center gap-2 font-semibold">
                         <IdCard className="h-4 w-4 text-muted-foreground" />
-                        Who can attend
+                        {localize("Who can attend")}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                         {event.members_only ? (
                             <Badge className="inline-flex items-center gap-1 border border-purple-200 bg-purple-50 text-purple-700">
                                 <IdCard className="h-3.5 w-3.5" />
-                                Members Only
+                                {localize("Members Only")}
                             </Badge>
                         ) : (
                             <Badge className="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-700">
                                 <Users className="h-3.5 w-3.5" />
-                                Members &amp; Non-Members
+                                {localize("Members & Non-Members")}
                             </Badge>
                         )}
 
                         {String((event.gender || "all")).toLowerCase() === "male" ? (
                             <Badge className="inline-flex items-center gap-1 border border-blue-200 bg-blue-50 text-blue-700">
                                 <Mars className="h-3.5 w-3.5" />
-                                Men Only
+                                {localize("Men Only")}
                             </Badge>
                         ) : String((event.gender || "all")).toLowerCase() === "female" ? (
                             <Badge className="inline-flex items-center gap-1 border border-pink-200 bg-pink-50 text-pink-700">
                                 <Venus className="h-3.5 w-3.5" />
-                                Women Only
+                                {localize("Women Only")}
                             </Badge>
                         ) : (
                             <Badge className="inline-flex items-center gap-1 border border-emerald-200 bg-emerald-50 text-emerald-700">
                                 <Users className="h-3.5 w-3.5" />
-                                Both Genders
+                                {localize("Both Genders")}
                             </Badge>
                         )}
 
                         {typeof event.min_age !== "number" && typeof event.max_age !== "number" ? (
-                            <Badge className="border border-slate-200 bg-slate-50 text-slate-700">All Ages</Badge>
+                            <Badge className="border border-slate-200 bg-slate-50 text-slate-700">{localize("All Ages")}</Badge>
                         ) : (
                             <Badge className="border border-slate-200 bg-slate-50 text-slate-700">
                                 {typeof event.min_age === "number" && typeof event.max_age === "number"
-                                    ? `${event.min_age}-${event.max_age} Years Old`
+                                    ? `${event.min_age}-${event.max_age} ${localize("Years Old")}`
                                     : typeof event.min_age === "number"
-                                        ? `${event.min_age} Years Old and Over`
-                                        : `${event.max_age} Years Old and Under`}
+                                        ? `${event.min_age} ${localize("Years Old and Over")}`
+                                        : `${event.max_age} ${localize("Years Old and Under")}`}
                             </Badge>
                         )}
                     </div>
@@ -250,7 +298,7 @@ export default function RegistrationPaymentModal({
                 {L.loading ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Loading your household…
+                        {localize("Loading your household…")}
                     </div>
                 ) : L.loadErr ? (
                     <div className="text-sm text-rose-700">{L.loadErr}</div>
@@ -278,8 +326,8 @@ export default function RegistrationPaymentModal({
                             <div className="flex items-center gap-2 text-sm">
                                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                                 {L.baseEventPaid && L.unitPrice === 0
-                                    ? "This event is free for members."
-                                    : "This event is free."}
+                                    ? localize(freeForMembers)
+                                    : localize(freeForAll)}
                             </div>
                         ) : (
                             <>
@@ -295,7 +343,7 @@ export default function RegistrationPaymentModal({
                                                 onChange={() => L.setMethod("paypal")}
                                             />
                                             <CreditCard className="h-4 w-4" />
-                                            <span>Pay online</span>
+                                            <span>{localize("Pay online")}</span>
                                         </label>
                                     )}
                                     {L.canUseDoor && (
@@ -308,13 +356,13 @@ export default function RegistrationPaymentModal({
                                                 onChange={() => L.setMethod("door")}
                                             />
                                             <DoorOpen className="h-4 w-4" />
-                                            <span>Pay at door</span>
+                                            <span>{localize("Pay at door")}</span>
                                         </label>
                                     )}
                                     {!L.canUseDoor && !L.canUsePayPal && (
                                         <div className="inline-flex items-center gap-2 text-rose-700">
                                             <AlertTriangle className="h-4 w-4" />
-                                            No payment methods available
+                                            {localize("No payment methods available")}
                                         </div>
                                     )}
                                 </div>
@@ -326,15 +374,10 @@ export default function RegistrationPaymentModal({
                                             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                                             <div>
                                                 <div className="font-semibold text-xs">
-                                                    PayPal refunds do not include fees
+                                                    {localize("PayPal refunds do not include fees")}
                                                 </div>
                                                 <p className="mt-0.5 leading-snug">
-                                                    If you pay online using PayPal and later unregister from this
-                                                    event, automatic refunds will return only the ticket amount.
-                                                    Any transaction fees charged by PayPal are non-refundable and
-                                                    will not be returned. This means if you register and then unregister
-                                                    from a $25 event, you may not receive the entire $25 back,
-                                                    and a small portion will be reserved to cover transaction fees.
+                                                    {localize("If you pay online using PayPal and later unregister from this event, automatic refunds will return only the ticket amount. Any transaction fees charged by PayPal are non-refundable and will not be returned. This means if you register and then unregister from a $25 event, you may not receive the entire $25 back, and a small portion will be reserved to cover transaction fees.")}
                                                 </p>
                                             </div>
                                         </div>
@@ -362,33 +405,33 @@ export default function RegistrationPaymentModal({
                 <Card className="mt-6 p-4">
                     <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
                         <DollarSign size={16} />
-                        Summary
+                        {localize("Summary")}
                     </div>
 
                     {!L.isPaidEvent ? (
                         <div className="text-sm text-gray-700">
-                            This event is free.{" "}
+                            {localize("This event is free.")}{" "}
                             {L.addsCount > 0 || L.removesCount > 0
-                                ? `You are changing ${L.addsCount} add(s) and ${L.removesCount} removal(s).`
-                                : "No changes selected."}
+                                ? changeMsg
+                                : localize("No changes selected.")}
                         </div>
                     ) : (
                         <div className="space-y-3 text-sm text-gray-700">
                             <div className="flex items-center justify-between">
-                                <span>Unit Price</span>
+                                <span>{localize("Unit Price")}</span>
                                 {/* Use effective unit price for the summary only */}
                                 <span className="font-medium">{money(L.summaryUnitPrice)}</span>
                             </div>
 
                             {L.showOnlineNow && (
                                 <div className="rounded-md bg-gray-50 p-3">
-                                    <div className="mb-1 font-medium">Online (now)</div>
+                                    <div className="mb-1 font-medium">{localize("Online (now)")}</div>
                                     <div className="flex flex-wrap items-center gap-3">
                                         <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-700">
-                                            + Pay now: {money(L.payNow)}
+                                            + {localize("Pay now")}: {money(L.payNow)}
                                         </span>
                                         <span className="rounded bg-rose-50 px-2 py-0.5 text-rose-700">
-                                            − Refund now: {money(L.refundNow)}
+                                            − {localize("Refund now")}: {money(L.refundNow)}
                                         </span>
                                         <span
                                             className={`ml-auto rounded px-2 py-0.5 font-semibold ${L.netOnlineNow >= 0
@@ -396,7 +439,7 @@ export default function RegistrationPaymentModal({
                                                 : "bg-rose-50 text-rose-700"
                                                 }`}
                                         >
-                                            NET now: {L.signMoney(L.netOnlineNow)}
+                                            {netMsg}
                                         </span>
                                     </div>
                                 </div>
@@ -407,10 +450,10 @@ export default function RegistrationPaymentModal({
                                     <div className="mb-1 font-medium">At the door (later)</div>
                                     <div className="flex flex-wrap items-center gap-3">
                                         <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-700">
-                                            + Pay at door: {money(L.payAtDoor)}
+                                            + {localize("Pay at door")}: {money(L.payAtDoor)}
                                         </span>
                                         <span className="rounded bg-rose-50 px-2 py-0.5 text-rose-700">
-                                            − Pay less at door: {money(L.creditAtDoor)}
+                                            − {localize("Pay less at door")}: {money(L.creditAtDoor)}
                                         </span>
                                         <span
                                             className={`ml-auto rounded px-2 py-0.5 font-semibold ${L.netAtDoorLater >= 0
@@ -418,7 +461,7 @@ export default function RegistrationPaymentModal({
                                                 : "bg-rose-50 text-rose-700"
                                                 }`}
                                         >
-                                            NET later: {L.signMoney(L.netAtDoorLater)}
+                                            {netLater}
                                         </span>
                                     </div>
                                 </div>
@@ -426,9 +469,9 @@ export default function RegistrationPaymentModal({
 
                             {L.showGrand && (
                                 <div className="rounded-md border border-slate-200 bg-white p-3">
-                                    <div className="mb-1 font-medium">Grand Total</div>
+                                    <div className="mb-1 font-medium">{localize("Grand Total")}</div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-xs text-slate-600">NET now + NET later</span>
+                                        <span className="text-xs text-slate-600">{netTotal}</span>
                                         <span
                                             className={`rounded px-2 py-0.5 font-semibold ${L.netOnlineNow + L.netAtDoorLater >= 0
                                                 ? "bg-emerald-50 text-emerald-700"
@@ -442,9 +485,7 @@ export default function RegistrationPaymentModal({
                             )}
 
                             <div className="text-xs text-gray-500">
-                                “Online (now)” reflects immediate PayPal charges/refunds. “At the door (later)”
-                                reflects what will be settled in person based on each attendee’s original method.
-                                "Grand Total" reflects the sum of both of these, if you have changes in both payment types. You will be shown only the summaries relevant to your transaction.
+                                {localize("“Online (now)” reflects immediate PayPal charges/refunds. “At the door (later)” reflects what will be settled in person based on each attendee’s original method. “Grand Total” reflects the sum of both of these, if you have changes in both payment types. You will be shown only the summaries relevant to your transaction.")}
                             </div>
                         </div>
                     )}
@@ -454,7 +495,7 @@ export default function RegistrationPaymentModal({
                     <div className="pb-5 px-1 sm:px-5">
                         <div className="mt-3 inline-flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                             <AlertTriangle className="h-4 w-4" />
-                            Event is currently full.
+                            {localize("Event is currently full.")}
                         </div>
                     </div>
                 )}
@@ -465,24 +506,24 @@ export default function RegistrationPaymentModal({
                         <div className="text-xs text-muted-foreground">
                             {L.regPhase !== "open" ? (
                                 L.removesCount > 0 && L.addsCount === 0
-                                    ? "Registration is closed, but you can remove attendee(s)."
+                                    ? localize("Registration is closed, but you can remove attendee(s).")
                                     : L.regPhase === "not_open_yet"
-                                        ? "Registration hasn’t opened yet."
+                                        ? localize("Registration hasn’t opened yet.")
                                         : L.regPhase === "deadline_passed"
-                                            ? "Registration deadline has passed."
-                                            : "Registration is closed."
+                                            ? localize("Registration deadline has passed.")
+                                            : localize("Registration is closed.")
                             ) : L.eventIsFull(event) && L.addsCount > 0 ? (
-                                "Event is full — you can only remove attendees."
+                                localize("Event is full — you can only remove attendees.")
                             ) : L.isPaidEvent && L.isPayPal && L.payNow > 0 ? (
-                                `You’ll be redirected to PayPal to pay ${money(L.payNow)}.`
+                                `${localize("You’ll be redirected to PayPal to pay")} ${money(L.payNow)}.`
                             ) : L.isPaidEvent && L.isDoor && L.payAtDoor > 0 ? (
-                                `You will pay ${money(L.payAtDoor)} at the door.`
+                                payAtDoor
                             ) : L.removesCount > 0 && L.refundNow > 0 ? (
-                                `We’ll refund ${money(L.refundNow)} online.`
+                                refundOnline
                             ) : L.removesCount > 0 && L.creditAtDoor > 0 ? (
-                                `You’ll pay ${money(L.creditAtDoor)} less at the door.`
+                                lessAtDoor
                             ) : (
-                                "Click to add or remove event registrants."
+                                localize("Click to add or remove event registrants.")
                             )}
                         </div>
 
@@ -498,7 +539,7 @@ export default function RegistrationPaymentModal({
                                     }
                                 }}
                             >
-                                {inline ? "Back" : "Cancel"}
+                                {inline ? back : localize("Cancel")}
                             </Button>
 
                             <Button
@@ -513,15 +554,15 @@ export default function RegistrationPaymentModal({
                             >
                                 {(() => {
                                     if (L.regPhase !== "open") {
-                                        if (L.removesCount > 0 && L.addsCount === 0) return "Process Changes";
-                                        return "Registration Closed";
+                                        if (L.removesCount > 0 && L.addsCount === 0) return localize("Process Changes");
+                                        return localize("Registration Closed");
                                     }
                                     const noChanges =
                                         (L.addsCount === 0 && L.removesCount === 0);
-                                    if (noChanges) return "No Changes";
-                                    if (!L.isPaidEvent) return L.hasExistingReg ? "Save Registration" : "Register";
-                                    if (L.isPayPal) return L.addsCount > 0 ? `Pay ${money(L.payNow)}` : "Process Changes";
-                                    return "Process Changes";
+                                    if (noChanges) return localize("No Changes");
+                                    if (!L.isPaidEvent) return L.hasExistingReg ? localize("Save Registration") : localize("Register");
+                                    if (L.isPayPal) return L.addsCount > 0 ? `${localize("Pay")} ${money(L.payNow)}` : localize("Process Changes");
+                                    return localize("Process Changes");
                                 })()}
                             </Button>
                         </div>
@@ -538,7 +579,7 @@ export default function RegistrationPaymentModal({
             <DialogContent className="z-300 max-h-[82vh] w-[95vw] overflow-y-auto rounded-xl p-0 sm:max-w-[900px]">
                 <DialogHeader className="sr-only">
                     <DialogTitle>{L.headerLabel}</DialogTitle>
-                    <DialogDescription>Select attendees and payment</DialogDescription>
+                    <DialogDescription>{localize("Select attendees and payment")}</DialogDescription>
                 </DialogHeader>
                 {Content}
             </DialogContent>

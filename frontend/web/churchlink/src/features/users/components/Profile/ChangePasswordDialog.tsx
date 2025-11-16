@@ -4,12 +4,16 @@ import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 
+import { useLocalize } from "@/shared/utils/localizationUtils";
+
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-    DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogTrigger, DialogFooter,
 } from "@/shared/components/ui/Dialog";
 
 export default function ChangePasswordDialog() {
+  const localize = useLocalize();
+
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -28,7 +32,7 @@ export default function ChangePasswordDialog() {
     const a = getAuth();
     const targetEmail = a.currentUser?.email ?? email.trim();
     if (!targetEmail) {
-      setErr("Enter your email.");
+      setErr(localize("Enter your email."));
       return;
     }
 
@@ -41,9 +45,9 @@ export default function ChangePasswordDialog() {
       }
 
       setOpen(false);
-      alert(`A password reset link has been sent to ${targetEmail}.`);
+      alert(`${localize("A password reset link has been sent to")} ${targetEmail}.`);
     } catch (e: any) {
-      setErr(e?.message || "Failed to send reset email.");
+      setErr(localize(e?.message || "Failed to send reset email."));
     } finally {
       setBusy(false);
     }
@@ -54,16 +58,21 @@ export default function ChangePasswordDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">Change Password</Button>
+        <Button
+          variant="secondary"
+          className="whitespace-normal break-words text-left"
+        >
+          {localize("Change Password")}
+        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Change Password</DialogTitle>
+          <DialogTitle>{localize("Change Password")}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1">
-            <Label>Email</Label>
+            <Label>{localize("Email")}</Label>
             <Input
               type="email"
               value={email}
@@ -72,7 +81,7 @@ export default function ChangePasswordDialog() {
               required
             />
             <p className="text-xs text-muted-foreground">
-              We’ll send a reset link to {emailLocked ? "your current email" : "this address"}.
+              {localize("We’ll send a reset link to")} {emailLocked ? localize("your current email") : localize("this address")}.
             </p>
           </div>
 
@@ -85,10 +94,10 @@ export default function ChangePasswordDialog() {
               onClick={() => setOpen(false)}
               disabled={busy}
             >
-              Cancel
+              {localize("Cancel")}
             </Button>
             <Button type="submit" disabled={busy}>
-              Send Reset Email
+              {localize("Send Reset Email")}
             </Button>
           </DialogFooter>
         </form>

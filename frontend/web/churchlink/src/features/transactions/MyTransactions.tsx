@@ -21,6 +21,7 @@ import type {
     TransactionSearchParams,
 } from "@/shared/types/Transactions";
 import { getStatusFilterOptionsForKind } from "./MyTransactionsFormatting";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 const DEFAULT_PAGE_SIZE = 25;
 const ALL_KIND = "all";
@@ -28,6 +29,8 @@ const ALL_KIND = "all";
 type KindFilter = typeof ALL_KIND | TransactionKind;
 
 export default function MyTransactions() {
+    const localize = useLocalize();
+
     const [rows, setRows] = useState<TransactionSummary[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -120,16 +123,16 @@ export default function MyTransactions() {
     const kindForStatus = kindFilter === ALL_KIND ? "all" : kindFilter;
     const statusOptions = getStatusFilterOptionsForKind(kindForStatus);
 
+    for (const opt of statusOptions) {
+        opt.label = localize(opt.label);
+    }
+
     return (
         <div className="p-4 md:p-6">
             <div className="mb-4">
-                <h1 className="text-xl font-semibold mb-1">My Transactions</h1>
+                <h1 className="text-xl font-semibold mb-1">{localize("My Transactions")}</h1>
                 <p className="text-sm text-muted-foreground">
-                    Only transactions paid through PayPal will be represented here.
-                    Disclaimer: This page has a list of your transactions according to
-                    what appears on our ledger. In an edge case of a discrepancy between
-                    what appears here and your actual PayPal or bank statements, you should
-                    consider your bank information as the ultimate source of truth.
+                    {localize("Only transactions paid through PayPal will be represented here. Disclaimer: This page has a list of your transactions according to what appears on our ledger. In an edge case of a discrepancy between what appears here and your actual PayPal or bank statements, you should consider your bank information as the ultimate source of truth.")}
                 </p>
             </div>
 
@@ -146,25 +149,25 @@ export default function MyTransactions() {
                             <SelectValue placeholder="Filter by type" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value={ALL_KIND}>All types</SelectItem>
+                            <SelectItem value={ALL_KIND}>{localize("All types")}</SelectItem>
                             <SelectItem value="donation_one_time">
-                                One-time donations
+                                {localize("One-time donations")}
                             </SelectItem>
                             <SelectItem value="donation_subscription">
-                                Donation plans
+                                {localize("Donation plans")}
                             </SelectItem>
                             <SelectItem value="donation_subscription_payment">
-                                Donation plan payments
+                                {localize("Donation plan payments")}
                             </SelectItem>
-                            <SelectItem value="event">Event payments</SelectItem>
-                            <SelectItem value="form">Form payments</SelectItem>
+                            <SelectItem value="event">{localize("Event payments")}</SelectItem>
+                            <SelectItem value="form">{localize("Form payments")}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
 
                 {/* Sort by date */}
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Sort</span>
+                    <span className="text-xs text-muted-foreground">{localize("Sort")}</span>
                     <Select
                         value={sortMode}
                         onValueChange={handleChangeSort}
@@ -174,22 +177,22 @@ export default function MyTransactions() {
                             <SelectValue placeholder="Sort by date" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="created_desc">Newest first</SelectItem>
-                            <SelectItem value="created_asc">Oldest first</SelectItem>
+                            <SelectItem value="created_desc">{localize("Newest first")}</SelectItem>
+                            <SelectItem value="created_asc">{localize("Oldest first")}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
 
                 {/* Status filter */}
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Status</span>
+                    <span className="text-xs text-muted-foreground">{localize("Status")}</span>
                     <Select
                         value={statusFilterId}
                         onValueChange={handleChangeStatus}
                         disabled={loading}
                     >
                         <SelectTrigger className="w-[220px]">
-                            <SelectValue placeholder="Filter by status" />
+                            <SelectValue placeholder={localize("Filter by status")} />
                         </SelectTrigger>
                         <SelectContent>
                             {statusOptions.map((opt) => (
@@ -208,14 +211,13 @@ export default function MyTransactions() {
                         onClick={() => refresh()}
                         disabled={loading}
                     >
-                        {loading ? "Refreshing..." : "Refresh"}
+                        {loading ? localize("Refreshing...") : localize("Refresh")}
                     </Button>
                 </div>
             </div>
 
             <p className="text-sm text-muted-foreground">
-                You can horizontally scroll within the left-side of the table to see
-                more details.
+                {localize("You can horizontally scroll within the left-side of the table to see more details.")}
             </p>
 
             <div className="h-[600px] border rounded-md overflow-hidden bg-background">

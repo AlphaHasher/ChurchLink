@@ -11,6 +11,8 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import type { TransactionSummary } from "@/shared/types/Transactions";
 import { cancelDonationSubscription } from "@/helpers/DonationHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 type Props = {
     tx: TransactionSummary;
@@ -18,6 +20,8 @@ type Props = {
 };
 
 export default function CancelDonationSubscriptionUserDialog({ tx, onAfterCancel }: Props) {
+    const localize = useLocalize();
+
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState<string | null>(null);
@@ -53,8 +57,8 @@ export default function CancelDonationSubscriptionUserDialog({ tx, onAfterCancel
             });
 
             setMsg(
-                res.msg ??
-                "Your donation plan has been cancelled. PayPal will no longer attempt future charges.",
+                localize(res.msg ??
+                    "Your donation plan has been cancelled. PayPal will no longer attempt future charges."),
             );
             const success = !!res.success;
             setOk(success);
@@ -70,12 +74,22 @@ export default function CancelDonationSubscriptionUserDialog({ tx, onAfterCancel
                 "[CancelDonationSubscriptionUserDialog] handleCancel error",
                 err,
             );
-            setMsg("Unexpected error cancelling this subscription.");
+            setMsg(localize("Unexpected error cancelling this subscription."));
             setOk(false);
         } finally {
             setBusy(false);
         }
     };
+
+    const lang = useLanguage().locale;
+
+    let close: string;
+    if (lang === "en") {
+        close = "Close";
+    }
+    else {
+        close = localize("Close Dialog");
+    }
 
     return (
         <Dialog
@@ -88,41 +102,39 @@ export default function CancelDonationSubscriptionUserDialog({ tx, onAfterCancel
                     size="icon"
                     className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                     type="button"
-                    title="Cancel this donation plan"
+                    title={localize("Cancel this donation plan")}
+                    aria-label={localize("Cancel this donation plan")}
                 >
                     <XCircle className="h-4 w-4" />
-                    <span className="sr-only">Cancel donation plan</span>
+                    <span className="sr-only">{localize("Cancel donation plan")}</span>
                 </Button>
             </DialogTrigger>
 
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Cancel donation plan</DialogTitle>
+                    <DialogTitle>{localize("Cancel donation plan")}</DialogTitle>
                     <DialogDescription>
-                        This will cancel your recurring donation plan. PayPal will no longer
-                        attempt future charges for this subscription.
+                        {localize("This will cancel your recurring donation plan. PayPal will no longer attempt future charges for this subscription.")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-2 text-sm text-muted-foreground">
                     <div>
                         <span className="font-medium text-foreground">
-                            PayPal subscription ID:
+                            {localize("PayPal subscription ID:")}
                         </span>{" "}
                         {subscriptionId}
                     </div>
                     <p className="mt-2">
-                        Existing successful payments will remain on record. This does not
-                        retroactively refund past charges; it simply prevents new ones from
-                        being created.
+                        {localize("Existing successful payments will remain on record. This does not retroactively refund past charges; it simply prevents new ones from being created.")}
                     </p>
                 </div>
 
                 {msg && (
                     <div
                         className={`mt-3 rounded-md border px-3 py-2 text-sm ${ok
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                                : "border-red-200 bg-red-50 text-red-900"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                            : "border-red-200 bg-red-50 text-red-900"
                             }`}
                     >
                         {msg}
@@ -136,7 +148,7 @@ export default function CancelDonationSubscriptionUserDialog({ tx, onAfterCancel
                         onClick={resetAndClose}
                         disabled={busy}
                     >
-                        Close
+                        {close}
                     </Button>
                     <Button
                         type="button"
@@ -144,7 +156,7 @@ export default function CancelDonationSubscriptionUserDialog({ tx, onAfterCancel
                         onClick={handleCancel}
                         disabled={busy}
                     >
-                        {busy ? "Cancelling..." : "Confirm cancel"}
+                        {busy ? localize("Cancelling...") : localize("Confirm cancel")}
                     </Button>
                 </div>
             </DialogContent>

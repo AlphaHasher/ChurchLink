@@ -18,6 +18,8 @@ import { getPublicUrl } from "@/helpers/MediaInteraction";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import { setFavorite } from "@/helpers/EventUserHelper";
 import ViewEventDetails from "@/features/eventsV2/components/ViewEventDetails";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 type Props = {
     event: UserFacingEvent;
@@ -46,6 +48,9 @@ function formatDateTime(iso: string) {
 }
 
 function PriceBadge(ev: UserFacingEvent) {
+    const localize = useLocalize();
+    const lang = useLanguage().locale;
+
     const price = typeof ev.price === "number" ? ev.price : 0;
     const member = typeof ev.member_price === "number" ? ev.member_price : null;
 
@@ -53,10 +58,20 @@ function PriceBadge(ev: UserFacingEvent) {
         Array.isArray(ev.payment_options) && ev.payment_options.length > 0;
     const paid = (price > 0 || (member !== null && member > 0)) && hasPaymentOptions;
 
+    let free: string;
+
+    if (lang === "en") {
+        free = "FREE";
+    }
+
+    else {
+        free = "NO COST";
+    }
+
     if (!paid) {
         return (
             <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border border-emerald-200">
-                FREE
+                {localize(free)}
             </Badge>
         );
     }
@@ -69,12 +84,12 @@ function PriceBadge(ev: UserFacingEvent) {
             >
                 <BadgeDollarSign className="h-3.5 w-3.5" />
                 <span className="whitespace-nowrap">
-                    {formatCurrency(price)} <span className="font-medium">Standard Price</span>
+                    {formatCurrency(price)} <span className="font-medium">{localize("Standard Price")}</span>
                 </span>
                 <span className="opacity-60 px-1">&amp;</span>
                 <span className="whitespace-nowrap">
 
-                    {(member === 0) ? "FREE" : formatCurrency(member)} <span className="font-medium">Member Price</span>
+                    {(member === 0) ? localize(free) : formatCurrency(member)} <span className="font-medium">{localize("Member Price")}</span>
                 </span>
             </Badge>
         );
@@ -87,19 +102,21 @@ function PriceBadge(ev: UserFacingEvent) {
         >
             <BadgeDollarSign className="h-3.5 w-3.5" />
             <span className="whitespace-nowrap">
-                {formatCurrency(price)} <span className="font-medium">Standard Price</span>
+                {formatCurrency(price)} <span className="font-medium">{localize("Standard Price")}</span>
             </span>
         </Badge>
     );
 }
 
 function GenderBadge(ev: UserFacingEvent) {
+    const localize = useLocalize();
+
     const g = (ev.gender || "all").toLowerCase();
     if (g === "male") {
         return (
             <Badge className="bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1">
                 <Mars className="h-3.5 w-3.5" />
-                Men Only
+                {localize("Men Only")}
             </Badge>
         );
     }
@@ -107,7 +124,7 @@ function GenderBadge(ev: UserFacingEvent) {
         return (
             <Badge className="bg-pink-50 text-pink-700 border border-pink-200 inline-flex items-center gap-1">
                 <Venus className="h-3.5 w-3.5" />
-                Women Only
+                {localize("Women Only")}
             </Badge>
         );
     }
@@ -115,14 +132,15 @@ function GenderBadge(ev: UserFacingEvent) {
 }
 
 function AgeBadge(ev: UserFacingEvent) {
+    const localize = useLocalize();
     const hasMin = typeof ev.min_age === "number";
     const hasMax = typeof ev.max_age === "number";
     if (!hasMin && !hasMax) return null;
 
     let label = "";
-    if (hasMin && hasMax) label = `${ev.min_age}-${ev.max_age} Years Old`;
-    else if (hasMin) label = `${ev.min_age} Years Old and Over`;
-    else label = `${ev.max_age} Years Old and Under`;
+    if (hasMin && hasMax) label = `${ev.min_age}-${ev.max_age} ${localize("Years Old")}`;
+    else if (hasMin) label = `${ev.min_age} ${localize("Years Old and Over")}`;
+    else label = `${ev.max_age} ${localize("Years Old and Under")}`;
 
     return (
         <Badge className="bg-slate-50 text-slate-700 border border-slate-200">
@@ -132,11 +150,12 @@ function AgeBadge(ev: UserFacingEvent) {
 }
 
 function MembersOnlyBadge(ev: UserFacingEvent) {
+    const localize = useLocalize();
     if (!ev.members_only) return null;
     return (
         <Badge className="bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1">
             <IdCard className="h-3.5 w-3.5" />
-            Members Only
+            {localize("Members Only")}
         </Badge>
     );
 }
@@ -147,6 +166,10 @@ export const EventListTile: React.FC<Props> = ({
     onFavoriteChanged,
     disabled,
 }) => {
+    const localize = useLocalize();
+    const lang = useLanguage().locale;
+    const is_preferred = event.default_localization === lang;
+
     const heroUrl = event.image_id ? getPublicUrl(event.image_id) : null;
     const isRecurring = event.recurring && event.recurring !== "never";
 
@@ -179,10 +202,23 @@ export const EventListTile: React.FC<Props> = ({
         }
     }
 
+    let title: string;
+    let desc: string;
+
+    if (is_preferred) {
+        title = event.default_title;
+        desc = event.default_description;
+    }
+
+    else {
+        title = localize(event.default_title);
+        desc = localize(event.default_description);
+    }
+
     return (
         <Card className="h-full flex flex-col overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition">
             {/* Image Header */}
-            <div className="relative">
+            <div className="relative pb-5">
                 <div
                     className="w-full aspect-[16/9] bg-cover bg-center"
                     style={{
@@ -196,17 +232,17 @@ export const EventListTile: React.FC<Props> = ({
                     {isFav && (
                         <Badge className="bg-rose-600 text-white inline-flex items-center gap-1 shadow-sm">
                             <Heart className="h-3.5 w-3.5 fill-white" />
-                            Favorited
+                            {localize("Favorited")}
                         </Badge>
                     )}
                     {isRecurring ? (
                         <Badge className="bg-indigo-600 text-white inline-flex items-center gap-1">
                             <Repeat2 className="h-3.5 w-3.5" />
-                            Repeats {event.recurring}
+                            {localize(`Repeats ${event.recurring}`)}
                         </Badge>
                     ) : (
                         <Badge variant="secondary" className="bg-white/90 text-slate-700 border border-slate-200">
-                            One-time
+                            {localize("One-time")}
                         </Badge>
                     )}
                 </div>
@@ -214,7 +250,7 @@ export const EventListTile: React.FC<Props> = ({
 
             <CardHeader className="pb-0">
                 <h3 className="text-lg font-semibold leading-snug line-clamp-2 text-slate-900">
-                    {event.default_title || "(Untitled Event)"}
+                    {title || "(Untitled Event)"}
                 </h3>
             </CardHeader>
 
@@ -222,7 +258,7 @@ export const EventListTile: React.FC<Props> = ({
                 {/* Date */}
                 <div className="flex items-start gap-2 text-slate-700">
                     <Calendar className="h-4 w-4 mt-0.5 shrink-0" />
-                    <span className="text-sm font-medium">{formatDateTime(event.date)}</span>
+                    <span className="text-sm font-medium">{localize(formatDateTime(event.date))}</span>
                 </div>
 
                 {/* Location */}
@@ -247,18 +283,18 @@ export const EventListTile: React.FC<Props> = ({
 
                 {/* Description */}
                 {event.default_description ? (
-                    <p className="text-sm text-slate-600 line-clamp-3">{event.default_description}</p>
+                    <p className="text-sm text-slate-600 line-clamp-3">{desc}</p>
                 ) : null}
 
                 {/* Meta badges */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                     {event.rsvp_required ? (
                         <Badge variant="secondary" className="bg-blue-50 text-blue-700 border border-blue-200">
-                            Registration Required
+                            {localize("Registration Required")}
                         </Badge>
                     ) : (
                         <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            No Registration Required
+                            {localize("No Registration Required")}
                         </Badge>
                     )}
                     <PriceBadge {...event} />
@@ -283,18 +319,18 @@ export const EventListTile: React.FC<Props> = ({
                                 <Heart
                                     className={`h-4 w-4 ${isFav ? "text-slate-700" : "text-white"} ${!isFav ? "fill-white" : ""}`}
                                 />
-                                {busy ? "Working…" : isFav ? "Remove from Favorites" : "Add to Favorites"}
+                                {busy ? localize("Working…") : isFav ? localize("Remove from Favorites") : localize("Add to Favorites")}
                             </Button>
 
                             {/* Default-colored Show Details */}
                             <Button className="w-full h-11" onClick={() => setShowDetails(true)}>
-                                Show Details
+                                {localize("Show Details")}
                             </Button>
                         </>
                     ) : (
                         // Not signed in: only Show Details
                         <Button className="w-full h-11" onClick={() => setShowDetails(true)}>
-                            Show Details
+                            {localize("Show Details")}
                         </Button>
                     )}
                 </div>

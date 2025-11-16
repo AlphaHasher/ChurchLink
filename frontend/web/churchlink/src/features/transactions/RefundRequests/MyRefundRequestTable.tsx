@@ -18,6 +18,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 import type { RefundRequestWithTransaction } from "@/shared/types/RefundRequest";
 import { formatKindWithExtras, SoftPill } from "../MyTransactionsFormatting";
 import RefundRequestResponseDialog from "./RefundRequestResponseDialog";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type MyRefundRequestTableProps = {
     rows: RefundRequestWithTransaction[];
@@ -40,6 +41,7 @@ function formatDate(iso?: string | null) {
 }
 
 function getStatusPill(
+
     row: RefundRequestWithTransaction,
 ): { label: string; className: string } {
     if (!row.responded) {
@@ -62,13 +64,18 @@ function getStatusPill(
     };
 }
 
+function getLocalize(s: string) {
+    const localize = useLocalize();
+    return localize(s);
+}
+
 const StatusCellRenderer = (
     props: ICellRendererParams<RefundRequestWithTransaction>,
 ) => {
     const row = props.data;
     if (!row) return null;
     const pill = getStatusPill(row);
-    return <SoftPill className={pill.className}>{pill.label}</SoftPill>;
+    return <SoftPill className={pill.className}>{getLocalize(pill.label)}</SoftPill>;
 };
 
 const ActionsCellRenderer = (
@@ -93,6 +100,8 @@ const ActionsCellRenderer = (
 };
 
 export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
+    const localize = useLocalize();
+
     const gridApi = useRef<GridApi | null>(null);
 
     const columnDefs = useMemo<
@@ -100,23 +109,25 @@ export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
     >(
         () => [
             {
-                headerName: "Date",
+                headerName: localize("Date"),
                 field: "created_on",
                 minWidth: 170,
                 valueFormatter: (p) => formatDate(p.value),
+                flex: 2,
             },
             {
-                headerName: "Type",
+                headerName: localize("Type"),
                 field: "txn_kind",
                 minWidth: 180,
                 valueGetter: (p: ValueGetterParams<RefundRequestWithTransaction, any>) =>
                     p.data?.transaction ?? null,
                 valueFormatter: (p) =>
-                    formatKindWithExtras(p.value as any) ||
-                    (p.data?.txn_kind ?? ""),
+                    localize(formatKindWithExtras(p.value as any)) ||
+                    (localize(p.data?.txn_kind ?? "") || ""),
+                flex: 2,
             },
             {
-                headerName: "Amount",
+                headerName: localize("Amount"),
                 minWidth: 110,
                 valueGetter: (p: ValueGetterParams<RefundRequestWithTransaction, any>) => {
                     const tx = p.data?.transaction;
@@ -139,26 +150,25 @@ export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
                 },
             },
             {
-                headerName: "Status",
+                headerName: localize("Status"),
                 minWidth: 150,
                 cellRenderer: StatusCellRenderer as any,
             },
             {
-                headerName: "Responded On",
+                headerName: localize("Responded On"),
                 minWidth: 170,
                 valueGetter: (p: ValueGetterParams<RefundRequestWithTransaction, any>) =>
                     p.data?.responded_to ?? null,
                 valueFormatter: (p) => formatDate(p.value),
+                flex: 2,
             },
             {
-                headerName: "Actions",
+                headerName: localize("Actions"),
                 cellRenderer: ActionsCellRenderer as any,
                 cellRendererParams: {
                     onAfterNewRequest: props.onAfterNewRequest,
                 },
                 pinned: "right",
-                minWidth: 95,
-                maxWidth: 120,
                 width: 95,
             },
         ],
@@ -205,7 +215,7 @@ export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
                         gridApi.current = ev.api;
                     }}
                     overlayNoRowsTemplate={
-                        props.loading ? "Loading..." : "No refund requests found"
+                        props.loading ? localize("Loading...") : localize("No refund requests found")
                     }
                     enableCellTextSelection
                 />
@@ -213,10 +223,10 @@ export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
 
             {/* Pager (server-controlled) */}
             <div className="flex items-center justify-between py-2 text-sm">
-                <div className="text-muted-foreground">
+                <div className="text-muted-foreground pl-3">
                     {props.loading
-                        ? "Loading…"
-                        : `Showing ${from}-${to} of ${props.total}`}
+                        ? localize("Loading…")
+                        : `${localize("Showing")} ${from}-${to} ${localize("up to")} ${props.total}`}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -225,11 +235,11 @@ export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
                         onClick={() => props.onPageChange?.(Math.max(0, page - 1))}
                         disabled={props.loading || !canPrev}
                     >
-                        Prev
+                        {localize("Previous")}
                     </button>
 
                     <span>
-                        Page {page + 1} of {totalPages}
+                        {localize("Page")} {page + 1} {localize("up to")} {totalPages}
                     </span>
 
                     <button
@@ -241,7 +251,7 @@ export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
                         }
                         disabled={props.loading || !canNext}
                     >
-                        Next
+                        {localize("Next")}
                     </button>
 
                     <select
@@ -256,7 +266,7 @@ export default function MyRefundRequestTable(props: MyRefundRequestTableProps) {
                     >
                         {[10, 25, 50].map((s) => (
                             <option key={s} value={s}>
-                                {s}/page
+                                {s}{" "}{localize("per page")}
                             </option>
                         ))}
                     </select>

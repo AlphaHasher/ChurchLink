@@ -22,15 +22,20 @@ import {
 import { fetchMyEvents } from "@/helpers/EventUserHelper";
 import { fetchMinistries, buildMinistryNameMap } from "@/helpers/MinistriesHelper";
 import type { Ministry } from "@/shared/types/Ministry";
-
-const DEFAULT_PARAMS: MyEventsSearchParams = {
-    limit: 12,
-    preferred_lang: "en",
-    type: "favorites_and_registered",
-    date: "upcoming",
-};
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 export default function MyEventsPageV2() {
+    const localize = useLocalize();
+    const lang = useLanguage().locale;
+
+    const DEFAULT_PARAMS: MyEventsSearchParams = {
+        limit: 12,
+        type: "favorites_and_registered",
+        date: "upcoming",
+        preferred_lang: lang,
+    };
+
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [items, setItems] = useState<UserFacingEvent[]>([]);
@@ -78,7 +83,7 @@ export default function MyEventsPageV2() {
                 setCursor(res.next_cursor ?? null);
             } catch (e: any) {
                 if (!alive || mySeq !== reqSeq.current) return;
-                setError(e?.message ?? "Failed to load events.");
+                setError(localize(e?.message ?? "Failed to load events."));
                 setItems([]);
                 setCursor(null);
             } finally {
@@ -117,7 +122,7 @@ export default function MyEventsPageV2() {
             setItems((prev) => [...prev, ...(res.items || [])]);
             setCursor(res.next_cursor ?? null);
         } catch (e: any) {
-            setError(e?.message ?? "Failed to load more events.");
+            setError(localize(e?.message ?? "Failed to load more events."));
         } finally {
             setLoading(false);
         }
@@ -147,7 +152,7 @@ export default function MyEventsPageV2() {
         <section className="w-full bg-white">
             <div className="mx-auto w-full max-w-6xl px-4 pt-6 pb-10">
                 <h2 className="mb-4 text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-                    My Events
+                    {localize("My Events")}
                 </h2>
 
                 {/* Inline filters */}
@@ -155,7 +160,7 @@ export default function MyEventsPageV2() {
                     <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="typeSel" className="text-sm text-slate-600">
-                                Which Type of Events to Show
+                                {localize("Which Type of Events to Show")}
                             </Label>
                             <Select
                                 value={typeFilter}
@@ -165,27 +170,27 @@ export default function MyEventsPageV2() {
                                     <SelectValue placeholder="Choose…" />
                                 </SelectTrigger>
                                 <SelectContent className="z-50" position="popper" sideOffset={6} align="start">
-                                    <SelectItem value="favorites_and_registered">Registered or Favorited</SelectItem>
-                                    <SelectItem value="registered">All Registered</SelectItem>
-                                    <SelectItem value="registered_not_favorited">Registered but not Favorited</SelectItem>
-                                    <SelectItem value="favorites">All Favorited</SelectItem>
-                                    <SelectItem value="favorites_not_registered">Favorited but not Registered</SelectItem>
+                                    <SelectItem value="favorites_and_registered">{localize("Registered or Favorited")}</SelectItem>
+                                    <SelectItem value="registered">{localize("All Registered")}</SelectItem>
+                                    <SelectItem value="registered_not_favorited">{localize("Registered but not Favorited")}</SelectItem>
+                                    <SelectItem value="favorites">{localize("All Favorited")}</SelectItem>
+                                    <SelectItem value="favorites_not_registered">{localize("Favorited but not Registered")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="flex flex-col gap-1">
                             <Label htmlFor="dateSel" className="text-sm text-slate-600">
-                                When the Events take Place
+                                {localize("When the Events take Place")}
                             </Label>
                             <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as MyEventsDateFilter)}>
                                 <SelectTrigger id="dateSel" className="h-9">
-                                    <SelectValue placeholder="Choose…" />
+                                    <SelectValue placeholder={localize("Choose…")} />
                                 </SelectTrigger>
                                 <SelectContent className="z-50" position="popper" sideOffset={6} align="start">
-                                    <SelectItem value="upcoming">Upcoming</SelectItem>
-                                    <SelectItem value="history">History</SelectItem>
-                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="upcoming">{localize("Upcoming")}</SelectItem>
+                                    <SelectItem value="history">{localize("History")}</SelectItem>
+                                    <SelectItem value="all">{localize("All")}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -209,7 +214,7 @@ export default function MyEventsPageV2() {
                 {!loading && items.length === 0 && (
                     <div className="py-16 text-center text-slate-600">
                         <div className="mb-2 text-5xl">📅</div>
-                        <div className="text-lg font-semibold">No events matched your filters.</div>
+                        <div className="text-lg font-semibold">{localize("No events matched your filters.")}</div>
                     </div>
                 )}
 
@@ -229,17 +234,17 @@ export default function MyEventsPageV2() {
                         <div className="mt-8 flex justify-center">
                             {cursor ? (
                                 <Button onClick={onLoadMore} disabled={loading || refreshing}>
-                                    {loading || refreshing ? "Loading…" : "Load more"}
+                                    {loading || refreshing ? localize("Loading…") : localize("Load more")}
                                 </Button>
                             ) : (
-                                <div className="text-sm text-slate-500">No more events.</div>
+                                <div className="text-sm text-slate-500">{localize("No more events.")}</div>
                             )}
                         </div>
                     </>
                 )}
 
                 {refreshing && (
-                    <div className="mt-3 text-center text-xs text-muted-foreground">Updating list…</div>
+                    <div className="mt-3 text-center text-xs text-muted-foreground">{localize("Updating list…")}</div>
                 )}
             </div>
         </section>

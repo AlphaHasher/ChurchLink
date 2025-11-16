@@ -2,17 +2,22 @@ import api from "../api/api";
 import { useAuth } from "@/features/auth/hooks/auth-context";
 import {
     UserEventSearchParams,
-    UserEventResults, MyEventsSearchParams, MyEventsResults
+    UserEventResults,
+    MyEventsSearchParams,
+    MyEventsResults
 } from "@/shared/types/Event";
 import { convertUserFacingEventsToUserTime, convertSisterInstanceIdentifiersToUserTime } from "./TimeFormatter";
 import { useCallback, useMemo } from "react";
 import { EventDetailsResponse } from "@/shared/types/Event";
+import { useLanguage } from "@/provider/LanguageProvider";
 
-
-
-function buildQuery(params: UserEventSearchParams): Record<string, any> {
+function buildQuery(
+    params: UserEventSearchParams,
+    preferredLangFromHook?: string | null
+): Record<string, any> {
     const {
         ministries,
+        preferred_lang,
         ...rest
     } = params ?? ({} as UserEventSearchParams);
 
@@ -23,6 +28,18 @@ function buildQuery(params: UserEventSearchParams): Record<string, any> {
             : {}),
     };
 
+    // Prefer an explicit preferred_lang in params, otherwise fall back to the hook value
+    const langToUse =
+        typeof preferred_lang === "string" && preferred_lang.trim() !== ""
+            ? preferred_lang.trim()
+            : typeof preferredLangFromHook === "string" && preferredLangFromHook.trim() !== ""
+                ? preferredLangFromHook.trim()
+                : null;
+
+    if (langToUse) {
+        cleaned.preferred_lang = langToUse;
+    }
+
     Object.keys(cleaned).forEach((k) => {
         const v = cleaned[k];
         if (v === null || v === undefined || v === "") delete cleaned[k];
@@ -31,12 +48,33 @@ function buildQuery(params: UserEventSearchParams): Record<string, any> {
     return cleaned;
 }
 
-function buildMyEventsQuery(params: MyEventsSearchParams): Record<string, any> {
-    const cleaned: Record<string, any> = { ...(params ?? {}) };
+function buildMyEventsQuery(
+    params: MyEventsSearchParams,
+    preferredLangFromHook?: string | null
+): Record<string, any> {
+    const {
+        preferred_lang,
+        ...rest
+    } = params ?? {};
+
+    const cleaned: Record<string, any> = { ...rest };
+
+    const langToUse =
+        typeof preferred_lang === "string" && preferred_lang.trim() !== ""
+            ? preferred_lang.trim()
+            : typeof preferredLangFromHook === "string" && preferredLangFromHook.trim() !== ""
+                ? preferredLangFromHook.trim()
+                : null;
+
+    if (langToUse) {
+        cleaned.preferred_lang = langToUse;
+    }
+
     Object.keys(cleaned).forEach((k) => {
         const v = cleaned[k];
         if (v === null || v === undefined || v === "") delete cleaned[k];
     });
+
     return cleaned;
 }
 
@@ -56,6 +94,7 @@ function detailsEndpointFor(isSignedIn: boolean): string {
 // Fetches events and uses a proper private/public split using useAuth to determine if a user is signed in
 export function useFetchUserEvents() {
     const auth = useAuth();
+    const language_code = useLanguage().locale;
     const isSignedIn =
         !!(auth as any)?.user ||
         !!(auth as any)?.currentUser ||
@@ -67,7 +106,9 @@ export function useFetchUserEvents() {
 
     const fetchUserEvents = useCallback(
         async (params: UserEventSearchParams): Promise<UserEventResults> => {
-            const q = buildQuery(params);
+            // Let params.preferred_lang override the hook if a caller really wants to
+            const q = buildQuery(params, language_code);
+
             try {
                 const res = await api.get(endpoint, { params: q });
                 const data = (res?.data ?? {}) as UserEventResults;
@@ -83,7 +124,7 @@ export function useFetchUserEvents() {
                 return { items: [], next_cursor: null };
             }
         },
-        [endpoint, isSignedIn]
+        [endpoint, isSignedIn, language_code]
     );
 
     return { fetchUserEvents, isSignedIn, endpoint };
@@ -92,7 +133,10 @@ export function useFetchUserEvents() {
 export async function fetchMyEvents(
     params: MyEventsSearchParams
 ): Promise<MyEventsResults> {
+    // This remains a plain function (no hooks), so callers can still explicitly
+    // pass preferred_lang into params when they have access to useLanguage().
     const q = buildMyEventsQuery(params);
+
     try {
         const res = await api.get("/v1/events/search-my-events", { params: q });
         const data = (res?.data ?? {}) as UserEventResults;
@@ -137,6 +181,7 @@ export async function setFavorite(eventId: string, makeFavorite: boolean): Promi
 
 export function useFetchEventInstanceDetails() {
     const auth = useAuth();
+    const lang = useLanguage().locale;
     const isSignedIn =
         !!(auth as any)?.user ||
         !!(auth as any)?.currentUser ||
@@ -150,7 +195,14 @@ export function useFetchEventInstanceDetails() {
                 return { success: false, msg: "No instance id", event_details: null, sister_details: [], ministries: [] };
             }
             try {
-                const res = await api.get(`${base}/${encodeURIComponent(instanceId)}`);
+                const res = await api.get(
+                    `${base}/${encodeURIComponent(instanceId)}`,
+                    {
+                        params: {
+                            preferred_lang: lang,
+                        },
+                    }
+                );
                 const data = (res?.data ?? {}) as EventDetailsResponse;
 
                 if (data?.event_details) {

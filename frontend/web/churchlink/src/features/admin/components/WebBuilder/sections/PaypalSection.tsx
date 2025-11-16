@@ -17,6 +17,8 @@ import {
 } from "@/helpers/DonationHelper";
 import type { DonationInterval, DonationCurrency } from "@/shared/types/Donations";
 
+import { useLocalize } from "@/shared/utils/localizationUtils";
+
 type Mode = "one_time" | "recurring";
 
 const PaypalSection: React.FC<{
@@ -28,8 +30,19 @@ const PaypalSection: React.FC<{
   defaultCurrency = "USD",
   defaultInterval = "MONTH",
 }) => {
+    const localize = useLocalize();
+
     const [mode, setMode] = useState<Mode>("one_time");
-    const [amount, setAmount] = useState<number>(defaultAmount);
+    const [amountInput, setAmountInput] = useState<string>(
+      defaultAmount ? String(defaultAmount) : ""
+    );
+
+    // Derived numeric value, used for validation + submission
+    const amount = useMemo(() => {
+      const v = parseFloat(amountInput);
+      if (!Number.isFinite(v) || v <= 0) return 0;
+      return v;
+    }, [amountInput]);
     const [currency, setCurrency] = useState<DonationCurrency>(defaultCurrency);
     const [interval, setInterval] = useState<DonationInterval>(defaultInterval);
     const [message, setMessage] = useState<string>("");
@@ -132,10 +145,10 @@ const PaypalSection: React.FC<{
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
               <DollarSign className="h-4 w-4 text-primary" />
             </span>
-            <span>Support with PayPal</span>
+            <span>{localize("Support with PayPal")}</span>
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Give securely through PayPal. You can make a one-time gift or set up an automatic recurring donation.
+            {localize("Give securely through PayPal. You can make a one-time gift or set up an automatic recurring donation.")}
           </p>
         </CardHeader>
 
@@ -143,7 +156,7 @@ const PaypalSection: React.FC<{
           {/* Mode selector – whole cards clickable */}
           <div>
             <Label className="text-xs uppercase tracking-wide text-muted-foreground mb-2 block">
-              How often would you like to give?
+              {localize("How often would you like to give?")}
             </Label>
             <RadioGroup
               value={mode}
@@ -160,10 +173,10 @@ const PaypalSection: React.FC<{
                 <RadioGroupItem id="donation-mode-one-time" value="one_time" className="mt-0.5" />
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1 text-sm font-medium">
-                    One-time gift
+                    {localize("One-time gift")}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    A single donation processed immediately.
+                    {localize("A single donation processed immediately.")}
                   </p>
                 </div>
               </Label>
@@ -178,11 +191,11 @@ const PaypalSection: React.FC<{
                 <RadioGroupItem id="donation-mode-recurring" value="recurring" className="mt-0.5" />
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1 text-sm font-medium">
-                    Recurring support
+                    {localize("Recurring support")}
                     <Repeat2 className="h-3 w-3 opacity-80" />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Automatically give on a schedule you choose.
+                    {localize("Automatically give on a schedule you choose.")}
                   </p>
                 </div>
               </Label>
@@ -197,23 +210,34 @@ const PaypalSection: React.FC<{
                   }`}
               >
                 <div>
-                  <Label htmlFor="amount">Amount</Label>
+                  <Label htmlFor="amount">{localize("Amount")}</Label>
                   <Input
                     id="amount"
                     type="number"
                     min={1}
                     step="1"
-                    value={Number.isFinite(amount) ? amount : ""}
+                    value={amountInput}
                     onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      setAmount(Number.isNaN(v) ? 0 : v);
+                      // Let the user freely type / clear the field
+                      setAmountInput(e.target.value);
+                    }}
+                    onBlur={() => {
+                      // On blur, snap it to a clean value or clear it
+                      const v = parseFloat(amountInput);
+                      if (!Number.isFinite(v) || v <= 0) {
+                        // Invalid or <= 0 → clear the field
+                        setAmountInput("");
+                        return;
+                      }
+                      // Valid positive number → normalize formatting
+                      setAmountInput(v.toString());
                     }}
                     className="mt-1"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="currency">Currency</Label>
+                  <Label htmlFor="currency">{localize("Currency")}</Label>
                   <Select
                     value={currency}
                     onValueChange={(v) => setCurrency(v as DonationCurrency)}
@@ -229,7 +253,7 @@ const PaypalSection: React.FC<{
 
                 {mode === "recurring" && (
                   <div>
-                    <Label htmlFor="interval">Cadence</Label>
+                    <Label htmlFor="interval">{localize("Cadence")}</Label>
                     <Select
                       value={interval}
                       onValueChange={(v) => setInterval(v as DonationInterval)}
@@ -238,9 +262,9 @@ const PaypalSection: React.FC<{
                         <SelectValue placeholder="MONTH" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="WEEK">Weekly</SelectItem>
-                        <SelectItem value="MONTH">Monthly</SelectItem>
-                        <SelectItem value="YEAR">Yearly</SelectItem>
+                        <SelectItem value="WEEK">{localize("Weekly")}</SelectItem>
+                        <SelectItem value="MONTH">{localize("Monthly")}</SelectItem>
+                        <SelectItem value="YEAR">{localize("Yearly")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -248,12 +272,12 @@ const PaypalSection: React.FC<{
               </div>
 
               <div>
-                <Label htmlFor="message">Message (optional)</Label>
+                <Label htmlFor="message">{localize("Message (optional)")}</Label>
                 <Textarea
                   id="message"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Add a note for the church (optional)…"
+                  placeholder={localize("Add a note to appear alongside your donation (optional)…")}
                   className="mt-1 min-h-[80px]"
                 />
               </div>
@@ -262,30 +286,30 @@ const PaypalSection: React.FC<{
             <div className="rounded-lg border bg-muted/40 p-4 text-sm space-y-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span className="font-medium">Summary</span>
+                <span className="font-medium">{localize("Summary")}</span>
               </div>
               <p className="text-muted-foreground">
                 {mode === "one_time" ? (
                   <>
-                    You’re giving a one-time gift of{" "}
+                    {localize("You’re giving a one-time gift of")}{" "}
                     <span className="font-semibold">
                       {currency} {amount > 0 ? amount.toFixed(2) : "0.00"}
                     </span>{" "}
-                    via PayPal.
+                    {localize("via PayPal.")}.
                   </>
                 ) : (
                   <>
-                    You’re setting up a recurring donation of{" "}
+                    {localize("You’re setting up a recurring donation of")}{" "}
                     <span className="font-semibold">
                       {currency} {amount > 0 ? amount.toFixed(2) : "0.00"}
                     </span>{" "}
-                    {prettyInterval && <span>{prettyInterval}</span>}{" "}
-                    through PayPal.
+                    {prettyInterval && <span>{localize(prettyInterval)}</span>}{" "}
+                    {localize("through PayPal.")}
                   </>
                 )}
               </p>
               <p className="text-xs text-muted-foreground">
-                You’ll be redirected to PayPal to confirm and complete the payment. Your card details never touch our servers.
+                {localize("You’ll be redirected to PayPal to confirm and complete the payment. Your card details never touch our servers.")}
               </p>
             </div>
           </div>
@@ -294,7 +318,7 @@ const PaypalSection: React.FC<{
 
           {error && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{localize(error)}</AlertDescription>
             </Alert>
           )}
 
@@ -307,11 +331,11 @@ const PaypalSection: React.FC<{
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Preparing PayPal…
+                  {localize("Preparing PayPal…")}
                 </>
               ) : (
                 <>
-                  Continue to PayPal
+                  {localize("Continue to PayPal")}
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}

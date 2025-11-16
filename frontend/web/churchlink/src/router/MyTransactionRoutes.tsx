@@ -6,8 +6,10 @@ const TransactionsHomePage = lazy(() => import("../features/transactions/Transac
 export const MyTransactionRoutes = () => {
     return (
         <Routes>
-            <Route path="/" element={<TransactionsHomePage />}>
-            </Route>
+            {/* default /my-transactions -> view transactions */}
+            <Route path="/" element={<TransactionsHomePage />} />
+            <Route path="view-transactions" element={<TransactionsHomePage />} />
+            <Route path="refund-requests" element={<TransactionsHomePage />} />
         </Routes>
     );
 };

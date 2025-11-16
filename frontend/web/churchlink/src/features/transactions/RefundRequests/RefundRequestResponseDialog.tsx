@@ -27,6 +27,7 @@ import ViewTransactionDialog from "../ViewTransactionDialog";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { createRefundRequest } from "@/helpers/RefundRequestHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 function formatDate(iso?: string | null) {
     if (!iso) return "—";
@@ -48,17 +49,19 @@ function deriveStatusPill(req: RefundRequestWithTransaction): {
 }
 
 function HistoryItemRow({ item }: { item: RefundRequestHistoryItem }) {
+    const localize = useLocalize();
+
     const statusLabel = !item.responded
-        ? "Pending"
+        ? localize("Pending")
         : item.resolved
-            ? "Resolved"
-            : "Unresolved";
+            ? localize("Resolved")
+            : localize("Unresolved");
 
     return (
         <div className="rounded-md border bg-muted/40 p-3 text-sm">
             <div className="mb-1 flex items-center justify-between gap-2">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Previous state
+                    {localize("Previous state")}
                 </div>
                 <span className="text-xs text-muted-foreground">
                     {formatDate(item.created_on)}
@@ -78,20 +81,20 @@ function HistoryItemRow({ item }: { item: RefundRequestHistoryItem }) {
                 </SoftPill>
                 {item.responded_to && (
                     <span className="text-xs text-muted-foreground">
-                        Responded: {formatDate(item.responded_to)}
+                        {localize("Responded")}: {formatDate(item.responded_to)}
                     </span>
                 )}
             </div>
             <div className="mb-1">
-                <span className="font-medium">Your message:</span>
+                <span className="font-medium">{localize("Your message")}:</span>
                 <div className="mt-1 whitespace-pre-wrap text-muted-foreground">
-                    {item.message?.trim() || "No message was recorded at this time."}
+                    {item.message?.trim() || localize("No message was recorded at this time.")}
                 </div>
             </div>
             <div className="mt-2">
-                <span className="font-medium">Admin response:</span>
+                <span className="font-medium">{localize("Admin response")}:</span>
                 <div className="mt-1 whitespace-pre-wrap">
-                    {item.reason?.trim() || "No response was recorded at this time."}
+                    {item.reason?.trim() || localize("No response was recorded at this time.")}
                 </div>
             </div>
         </div>
@@ -108,6 +111,8 @@ export default function RefundRequestResponseDialog({
     request,
     onAfterNewRequest,
 }: Props) {
+    const localize = useLocalize();
+
     const [open, setOpen] = useState(false);
 
     const currentStatus = useMemo(() => deriveStatusPill(request), [request]);
@@ -122,8 +127,8 @@ export default function RefundRequestResponseDialog({
         request.reason && request.reason.trim().length > 0
             ? request.reason.trim()
             : hasAdminResponse
-                ? "No specific reason was recorded by the admin."
-                : "This refund request has not yet been responded to.";
+                ? localize("No specific reason was recorded by the admin.")
+                : localize("This refund request has not yet been responded to.");
 
     // inline “new request” state
     const [newMessage, setNewMessage] = useState("");
@@ -185,7 +190,7 @@ export default function RefundRequestResponseDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" className="h-7 w-7" title={localize("View refund request details")} aria-label={localize("View refund request details")}>
                     <Eye className="h-4 w-4" />
                 </Button>
             </DialogTrigger>
@@ -195,11 +200,10 @@ export default function RefundRequestResponseDialog({
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <MessageCircle className="h-5 w-5" />
-                        Refund Request Details
+                        {localize("Refund Request Details")}
                     </DialogTitle>
                     <DialogDescription>
-                        Read the status and any responses related to your refund request. You can
-                        also submit another refund request for the same payment if needed.
+                        {localize("Read the status and any responses related to your refund request. You can also submit another refund request for the same payment if needed.")}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -209,26 +213,25 @@ export default function RefundRequestResponseDialog({
                         <div className="mb-2 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <SoftPill className={currentStatus.className}>
-                                    {currentStatus.label}
+                                    {localize(currentStatus.label)}
                                 </SoftPill>
                             </div>
                             <div className="text-xs text-muted-foreground">
-                                Submitted: {formatDate(request.created_on)}
+                                {localize("Submitted")}: {formatDate(request.created_on)}
                                 {request.responded_to && (
                                     <>
-                                        {" • "}Responded: {formatDate(request.responded_to)}
+                                        {" • "}{localize("Responded")}: {formatDate(request.responded_to)}
                                     </>
                                 )}
                             </div>
                         </div>
-
                         <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                             <div>
-                                <Label>Transaction Type</Label>
-                                <div>{typeLabel}</div>
+                                <Label>{localize("Transaction Type")}</Label>
+                                <div>{localize(typeLabel)}</div>
                             </div>
                             <div>
-                                <Label>Transaction ID</Label>
+                                <Label>{localize("Transaction ID")}</Label>
                                 <div className="break-all">
                                     {tx?.id || request.txn_id || "—"}
                                 </div>
@@ -238,11 +241,11 @@ export default function RefundRequestResponseDialog({
                         <Separator className="my-3" />
 
                         <div className="grid gap-2">
-                            <Label>Your message</Label>
+                            <Label>{localize("Your message")}</Label>
                             <div className="whitespace-pre-wrap text-sm text-muted-foreground">
                                 {request.message?.trim()
                                     ? request.message
-                                    : "No message was provided for this request."}
+                                    : localize("No message was provided for this request.")}
                             </div>
                         </div>
                     </div>
@@ -252,7 +255,7 @@ export default function RefundRequestResponseDialog({
                         <div className="mb-2 flex items-start gap-2">
                             <Info className="mt-0.5 h-4 w-4 text-muted-foreground" />
                             <div>
-                                <div className="text-sm font-medium">Admin response</div>
+                                <div className="text-sm font-medium">{localize("Admin response")}</div>
                                 <div className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                                     {responseText}
                                 </div>
@@ -262,8 +265,7 @@ export default function RefundRequestResponseDialog({
                         {!hasAdminResponse && (
                             <Alert className="mt-2 border-amber-500/30 bg-amber-500/10">
                                 <AlertDescription className="text-xs">
-                                    Once an admin reviews this request, their decision and any
-                                    notes will appear here.
+                                    {localize("Once an admin reviews this request, their decision and any notes will appear here.")}
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -275,22 +277,22 @@ export default function RefundRequestResponseDialog({
                             <div className="mb-2 flex items-start justify-between gap-2">
                                 <div>
                                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                        Transaction Overview
+                                        {localize("Transaction Overview")}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                        This is the payment associated with this refund request.
+                                        {localize("This is the payment associated with this refund request.")}
                                     </div>
                                 </div>
                                 {statusDisplay && (
                                     <SoftPill className={statusDisplay.className}>
-                                        {statusDisplay.label}
+                                        {localize(statusDisplay.label)}
                                     </SoftPill>
                                 )}
                             </div>
 
                             <div className="grid gap-2 sm:grid-cols-3">
                                 <div>
-                                    <Label>Amount</Label>
+                                    <Label>{localize("Amount")}</Label>
                                     <div>
                                         {(() => {
                                             const currency = tx.currency || "USD";
@@ -306,7 +308,7 @@ export default function RefundRequestResponseDialog({
                                     </div>
                                 </div>
                                 <div>
-                                    <Label>Refunded</Label>
+                                    <Label>{localize("Refunded")}</Label>
                                     <div>
                                         {(() => {
                                             const currency = tx.currency || "USD";
@@ -320,7 +322,7 @@ export default function RefundRequestResponseDialog({
                                     </div>
                                 </div>
                                 <div>
-                                    <Label>Created</Label>
+                                    <Label>{localize("Created")}</Label>
                                     <div>{formatDate(tx.created_at)}</div>
                                 </div>
                             </div>
@@ -335,7 +337,7 @@ export default function RefundRequestResponseDialog({
                     {!!request.history?.length && (
                         <details className="rounded-md border bg-muted/40">
                             <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium">
-                                Previous versions ({request.history.length})
+                                {localize("Previous versions")} ({request.history.length})
                             </summary>
                             <div className="max-h-[260px] space-y-2 overflow-y-auto p-3 text-sm">
                                 {request.history
@@ -352,19 +354,16 @@ export default function RefundRequestResponseDialog({
                     {tx && (
                         <div className="rounded-md border bg-muted/40 p-3">
                             <div className="mb-1 text-sm font-medium">
-                                Submit another refund request for this payment
+                                {localize("Submit another refund request for this payment")}
                             </div>
                             <div className="mb-2 text-xs text-muted-foreground">
-                                Use this if you need to clarify, change, or make an additional
-                                refund request related to the same transaction. This will create a
-                                new refund request record.
+                                {localize("Use this if you need to clarify, change, or make an additional refund request related to the same transaction. This will create a new refund request record.")}
                             </div>
 
                             {!isRefundableKind && (
                                 <Alert className="mb-2 border-amber-500/30 bg-amber-500/10">
                                     <AlertDescription className="text-xs">
-                                        This transaction type isn&apos;t eligible for new refund
-                                        requests from here.
+                                        {localize("This transaction type isn&apos;t eligible for new refund requests from here.")}
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -387,14 +386,14 @@ export default function RefundRequestResponseDialog({
 
                             <div className="space-y-2">
                                 <Label htmlFor={`new-refund-message-${request.id}`}>
-                                    Describe your new request
+                                    {localize("Describe your new request")}
                                 </Label>
                                 <Textarea
                                     id={`new-refund-message-${request.id}`}
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
                                     rows={4}
-                                    placeholder="For example: “I’d like to adjust the amount to refund $4.00 because …”"
+                                    placeholder={localize("For example: “I’d like to adjust the amount to refund $4.00 because …”")}
                                     disabled={!isRefundableKind || submittingNew}
                                 />
                             </div>
@@ -407,7 +406,7 @@ export default function RefundRequestResponseDialog({
                                     {submittingNew && (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     )}
-                                    Submit New Refund Request
+                                    {localize("Submit New Refund Request")}
                                 </Button>
                             </div>
                         </div>

@@ -38,6 +38,8 @@ import {
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Filter } from "lucide-react";
 
+import { useLocalize } from "@/shared/utils/localizationUtils";
+
 export type EventSectionProps = {
     showFilters?: boolean;
     lockedFilters?: { ministry?: string; ageRange?: string };
@@ -48,7 +50,6 @@ export type EventSectionProps = {
 const DEFAULT_PARAMS: UserEventSearchParams = {
     limit: 12,
     unique_only: false,
-    preferred_lang: "en",
 };
 
 function useDebounce<T>(value: T, delay = 350) {
@@ -66,6 +67,8 @@ const EventSection: React.FC<EventSectionProps> = ({
     title,
     showTitle = true,
 }) => {
+    const localize = useLocalize();
+
     const { fetchUserEvents, isSignedIn, endpoint } = useFetchUserEvents();
     const filtersLocked = !!lockedFilters && Object.keys(lockedFilters).length > 0;
 
@@ -120,7 +123,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                 const res = await fetchMinistries();
                 setAllMinistries(res ?? []);
             } catch (e) {
-                console.error("Failed to load ministries", e);
+                console.error(localize("Failed to load ministries"), e);
             }
         })();
     }, []);
@@ -140,7 +143,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                 setCursor(res.next_cursor ?? null);
             } catch (e: any) {
                 if (!alive || mySeq !== reqSeq.current) return;
-                setError(e?.message ?? "Failed to load events.");
+                setError(localize(e?.message ?? "Failed to load events."));
                 setItems([]);
                 setCursor(null);
             } finally {
@@ -179,7 +182,7 @@ const EventSection: React.FC<EventSectionProps> = ({
             setItems((prev) => [...prev, ...(res.items || [])]);
             setCursor(res.next_cursor ?? null);
         } catch (e: any) {
-            setError(e?.message ?? "Failed to load more events.");
+            setError(localize(e?.message ?? "Failed to load more events."));
         } finally {
             setLoading(false);
         }
@@ -201,7 +204,7 @@ const EventSection: React.FC<EventSectionProps> = ({
             setItems(res.items || []);
             setCursor(res.next_cursor ?? null);
         } catch (e: any) {
-            console.error("Refresh after favorite failed", e);
+            console.error(localize("Refresh after favorite failed"), e);
         } finally {
             setRefreshing(false);
         }
@@ -211,7 +214,7 @@ const EventSection: React.FC<EventSectionProps> = ({
         const map: Record<string, string> = {};
         for (const m of list || []) {
             if (!m?.id) continue;
-            const name = (m.name ?? "").toString().trim();
+            const name = localize((m.name ?? "").toString().trim());
             if (name) map[m.id] = name;
         }
         return map;
@@ -222,38 +225,38 @@ const EventSection: React.FC<EventSectionProps> = ({
             {filtersLocked ? (
                 <Button variant="outline" className="gap-2" disabled aria-disabled="true" title="Filters are locked">
                     <Filter size={16} />
-                    Filters
+                    {localize("Filters")}
                 </Button>
             ) : (
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button variant="outline" className="gap-2">
                             <Filter size={16} />
-                            Filters
+                            {localize("Filters")}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[720px]" align="start" onWheel={(e) => e.stopPropagation()}>
                         <div className="grid grid-cols-2 gap-4">
                             {/* Gender */}
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="genderSel">Gender admission</Label>
+                                <Label htmlFor="genderSel">{localize("Gender admission")}</Label>
                                 <Select value={gender} onValueChange={(v) => setGender(v as any)}>
                                     <SelectTrigger id="genderSel">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Allowed</SelectItem>
-                                        <SelectItem value="male">Men Allowed</SelectItem>
-                                        <SelectItem value="female">Women Allowed</SelectItem>
-                                        <SelectItem value="male_only">Men Only</SelectItem>
-                                        <SelectItem value="female_only">Women Only</SelectItem>
+                                        <SelectItem value="all">{localize("All Allowed")}</SelectItem>
+                                        <SelectItem value="male">{localize("Men Allowed")}</SelectItem>
+                                        <SelectItem value="female">{localize("Women Allowed")}</SelectItem>
+                                        <SelectItem value="male_only">{localize("Men Only")}</SelectItem>
+                                        <SelectItem value="female_only">{localize("Women Only")}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             {/* Unique-only */}
                             <div className="flex flex-col gap-1">
-                                <Label>Show only one per series</Label>
+                                <Label>{localize("Show only one per series")}</Label>
                                 <div className="flex items-center gap-2 pt-2">
                                     <Checkbox
                                         checked={uniqueOnly}
@@ -261,14 +264,14 @@ const EventSection: React.FC<EventSectionProps> = ({
                                         id="uniqueOnlyChk"
                                     />
                                     <label htmlFor="uniqueOnlyChk" className="text-sm text-slate-700">
-                                        Unique only (earliest upcoming per event)
+                                        {localize("Unique only (earliest upcoming per event)")}
                                     </label>
                                 </div>
                             </div>
 
                             {/* Min / Max Age */}
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="minAge">Min Age</Label>
+                                <Label htmlFor="minAge">{localize("Minimum Age")}</Label>
                                 <Input
                                     id="minAge"
                                     inputMode="numeric"
@@ -277,11 +280,11 @@ const EventSection: React.FC<EventSectionProps> = ({
                                     placeholder="e.g. 20"
                                 />
                                 <p className="text-xs text-slate-500">
-                                    We’ll show events that admit <strong>everyone</strong> between your minimum and maximum ages would be allowed to attend, for all ages.
+                                    {localize("We’ll show events that admit")} <strong>{localize("everyone")}</strong> {localize("between your minimum and maximum ages would be allowed to attend, for all ages.")}.
                                 </p>
                             </div>
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="maxAge">Max Age</Label>
+                                <Label htmlFor="maxAge">{localize("Maximum Age")}</Label>
                                 <Input
                                     id="maxAge"
                                     inputMode="numeric"
@@ -293,13 +296,13 @@ const EventSection: React.FC<EventSectionProps> = ({
 
                             {/* Ministries */}
                             <div className="col-span-2 flex flex-col gap-1">
-                                <Label>Ministries</Label>
+                                <Label>{localize("Ministries")}</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-between">
                                             {selectedMinistries.length
-                                                ? `${selectedMinistries.length} selected`
-                                                : "Choose ministries"}
+                                                ? localize(`${selectedMinistries.length} selected`)
+                                                : localize("Choose ministries")}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent
@@ -308,8 +311,8 @@ const EventSection: React.FC<EventSectionProps> = ({
                                         onWheel={(e) => e.stopPropagation()}
                                     >
                                         <Command>
-                                            <CommandInput placeholder="Search ministries…" />
-                                            <CommandEmpty>No ministries found.</CommandEmpty>
+                                            <CommandInput placeholder={localize("Search ministries…")} />
+                                            <CommandEmpty>{localize("No ministries found.")}</CommandEmpty>
                                             <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
                                                 <CommandGroup>
                                                     {allMinistries.map((m) => {
@@ -328,7 +331,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                                                             >
                                                                 <div className="flex items-center gap-2">
                                                                     <Checkbox checked={checked} />
-                                                                    <span className="truncate">{m.name}</span>
+                                                                    <span className="truncate">{localize(m.name)}</span>
                                                                 </div>
                                                             </CommandItem>
                                                         );
@@ -346,7 +349,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                                             className="text-xs"
                                             onClick={() => setSelectedMinistries([])}
                                         >
-                                            Clear
+                                            {localize("Clear")}
                                         </Button>
                                     </div>
                                 )}
@@ -359,7 +362,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                                     checked={membersOnlyOnly}
                                     onCheckedChange={(v) => setMembersOnlyOnly(Boolean(v))}
                                 />
-                                <Label htmlFor="membersOnlyOnlyChk">Members-only events only</Label>
+                                <Label htmlFor="membersOnlyOnlyChk">{localize("Members-only events only")}</Label>
                             </div>
 
                             {/* Favorites-only (auth only) */}
@@ -370,13 +373,13 @@ const EventSection: React.FC<EventSectionProps> = ({
                                         checked={favoritesOnly}
                                         onCheckedChange={(v) => setFavoritesOnly(Boolean(v))}
                                     />
-                                    <Label htmlFor="favoritesOnlyChk">Favorites only</Label>
+                                    <Label htmlFor="favoritesOnlyChk">{localize("Favorites only")}</Label>
                                 </div>
                             )}
 
                             {/* Max price */}
                             <div className="flex flex-col gap-1">
-                                <Label htmlFor="maxPrice">Max Price</Label>
+                                <Label htmlFor="maxPrice">{localize("Maximum Price")}</Label>
                                 <Input
                                     id="maxPrice"
                                     inputMode="decimal"
@@ -385,7 +388,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                                     placeholder="e.g. 5.25"
                                 />
                                 <p className="text-xs text-slate-500">
-                                    We’ll show events that are either free or priced at or below this amount in $USD.
+                                    {localize("We’ll show events that are either free or priced at or below this amount in $USD.")}
                                 </p>
                             </div>
                         </div>
@@ -400,7 +403,7 @@ const EventSection: React.FC<EventSectionProps> = ({
             <div className="w-full max-w-screen-xl mx-auto px-4 py-8">
                 {showTitle !== false && (
                     <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4">
-                        {title || "Upcoming Events"}
+                        {localize(title || "Upcoming Events")}
                     </h2>
                 )}
 
@@ -422,7 +425,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                     <div className="text-center text-slate-600 py-16">
                         <div className="text-5xl mb-2">📅</div>
                         <div className="text-lg font-semibold">
-                            There are no upcoming events.
+                            {localize("There are no upcoming events.")}
                         </div>
                     </div>
                 ) : null}
@@ -444,10 +447,10 @@ const EventSection: React.FC<EventSectionProps> = ({
                         <div className="flex justify-center mt-8">
                             {cursor ? (
                                 <Button variant="default" onClick={onLoadMore} disabled={loading || refreshing}>
-                                    {loading || refreshing ? "Loading…" : "Load more"}
+                                    {loading || refreshing ? localize("Loading…") : localize("Load more")}
                                 </Button>
                             ) : (
-                                <div className="text-sm text-slate-500">No more events.</div>
+                                <div className="text-sm text-slate-500">{localize("No more events.")}</div>
                             )}
                         </div>
                     </>

@@ -34,6 +34,8 @@ import type {
     PaymentDetails,
     UserFacingEvent,
 } from "@/shared/types/Event";
+import { useLocalize } from "@/shared/utils/localizationUtils";
+import { useLanguage } from "@/provider/LanguageProvider";
 
 // ----- storage keys -----
 const pendingFinalKey = (instanceId: string, orderId: string) => `paypal-final:${instanceId}:${orderId}`;
@@ -159,6 +161,9 @@ function buildScopedItems(params: {
 }
 
 const PaymentSuccessPageV2: React.FC = () => {
+    const localize = useLocalize();
+    const lang = useLanguage().locale;
+
     const navigate = useNavigate();
     const { instanceId } = useParams<{ instanceId: string }>();
     const [params] = useSearchParams();
@@ -235,8 +240,8 @@ const PaymentSuccessPageV2: React.FC = () => {
         if (!onceKey || ranOnceKey.current === onceKey) return;
 
         const run = async () => {
-            if (!instanceId) { setStatus("error"); setMessage("Missing event instance."); return; }
-            if (!orderId) { setStatus("error"); setMessage("Missing PayPal order id."); return; }
+            if (!instanceId) { setStatus("error"); setMessage(localize("Missing event instance.")); return; }
+            if (!orderId) { setStatus("error"); setMessage(localize("Missing PayPal order id.")); return; }
 
             const storeKey = pendingFinalKey(instanceId, orderId);
             const rawPending = sessionStorage.getItem(storeKey);
@@ -247,7 +252,7 @@ const PaymentSuccessPageV2: React.FC = () => {
 
             if (!rawPending && !alreadyCaptured) {
                 setStatus("missing");
-                setMessage("We couldn't find your pending registration details. Please return to the event and try again.");
+                setMessage(localize("We couldn't find your pending registration details. Please return to the event and try again."));
                 return;
             }
 
@@ -268,13 +273,13 @@ const PaymentSuccessPageV2: React.FC = () => {
             let pendingDetails: RegistrationDetails | null = null;
             if (rawPending) {
                 try { pendingDetails = JSON.parse(rawPending) as RegistrationDetails; }
-                catch { setStatus("missing"); setMessage("Corrupted pending registration details. Please try again."); return; }
+                catch { setStatus("missing"); setMessage(localize("Corrupted pending registration details. Please try again.")); return; }
             }
 
             // ---- capture (with lock) ----
             let cap: any = null;
             if (!alreadyCaptured) {
-                if (!pendingDetails) { setStatus("missing"); setMessage("Missing pending registration details. Please try again."); return; }
+                if (!pendingDetails) { setStatus("missing"); setMessage(localize("Missing pending registration details. Please try again.")); return; }
 
                 const haveLock = tryAcquireLock(guardK);
                 if (haveLock) {
@@ -282,7 +287,7 @@ const PaymentSuccessPageV2: React.FC = () => {
                         cap = await capturePaidRegistration(orderId, instanceId, pendingDetails);
                         if (!cap?.success) {
                             releaseLock(guardK, false);
-                            setStatus("error"); setMessage(cap?.msg || "Payment capture failed."); return;
+                            setStatus("error"); setMessage(localize(cap?.msg || "Payment capture failed.")); return;
                         }
 
                         // persist names BEFORE flipping the lock to "done"
@@ -366,13 +371,13 @@ const PaymentSuccessPageV2: React.FC = () => {
             }
 
             setStatus("success");
-            setMessage("Payment captured and registration updated.");
+            setMessage(localize("Payment captured and registration updated."));
         };
 
         run().catch((e) => {
             console.error("[PaymentSuccessPageV2] error", e);
             setStatus("error");
-            setMessage("We couldn't finalize your registration.");
+            setMessage(localize("We couldn't finalize your registration."));
         });
     }, [instanceId, orderId, fetchEventInstanceDetails]);
 
@@ -673,6 +678,27 @@ const PaymentSuccessPageV2: React.FC = () => {
         }
     };
 
+    let title: string;
+    const isPreferredLang = afterEvent?.default_localization === lang;
+
+    if (isPreferredLang) {
+        if (afterEvent === null) {
+            title = localize("Event");
+        }
+        else {
+            title = afterEvent!.default_title
+        }
+
+    }
+    else {
+        if (afterEvent === null) {
+            title = localize("Event");
+        }
+        else {
+            title = localize(afterEvent!.default_title)
+        }
+    }
+
 
     // ---------- navigation ----------
     const backToSharable = () => navigate(sharableHref);
@@ -686,9 +712,9 @@ const PaymentSuccessPageV2: React.FC = () => {
                     <CardContent className="pt-6">
                         <div className="text-center">
                             <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto mb-4" />
-                            <h2 className="text-xl font-semibold text-gray-900 mb-2">Processing Payment</h2>
-                            <p className="text-gray-600">Verifying your payment and applying your registration…</p>
-                            <div className="mt-4 text-sm text-gray-500"><p>Order ID: {orderId}</p></div>
+                            <h2 className="text-xl font-semibold text-gray-900 mb-2">{localize("Processing Payment")}</h2>
+                            <p className="text-gray-600">{localize("Verifying your payment and applying your registration…")}</p>
+                            <div className="mt-4 text-sm text-gray-500"><p>{localize("Order ID")}: {orderId}</p></div>
                         </div>
                     </CardContent>
                 </Card>
@@ -704,7 +730,7 @@ const PaymentSuccessPageV2: React.FC = () => {
                         <div className="text-center">
                             <XCircle className="h-16 w-16 text-red-600 mx-auto mb-4" />
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                                {status === "missing" ? "Details Missing" : "Payment Processing Failed"}
+                                {status === "missing" ? localize("Details Missing") : localize("Payment Processing Failed")}
                             </h2>
                             <Alert variant="destructive" className="mb-6 text-left">
                                 <AlertDescription>{message}</AlertDescription>
@@ -712,7 +738,7 @@ const PaymentSuccessPageV2: React.FC = () => {
                             <div className="space-y-3">
                                 <Button onClick={backToSharable} variant="outline" className="w-full">
                                     <ArrowLeft className="h-4 w-4 mr-2" />
-                                    Back to Event
+                                    {localize("Back to Event")}
                                 </Button>
                             </div>
                         </div>
@@ -731,30 +757,30 @@ const PaymentSuccessPageV2: React.FC = () => {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-green-700">
                                 <CheckCircle className="h-6 w-6" />
-                                Payment Successful
+                                {localize("Payment Successful")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex flex-wrap gap-2">
-                                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Payment Confirmed</Badge>
+                                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">{localize("Payment Confirmed")}</Badge>
                             </div>
 
                             {/* Counts + Money */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-3 rounded-md bg-white border">
-                                    <div className="text-xs text-gray-500 mb-1">Added</div>
+                                    <div className="text-xs text-gray-500 mb-1">{localize("Added")}</div>
                                     <div className="text-2xl font-semibold">{addedIds.length}</div>
                                 </div>
                                 <div className="p-3 rounded-md bg-white border">
-                                    <div className="text-xs text-gray-500 mb-1">Removed</div>
+                                    <div className="text-xs text-gray-500 mb-1">{localize("Removed")}</div>
                                     <div className="text-2xl font-semibold">{removedIds.length}</div>
                                 </div>
                                 <div className="p-3 rounded-md bg-white border">
-                                    <div className="text-xs text-gray-500 mb-1">Total Charged</div>
+                                    <div className="text-xs text-gray-500 mb-1">{localize("Total Charged")}</div>
                                     <div className="text-2xl font-semibold">{fmtMoney(totalCharged)}</div>
                                 </div>
                                 <div className="p-3 rounded-md bg-white border">
-                                    <div className="text-xs text-gray-500 mb-1">Instant Refunds</div>
+                                    <div className="text-xs text-gray-500 mb-1">{localize("Instant Refunds")}</div>
                                     <div className="text-2xl font-semibold">{fmtMoney(totalRefunded)}</div>
                                 </div>
                             </div>
@@ -764,9 +790,9 @@ const PaymentSuccessPageV2: React.FC = () => {
                             {/* Added/Removed lists (names from details_map) */}
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
-                                    <div className="text-sm text-gray-600 mb-2">Added</div>
+                                    <div className="text-sm text-gray-600 mb-2">{localize("Added")}</div>
                                     {addedIds.length === 0 ? (
-                                        <div className="text-sm text-muted-foreground">None</div>
+                                        <div className="text-sm text-muted-foreground">{localize("None")}</div>
                                     ) : (
                                         <ul className="text-sm space-y-1">
                                             {addedIds.map((id) => (
@@ -779,9 +805,9 @@ const PaymentSuccessPageV2: React.FC = () => {
                                     )}
                                 </div>
                                 <div>
-                                    <div className="text-sm text-gray-600 mb-2">Removed (refunded if eligible)</div>
+                                    <div className="text-sm text-gray-600 mb-2">{localize("Removed (refunded if eligible)")}</div>
                                     {removedIds.length === 0 ? (
-                                        <div className="text-sm text-muted-foreground">None</div>
+                                        <div className="text-sm text-muted-foreground">{localize("None")}</div>
                                     ) : (
                                         <ul className="text-sm space-y-1">
                                             {removedIds.map((id) => (
@@ -801,10 +827,10 @@ const PaymentSuccessPageV2: React.FC = () => {
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                     <Receipt className="h-4 w-4" />
-                                    <span>This Order — Charges</span>
+                                    <span>{localize("This Order — Charges")}</span>
                                 </div>
                                 {charges.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No charges for this order.</p>
+                                    <p className="text-sm text-muted-foreground">{localize("No charges for this order.")}</p>
                                 ) : (
                                     charges.map((l) => (
                                         <div key={`ch-${l.id}-${l.txn ?? ""}-${l.line ?? ""}`} className="rounded-md bg-white border p-3">
@@ -812,12 +838,12 @@ const PaymentSuccessPageV2: React.FC = () => {
                                                 <div className="min-w-0">
                                                     <div className="font-medium truncate">{l.label}</div>
                                                     <div className="text-xs text-gray-500">
-                                                        {l.method ? `Method: ${l.method}` : "Method: —"}
-                                                        {l.txn ? ` • Txn: ${l.txn}` : ""}
-                                                        {l.line ? ` • Line: ${l.line}` : ""}
+                                                        {l.method ? `${localize("Method")}: ${l.method}` : `${localize("Method")}: —`}
+                                                        {l.txn ? ` • ${localize("Transaction ID")}: ${l.txn}` : ""}
+                                                        {l.line ? ` • ${localize("Line ID")}: ${l.line}` : ""}
                                                     </div>
                                                 </div>
-                                                <div className="text-right text-gray-900">Charged {fmtMoney(asNumber(l.price))}</div>
+                                                <div className="text-right text-gray-900">{localize("Charged")} {fmtMoney(asNumber(l.price))}</div>
                                             </div>
                                         </div>
                                     ))
@@ -825,10 +851,10 @@ const PaymentSuccessPageV2: React.FC = () => {
 
                                 <div className="flex items-center gap-2 text-sm text-gray-600 pt-2">
                                     <Receipt className="h-4 w-4" />
-                                    <span>This Order — Refunds</span>
+                                    <span>{localize("This Order — Refunds")}</span>
                                 </div>
                                 {refunds.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No instant refunds were issued.</p>
+                                    <p className="text-sm text-muted-foreground">{localize("No instant refunds were issued.")}</p>
                                 ) : (
                                     refunds.map((l) => (
                                         <div key={`rf-${l.id}-${l.txn ?? ""}-${l.line ?? ""}`} className="rounded-md bg-white border p-3">
@@ -836,39 +862,39 @@ const PaymentSuccessPageV2: React.FC = () => {
                                                 <div className="min-w-0">
                                                     <div className="font-medium truncate">{l.label}</div>
                                                     <div className="text-xs text-gray-500">
-                                                        {l.method ? `Method: ${l.method}` : "Method: —"}
-                                                        {l.txn ? ` • Txn: ${l.txn}` : ""}
-                                                        {l.line ? ` • Line: ${l.line}` : ""}
+                                                        {l.method ? `${localize("Method")}: ${l.method}` : `${localize("Method")}: —`}
+                                                        {l.txn ? ` • ${localize("Transaction ID")}: ${l.txn}` : ""}
+                                                        {l.line ? ` • ${localize("Line ID")}: ${l.line}` : ""}
                                                     </div>
                                                 </div>
-                                                <div className="text-right text-amber-700">Refunded {fmtMoney(asNumber(l.price))}</div>
+                                                <div className="text-right text-amber-700">{localize("Refunded")} {fmtMoney(asNumber(l.price))}</div>
                                             </div>
                                         </div>
                                     ))
                                 )}
                             </div>
 
-                            <div className="flex gap-3 pt-2">
+                            <div className="flex flex-wrap gap-3 pt-2">
                                 <Button onClick={toMyEvents} className="flex items-center">
                                     <Users className="h-4 w-4 mr-2" />
-                                    View My Events
+                                    {localize("View My Events")}
                                 </Button>
                                 <Button onClick={backToSharable} variant="outline" className="flex items-center">
                                     <ArrowLeft className="h-4 w-4 mr-2" />
-                                    Back to Event
+                                    {localize("Back to Event")}
                                 </Button>
                                 <Button onClick={handleDownloadReceipt} variant="outline" className="flex items-center ml-auto">
                                     <Download className="h-4 w-4 mr-2" />
-                                    Download receipt
+                                    {localize("Download receipt")}
                                 </Button>
                             </div>
                             <p className="mt-2 text-xs text-muted-foreground">
-                                You may access your ticket again anytime by viewing the event page
+                                {localize("You may access your ticket again anytime by viewing the event page")}
                             </p>
 
                             <Alert className="mt-3">
                                 <AlertDescription className="text-xs">
-                                    The refunds shown here reflect refunds made from PayPal directly. Savings gained from removing Pay-At-Door registrations will not be reflected here.
+                                    {localize("The refunds shown here reflect refunds made from PayPal directly. Savings gained from removing Pay-At-Door registrations will not be reflected here.")}
                                 </AlertDescription>
                             </Alert>
                         </CardContent>
@@ -882,7 +908,7 @@ const PaymentSuccessPageV2: React.FC = () => {
                             {heroUrl ? (
                                 <img
                                     src={heroUrl}
-                                    alt={afterEvent.default_title || "Event image"}
+                                    alt={title || localize("Event image")}
                                     className="block w-full h-auto object-cover max-h-64"
                                     loading="lazy"
                                     decoding="async"
@@ -892,8 +918,8 @@ const PaymentSuccessPageV2: React.FC = () => {
                             )}
 
                             <CardHeader className="pb-0">
-                                <CardTitle className="flex items-start justify-between gap-4">
-                                    <span className="font-semibold">{afterEvent.default_title || "Event"}</span>
+                                <CardTitle className="flex items-start justify-between gap-4 pt-4">
+                                    <span className="font-semibold">{title}</span>
                                 </CardTitle>
                             </CardHeader>
 
@@ -901,16 +927,16 @@ const PaymentSuccessPageV2: React.FC = () => {
                                 {afterEvent.ministries && afterEvent.ministries.length > 0 && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <Church className="h-4 w-4" />
-                                        <span>{afterEvent.ministries.map((id: string) => ministryNameMap[id] || id).join(" • ")}</span>
+                                        <span>{afterEvent.ministries.map((id: string) => localize(ministryNameMap[id]) || id).join(" • ")}</span>
                                     </div>
                                 )}
 
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Calendar className="h-4 w-4" />
-                                    <span>{fmtDateTime(afterEvent.date)}</span>
+                                    <span>{localize(fmtDateTime(afterEvent.date))}</span>
                                 </div>
 
-                                {afterEvent.default_location_info && (
+                                {afterEvent.location_address && (
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         <MapPin className="h-4 w-4" />
                                         <span className="truncate">{afterEvent.location_address}</span>
@@ -921,7 +947,7 @@ const PaymentSuccessPageV2: React.FC = () => {
                                     typeof afterEvent.max_spots === "number" &&
                                     afterEvent.max_spots > 0 && (
                                         <div className="text-sm text-muted-foreground">
-                                            Seats: <strong>{afterEvent.seats_filled}</strong> / {afterEvent.max_spots}
+                                            {`${localize("Seats:")} `}<strong>{afterEvent.seats_filled}</strong> / {afterEvent.max_spots}
                                         </div>
                                     )}
                             </CardContent>
@@ -938,17 +964,17 @@ const PaymentSuccessPageV2: React.FC = () => {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <DollarSign className="h-5 w-5" />
-                                Payment Info
+                                {localize("Payment Info")}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
                             <div className="flex justify-between">
-                                <span>Order ID:</span>
+                                <span>{localize("Order ID:")}</span>
                                 <span className="font-mono">{orderId}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span>Method:</span>
-                                <span>PayPal</span>
+                                <span>{localize("Method:")}</span>
+                                <span>{localize("PayPal")}</span>
                             </div>
                         </CardContent>
                     </Card>

@@ -18,9 +18,12 @@ import {
 } from "@/helpers/FormSubmissionHelper";
 import { getBoundsViolations, getOptionViolations } from "./validation";
 import PreviewUnavailableAlert from './PreviewUnavailableAlert';
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 
 export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true }: { slug?: string, instanceId?: string, applyFormWidth?: boolean }) {
+  const localize = useLocalize();
+
   const schema = useBuilderStore((s) => s.schema);
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const optionViolations = useMemo(() => !slug ? getOptionViolations(schema) : [], [schema, slug]);
@@ -220,11 +223,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         foundPriceFields = true;
         const priceField = f as any;
 
-        console.log("PRICE FIELD PAYMENT METHODS:");
-        console.log(priceField.paymentMethods);
-        console.log("FULL PRICE FIELD:");
-        console.log(priceField);
-
         // Check for PayPal (treat undefined as enabled for backward compatibility)
         if (priceField.paymentMethods?.allowPayPal !== false) {
           methods.allowPayPal = true;
@@ -248,9 +246,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         methods.allowInPerson = true;
       }
     }
-
-    console.log("METHODS CALCULATED!");
-    console.log(methods);
 
     return methods;
   };
@@ -290,6 +285,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   }
 
   const buildPaymentForm = (total: number) => {
+
     const methods = getAvailablePaymentMethods();
     const payment_options: ("paypal" | "door")[] = [];
 
@@ -306,7 +302,9 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
     };
   };
 
+
   const onSubmit = form.handleSubmit(async (data: any) => {
+
     // Prevent duplicate submissions from multiple form instances, with timestamp-based expiration
     const globalSubmitKey = `form_submitting_${slug || 'preview'}`;
     const LOCK_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
@@ -354,17 +352,11 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
 
           let selectedPaymentMethod = paymentMethod;
 
-          console.log("SELECTED PAYMENT METHOD IS ");
-          console.log(selectedPaymentMethod);
-
           if (paypalOnly) {
-            console.log("CHAT ITS PAYPAL ONLY");
             selectedPaymentMethod = "paypal";
           } else if (inPersonOnly) {
-            console.log("CHAT ITS IN PERSON ONLY");
             selectedPaymentMethod = "in-person";
           } else if (bothEnabled) {
-            console.log("CHAT BOTH PAYMENT METHODS ENABLED");
             if (!selectedPaymentMethod) {
               const formPaymentMethod = Object.keys(data).find((key) =>
                 key.includes("_payment_method"),
@@ -384,12 +376,8 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           }
 
 
-          console.log("BEEEE");
-          console.log(selectedPaymentMethod)
-
           // Handle PayPal payment flow
           if (selectedPaymentMethod === "paypal") {
-            console.log("WUT ZE FUQ")
             setSubmitState("submitting");
             setSubmitMessage("Redirecting to PayPal.");
 
@@ -405,15 +393,11 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
 
           // If in-person payment selected, submit with normalized payment details
           if (selectedPaymentMethod === "in-person") {
-            console.log("YOOOO WE HAVE MADE IT HERE");
-            console.log("BANANA!");
             const formMeta = buildPaymentForm(formTotal);
             await submitDoorPaymentForm(slug, data, formMeta);
 
             setSubmitState("success");
-            setSubmitMessage(
-              "Thanks for your response! Please complete payment in-person as arranged.",
-            );
+            setSubmitMessage("Thanks for your response! Please complete payment in-person as arranged.");
             form.reset(defaultValues);
             sessionStorage.removeItem(globalSubmitKey);
             return;
@@ -434,17 +418,17 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
         const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
         // Map server reasons to full-page friendly error messages
         if (detailStr.includes('expired')) {
-          setPageError('This form has expired and is no longer accepting responses.');
+          setPageError(localize('This form has expired and is no longer accepting responses.'));
           setSubmitState('error');
           return;
         }
         if (detailStr.includes('not available') || detailStr.includes('not visible')) {
-          setPageError('This form is not available for public viewing.');
+          setPageError(localize('This form is not available for public viewing.'));
           setSubmitState('error');
           return;
         }
         if (detailStr.includes('not found')) {
-          setPageError('Form not found.');
+          setPageError(localize('Form not found.'));
           setSubmitState('error');
           return;
         }
@@ -532,9 +516,9 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             <MailCheck className="h-6 w-6" aria-hidden="true" />
           </span>
-          <h2 className="text-xl font-semibold">Thank you!</h2>
+          <h2 className="text-xl font-semibold">{localize("Thank you!")}</h2>
           <p className="text-muted-foreground max-w-md">
-            {submitMessage}
+            {localize(submitMessage)}
           </p>
         </div>
       </div>
@@ -551,7 +535,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12A9 9 0 1112 3a9 9 0 019 9z" />
             </svg>
           </span>
-          <h2 className="text-xl font-semibold">Form unavailable</h2>
+          <h2 className="text-xl font-semibold">{localize("Form unavailable")}</h2>
           <p className="text-destructive max-w-md">{pageError}</p>
         </div>
       </div>
@@ -595,7 +579,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                       <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                         <span className="text-blue-600 text-xs font-bold">P</span>
                       </div>
-                      {isSubmitting ? 'Processing...' : 'Pay with PayPal & Submit'}
+                      {isSubmitting ? localize('Processing...') : localize('Pay with PayPal & Submit')}
                     </span>
                   </Button>
                 );
@@ -613,7 +597,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                       <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                         <span className="text-green-600 text-xs">💵</span>
                       </div>
-                      {isSubmitting ? 'Submitting...' : 'Submit Form (Pay In-Person Later)'}
+                      {isSubmitting ? localize('Submitting...') : localize('Submit Form (Pay In-Person Later)')}
                     </span>
                   </Button>
                 );
@@ -642,7 +626,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                         <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                           <span className="text-blue-600 text-xs font-bold">P</span>
                         </div>
-                        {isSubmitting ? 'Processing...' : 'Pay with PayPal & Submit'}
+                        {isSubmitting ? localize('Processing...') : localize('Pay with PayPal & Submit')}
                       </span>
                     </Button>
                   );
@@ -657,7 +641,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                         <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                           <span className="text-green-600 text-xs">💵</span>
                         </div>
-                        {isSubmitting ? 'Submitting...' : 'Submit Form (Pay In-Person Later)'}
+                        {isSubmitting ? localize('Submitting...') : localize('Submit Form (Pay In-Person Later)')}
                       </span>
                     </Button>
                   );
@@ -671,7 +655,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                 type="submit"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit'}
+                {isSubmitting ? localize('Submitting...') : localize('Submit')}
               </Button>
             );
           })()}
@@ -680,7 +664,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
             <div
               className={`text-sm mt-2 ${submitState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
             >
-              {submitMessage}
+              {localize(submitMessage)}
             </div>
           )}
         </div>

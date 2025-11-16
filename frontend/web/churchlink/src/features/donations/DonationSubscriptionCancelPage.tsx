@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { XCircle, ArrowLeft, ExternalLink, Repeat2 } from "lucide-react";
+import { XCircle, ArrowLeft, ExternalLink, CreditCard } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Button } from "@/shared/components/ui/button";
@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Separator } from "@/shared/components/ui/separator";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 /**
  * DonationSubscriptionCancelPage
@@ -20,6 +21,7 @@ import { Label } from "@/shared/components/ui/label";
  */
 
 const DonationSubscriptionCancelPage: React.FC = () => {
+    const localize = useLocalize();
     const navigate = useNavigate();
     const [params] = useSearchParams();
 
@@ -31,7 +33,7 @@ const DonationSubscriptionCancelPage: React.FC = () => {
     const baToken = useMemo(() => params.get("ba_token") || "", [params]);
 
     const goHome = () => navigate("/");
-    const goDonations = () => navigate("/donations");
+    const goMyTransactions = () => navigate("/my-transactions");
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
@@ -40,15 +42,14 @@ const DonationSubscriptionCancelPage: React.FC = () => {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-red-700">
                             <XCircle className="h-6 w-6" />
-                            Subscription Setup Cancelled
+                            {localize("Subscription Setup Cancelled")}
                         </CardTitle>
                     </CardHeader>
 
                     <CardContent className="space-y-6">
                         <Alert className="border-amber-200 bg-amber-50">
                             <AlertDescription className="text-sm text-amber-900">
-                                No recurring donation was created. Your PayPal account will{" "}
-                                <strong>not</strong> be charged on a schedule for this attempt.
+                                {localize("No recurring donation was created. Your PayPal account will not be charged on a schedule for this attempt.")}
                             </AlertDescription>
                         </Alert>
 
@@ -58,7 +59,7 @@ const DonationSubscriptionCancelPage: React.FC = () => {
                                     htmlFor="subscriptionId"
                                     className="text-xs uppercase text-gray-500"
                                 >
-                                    Subscription ID
+                                    {localize("Subscription ID")}
                                 </Label>
                                 <Input
                                     id="subscriptionId"
@@ -69,7 +70,7 @@ const DonationSubscriptionCancelPage: React.FC = () => {
                             </div>
                             <div>
                                 <Label htmlFor="token" className="text-xs uppercase text-gray-500">
-                                    Approval Token
+                                    {localize("Approval Token")}
                                 </Label>
                                 <Input
                                     id="token"
@@ -83,7 +84,7 @@ const DonationSubscriptionCancelPage: React.FC = () => {
                                     htmlFor="baToken"
                                     className="text-xs uppercase text-gray-500"
                                 >
-                                    Billing Agreement Token
+                                    {localize("Billing Agreement Token")}
                                 </Label>
                                 <Input
                                     id="baToken"
@@ -97,22 +98,21 @@ const DonationSubscriptionCancelPage: React.FC = () => {
                         <Separator />
 
                         <div className="space-y-2 text-sm text-gray-700">
-                            <div>What happened?</div>
+                            <div>{localize("What happened?")}</div>
                             <ul className="list-disc pl-5 space-y-1">
-                                <li>You left or canceled during the PayPal subscription approval flow.</li>
-                                <li>We did not create a recurring donation for this attempt.</li>
+                                <li>{localize("You left or canceled during the PayPal subscription approval flow.")}</li>
+                                <li>{localize("We did not create a recurring donation for this attempt.")}</li>
                                 <li>
-                                    If you still want to support monthly/weekly/yearly, you can start a new
-                                    recurring donation below.
+                                    {localize("If you still want to support monthly/weekly/yearly, you can start a new recurring donation below.")}
                                 </li>
                             </ul>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-3 sm:justify-between pt-2">
                             <div className="flex gap-2">
-                                <Button onClick={goDonations} className="flex items-center">
-                                    <Repeat2 className="h-4 w-4 mr-2" />
-                                    Back to Donations
+                                <Button onClick={goMyTransactions} className="flex items-center">
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    {localize("Go to My Transactions")}
                                 </Button>
                                 <Button
                                     onClick={goHome}
@@ -120,7 +120,7 @@ const DonationSubscriptionCancelPage: React.FC = () => {
                                     className="flex items-center"
                                 >
                                     <ArrowLeft className="h-4 w-4 mr-2" />
-                                    Home
+                                    {localize("Home")}
                                 </Button>
                             </div>
                             <Button
@@ -133,7 +133,7 @@ const DonationSubscriptionCancelPage: React.FC = () => {
                                 }
                                 className="flex items-center justify-center"
                             >
-                                Manage in PayPal
+                                {localize("Manage in PayPal")}
                                 <ExternalLink className="h-4 w-4 ml-2" />
                             </Button>
                         </div>
