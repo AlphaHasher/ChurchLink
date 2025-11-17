@@ -28,7 +28,7 @@ import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 import { BulletinImageSelector } from "./BulletinImageSelector";
 import { Switch } from "@/shared/components/ui/switch";
-import { BULLETIN_MINISTRY_OPTIONS } from "@/features/admin/constants/bulletinMinistryOptions";
+import { fetchMinistriesAsStringArray } from "@/helpers/MinistriesHelper";
 
 interface EditBulletinProps {
     bulletin: ChurchBulletin;
@@ -44,9 +44,16 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
     const [checkingPerms, setCheckingPerms] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [ministries, setMinistries] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchMinistriesAsStringArray().then(setMinistries);
+        }
+    }, [isOpen]);
 
     const ministryOptions = useMemo(() => {
-        const base = new Set<string>(BULLETIN_MINISTRY_OPTIONS);
+        const base = new Set<string>(ministries);
         (bulletin.ministries || []).forEach((name) => {
             const normalized = (name || "").trim();
             if (normalized) {
@@ -54,7 +61,7 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
             }
         });
         return Array.from(base).sort((a, b) => a.localeCompare(b));
-    }, [bulletin.ministries]);
+    }, [bulletin.ministries, ministries]);
 
     useEffect(() => {
         if (!isOpen) {

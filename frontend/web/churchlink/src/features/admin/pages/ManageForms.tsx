@@ -20,6 +20,7 @@ ModuleRegistry.registerModules([
 
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
 import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { MinistryCards } from '@/shared/components/MinistryCards';
 import { VisibilityToggleCellRenderer } from '@/shared/components/VisibilityToggle';
 import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
@@ -70,13 +71,11 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
 
   return (
     <div className="flex items-center gap-2 w-full min-w-0">
-      <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-        {ministries.map((id: string) => (
-          <span key={id} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
-            {getMinistryName(id)}
-          </span>
-        ))}
-      </div>
+      <MinistryCards 
+        ministryIds={ministries}
+        availableMinistries={availableMinistries || []}
+        className="flex-1"
+      />
       <Button
         size="icon"
         variant="ghost"

@@ -185,11 +185,13 @@ async def delete_ministry(ministry_id: str) -> bool:
     result = await DB.db["ministries"].delete_one({"_id": oid})
     if result.deleted_count:
         try:
-            await _remove_ministry_from_references(doc.get("name"))
+            # Remove ministry reference from all associated content (don't delete the content)
+            await _remove_ministry_from_references(ministry_id)
         except Exception as exc:  # pragma: no cover - best effort logging
             logger.error(
-                "Failed to remove ministry '%s' from references: %s",
+                "Failed to remove ministry '%s' (ID: %s) from references: %s",
                 doc.get("name"),
+                ministry_id,
                 exc,
             )
         return True
@@ -320,37 +322,17 @@ async def denormalize_ministry_ids(ministry_ids: Optional[List[str]]) -> List[st
 async def _replace_ministry_name_in_references(
     old_name: Optional[str], new_name: str
 ) -> None:
-    if not old_name or old_name == new_name:
-        return
-    if DB.db is None:
-        return
-    array_filters = [{"elem": {"$eq": old_name}}]
-    await DB.db["events"].update_many(
-        {"ministry": old_name},
-        {"$set": {"ministry.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
-    await DB.db["sermons"].update_many(
-        {"ministry": old_name},
-        {"$set": {"ministry.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
-    await DB.db["bulletins"].update_many(
-        {"ministries": old_name},
-        {"$set": {"ministries.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
-    await DB.db["forms"].update_many(
-        {"ministries": old_name},
-        {"$set": {"ministries.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
+    # Note: Since all collections now store ObjectIds, ministry renames don't require
+    # updating references in forms, events, sermons, or bulletins.
+    # The ObjectId remains constant even when the ministry name changes.
+    pass
 
 
-async def _remove_ministry_from_references(name: Optional[str]) -> None:
-    if not name or DB.db is None:
+async def _remove_ministry_from_references(ministry_id: str) -> None:
+    """Remove ministry ObjectId from all references (used when ministry is deleted without cascade)."""
+    if not ministry_id or DB.db is None:
         return
-    await DB.db["events"].update_many({}, {"$pull": {"ministry": name}})
-    await DB.db["sermons"].update_many({}, {"$pull": {"ministry": name}})
-    await DB.db["bulletins"].update_many({}, {"$pull": {"ministries": name}})
-    await DB.db["forms"].update_many({}, {"$pull": {"ministries": name}})
+    await DB.db["events"].update_many({}, {"$pull": {"ministries": ministry_id}})
+    await DB.db["sermons"].update_many({}, {"$pull": {"ministry": ministry_id}})
+    await DB.db["bulletins"].update_many({}, {"$pull": {"ministries": ministry_id}})
+    await DB.db["forms"].update_many({}, {"$pull": {"ministries": ministry_id}})

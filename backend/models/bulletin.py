@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime, time, timedelta
-from typing import List, Optional, Set
+from datetime import datetime
+from typing import List, Optional
 
 from bson import ObjectId
 from pydantic import BaseModel, Field, HttpUrl
@@ -12,6 +12,7 @@ from pymongo.errors import DuplicateKeyError
 from helpers.MongoHelper import serialize_objectid_deep
 from helpers.timezone_utils import get_local_now, normalize_to_local_midnight, strip_timezone_for_mongo
 from mongo.database import DB
+from models.ministry import canonicalize_ministry_ids
 
 
 class AttachmentItem(BaseModel):
@@ -131,6 +132,15 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 		return None
 
 	payload = bulletin.model_dump()
+	
+	# Convert ministry names to ObjectIds
+	ministry_ids = payload.get("ministries", [])
+	try:
+		ministry_ids = await canonicalize_ministry_ids(ministry_ids)
+		payload["ministries"] = ministry_ids
+	except Exception as exc:
+		print(f"Error converting ministry IDs: {exc}")
+		return None
 	
 	# Normalize publish_date to midnight in local timezone, then strip for MongoDB
 	# This ensures dates like "2025-11-10" are interpreted in church's local time, not UTC
@@ -258,6 +268,16 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 	if not update_payload:
 		return False
 
+	# Convert ministry names to ObjectIds if present
+	if "ministries" in update_payload and update_payload["ministries"] is not None:
+		try:
+			update_payload["ministries"] = await canonicalize_ministry_ids(
+				update_payload["ministries"]
+			)
+		except Exception as exc:
+			print(f"Error converting ministry IDs: {exc}")
+			return False
+
 	unset_payload: dict[str, str] = {}
 	if "image_id" in update_payload:
 		normalized_image_id = _normalize_image_id(update_payload.get("image_id"))
@@ -303,13 +323,7 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 		result = await DB.db["bulletins"].update_one({"_id": object_id}, update_doc)
 		return result.matched_count > 0
 	except DuplicateKeyError:
-		# Database unique index violation (duplicate headline during update)
-		print(f"Error: Bulletin headline already exists (duplicate key during update)")
 		return False
-	except Exception as exc:
-		print(f"Error updating bulletin {bulletin_id}: {exc}")
-		return False
-
 
 async def delete_bulletin(bulletin_id: str) -> bool:
 	if DB.db is None:
@@ -323,8 +337,7 @@ async def delete_bulletin(bulletin_id: str) -> bool:
 	try:
 		result = await DB.db["bulletins"].delete_one({"_id": object_id})
 		return result.deleted_count > 0
-	except Exception as exc:
-		print(f"Error deleting bulletin {bulletin_id}: {exc}")
+	except Exception:
 		return False
 
 
@@ -355,6 +368,7 @@ async def list_bulletins(
 	if query_text:
 		query["$text"] = {"$search": query_text}
 
+	# Ministry filtering: ministries are stored as ObjectId strings
 	if ministry:
 		query["ministries"] = {"$in": [ministry]}
 	if published is not None:
@@ -433,6 +447,7 @@ async def search_bulletins(
 	"""Text search across bulletin headlines and summaries"""
 	query: dict = {"$text": {"$search": query_text}}
 
+	# Ministry filtering: ministries are stored as ObjectId strings
 	if ministry:
 		query["ministries"] = {"$in": [ministry]}
 	if published is not None:

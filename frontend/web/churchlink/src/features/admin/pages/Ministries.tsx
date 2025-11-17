@@ -341,7 +341,19 @@ const Ministries = () => {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete ministry</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete "{deleteTarget?.name}"? This will remove the ministry from the master list.
+                            <div className="space-y-2">
+                                <p>Are you sure you want to delete "{deleteTarget?.name}"?</p>
+                                <p className="font-semibold">
+                                    This will remove the ministry reference from:
+                                </p>
+                                <ul className="list-disc list-inside space-y-1 text-sm">
+                                    <li>All forms that use this ministry</li>
+                                    <li>All events that use this ministry</li>
+                                    <li>All sermons that use this ministry</li>
+                                    <li>All bulletins that use this ministry</li>
+                                </ul>
+                                <p className="text-sm font-medium text-muted-foreground">The content will not be deleted, only the ministry association.</p>
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
