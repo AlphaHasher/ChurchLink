@@ -1,21 +1,22 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
-
-import 'package:app/helpers/api_client.dart';
-import 'package:app/models/event.dart';
-import 'package:app/models/event_registration_summary.dart';
-import 'package:app/services/event_registration_service.dart';
-import 'package:app/pages/event_showcase.dart';
-import 'package:app/widgets/event_card.dart';
-import 'package:app/helpers/localization_helper.dart';
-
-// ICS sharing + open
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:open_filex/open_filex.dart';
+
+import 'package:flutter/material.dart';
 
 import 'package:android_intent_plus/android_intent.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/time_formatter.dart';
+import 'package:app/helpers/event_user_helper.dart';
+import 'package:app/helpers/ministries_helper.dart';
+import 'package:app/models/event_v2.dart';
+import 'package:app/models/ministry.dart';
+import 'package:app/pages/event_showcase.dart';
+import 'package:app/firebase/firebase_auth_service.dart';
+import 'package:app/widgets/event_card.dart';
 
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -25,335 +26,478 @@ class EventsPage extends StatefulWidget {
 }
 
 class _EventsPageState extends State<EventsPage> {
-  List<Event> _events = [];
-  bool _isLoading = true;
-  final Map<String, EventRegistrationSummary> _registrationSummaries = {};
+  // Data & pagination
+  final List<UserFacingEvent> _events = <UserFacingEvent>[];
+  EventsCursor? _nextCursor;
+  bool _isInitialLoading = true;
+  bool _isRefreshing = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
 
-  // Declare variables for dynamic filter values
+  // Ministries
+  List<Ministry> _ministries = <Ministry>[];
+  Map<String, Ministry> _ministriesById = <String, Ministry>{};
+
+  // Filters (aligned with UserEventSearchParams)
   int? _minAge;
   int? _maxAge;
-  String? _ministry;
-  String? _nameQuery;
+  String? _gender; // "all" | "male" | "female" | "male_only" | "female_only"
+  final Set<String> _selectedMinistryIds = <String>{};
+  bool _uniqueOnly = false;
+  bool _favoritesOnly = false;
+  bool _membersOnlyOnly = false;
   double? _maxPrice;
-  String? _gender;
-  int? _age;
-  late DateTime _minDate;
-  late DateTime _maxDate;
-  late RangeValues _dateRange;
-  late TextEditingController _nameController;
-  late TextEditingController _maxPriceController;
-  late TextEditingController _ageController;
+
+  // Debounce for numeric filters (age / price)
+  Timer? _debounce;
+
+  // Form controllers
+  late final TextEditingController _minAgeController;
+  late final TextEditingController _maxAgeController;
+  late final TextEditingController _maxPriceController;
 
   @override
   void initState() {
     super.initState();
+    _minAgeController = TextEditingController();
+    _maxAgeController = TextEditingController();
+    _maxPriceController = TextEditingController();
 
-    // Utilized for entering text into filters
-    _nameController = TextEditingController(text: _nameQuery ?? '');
-    _maxPriceController = TextEditingController(
-      text: _maxPrice?.toString() ?? '',
-    );
-    _ageController = TextEditingController(text: _age?.toString() ?? '');
-
-    // Adjust the date slider so that it only shows one year in advance from the current date
-    _minDate = DateTime.now();
-    _maxDate = DateTime.now().add(const Duration(days: 365));
-    final totalDays = _maxDate.difference(_minDate).inDays.toDouble();
-    _dateRange = RangeValues(0, totalDays);
-
-    _loadEvents();
+    _loadInitial();
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _debounce?.cancel();
+    _minAgeController.dispose();
+    _maxAgeController.dispose();
     _maxPriceController.dispose();
-    _ageController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadEvents() async {
-    if (!mounted) return;
+  // ---------------------------------------------------------------------------
+  // LOADING
+  // ---------------------------------------------------------------------------
 
+  Future<void> _loadInitial() async {
     setState(() {
-      _isLoading = true;
+      _isInitialLoading = true;
+      _hasMore = true;
+      _events.clear();
+      _nextCursor = null;
     });
 
-    final totalDays = _maxDate.difference(_minDate).inDays.toDouble();
+    await _loadMinistries();
+    await _fetchPage(reset: true);
 
-    final queryParams = <String, String>{
-      if (_minAge != null) 'min_age': _minAge.toString(),
-      if (_maxAge != null) 'max_age': _maxAge.toString(),
-      if (_ministry != null) 'ministry': _ministry!,
-      if (_nameQuery != null && _nameQuery!.isNotEmpty) 'name': _nameQuery!,
-      if (_maxPrice != null) 'max_price': _maxPrice.toString(),
-      if (_age != null) 'age': _age.toString(),
-      if (_gender != null) 'gender': _gender!,
-    };
-
-    // Always include upcoming-only events
-    queryParams['date_after'] =
-        _minDate
-            .add(Duration(days: _dateRange.start.round()))
-            .toIso8601String()
-            .split('T')
-            .first;
-
-    if (_dateRange.end < totalDays) {
-      queryParams['date_before'] =
-          _minDate
-              .add(Duration(days: _dateRange.end.round()))
-              .toIso8601String()
-              .split('T')
-              .first;
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
     }
+  }
 
-    // Free events shortcut (max_price == 0)
-    if (_maxPrice == 0) {
-      queryParams['is_free'] = 'true';
-    }
-
+  Future<void> _loadMinistries() async {
     try {
-      final response = await api.get(
-        '/v1/events/',
-        queryParameters: queryParams,
-      );
-
+      final list = await MinistriesHelper.fetchMinistries();
       if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        final List<dynamic> jsonData = response.data;
-        final allEvents = jsonData.map((json) => Event.fromJson(json)).toList();
+      setState(() {
+        _ministries = list;
+        _ministriesById = {for (final m in list) m.id: m};
+      });
+    } catch (e, st) {
+      // Hard fail on ministries is not worth it, just log and move on
+      debugPrint('Failed to load ministries: $e\n$st');
+    }
+  }
 
-        // Filter to only show upcoming events
-        final upcomingEvents = Event.upcomingEvents(allEvents);
+  UserEventSearchParams _buildSearchParams({bool forNextPage = false}) {
+    return UserEventSearchParams(
+      limit: 12,
+      minAge: _minAge,
+      maxAge: _maxAge,
+      gender: _gender,
+      ministries:
+          _selectedMinistryIds.isEmpty ? null : _selectedMinistryIds.toList(),
+      uniqueOnly: _uniqueOnly ? true : null,
+      preferredLang: LocalizationHelper.currentLocale,
+      cursorScheduledDate: forNextPage ? _nextCursor?.scheduledDate : null,
+      cursorId: forNextPage ? _nextCursor?.id : null,
+      favoritesOnly: _favoritesOnly ? true : null,
+      membersOnlyOnly: _membersOnlyOnly ? true : null,
+      maxPrice: _maxPrice,
+    );
+  }
 
-        setState(() {
-          _events = upcomingEvents;
-          _isLoading = false;
-        });
-        // Load registration details for all events
-        _loadRegistrationDetails();
+  Future<void> _fetchPage({bool reset = false}) async {
+    if (!mounted) return;
+    if (!reset && (!_hasMore || _isLoadingMore)) return;
+
+    if (reset) {
+      _nextCursor = null;
+      _hasMore = true;
+    }
+
+    setState(() {
+      if (reset) {
+        _isInitialLoading = true;
       } else {
-        debugPrint("Failed to load events: ${response.statusCode}");
-        if (mounted) {
-          setState(() => _isLoading = false);
+        _isLoadingMore = true;
+      }
+    });
+
+    try {
+      final params = _buildSearchParams(forNextPage: !reset);
+      final results = await EventUserHelper.fetchUserEvents(params);
+      if (!mounted || results == null) return;
+
+      final converted = convertUserFacingEventsToUserTime(
+        results.items.toList(),
+      );
+
+      setState(() {
+        if (reset) {
+          _events
+            ..clear()
+            ..addAll(converted);
+        } else {
+          _events.addAll(converted);
         }
-      }
-    } catch (e) {
-      debugPrint("Error loading events: $e");
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+        _nextCursor = results.nextCursor;
+        _hasMore = _nextCursor != null;
+      });
+    } catch (e, st) {
+      debugPrint('fetchUserEvents failed: $e\n$st');
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isInitialLoading = false;
+        _isRefreshing = false;
+        _isLoadingMore = false;
+      });
     }
   }
 
-  Future<void> _loadRegistrationDetails() async {
-    for (final event in _events) {
-      if (!mounted) return; // Exit early if widget is disposed
-
-      try {
-        final summary =
-            await EventRegistrationService.getEventRegistrationSummary(
-              event.id,
-            );
-
-        if (!mounted) return; // Check again after async operation
-
-        setState(() {
-          _registrationSummaries[event.id] = summary;
-        });
-      } catch (e) {
-        debugPrint(
-          'Failed to load registration summary for event ${event.id}: $e',
-        );
-      }
-    }
+  Future<void> _onRefresh() async {
+    if (!mounted) return;
+    setState(() {
+      _isRefreshing = true;
+    });
+    await _fetchPage(reset: true);
   }
 
-  void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
+  void _onLoadMore() {
+    _fetchPage(reset: false);
+  }
+
+  // ---------------------------------------------------------------------------
+  // FILTER SHEET
+  // ---------------------------------------------------------------------------
+
+  void _showFilterSheet() {
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         String? tempGender = _gender;
-        String? tempMinistry = _ministry;
-        String? tempName = _nameQuery;
+        bool tempUniqueOnly = _uniqueOnly;
+        bool tempFavoritesOnly = _favoritesOnly;
+        bool tempMembersOnlyOnly = _membersOnlyOnly;
+        final tempMinistryIds = Set<String>.from(_selectedMinistryIds);
         double? tempMaxPrice = _maxPrice;
-        int? tempAge = _age;
-        RangeValues tempDateRange = _dateRange;
+        int? tempMinAge = _minAge;
+        int? tempMaxAge = _maxAge;
+
+        final minAgeController = TextEditingController(
+          text: tempMinAge?.toString() ?? '',
+        );
+        final maxAgeController = TextEditingController(
+          text: tempMaxAge?.toString() ?? '',
+        );
+        final maxPriceController = TextEditingController(
+          text: tempMaxPrice?.toString() ?? '',
+        );
 
         return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
+          builder: (context, setModalState) {
+            void updateDebounced(void Function() updater) {
+              updater();
+              _debounce?.cancel();
+              _debounce = Timer(const Duration(milliseconds: 400), () {});
+            }
+
             return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Wrap(
-                runSpacing: 12,
-                children: [
-                  Text(
-                    LocalizationHelper.localize("Filter Events"),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: LocalizationHelper.localize("Search by Name"),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      LocalizationHelper.localize('Filter Events'),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    onChanged: (value) => setModalState(() => tempName = value),
-                  ),
-                  TextField(
-                    controller: _maxPriceController,
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Max Price")),
-                    keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) => setModalState(
-                          () => tempMaxPrice = double.tryParse(value),
-                        ),
-                  ),
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Gender")),
-                    initialValue: tempGender,
-                    items:
-                        [
-                          null, // Show all: no filtering
-                          'all', // Only "All Genders" events
-                          'male',
-                          'female',
-                        ].map((g) {
-                          String label;
-                          if (g == null) {
-                            label = LocalizationHelper.localize('Show All');
-                          } else if (g == 'all') {
-                            label = LocalizationHelper.localize('All Genders Allowed');
-                          } else if (g == 'male') {
-                            label = LocalizationHelper.localize('Male Only');
-                          } else if (g == 'female') {
-                            label = LocalizationHelper.localize('Female Only');
-                          } else {
-                            label =
-                                '${g[0].toUpperCase()}${g.substring(1)} Only';
-                          }
-                          return DropdownMenuItem<String>(
-                            value: g,
-                            child: Text(label),
-                          );
-                        }).toList(),
-                    onChanged:
-                        (value) => setModalState(() => tempGender = value),
-                  ),
-                  TextField(
-                    controller: _ageController,
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Age")),
-                    keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) =>
-                            setModalState(() => tempAge = int.tryParse(value)),
-                  ),
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Ministry")),
-                    initialValue: tempMinistry,
-                    items:
-                        [
-                          null,
-                          'Children',
-                          'Education',
-                          'Family',
-                          'Music',
-                          'Quo Vadis Theater',
-                          'Skala Teens',
-                          'VBS',
-                          'United Service',
-                          'Women\'s Ministries',
-                          'Youth',
-                        ].map((m) {
-                          return DropdownMenuItem<String>(
-                            value: m,
-                            child: Text(LocalizationHelper.localize(m ?? 'All Ministries')),
-                          );
-                        }).toList(),
-                    onChanged:
-                        (value) => setModalState(() => tempMinistry = value),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        LocalizationHelper.localize("Date Range"),
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                    const SizedBox(height: 12),
+                    // Gender
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: LocalizationHelper.localize('Gender'),
                       ),
-                      RangeSlider(
-                        values: tempDateRange,
-                        min: 0,
-                        max: _maxDate.difference(_minDate).inDays.toDouble(),
-                        divisions: 20,
-                        labels: RangeLabels(
-                          _minDate
-                              .add(Duration(days: _dateRange.start.round()))
-                              .toString()
-                              .split(' ')[0],
-                          _minDate
-                              .add(Duration(days: _dateRange.end.round()))
-                              .toString()
-                              .split(' ')[0],
-                        ),
-                        onChanged:
-                            (values) =>
-                                setModalState(() => tempDateRange = values),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          setModalState(() {
-                            tempGender = null;
-                            tempMinistry = null;
-                            tempName = null;
-                            tempMaxPrice = null;
-                            tempAge = null;
-                            tempDateRange = RangeValues(
-                              0,
-                              _maxDate.difference(_minDate).inDays.toDouble(),
+                      value: tempGender,
+                      items:
+                          <String?>[
+                            null,
+                            'all',
+                            'male',
+                            'female',
+                            'male_only',
+                            'female_only',
+                          ].map((g) {
+                            String label;
+                            switch (g) {
+                              case null:
+                                label = LocalizationHelper.localize(
+                                  'Show All Events',
+                                );
+                                break;
+                              case 'all':
+                                label = LocalizationHelper.localize(
+                                  'All Genders Allowed',
+                                );
+                                break;
+                              case 'male':
+                                label = LocalizationHelper.localize(
+                                  'Male Only (any)',
+                                );
+                                break;
+                              case 'female':
+                                label = LocalizationHelper.localize(
+                                  'Female Only (any)',
+                                );
+                                break;
+                              case 'male_only':
+                                label = LocalizationHelper.localize(
+                                  'Male Only Events (targeted)',
+                                );
+                                break;
+                              case 'female_only':
+                                label = LocalizationHelper.localize(
+                                  'Female Only Events (targeted)',
+                                );
+                                break;
+                              default:
+                                label = g;
+                            }
+                            return DropdownMenuItem<String>(
+                              value: g,
+                              child: Text(label),
                             );
-
-                            _nameController.clear();
-                            _maxPriceController.clear();
-                            _ageController.clear();
-                          });
-                        },
-                        child: Text(
-                          LocalizationHelper.localize("Reset Filters"),
-                          style: const TextStyle(color: Colors.red),
+                          }).toList(),
+                      onChanged:
+                          (value) => setModalState(() => tempGender = value),
+                    ),
+                    const SizedBox(height: 12),
+                    // Min / Max Age
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: minAgeController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: LocalizationHelper.localize('Min Age'),
+                            ),
+                            onChanged:
+                                (v) => updateDebounced(() {
+                                  tempMinAge = int.tryParse(v);
+                                }),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: maxAgeController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: LocalizationHelper.localize('Max Age'),
+                            ),
+                            onChanged:
+                                (v) => updateDebounced(() {
+                                  tempMaxAge = int.tryParse(v);
+                                }),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Max price
+                    TextField(
+                      controller: maxPriceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: LocalizationHelper.localize(
+                          'Max Price (USD)',
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _gender = tempGender;
-                            _ministry = tempMinistry;
-                            _nameQuery = tempName;
-                            _maxPrice = tempMaxPrice;
-                            _age = tempAge;
-                            _dateRange = tempDateRange;
-
-                            _nameController.text = _nameQuery ?? '';
-                            _maxPriceController.text =
-                                _maxPrice?.toString() ?? '';
-                            _ageController.text = _age?.toString() ?? '';
-                          });
-                          Navigator.pop(context);
-                          _loadEvents();
-                        },
-                        child: Text(LocalizationHelper.localize("Apply Filters")),
+                      onChanged:
+                          (v) => updateDebounced(() {
+                            tempMaxPrice = double.tryParse(v);
+                          }),
+                    ),
+                    const SizedBox(height: 12),
+                    // Ministry multi-select
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        LocalizationHelper.localize('Ministries'),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 6),
+                    if (_ministries.isEmpty)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          LocalizationHelper.localize('No ministries found.'),
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children:
+                            _ministries.map((m) {
+                              final selected = tempMinistryIds.contains(m.id);
+                              return FilterChip(
+                                label: Text(m.name),
+                                selected: selected,
+                                onSelected: (value) {
+                                  setModalState(() {
+                                    if (value) {
+                                      tempMinistryIds.add(m.id);
+                                    } else {
+                                      tempMinistryIds.remove(m.id);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                      ),
+                    const SizedBox(height: 12),
+                    // Boolean toggles
+                    SwitchListTile(
+                      value: tempUniqueOnly,
+                      title: Text(
+                        LocalizationHelper.localize(
+                          'Show only one per event series',
+                        ),
+                      ),
+                      onChanged:
+                          (value) =>
+                              setModalState(() => tempUniqueOnly = value),
+                    ),
+                    SwitchListTile(
+                      value: tempMembersOnlyOnly,
+                      title: Text(
+                        LocalizationHelper.localize(
+                          'Show only members-only events',
+                        ),
+                      ),
+                      onChanged:
+                          (value) =>
+                              setModalState(() => tempMembersOnlyOnly = value),
+                    ),
+                    FutureBuilder<bool>(
+                      future: FirebaseAuthService.instance.isSignedIn(),
+                      builder: (context, snapshot) {
+                        final isSignedIn = snapshot.data ?? false;
+                        if (!isSignedIn) return const SizedBox.shrink();
+                        return SwitchListTile(
+                          value: tempFavoritesOnly,
+                          title: Text(
+                            LocalizationHelper.localize(
+                              'Show only favorite events',
+                            ),
+                          ),
+                          onChanged:
+                              (value) => setModalState(
+                                () => tempFavoritesOnly = value,
+                              ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    // Buttons
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            setModalState(() {
+                              tempGender = null;
+                              tempMinAge = null;
+                              tempMaxAge = null;
+                              tempMaxPrice = null;
+                              tempMinistryIds.clear();
+                              tempUniqueOnly = false;
+                              tempFavoritesOnly = false;
+                              tempMembersOnlyOnly = false;
+
+                              minAgeController.clear();
+                              maxAgeController.clear();
+                              maxPriceController.clear();
+                            });
+                          },
+                          child: Text(
+                            LocalizationHelper.localize('Reset'),
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _gender = tempGender;
+                              _minAge = tempMinAge;
+                              _maxAge = tempMaxAge;
+                              _maxPrice = tempMaxPrice;
+                              _selectedMinistryIds
+                                ..clear()
+                                ..addAll(tempMinistryIds);
+                              _uniqueOnly = tempUniqueOnly;
+                              _favoritesOnly = tempFavoritesOnly;
+                              _membersOnlyOnly = tempMembersOnlyOnly;
+
+                              _minAgeController.text =
+                                  _minAge?.toString() ?? '';
+                              _maxAgeController.text =
+                                  _maxAge?.toString() ?? '';
+                              _maxPriceController.text =
+                                  _maxPrice?.toString() ?? '';
+                            });
+                            Navigator.of(context).pop();
+                            _fetchPage(reset: true);
+                          },
+                          child: Text(
+                            LocalizationHelper.localize('Apply Filters'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -362,22 +506,55 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  void _navigateToShowcase(Event event) async {
+  // ---------------------------------------------------------------------------
+  // NAVIGATION
+  // ---------------------------------------------------------------------------
+
+  Future<void> _navigateToShowcase(UserFacingEvent event) async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => EventShowcase(event: event)),
     );
 
-    // Refresh the events data when returning from the showcase
     if (mounted) {
-      _loadEvents();
+      // Refresh events after returning (to update favorites, registrations etc.)
+      _fetchPage(reset: true);
     }
   }
 
-  // Generate + open/share an .ics file for the event (iOS + Android fallback)
-  Future<void> _shareIcsForEvent(Event event) async {
-    final DateTime startUtc = event.date.toUtc();
-    final DateTime endUtc = startUtc.add(const Duration(hours: 1));
+  // ---------------------------------------------------------------------------
+  // CALENDAR / ICS
+  // ---------------------------------------------------------------------------
+
+  EventLocalization _locForEvent(UserFacingEvent e) {
+    final locale = LocalizationHelper.currentLocale;
+    final langOnly = locale.split('_').first.split('-').first;
+
+    if (e.localizations.containsKey(locale)) {
+      return e.localizations[locale]!;
+    }
+    if (e.localizations.containsKey(langOnly)) {
+      return e.localizations[langOnly]!;
+    }
+    if (e.localizations.isNotEmpty) return e.localizations.values.first;
+
+    return EventLocalization(
+      title: e.defaultTitle,
+      description: e.defaultDescription,
+      locationInfo: e.defaultLocationInfo,
+    );
+  }
+
+  Future<void> _shareIcsForEvent(UserFacingEvent event) async {
+    final loc = _locForEvent(event);
+
+    final DateTime startUtc =
+        safeParseIsoLocal(event.date)?.toUtc() ?? DateTime.now().toUtc();
+    final DateTime endUtc =
+        event.endDate != null
+            ? (safeParseIsoLocal(event.endDate!)?.toUtc() ??
+                startUtc.add(const Duration(hours: 1)))
+            : startUtc.add(const Duration(hours: 1));
 
     String two(int n) => n.toString().padLeft(2, '0');
     String fmt(DateTime dt) =>
@@ -389,6 +566,11 @@ class _EventsPageState extends State<EventsPage> {
         .replaceAll(',', '\\,')
         .replaceAll(';', '\\;');
 
+    final location =
+        event.locationAddress?.isNotEmpty == true
+            ? event.locationAddress!
+            : loc.locationInfo;
+
     final ics = '''
 BEGIN:VCALENDAR
 VERSION:2.0
@@ -398,9 +580,9 @@ UID:${event.id}@churchlink
 DTSTAMP:${fmt(DateTime.now().toUtc())}
 DTSTART:${fmt(startUtc)}
 DTEND:${fmt(endUtc)}
-SUMMARY:${esc(event.name)}
-DESCRIPTION:${esc(event.description)}
-LOCATION:${esc(event.location)}
+SUMMARY:${esc(loc.title)}
+DESCRIPTION:${esc(loc.description)}
+LOCATION:${esc(location)}
 BEGIN:VALARM
 TRIGGER:-PT60M
 ACTION:DISPLAY
@@ -415,7 +597,6 @@ END:VCALENDAR
     final file = File(path);
     await file.writeAsString(ics);
 
-    // Try opening directly (ACTION_VIEW). If no app can handle it, show share sheet.
     final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
       final xfile = XFile(
@@ -426,31 +607,41 @@ END:VCALENDAR
       await Share.shareXFiles(
         [xfile],
         subject: LocalizationHelper.localize('Add to Calendar'),
-        text: LocalizationHelper.localize('Open this to add the event to your calendar.'),
+        text: LocalizationHelper.localize(
+          'Open this to add the event to your calendar.',
+        ),
       );
     }
   }
 
-  // ANDROID-ONLY: launch the Calendar "insert event" screen directly.
   Future<bool> _openAndroidCalendarInsert(
-    Event e, {
+    UserFacingEvent e, {
     String? packageName,
   }) async {
     try {
-      final start = e.date.toLocal();
-      final end = start.add(const Duration(hours: 1));
+      final start = safeParseIsoLocal(e.date)?.toLocal() ?? DateTime.now();
+      final end =
+          e.endDate != null
+              ? (safeParseIsoLocal(e.endDate!)?.toLocal() ??
+                  start.add(const Duration(hours: 1)))
+              : start.add(const Duration(hours: 1));
+
+      final loc = _locForEvent(e);
+      final location =
+          e.locationAddress?.isNotEmpty == true
+              ? e.locationAddress!
+              : loc.locationInfo;
 
       final intent = AndroidIntent(
         action: 'android.intent.action.INSERT',
         data: 'content://com.android.calendar/events',
-        package: packageName, // null => let Android pick
+        package: packageName,
         arguments: <String, dynamic>{
-          'title': e.name,
-          'description': e.description,
-          'eventLocation': e.location,
+          'title': loc.title,
+          'description': loc.description,
+          'eventLocation': location,
           'beginTime': start.millisecondsSinceEpoch,
           'endTime': end.millisecondsSinceEpoch,
-          // 'allDay': false,
         },
       );
 
@@ -461,10 +652,7 @@ END:VCALENDAR
     }
   }
 
-  void _onAddToCalendar(Event event) async {
-    // For Android, attempt to open it in Google Calendar directly
-    // If it fails, use the same protocol but allow users to pick a calendar
-    // If it fails that, use generic file sharing
+  void _onAddToCalendar(UserFacingEvent event) async {
     if (Platform.isAndroid) {
       if (await _openAndroidCalendarInsert(
         event,
@@ -479,16 +667,70 @@ END:VCALENDAR
       return;
     }
 
-    // On iOS, share as an .ics file
-    // NOTE: I'm unsure about how the OS handles this and can't test this
     await _shareIcsForEvent(event);
   }
 
+  // ---------------------------------------------------------------------------
+  // FAVORITES
+  // ---------------------------------------------------------------------------
+
+  Future<void> _toggleFavorite(UserFacingEvent event, bool newValue) async {
+    final idx = _events.indexWhere((e) => e.id == event.id);
+    if (idx == -1) return;
+
+    setState(() {
+      _events[idx] = UserFacingEvent(
+        id: event.id,
+        eventId: event.eventId,
+        seriesIndex: event.seriesIndex,
+        date: event.date,
+        endDate: event.endDate,
+        seatsFilled: event.seatsFilled,
+        localizations: event.localizations,
+        recurring: event.recurring,
+        registrationAllowed: event.registrationAllowed,
+        hidden: event.hidden,
+        registrationOpens: event.registrationOpens,
+        registrationDeadline: event.registrationDeadline,
+        automaticRefundDeadline: event.automaticRefundDeadline,
+        ministries: event.ministries,
+        membersOnly: event.membersOnly,
+        rsvpRequired: event.rsvpRequired,
+        maxSpots: event.maxSpots,
+        price: event.price,
+        memberPrice: event.memberPrice,
+        minAge: event.minAge,
+        maxAge: event.maxAge,
+        gender: event.gender,
+        locationAddress: event.locationAddress,
+        imageId: event.imageId,
+        paymentOptions: event.paymentOptions,
+        updatedOn: event.updatedOn,
+        overridesDateUpdatedOn: event.overridesDateUpdatedOn,
+        defaultTitle: event.defaultTitle,
+        defaultDescription: event.defaultDescription,
+        defaultLocationInfo: event.defaultLocationInfo,
+        defaultLocalization: event.defaultLocalization,
+        eventDate: event.eventDate,
+        hasRegistrations: event.hasRegistrations,
+        eventRegistrations: event.eventRegistrations,
+        isFavorited: newValue,
+      );
+    });
+
+    try {
+      await EventUserHelper.setFavorite(event.eventId, newValue);
+    } catch (e, st) {
+      debugPrint('Failed to update favorite: $e\n$st');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // BUILD
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
-    // Determine if we should show the back button:
-    // - If Navigator.canPop() is true, we were pushed from another screen (e.g., home page)
-    // - If Navigator.canPop() is false, we are the root of the events tab (accessed via navbar)
     final bool showBackButton = Navigator.canPop(context);
 
     return Scaffold(
@@ -500,9 +742,7 @@ END:VCALENDAR
             showBackButton
                 ? IconButton(
                   icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                 )
                 : null,
         automaticallyImplyLeading: showBackButton,
@@ -510,56 +750,70 @@ END:VCALENDAR
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
         child: RefreshIndicator(
-          onRefresh: _loadEvents,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                _isLoading
-                    ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 50),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
-                    : _events.isEmpty
-                    ? Padding(
-                       padding: EdgeInsets.symmetric(vertical: 50),
-                       child: Text(LocalizationHelper.localize("No events found.")),
-                     )
-                    : ListView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: _events.length,
-                      itemBuilder: (context, index) {
-                        final event = _events[index];
-                        return Stack(
-                          children: [
-                            EventCard(
+          onRefresh: _onRefresh,
+          child:
+              _isInitialLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _events.isEmpty
+                  ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      const SizedBox(height: 60),
+                      Center(
+                        child: Text(
+                          LocalizationHelper.localize('No events found.'),
+                        ),
+                      ),
+                    ],
+                  )
+                  : SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        ListView.builder(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: _events.length,
+                          itemBuilder: (context, index) {
+                            final event = _events[index];
+                            return EventCard(
                               event: event,
-                              onViewPressed: () => _navigateToShowcase(event),
-                              registrationSummary:
-                                  _registrationSummaries[event.id],
-                            ),
-                            Positioned(
-                              bottom: 12,
-                              right: 12,
-                              child: IconButton(
-                                tooltip: LocalizationHelper.localize('Add to Calendar'),
-                                icon: const Icon(Icons.calendar_month_outlined),
-                                onPressed: () => _onAddToCalendar(event),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                              ministriesById: _ministriesById,
+                              onTap: () => _navigateToShowcase(event),
+                              onAddToCalendar: () => _onAddToCalendar(event),
+                              onFavoriteChanged:
+                                  (value) => _toggleFavorite(event, value),
+                            );
+                          },
+                        ),
+                        if (_hasMore)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child:
+                                _isLoadingMore
+                                    ? const CircularProgressIndicator()
+                                    : OutlinedButton(
+                                      onPressed: _onLoadMore,
+                                      child: Text(
+                                        LocalizationHelper.localize(
+                                          'Load More',
+                                        ),
+                                      ),
+                                    ),
+                          ),
+                        if (_isRefreshing)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 8),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                      ],
                     ),
-              ],
-            ),
-          ),
+                  ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        onPressed: _showFilterSheet,
         child: const Icon(Icons.filter_list),
-        onPressed: () => _showFilterSheet(context),
       ),
     );
   }

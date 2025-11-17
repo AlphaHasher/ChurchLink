@@ -1,484 +1,381 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:app/models/event.dart';
-import 'package:app/models/my_events.dart';
-import 'package:app/models/event_registration_summary.dart';
+
+import 'package:app/helpers/localization_helper.dart';
 import 'package:app/helpers/asset_helper.dart';
+import 'package:app/helpers/time_formatter.dart';
+import 'package:app/models/event_v2.dart';
+import 'package:app/models/ministry.dart';
 
 class EventCard extends StatelessWidget {
-  final Event? event;
-  final MyEventRef? eventRef;
-
-  // Optional registration summary
-  final EventRegistrationSummary? registrationSummary;
-
-  // Callbacks
-  final VoidCallback onViewPressed;
-  final VoidCallback? onCancel;
+  final UserFacingEvent event;
+  final Map<String, Ministry>? ministriesById;
+  final VoidCallback onTap;
+  final VoidCallback? onAddToCalendar;
+  final ValueChanged<bool>? onFavoriteChanged;
 
   const EventCard({
     super.key,
-    this.event,
-    this.eventRef,
-    this.registrationSummary,
-    required this.onViewPressed,
-    this.onCancel,
-  }) : assert(
-         (event != null && eventRef == null) ||
-             (event == null && eventRef != null),
-         'Either event or eventRef must be provided, but not both',
-       );
+    required this.event,
+    required this.onTap,
+    this.ministriesById,
+    this.onAddToCalendar,
+    this.onFavoriteChanged,
+  });
+
+  // ---- DATA HELPERS ---------------------------------------------------------
+
+  EventLocalization _resolveLocalization(UserFacingEvent e) {
+    // Try exact locale, then language-only, then first available, then defaults.
+    final locale = LocalizationHelper.currentLocale;
+    final langOnly = locale.split('_').first.split('-').first;
+
+    if (e.localizations.containsKey(locale)) {
+      return e.localizations[locale]!;
+    }
+    if (e.localizations.containsKey(langOnly)) {
+      return e.localizations[langOnly]!;
+    }
+    if (e.localizations.isNotEmpty) {
+      return e.localizations.values.first;
+    }
+
+    return EventLocalization(
+      title: e.defaultTitle,
+      description: e.defaultDescription,
+      locationInfo: e.defaultLocationInfo,
+    );
+  }
+
+  String _formatDateTimeRange(UserFacingEvent e) {
+    final start = safeParseIsoLocal(e.date);
+    final end = e.endDate != null ? safeParseIsoLocal(e.endDate!) : null;
+
+    if (start == null) {
+      return e.date;
+    }
+
+    return formatDateRangeForDisplay(start, end);
+  }
+
+  String _formatPrice(UserFacingEvent e) {
+    if (e.price <= 0) {
+      return LocalizationHelper.localize('Free');
+    }
+
+    final base = '\$${e.price.toStringAsFixed(2)}';
+
+    if (e.memberPrice != null && e.memberPrice! > 0) {
+      final member = '\$${(e.memberPrice ?? 0).toStringAsFixed(2)}';
+      return '$base · ${LocalizationHelper.localize("Members")}: $member';
+    }
+
+    return base;
+  }
+
+  String? _formatAgeRange(UserFacingEvent e) {
+    final minAge = e.minAge;
+    final maxAge = e.maxAge;
+    if (minAge == null && maxAge == null) {
+      return null;
+    }
+    if (minAge != null && maxAge != null) {
+      return '$minAge–$maxAge';
+    }
+    if (minAge != null) {
+      return '${LocalizationHelper.localize("Ages")} $minAge+';
+    }
+    return '${LocalizationHelper.localize("Up to")} $maxAge';
+  }
+
+  String _formatGender(UserFacingEvent e) {
+    switch (e.gender) {
+      case EventGenderOption.all:
+        return LocalizationHelper.localize('All Genders');
+      case EventGenderOption.male:
+        return LocalizationHelper.localize('Male Only');
+      case EventGenderOption.female:
+        return LocalizationHelper.localize('Female Only');
+    }
+  }
+
+  String? _formatCapacity(UserFacingEvent e) {
+    if (e.maxSpots == null || e.maxSpots! <= 0) return null;
+    final filled = e.seatsFilled;
+    final max = e.maxSpots!;
+    return '$filled / $max';
+  }
+
+  List<Widget> _buildMinistryChips(ThemeData theme) {
+    if (event.ministries.isEmpty) return const <Widget>[];
+    final map = ministriesById;
+
+    return event.ministries.map((id) {
+      final name = map?[id]?.name ?? id;
+      return Padding(
+        padding: const EdgeInsets.only(right: 4, bottom: 4),
+        child: Chip(
+          label: Text(
+            name,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+    }).toList();
+  }
+
+  // ---- UI HELPERS -----------------------------------------------------------
+
+  Widget _buildBadge(String label, {Color? color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.only(right: 6),
+      decoration: BoxDecoration(
+        color: color ?? Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final loc = _resolveLocalization(event);
 
-    // Handle null event data
-    final myEventDetails = eventRef?.event;
-    if (eventRef != null && myEventDetails == null) {
-      return Card(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text(
-            'Event details unavailable',
-            style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(60)),
-          ),
-        ),
-      );
-    }
+    final dateText = _formatDateTimeRange(event);
+    final priceText = _formatPrice(event);
+    final ageText = _formatAgeRange(event);
+    final genderText = _formatGender(event);
+    final capacityText = _formatCapacity(event);
+    final location =
+        event.locationAddress?.isNotEmpty == true
+            ? event.locationAddress!
+            : loc.locationInfo;
 
-    return GestureDetector(
-      onTap: onViewPressed,
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    final isFavorited = event.isFavorited;
+    final isMembersOnly = event.membersOnly;
+    final requiresRsvp = event.rsvpRequired;
+
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: InkWell(
+        onTap: onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Banner
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
-              child: _buildEventImage(context),
-            ),
-
-            // Event Details Section
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // IMAGE + TOP BADGES
+            SizedBox(
+              height: 190,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  // Event Name and Cost Label Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _getEventName(),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                  // Hero image
+                  Hero(
+                    tag: 'event-image-${event.id}',
+                    child: Image.network(
+                      AssetHelper.getPublicUrl(event.imageId),
+                      fit: BoxFit.cover,
+                      errorBuilder:
+                          (_, __, ___) => Container(
+                            color: theme.colorScheme.surfaceVariant,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.event, size: 40),
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Gradient overlay
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.55),
+                            Colors.black.withOpacity(0.15),
+                            Colors.transparent,
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _buildCostBadge(context),
-                    ],
+                    ),
                   ),
-
-                  if ((eventRef != null && eventRef!.registrants.isNotEmpty) ||
-                      (event != null && event!.attendees.isNotEmpty)) ...[
-                    const SizedBox(height: 12),
-                    _buildRegistrantsList(context),
-                  ],
-
-                  const SizedBox(height: 12),
-
-                  // Date and Time
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.schedule,
-                        size: 16,
-                        color: theme.colorScheme.onSurface.withAlpha(60),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _getFormattedDateTime(),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withAlpha(70),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  // Location
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: theme.colorScheme.onSurface.withAlpha(60),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          _getLocation(),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withAlpha(70),
+                  // Badges overlay
+                  Positioned(
+                    left: 12,
+                    bottom: 12,
+                    right: 12,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              if (isMembersOnly)
+                                _buildBadge(
+                                  LocalizationHelper.localize('Members Only'),
+                                  color: Colors.deepOrangeAccent.withOpacity(
+                                    0.9,
+                                  ),
+                                ),
+                              if (requiresRsvp)
+                                _buildBadge(
+                                  LocalizationHelper.localize(
+                                    'Registration Required',
+                                  ),
+                                  color: Colors.blueAccent.withOpacity(0.9),
+                                ),
+                              _buildBadge(priceText),
+                            ],
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(width: 60),
-                    ],
+                        if (onFavoriteChanged != null)
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: Icon(
+                              isFavorited
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color:
+                                  isFavorited
+                                      ? Colors.redAccent
+                                      : Colors.white.withOpacity(0.9),
+                            ),
+                            onPressed: () => onFavoriteChanged!(!isFavorited),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
+            // BODY
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // TITLE
+                  Text(
+                    loc.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  // DATE / LOCATION
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.schedule, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          dateText,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (location.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.place_outlined, size: 16),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            location,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.textTheme.bodyMedium?.color
+                                  ?.withOpacity(0.8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  // META: gender / age / capacity
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      if (genderText.isNotEmpty)
+                        Chip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(
+                            genderText,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      if (ageText != null)
+                        Chip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(
+                            '${LocalizationHelper.localize("Ages")} $ageText',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      if (capacityText != null)
+                        Chip(
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(Icons.people, size: 16),
+                          label: Text(
+                            capacityText,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                    ],
+                  ),
+                  // Ministries
+                  if (event.ministries.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(children: _buildMinistryChips(theme)),
+                  ],
+                ],
+              ),
+            ),
+            // FOOTER ACTIONS
+            if (onAddToCalendar != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                ).copyWith(bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      tooltip: LocalizationHelper.localize('Add to Calendar'),
+                      icon: const Icon(Icons.calendar_month_outlined),
+                      onPressed: onAddToCalendar,
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildEventImage(BuildContext context) {
-    final theme = Theme.of(context);
-    final imageUrl = event?.imageUrl ?? eventRef?.event?.imageUrl;
-
-    return SizedBox(
-      height: 150,
-      width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (imageUrl != null && imageUrl.isNotEmpty)
-            Image.network(
-              AssetHelper.getPublicUrl(imageUrl),
-              fit: BoxFit.cover,
-              errorBuilder:
-                  (context, error, stackTrace) => _buildPlaceholderImage(theme),
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return _buildPlaceholderImage(theme);
-              },
-            )
-          else
-            _buildPlaceholderImage(theme),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderImage(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: Icon(
-          Icons.event,
-          size: 50,
-          color: theme.colorScheme.onSurface.withAlpha(40),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCostBadge(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (event != null) {
-      // For Event objects
-      if (event!.price > 0 && !event!.isFree) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color:
-                event!.hasPayPalOption
-                    ? const Color(0xFF0070BA)
-                    : const Color.fromARGB(255, 142, 163, 168),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '\$${event!.price.toStringAsFixed(2)}',
-                style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-              if (event!.hasPayPalOption) ...[
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.payment,
-                  color: theme.colorScheme.onPrimary,
-                  size: 12,
-                ),
-              ],
-            ],
-          ),
-        );
-      } else if (event!.isFree || event!.price == 0) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color:
-                event!.hasPayPalOption
-                    ? const Color.fromARGB(255, 46, 125, 50)
-                    : const Color.fromARGB(255, 142, 163, 168),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'FREE',
-                style: TextStyle(
-                  color: theme.colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-              if (event!.hasPayPalOption) ...[
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.volunteer_activism,
-                  color: theme.colorScheme.onPrimary,
-                  size: 12,
-                ),
-              ],
-            ],
-          ),
-        );
-      }
-    } else if (eventRef != null) {
-      // For MyEventRef objects
-      final e = eventRef!.event!;
-
-      // Check if full
-      if (e.spots != null && e.spots! > 0 && e.spots! - e.seatsTaken <= 0) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.error,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Text(
-            'FULL',
-            style: TextStyle(
-              color: theme.colorScheme.onError,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        );
-      }
-
-      if (e.price == 0) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Text(
-            'FREE',
-            style: TextStyle(
-              color: theme.colorScheme.onPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        );
-      }
-
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Text(
-          '\$${e.price.toStringAsFixed(2)}',
-          style: TextStyle(
-            color: theme.colorScheme.onPrimary,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-      );
-    }
-
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildRegistrantsList(BuildContext context) {
-    final theme = Theme.of(context);
-    List<String> registrants = [];
-
-    if (eventRef != null) {
-      registrants = eventRef!.registrants;
-    } else if (event != null && event!.attendees.isNotEmpty) {
-      registrants =
-          event!.attendees.map((attendee) {
-            if (attendee is Map<String, dynamic>) {
-              return attendee['name']?.toString() ?? 'Unknown';
-            }
-            return attendee.toString();
-          }).toList();
-    }
-
-    if (registrants.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(right: 8.0),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withAlpha(12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              'RSVPs',
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: _buildRegistrantChips(context, registrants),
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildRegistrantChips(
-    BuildContext context,
-    List<String> registrants,
-  ) {
-    final theme = Theme.of(context);
-    final List<Widget> chips = [];
-    final int showLimit = 3;
-
-    String firstName(String s) {
-      final trimmed = s.trim();
-      if (trimmed.isEmpty) return s;
-      if (trimmed.toLowerCase() == 'you') return 'You';
-      final parts = trimmed.split(RegExp(r'\s+'));
-      return parts.isNotEmpty ? parts.first : trimmed;
-    }
-
-    for (final n in registrants.take(showLimit)) {
-      final bool isYou = n.toLowerCase() == 'you';
-      final Color bgColor =
-          isYou ? theme.colorScheme.surface : theme.colorScheme.primary;
-      final Color textColor =
-          isYou ? theme.colorScheme.primary : theme.colorScheme.onPrimary;
-      final Color borderColor = theme.colorScheme.primary.withAlpha(30);
-
-      chips.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor, width: 1.5),
-          ),
-          child: Text(
-            firstName(n),
-            style: TextStyle(
-              fontSize: 12,
-              color: textColor,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (registrants.length > showLimit) {
-      chips.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withAlpha(15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: theme.colorScheme.primary.withAlpha(30),
-              width: 1.5,
-            ),
-          ),
-          child: Text(
-            '+${registrants.length - showLimit} more',
-            style: TextStyle(
-              fontSize: 12,
-              color: theme.colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return chips;
-  }
-
-  String _getEventName() {
-    return event?.name ?? eventRef?.event?.name ?? '';
-  }
-
-  String _getLocation() {
-    return event?.location ?? eventRef?.event?.location ?? '';
-  }
-
-  String _getFormattedDateTime() {
-    final date = event?.date ?? eventRef?.event?.date;
-    if (date == null) return '';
-
-    // For Event objects, use formattedDateTime
-    if (event != null) {
-      return event!.formattedDateTime;
-    }
-
-    // For MyEventRef, format manually
-    final now = DateTime.now();
-    final dateStr = DateFormat.yMMMd().format(date);
-    final timeStr = DateFormat.jm().format(date);
-
-    if (DateFormat.yMd().format(date) == DateFormat.yMd().format(now)) {
-      return 'Today at $timeStr';
-    } else if (DateFormat.yMd().format(date) ==
-        DateFormat.yMd().format(now.add(const Duration(days: 1)))) {
-      return 'Tomorrow at $timeStr';
-    }
-
-    return '$dateStr at $timeStr';
   }
 }
