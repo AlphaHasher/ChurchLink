@@ -228,7 +228,7 @@ export function BulletinsTable({
     };
 
     return (
-        <div className="container mx-start">
+        <div >
             <div className="flex items-center py-4">
                 <Input
                     placeholder="Search Headline or Body..."
