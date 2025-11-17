@@ -25,10 +25,12 @@ const PaypalSection: React.FC<{
   defaultAmount?: number;
   defaultCurrency?: DonationCurrency;
   defaultInterval?: DonationInterval;
+  isEditing?: boolean;
 }> = ({
   defaultAmount = 25,
   defaultCurrency = "USD",
   defaultInterval = "MONTH",
+  isEditing = false,
 }) => {
     const localize = useLocalize();
 
@@ -131,6 +133,9 @@ const PaypalSection: React.FC<{
     };
 
     const handleSubmit = () => {
+      if (isEditing) {
+        return;
+      }
       if (mode === "recurring") {
         void handleRecurring();
       } else {
