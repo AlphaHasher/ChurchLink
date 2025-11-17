@@ -16,9 +16,6 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
 }) => {
   const { permissions, loading } = useUserPermissions();
 
-  console.log("PERMISSIONS ARE:");
-  console.log(permissions);
-
   // Show loading skeleton while permissions are being fetched
   if (loading) {
     return (
