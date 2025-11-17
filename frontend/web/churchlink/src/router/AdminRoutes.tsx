@@ -12,7 +12,6 @@ const Notification = lazy(() => import("../features/admin/pages/Notification"));
 const ViewAdminTransactions = lazy(() => import("../features/admin/pages/ViewAdminTransactions"));
 const ManageRefundRequests = lazy(() => import("../features/admin/components/FinanceV2/RefundRequest/RefundRequestManagement"));
 const WebBuilder = lazy(() => import("../features/admin/pages/WebBuilder"));
-const EditPage = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditPage"));
 const AdminPagePreview = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/AdminPagePreview"));
 const EditHeader = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditHeader"));
 const EditFooter = lazy(() => import("../features/admin/components/WebBuilder/sub_pages/EditFooter"));
@@ -111,9 +110,6 @@ export const AdminRoutes = () => {
         </PermissionGuard>} />
         <Route path="forms/responses" element={<PermissionGuard requiredPermission="forms_management">
           <FormResponses />
-        </PermissionGuard>} />
-        <Route path="webbuilder/edit/:slug" element={<PermissionGuard requiredPermission="web_builder_management">
-          <EditPage />
         </PermissionGuard>} />
         <Route path="webbuilder/preview/:slug" element={<PermissionGuard requiredPermission="web_builder_management">
           <AdminPagePreview />

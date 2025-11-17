@@ -357,7 +357,7 @@ const renderNode = (
       if (forceFlowLayout) {
         return (
           <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={inlineStyle}>
-            <PaypalSection data={{}} isEditing={false} />
+            <PaypalSection />
           </div>
         );
       } else {
@@ -370,7 +370,7 @@ const renderNode = (
                 width: `${100 / (scale || 1)}%`,
               }}
             >
-              <PaypalSection data={{}} isEditing={false} />
+              <PaypalSection />
             </div>
           </div>
         );
