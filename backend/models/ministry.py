@@ -5,9 +5,8 @@ from datetime import datetime
 from typing import List, Optional
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, field_validator
-
 from mongo.database import DB
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -317,6 +316,62 @@ async def denormalize_ministry_ids(ministry_ids: Optional[List[str]]) -> List[st
     # Map IDs to names preserving order
     id_to_name = {str(doc.get("_id")): doc.get("name") for doc in docs}
     return [id_to_name[mid] for mid in valid_ids if mid in id_to_name]
+
+
+async def validate_ministry_ids(ministry_ids: Optional[List[str]]) -> List[str]:
+    """
+    Validate that ministry ObjectId hex strings exist in the database.
+
+    Args:
+        ministry_ids: List of ObjectId hex strings
+
+    Returns:
+        List of valid ObjectId hex strings
+
+    Raises:
+        MinistryNotFoundError: If any ministry ID doesn't exist
+    """
+    await _ensure_connection()
+    if not ministry_ids:
+        return []
+
+    # Filter and validate ObjectIds
+    valid_ids = []
+    invalid_ids = []
+
+    for mid in ministry_ids:
+        if mid is None:
+            continue
+        mid_str = str(mid).strip()
+        if not mid_str:
+            continue
+        try:
+            ObjectId(mid_str)
+            valid_ids.append(mid_str)
+        except Exception:
+            invalid_ids.append(mid_str)
+
+    if invalid_ids:
+        raise MinistryNotFoundError(f"Invalid ministry IDs: {', '.join(invalid_ids)}")
+
+    if not valid_ids:
+        return []
+
+    # Convert to ObjectId objects for query
+    oid_list = [ObjectId(mid) for mid in valid_ids]
+
+    # Check which IDs exist in database
+    cursor = DB.db["ministries"].find({"_id": {"$in": oid_list}})
+    docs = await cursor.to_list(length=None)
+    existing_ids = {str(doc.get("_id")) for doc in docs}
+
+    # Find any IDs that don't exist
+    missing_ids = [mid for mid in valid_ids if mid not in existing_ids]
+    if missing_ids:
+        raise MinistryNotFoundError(f"Unknown ministry IDs: {', '.join(missing_ids)}")
+
+    # Return in original order
+    return valid_ids
 
 
 async def _replace_ministry_name_in_references(

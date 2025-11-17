@@ -9,28 +9,35 @@ import { ChevronDown } from "lucide-react"
 import { Label } from "@/shared/components/ui/label"
 import { cn } from "@/lib/utils"
 
-interface EventMinistryDropdownProps {
-    selected: string[]
-    onChange: (updated: string[]) => void
-    ministries: string[]
+export interface MinistryOption {
+    id: string
+    name: string
 }
 
-export function EventMinistryDropdown({
+export interface MinistryDropdownProps {
+    selected: string[] // Array of ministry IDs
+    onChange: (updated: string[]) => void // Returns array of ministry IDs
+    ministries: MinistryOption[] // Array of {id, name} objects
+    label?: string
+}
+
+export function MinistryDropdown({
     selected,
     onChange,
     ministries,
-}: EventMinistryDropdownProps) {
-    const toggle = (value: string) => {
-        if (selected.includes(value)) {
-            onChange(selected.filter((m) => m !== value))
+    label = "Select Ministries",
+}: MinistryDropdownProps) {
+    const toggle = (id: string) => {
+        if (selected.includes(id)) {
+            onChange(selected.filter((m) => m !== id))
         } else {
-            onChange([...selected, value])
+            onChange([...selected, id])
         }
     }
 
     return (
         <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium text-black dark:text-white">Select Ministries</Label>
+            <Label className="text-sm font-medium text-black dark:text-white">{label}</Label>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
@@ -60,9 +67,9 @@ export function EventMinistryDropdown({
                 >
                     {ministries.map((ministry) => (
                         <DropdownMenuCheckboxItem
-                            key={ministry}
-                            checked={selected.includes(ministry)}
-                            onCheckedChange={() => toggle(ministry)}
+                            key={ministry.id}
+                            checked={selected.includes(ministry.id)}
+                            onCheckedChange={() => toggle(ministry.id)}
                             onSelect={(e) => e.preventDefault()}
                             className={cn(
                                 "capitalize",
@@ -70,7 +77,7 @@ export function EventMinistryDropdown({
                                 "text-black dark:text-white"
                             )}
                         >
-                            {ministry}
+                            {ministry.name}
                         </DropdownMenuCheckboxItem>
                     ))}
                 </DropdownMenuContent>

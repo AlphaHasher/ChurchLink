@@ -22,8 +22,9 @@ import { ChurchSermon } from "@/shared/types/ChurchSermon";
 import { updateSermon, deleteSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistriesAsStringArray } from "@/helpers/MinistriesHelper";
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
+import { fetchMinistries } from "@/helpers/MinistriesHelper";
+import { Ministry } from "@/shared/types/Ministry";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface EditSermonProps {
@@ -41,7 +42,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave, open: external
     const [checkingPerms, setCheckingPerms] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
 
     // Use external open state if provided, otherwise use internal state
     const dialogOpen = externalOpen !== undefined ? externalOpen : isOpen;
@@ -55,7 +56,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave, open: external
 
     useEffect(() => {
         if (dialogOpen) {
-            fetchMinistriesAsStringArray().then(setMinistries)
+            fetchMinistries().then(setMinistries)
         }
     }, [dialogOpen])
 
@@ -147,7 +148,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave, open: external
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Ministry</span>
-                            <EventMinistryDropdown
+                            <MinistryDropdown
                                 selected={sermon.ministry ?? []}
                                 onChange={(next: string[]) => setSermon({ ...sermon, ministry: next })}
                                 ministries={ministries}

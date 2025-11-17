@@ -6,17 +6,16 @@ from datetime import datetime
 from typing import List, Optional
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, HttpUrl
-from pymongo.errors import DuplicateKeyError
-
 from helpers.MongoHelper import serialize_objectid_deep
 from helpers.timezone_utils import (
     get_local_now,
     normalize_to_local_midnight,
     strip_timezone_for_mongo,
 )
+from models.ministry import validate_ministry_ids
 from mongo.database import DB
-from models.ministry import canonicalize_ministry_ids
+from pydantic import BaseModel, Field, HttpUrl
+from pymongo.errors import DuplicateKeyError
 
 
 class AttachmentItem(BaseModel):
@@ -145,7 +144,7 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
 
     ministry_ids = payload.get("ministries", [])
     try:
-        ministry_ids = await canonicalize_ministry_ids(ministry_ids)
+        ministry_ids = await validate_ministry_ids(ministry_ids)
         payload["ministries"] = ministry_ids
     except Exception as exc:
         print(f"Error converting ministry IDs: {exc}")
@@ -293,7 +292,7 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
 
     if "ministries" in update_payload and update_payload["ministries"] is not None:
         try:
-            update_payload["ministries"] = await canonicalize_ministry_ids(
+            update_payload["ministries"] = await validate_ministry_ids(
                 update_payload["ministries"]
             )
         except Exception as exc:
@@ -344,7 +343,7 @@ async def update_bulletin(bulletin_id: str, updates: BulletinUpdate) -> bool:
                 )
         update_payload["attachments"] = serialized_attachments
 
-    update_payload["updated_at"] = datetime.timezone.utc
+    update_payload["updated_at"] = strip_timezone_for_mongo(get_local_now())
     update_doc: dict[str, dict] = {"$set": update_payload}
     if unset_payload:
         update_doc["$unset"] = unset_payload

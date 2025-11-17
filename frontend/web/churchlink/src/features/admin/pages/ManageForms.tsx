@@ -19,7 +19,7 @@ ModuleRegistry.registerModules([
 ]);
 
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
 import { MinistryCards } from '@/shared/components/MinistryCards';
 import { VisibilityToggleCellRenderer } from '@/shared/components/VisibilityToggle';
 import api from '@/api/api';
@@ -46,12 +46,6 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
 
   const ministries: string[] = Array.isArray(data.ministries) ? data.ministries : [];
   const { openMinistryAssignment, availableMinistries } = context;
-
-  // Map ministry IDs to names
-  const getMinistryName = (id: string): string => {
-    const ministry = availableMinistries?.find((m: { id: string; name: string }) => m.id === id);
-    return ministry?.name || id;
-  };
 
   if (!ministries.length) {
     return (
@@ -783,14 +777,14 @@ const ManageForms = () => {
           </DialogHeader>
           <div className="py-4">
             {availableMinistries.length > 0 ? (
-              <EventMinistryDropdown
+              <MinistryDropdown
                 selected={assignmentTarget?.selected || []}
                 onChange={(updated) => {
                   if (assignmentTarget) {
                     setAssignmentTarget({ ...assignmentTarget, selected: updated });
                   }
                 }}
-                ministries={availableMinistries.map((m: any) => m.name)}
+                ministries={availableMinistries}
               />
             ) : (
               <div className="text-sm text-muted-foreground">No ministries available. Create one from Admin &gt; Ministries first.</div>

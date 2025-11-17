@@ -9,7 +9,7 @@ import { useBuilderStore } from "./store";
 import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth, collectAvailableLocales } from "./types";
 import { getBoundsViolations } from "./validation";
 import { Button } from "@/shared/components/ui/button";
-import { EventMinistryDropdown } from "@/features/admin/components/Events/EventMinistryDropdown";
+import { MinistryDropdown } from "@/shared/components/MinistryDropdown";
 import { Calendar } from '@/shared/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Calendar as CalendarIcon } from 'lucide-react'
@@ -724,10 +724,10 @@ export function BuilderShell() {
             <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} />
             <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
             {availableMinistries && availableMinistries.length > 0 ? (
-              <EventMinistryDropdown
+              <MinistryDropdown
                 selected={ministries}
                 onChange={setMinistries}
-                ministries={availableMinistries.map(m => m.name)}
+                ministries={availableMinistries}
               />
             ) : (
               <div className="space-y-2">
