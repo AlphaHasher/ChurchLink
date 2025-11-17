@@ -1,6 +1,5 @@
 import { AccountPermissions, PermMask, PermComp } from "@/shared/types/AccountPermissions";
 import { BaseUserMask, UserInfo, UserPermMask } from "@/shared/types/UserInfo";
-import { ChurchEvent } from "@/shared/types/ChurchEvent";
 
 export function getDisplayValue(value: any, key: any): string {
     if (typeof value === "boolean") {
@@ -80,15 +79,6 @@ export function applyUserPermLogicMask(inputData: UserInfo[], allPerms: AccountP
     return data;
 };
 
-//Function to apply the RoleMemberMask transformation
-export function applyRoleMemberMask(inputData: UserInfo[], allPerms: AccountPermissions[], roleID: string) {
-    return inputData
-        .filter(user => roleIdListToRoleStringList(allPerms, user.permissions).includes(roleID))
-        .map(user => ({
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email
-        }));
-};
 
 //Function to apply the BaseUserMask transformation
 export function applyBaseUserMask(inputData: UserInfo[], perms: AccountPermissions[]) {
@@ -188,9 +178,6 @@ export function processFetchedPermData(perms: any[]): AccountPermissions[] {
     }));
 };
 
-export function processFetchedEventData(events: any[]): ChurchEvent[] {
-    return events as ChurchEvent[];
-};
 
 
 // Helper function to convert list of role names to role ids
