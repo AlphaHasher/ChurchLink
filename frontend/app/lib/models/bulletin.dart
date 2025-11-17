@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/helpers/backend_helper.dart';
 
 /// Represents an attachment item in a bulletin
 class AttachmentItem {
@@ -34,7 +35,7 @@ class Bulletin {
   final List<AttachmentItem> attachments;
   final DateTime? createdAt;
   final DateTime? updatedAt;
-  
+
   // Media library integration - EXACTLY like dashboard
   final String? imageId;
   final String? imageUrl;
@@ -113,19 +114,19 @@ class Bulletin {
       thumbnailUrl: json['thumbnail_url']?.toString(),
     );
   }
-  
+
   /// Build image URL from imageId - EXACT pattern from dashboard
   String _buildImageUrl(String id, {bool thumbnail = true}) {
-    String base = dotenv.get('BACKEND_URL');
+    String base = BackendHelper.apiBase;
     if (!base.endsWith('/')) base = '$base/';
-    
+
     final prefix = 'api/v1';
     final path = 'assets/public/id/${Uri.encodeComponent(id)}';
     final query = thumbnail ? '?thumbnail=1' : '';
-    
+
     return '$base$prefix/$path$query';
   }
-  
+
   /// Get resolved thumbnail URL - uses imageId with dashboard pattern
   String? get resolvedThumbnailUrl {
     if (imageId != null && imageId!.isNotEmpty) {
@@ -133,7 +134,7 @@ class Bulletin {
     }
     return null;
   }
-  
+
   /// Get resolved image URL - uses imageId with dashboard pattern
   String? get resolvedImageUrl {
     if (imageId != null && imageId!.isNotEmpty) {
