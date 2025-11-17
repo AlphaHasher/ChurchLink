@@ -44,7 +44,7 @@ dependencies:
   
 
   #avatar
-  image_picker: ^1.2.0
+  image_picker: ^1.2.1
 
   google_sign_in: ^7.2.0
   http: ^1.6.0 #for backend call
@@ -74,7 +74,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  patrol: ^3.10.0
+  patrol: ^3.20.0
   flutter_launcher_icons: "^0.14.4"
 
   # The "flutter_lints" package below contains a set of recommended lints to
