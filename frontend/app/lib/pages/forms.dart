@@ -20,6 +20,7 @@ class _FormsState extends State<Forms> {
   List<dynamic> _filteredForms = [];
   String _searchQuery = '';
   String? _selectedMinistry;
+  Map<String, String> _ministryIdToName = {}; // Maps ministry IDs to names
 
   @override
   void initState() {
@@ -47,6 +48,9 @@ class _FormsState extends State<Forms> {
     });
 
     try {
+      // Load ministries for mapping IDs to names
+      await _loadMinistries();
+
       // Call server-side public endpoint which only returns visible, non-expired forms.
       final response = await api.get('/v1/forms/public');
       if (response.statusCode == 200) {
@@ -70,28 +74,58 @@ class _FormsState extends State<Forms> {
     }
   }
 
+  Future<void> _loadMinistries() async {
+    try {
+      final response = await api.get('/v1/ministries');
+      if (response.statusCode == 200) {
+        final ministries = response.data as List<dynamic>;
+        final mapping = <String, String>{};
+        for (final m in ministries) {
+          final id = m['id']?.toString();
+          final name = m['name']?.toString();
+          if (id != null && name != null) {
+            mapping[id] = name;
+          }
+        }
+        setState(() {
+          _ministryIdToName = mapping;
+        });
+      }
+    } catch (e) {
+      // Silently fail - ministries are optional for display
+    }
+  }
+
   void _applyFilters() {
     List<dynamic> filtered = _forms;
 
     // Apply search query filter
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      filtered = filtered.where((form) {
-        final title = (form['title'] ?? '').toString().toLowerCase();
-        final description = (form['description'] ?? '').toString().toLowerCase();
-        return title.contains(query) || description.contains(query);
-      }).toList();
+      filtered =
+          filtered.where((form) {
+            final title = (form['title'] ?? '').toString().toLowerCase();
+            final description =
+                (form['description'] ?? '').toString().toLowerCase();
+            return title.contains(query) || description.contains(query);
+          }).toList();
     }
 
     // Apply ministry filter
     if (_selectedMinistry != null && _selectedMinistry!.isNotEmpty) {
-      filtered = filtered.where((form) {
-        final ministries = form['ministries'] as List<dynamic>?;
-        if (ministries == null || ministries.isEmpty) return false;
-        return ministries.any((m) => 
-          m.toString().toLowerCase() == _selectedMinistry!.toLowerCase()
-        );
-      }).toList();
+      filtered =
+          filtered.where((form) {
+            final ministries = form['ministries'] as List<dynamic>?;
+            if (ministries == null || ministries.isEmpty) return false;
+            return ministries.any((ministryId) {
+              // Map the ministry ID to its name for comparison
+              final ministryName =
+                  _ministryIdToName[ministryId.toString()] ??
+                  ministryId.toString();
+              return ministryName.toLowerCase() ==
+                  _selectedMinistry!.toLowerCase();
+            });
+          }).toList();
     }
 
     _filteredForms = filtered;
@@ -102,9 +136,13 @@ class _FormsState extends State<Forms> {
     for (final form in _forms) {
       final formMinistries = form['ministries'] as List<dynamic>?;
       if (formMinistries != null) {
-        for (final ministry in formMinistries) {
-          if (ministry != null && ministry.toString().isNotEmpty) {
-            ministries.add(ministry.toString());
+        for (final ministryId in formMinistries) {
+          if (ministryId != null && ministryId.toString().isNotEmpty) {
+            // Map ID to name if available, otherwise use ID
+            final name =
+                _ministryIdToName[ministryId.toString()] ??
+                ministryId.toString();
+            ministries.add(name);
           }
         }
       }
@@ -119,27 +157,28 @@ class _FormsState extends State<Forms> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => _FormFilterSheet(
-        searchQuery: _searchQuery,
-        selectedMinistry: _selectedMinistry,
-        availableMinistries: _getAvailableMinistries().toList()..sort(),
-        onApply: (query, ministry) {
-          setState(() {
-            _searchQuery = query;
-            _selectedMinistry = ministry;
-            _applyFilters();
-          });
-          Navigator.pop(context);
-        },
-        onClear: () {
-          setState(() {
-            _searchQuery = '';
-            _selectedMinistry = null;
-            _applyFilters();
-          });
-          Navigator.pop(context);
-        },
-      ),
+      builder:
+          (context) => _FormFilterSheet(
+            searchQuery: _searchQuery,
+            selectedMinistry: _selectedMinistry,
+            availableMinistries: _getAvailableMinistries().toList()..sort(),
+            onApply: (query, ministry) {
+              setState(() {
+                _searchQuery = query;
+                _selectedMinistry = ministry;
+                _applyFilters();
+              });
+              Navigator.pop(context);
+            },
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+                _selectedMinistry = null;
+                _applyFilters();
+              });
+              Navigator.pop(context);
+            },
+          ),
     );
   }
 
@@ -187,194 +226,195 @@ class _FormsState extends State<Forms> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
-          child: user == null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.lock_outline,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Please sign in to view your forms.',
-                        style: TextStyle(fontSize: 16),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await AuthPopup.show(context);
-                          // After popup closes, try to load forms (user may have logged in)
-                          _maybeLoad();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
+          child:
+              user == null
+                  ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lock_outline,
+                          size: 64,
+                          color: Colors.grey,
                         ),
-                        child: const Text('Log In'),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadForms,
-                  child: _isLoading
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: const [
-                            SizedBox(height: 200),
-                            Center(child: CircularProgressIndicator()),
-                          ],
-                        )
-                          : _error != null
-                              ? ListView(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  children: [
-                                    SizedBox(
-                                      height: 200,
-                                      child: Center(child: Text(_error!)),
-                                    ),
-                                  ],
-                                )
-                              : _filteredForms.isEmpty
-                                  ? ListView(
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      children: [
-                                        const SizedBox(height: 200),
-                                        Center(
-                                          child: Column(
-                                            children: [
-                                              Icon(
-                                                Icons.inbox_outlined,
-                                                size: 64,
-                                                color: Colors.grey[600],
-                                              ),
-                                              const SizedBox(height: 16),
-                                              Text(
-                                                _hasActiveFilters
-                                                    ? 'No forms match your filters.'
-                                                    : 'No forms available.',
-                                              ),
-                                              if (_hasActiveFilters)
-                                                Padding(
-                                                  padding: const EdgeInsets.only(
-                                                      top: 12),
-                                                  child: TextButton.icon(
-                                                    onPressed: () {
-                                                      setState(() {
-                                                        _searchQuery = '';
-                                                        _selectedMinistry = null;
-                                                        _applyFilters();
-                                                      });
-                                                    },
-                                                    icon: const Icon(Icons.clear),
-                                                    label: const Text(
-                                                        'Clear Filters'),
-                                                  ),
-                                                ),
-                                            ],
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Please sign in to view your forms.',
+                          style: TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: () async {
+                            await AuthPopup.show(context);
+                            // After popup closes, try to load forms (user may have logged in)
+                            _maybeLoad();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                          ),
+                          child: const Text('Log In'),
+                        ),
+                      ],
+                    ),
+                  )
+                  : RefreshIndicator(
+                    onRefresh: _loadForms,
+                    child:
+                        _isLoading
+                            ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: const [
+                                SizedBox(height: 200),
+                                Center(child: CircularProgressIndicator()),
+                              ],
+                            )
+                            : _error != null
+                            ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height: 200,
+                                  child: Center(child: Text(_error!)),
+                                ),
+                              ],
+                            )
+                            : _filteredForms.isEmpty
+                            ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                const SizedBox(height: 200),
+                                Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.inbox_outlined,
+                                        size: 64,
+                                        color: Colors.grey[600],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        _hasActiveFilters
+                                            ? 'No forms match your filters.'
+                                            : 'No forms available.',
+                                      ),
+                                      if (_hasActiveFilters)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 12,
+                                          ),
+                                          child: TextButton.icon(
+                                            onPressed: () {
+                                              setState(() {
+                                                _searchQuery = '';
+                                                _selectedMinistry = null;
+                                                _applyFilters();
+                                              });
+                                            },
+                                            icon: const Icon(Icons.clear),
+                                            label: const Text('Clear Filters'),
                                           ),
                                         ),
-                                      ],
-                                    )
-                                  : ListView.builder(
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      itemCount: _filteredForms.length,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 8.0),
-                                      itemBuilder: (context, index) {
-                                        final f = _filteredForms[index]
-                                            as Map<String, dynamic>;
-                                        final title = f['title'] ?? 'Untitled';
-                                        final desc = f['description'] ?? '';
-                                        final ministries =
-                                            f['ministries'] as List<dynamic>?;
-                                        return Card(
-                                          margin: const EdgeInsets.symmetric(
-                                              vertical: 8.0, horizontal: 0),
-                                          child: ListTile(
-                                            contentPadding:
-                                                const EdgeInsets.all(16.0),
-                                            title: Text(
-                                              title,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium
-                                                  ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.bold),
-                                            ),
-                                            subtitle: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                if (desc.isNotEmpty)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            top: 8.0),
-                                                    child: Text(desc),
-                                                  ),
-                                                if (ministries != null &&
-                                                    ministries.isNotEmpty)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            top: 8.0),
-                                                    child: Wrap(
-                                                      spacing: 6,
-                                                      runSpacing: 6,
-                                                      children: ministries
-                                                          .map(
-                                                            (m) => Chip(
-                                                              label: Text(
-                                                                m.toString(),
-                                                                style: const TextStyle(
-                                                                    fontSize:
-                                                                        11),
-                                                              ),
-                                                              materialTapTargetSize:
-                                                                  MaterialTapTargetSize
-                                                                      .shrinkWrap,
-                                                              padding:
-                                                                  EdgeInsets
-                                                                      .zero,
-                                                              visualDensity:
-                                                                  VisualDensity
-                                                                      .compact,
-                                                            ),
-                                                          )
-                                                          .toList(),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                            onTap: () async {
-                                              // Open the form submission page
-                                              final result =
-                                                  await Navigator.of(context)
-                                                      .push(
-                                                MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      FormSubmitPage(form: f),
-                                                ),
-                                              );
-                                              // If the user returned from the form page (submission or server-side state change),
-                                              // reload the list so expired / hidden forms are removed.
-                                              if (result != null) {
-                                                _loadForms();
-                                              }
-                                            },
-                                          ),
-                                        );
-                                      },
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                            : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: _filteredForms.length,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 8.0,
+                              ),
+                              itemBuilder: (context, index) {
+                                final f =
+                                    _filteredForms[index]
+                                        as Map<String, dynamic>;
+                                final title = f['title'] ?? 'Untitled';
+                                final desc = f['description'] ?? '';
+                                final ministries =
+                                    f['ministries'] as List<dynamic>?;
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(
+                                    vertical: 8.0,
+                                    horizontal: 0,
+                                  ),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.all(16.0),
+                                    title: Text(
+                                      title,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                ),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (desc.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 8.0,
+                                            ),
+                                            child: Text(desc),
+                                          ),
+                                        if (ministries != null &&
+                                            ministries.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 8.0,
+                                            ),
+                                            child: Wrap(
+                                              spacing: 6,
+                                              runSpacing: 6,
+                                              children:
+                                                  ministries.map((ministryId) {
+                                                    final name =
+                                                        _ministryIdToName[ministryId
+                                                            .toString()] ??
+                                                        ministryId.toString();
+                                                    return Chip(
+                                                      label: Text(
+                                                        name,
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                      materialTapTargetSize:
+                                                          MaterialTapTargetSize
+                                                              .shrinkWrap,
+                                                      padding: EdgeInsets.zero,
+                                                      visualDensity:
+                                                          VisualDensity.compact,
+                                                    );
+                                                  }).toList(),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    onTap: () async {
+                                      // Open the form submission page
+                                      final result = await Navigator.of(
+                                        context,
+                                      ).push(
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => FormSubmitPage(form: f),
+                                        ),
+                                      );
+                                      // If the user returned from the form page (submission or server-side state change),
+                                      // reload the list so expired / hidden forms are removed.
+                                      if (result != null) {
+                                        _loadForms();
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                  ),
         ),
       ),
     );

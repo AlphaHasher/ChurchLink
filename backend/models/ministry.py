@@ -71,7 +71,9 @@ def _doc_to_out(doc: dict) -> MinistryOut:
     )
 
 
-async def list_ministries(skip: int = 0, limit: Optional[int] = None) -> List[MinistryOut]:
+async def list_ministries(
+    skip: int = 0, limit: Optional[int] = None
+) -> List[MinistryOut]:
     if DB.db is None:
         return []
     cursor = DB.db["ministries"].find({}).sort("name", 1)
@@ -135,10 +137,12 @@ async def update_ministry(ministry_id: str, update: MinistryUpdate) -> MinistryO
         return _doc_to_out(current)
 
     new_name, normalized = _normalize(update.name)
-    existing = await DB.db["ministries"].find_one({
-        "normalized_name": normalized,
-        "_id": {"$ne": oid},
-    })
+    existing = await DB.db["ministries"].find_one(
+        {
+            "normalized_name": normalized,
+            "_id": {"$ne": oid},
+        }
+    )
     if existing:
         raise MinistryConflictError("Ministry already exists")
 
@@ -156,7 +160,12 @@ async def update_ministry(ministry_id: str, update: MinistryUpdate) -> MinistryO
     try:
         await _replace_ministry_name_in_references(current.get("name"), new_name)
     except Exception as exc:  # pragma: no cover - best effort logging
-        logger.error("Failed to propagate ministry rename from '%s' to '%s': %s", current.get("name"), new_name, exc)
+        logger.error(
+            "Failed to propagate ministry rename from '%s' to '%s': %s",
+            current.get("name"),
+            new_name,
+            exc,
+        )
 
     updated = await DB.db["ministries"].find_one({"_id": oid})
     return _doc_to_out(updated)
@@ -178,7 +187,11 @@ async def delete_ministry(ministry_id: str) -> bool:
         try:
             await _remove_ministry_from_references(doc.get("name"))
         except Exception as exc:  # pragma: no cover - best effort logging
-            logger.error("Failed to remove ministry '%s' from references: %s", doc.get("name"), exc)
+            logger.error(
+                "Failed to remove ministry '%s' from references: %s",
+                doc.get("name"),
+                exc,
+            )
         return True
     return False
 
@@ -208,9 +221,7 @@ async def canonicalize_ministry_names(raw_names: Optional[List[str]]) -> List[st
 
     missing = [normalized_to_cleaned[n] for n in normalized_order if n not in lookup]
     if missing:
-        raise MinistryNotFoundError(
-            f"Unknown ministries: {', '.join(missing)}"
-        )
+        raise MinistryNotFoundError(f"Unknown ministries: {', '.join(missing)}")
 
     return [lookup[n] for n in normalized_order]
 
@@ -225,7 +236,90 @@ async def resolve_ministry_name(name: Optional[str]) -> Optional[str]:
     return canonical[0] if canonical else None
 
 
-async def _replace_ministry_name_in_references(old_name: Optional[str], new_name: str) -> None:
+async def canonicalize_ministry_ids(raw_names: Optional[List[str]]) -> List[str]:
+    """
+    Convert ministry names to their ObjectId hex strings.
+
+    Args:
+        raw_names: List of ministry names
+
+    Returns:
+        List of ObjectId hex strings corresponding to the ministries
+
+    Raises:
+        MinistryNotFoundError: If any ministry name doesn't exist
+    """
+    await _ensure_connection()
+    if not raw_names:
+        return []
+
+    normalized_order: List[str] = []
+    normalized_to_cleaned: dict[str, str] = {}
+    for raw in raw_names:
+        if raw is None:
+            continue
+        cleaned, normalized = _normalize(str(raw))
+        if normalized in normalized_to_cleaned:
+            continue
+        normalized_to_cleaned[normalized] = cleaned
+        normalized_order.append(normalized)
+
+    if not normalized_order:
+        return []
+
+    cursor = DB.db["ministries"].find({"normalized_name": {"$in": normalized_order}})
+    docs = await cursor.to_list(length=None)
+    lookup = {doc.get("normalized_name"): str(doc.get("_id")) for doc in docs}
+
+    missing = [normalized_to_cleaned[n] for n in normalized_order if n not in lookup]
+    if missing:
+        raise MinistryNotFoundError(f"Unknown ministries: {', '.join(missing)}")
+
+    return [lookup[n] for n in normalized_order]
+
+
+async def denormalize_ministry_ids(ministry_ids: Optional[List[str]]) -> List[str]:
+    """
+    Convert ministry ObjectId hex strings to their names.
+
+    Args:
+        ministry_ids: List of ObjectId hex strings
+
+    Returns:
+        List of ministry names corresponding to the IDs
+    """
+    await _ensure_connection()
+    if not ministry_ids:
+        return []
+
+    # Filter valid ObjectIds
+    valid_ids = []
+    for mid in ministry_ids:
+        if mid is None:
+            continue
+        try:
+            ObjectId(mid)
+            valid_ids.append(mid)
+        except Exception:
+            continue
+
+    if not valid_ids:
+        return []
+
+    # Convert to ObjectId objects
+    oid_list = [ObjectId(mid) for mid in valid_ids]
+
+    cursor = DB.db["ministries"].find({"_id": {"$in": oid_list}})
+    docs = await cursor.to_list(length=None)
+
+    # Map IDs to names preserving order
+    id_to_name = {str(doc.get("_id")): doc.get("name") for doc in docs}
+    return [id_to_name[mid] for mid in valid_ids if mid in id_to_name]
+
+
+async def _replace_ministry_name_in_references(
+    old_name: Optional[str], new_name: str
+) -> None:
     if not old_name or old_name == new_name:
         return
     if DB.db is None:

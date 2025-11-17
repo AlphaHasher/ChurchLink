@@ -44,7 +44,13 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
   if (!data) return null;
 
   const ministries: string[] = Array.isArray(data.ministries) ? data.ministries : [];
-  const { openMinistryAssignment } = context;
+  const { openMinistryAssignment, availableMinistries } = context;
+
+  // Map ministry IDs to names
+  const getMinistryName = (id: string): string => {
+    const ministry = availableMinistries?.find((m: { id: string; name: string }) => m.id === id);
+    return ministry?.name || id;
+  };
 
   if (!ministries.length) {
     return (
@@ -65,9 +71,9 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
   return (
     <div className="flex items-center gap-2 w-full min-w-0">
       <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-        {ministries.map((name: string) => (
-          <span key={name} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
-            {name}
+        {ministries.map((id: string) => (
+          <span key={id} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
+            {getMinistryName(id)}
           </span>
         ))}
       </div>
@@ -686,6 +692,7 @@ const ManageForms = () => {
                 slugify,
                 setAssignmentTarget,
                 openMinistryAssignment,
+                availableMinistries,
               }}
               pagination={true}
               paginationPageSizeSelector={[10, 20, 50]}

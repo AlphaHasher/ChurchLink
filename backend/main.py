@@ -4,82 +4,128 @@ import os
 import sys
 from contextlib import asynccontextmanager
 
+import firebase_admin
+from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
-from scalar_fastapi import get_scalar_api_reference
-
-import firebase_admin
+from firebase.firebase_credentials import get_firebase_credentials
 from firebase_admin import credentials
-from dotenv import load_dotenv
-
-
+from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
+from helpers.EventPublisherLoop import EventPublisher
+from helpers.PayPalHelperV2 import PayPalHelperV2
+from helpers.youtubeHelper import YoutubeHelper
 from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
 from mongo.scheduled_notifications import scheduled_notification_loop
-
-from firebase.firebase_credentials import get_firebase_credentials
-from helpers.youtubeHelper import YoutubeHelper
-from helpers.EventPublisherLoop import EventPublisher
-from helpers.BiblePlanScheduler import initialize_bible_plan_notifications
-from helpers.PayPalHelperV2 import PayPalHelperV2
-
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
-
+from pydantic import BaseModel
+from routes.assets_routes import (
+    mod_assets_router,
+    protected_assets_router,
+    public_assets_router,
+)
 from routes.bible_routes.bible_note_routes import bible_note_router
-from routes.bible_routes.bible_plan_routes import mod_bible_plan_router, private_bible_plan_router, public_bible_plan_router
-from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
 from routes.bible_routes.bible_plan_notification_routes import bible_notification_router
-
-from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
-from routes.common_routes.sermon_routes import public_sermon_router, private_sermon_router, sermon_editing_router
-from routes.common_routes.bulletin_routes import public_bulletin_router,bulletin_editing_router,public_service_router,service_bulletin_editing_router
-from routes.common_routes.notification_routes import private_notification_router, public_notification_router
+from routes.bible_routes.bible_plan_routes import (
+    mod_bible_plan_router,
+    private_bible_plan_router,
+    public_bible_plan_router,
+)
+from routes.bible_routes.user_bible_plan_routes import auth_bible_plan_router
+from routes.common_routes.app_config_routes import (
+    app_config_private_router,
+    app_config_public_router,
+)
+from routes.common_routes.bulletin_routes import (
+    bulletin_editing_router,
+    public_bulletin_router,
+    public_service_router,
+    service_bulletin_editing_router,
+)
+from routes.common_routes.dashboard_app_config_routes import (
+    dashboard_app_config_private_router,
+    dashboard_app_config_public_router,
+)
+from routes.common_routes.membership_routes import (
+    member_mod_router,
+    member_private_router,
+)
+from routes.common_routes.ministry_routes import (
+    mod_ministry_router,
+    public_ministry_router,
+)
+from routes.common_routes.notification_routes import (
+    private_notification_router,
+    public_notification_router,
+)
+from routes.common_routes.sermon_routes import (
+    private_sermon_router,
+    public_sermon_router,
+    sermon_editing_router,
+)
 from routes.common_routes.user_routes import user_mod_router, user_private_router
-from routes.common_routes.membership_routes import member_private_router, member_mod_router
 from routes.common_routes.youtube_routes import public_youtube_router
-from routes.common_routes.app_config_routes import app_config_public_router, app_config_private_router
-from routes.common_routes.dashboard_app_config_routes import dashboard_app_config_public_router, dashboard_app_config_private_router
-from routes.common_routes.ministry_routes import public_ministry_router, mod_ministry_router
-
-from routes.page_management_routes.footer_routes import public_footer_router, mod_footer_router
-from routes.page_management_routes.header_routes import mod_header_router, public_header_router
-from routes.page_management_routes.page_routes import mod_page_router, public_page_router
-
-#from routes.paypal_routes.paypal_adminsetting import paypal_admin_router
-#from routes.paypal_routes.paypal_routes import paypal_public_router
-
-from routes.permissions_routes.permissions_routes import permissions_protected_router, permissions_view_router
-
-from routes.event_routes.admin_panel_event_routes import event_editing_router, mod_event_router
-from routes.event_routes.user_event_routes import public_event_router, private_event_router
-from routes.event_routes.event_registration_routes import event_registration_router, admin_event_registration_router
-
+from routes.donation_routes import (
+    admin_donation_router,
+    donation_router,
+    private_donation_router,
+)
+from routes.event_routes.admin_panel_event_routes import (
+    event_editing_router,
+    mod_event_router,
+)
+from routes.event_routes.event_registration_routes import (
+    admin_event_registration_router,
+    event_registration_router,
+)
+from routes.event_routes.user_event_routes import (
+    private_event_router,
+    public_event_router,
+)
+from routes.financial_report_routes import admin_financial_report_router
+from routes.form_routes.form_payment_routes import (
+    admin_form_payment_router,
+    form_payment_router,
+)
+from routes.form_routes.form_translations_routes import form_translations_router
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
-from routes.form_routes.form_translations_routes import form_translations_router
-from routes.form_routes.form_payment_routes import form_payment_router, admin_form_payment_router
+from routes.page_management_routes.footer_routes import (
+    mod_footer_router,
+    public_footer_router,
+)
+from routes.page_management_routes.header_routes import (
+    mod_header_router,
+    public_header_router,
+)
+from routes.page_management_routes.page_routes import (
+    mod_page_router,
+    public_page_router,
+)
 
-from routes.donation_routes import donation_router, private_donation_router, admin_donation_router
-
-
+from routes.permissions_routes.permissions_routes import (
+    permissions_protected_router,
+    permissions_view_router,
+)
+from routes.refund_request_routes import admin_refund_router, refund_private_router
+from routes.transactions_routes import admin_transactions_router, transactions_router
 from routes.translator_routes import translator_router
-from routes.assets_routes import protected_assets_router, public_assets_router, mod_assets_router
-from routes.webbuilder_config_routes import webbuilder_config_public_router, webbuilder_config_private_router
+from routes.webbuilder_config_routes import (
+    webbuilder_config_private_router,
+    webbuilder_config_public_router,
+)
+from routes.webhook_listener_routes.paypal_central_webhook_routes import (
+    paypal_central_webhook_router,
+)
+from routes.webhook_listener_routes.youtube_listener_routes import (
+    youtube_listener_router,
+)
+from scalar_fastapi import get_scalar_api_reference
 
-from routes.webhook_listener_routes.youtube_listener_routes import youtube_listener_router
-from routes.webhook_listener_routes.paypal_central_webhook_routes import paypal_central_webhook_router
-
-from routes.transactions_routes import transactions_router, admin_transactions_router
-from routes.refund_request_routes import refund_private_router, admin_refund_router
-from routes.financial_report_routes import admin_financial_report_router
-
-from dotenv import load_dotenv
 load_dotenv()
 
 # Configure logging
@@ -186,7 +232,10 @@ async def lifespan(app: FastAPI):
         # Run one-time migration to update header/footer items titles
         try:
             from datetime import datetime, timezone
-            from scripts.header_footer_titles_migration import run_header_footer_titles_migration
+
+            from scripts.header_footer_titles_migration import (
+                run_header_footer_titles_migration,
+            )
 
             migrations_coll = DatabaseManager.db["migrations"]
             existing = await migrations_coll.find_one({

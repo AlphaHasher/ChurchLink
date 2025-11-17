@@ -10,9 +10,7 @@ from bson import ObjectId
 from mongo.database import DB
 from models.base.ssbc_base_model import MongoBaseModel
 from models.ministry import (
-    canonicalize_ministry_names,
-    MinistryNotFoundError,
-    resolve_ministry_name,
+    canonicalize_ministry_ids,
 )
 from helpers.slug_validator import validate_slug
 
@@ -83,11 +81,11 @@ class FormBase(BaseModel):
             for item in value:
                 if item is None:
                     continue
-                cleaned_value = " ".join(str(item).split()).strip()
+                cleaned_value = str(item).strip()
                 if cleaned_value:
                     cleaned.append(cleaned_value)
             return cleaned
-        raise ValueError("Ministries must be provided as a list of names")
+        raise ValueError("Ministries must be provided as a list of IDs")
 
 
 class FormCreate(FormBase):
@@ -138,11 +136,11 @@ class FormUpdate(BaseModel):
             for item in value:
                 if item is None:
                     continue
-                cleaned_value = " ".join(str(item).split()).strip()
+                cleaned_value = str(item).strip()
                 if cleaned_value:
                     cleaned.append(cleaned_value)
             return cleaned
-        raise ValueError("Ministries must be provided as a list of names")
+        raise ValueError("Ministries must be provided as a list of IDs")
 
 
 class Form(MongoBaseModel, FormBase):
@@ -237,17 +235,16 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
                 # fallback to the original value
                 expires_val = getattr(form, "expires_at", None)
 
+        ministry_ids = getattr(form, "ministries", [])
         try:
-            ministries_list = await canonicalize_ministry_names(
-                getattr(form, "ministries", [])
-            )
-        except MinistryNotFoundError as exc:
+            ministry_ids = await canonicalize_ministry_ids(ministry_ids)
+        except Exception as exc:
             logger.warning("Form creation failed: %s", exc)
             return None
-    
+
         doc = {
             "title": (form.title or "").strip() or "Untitled Form",
-            "ministries": ministries_list,
+            "ministries": ministry_ids,
             "description": form.description,
             "slug": form.slug,
             "user_id": user_id,
@@ -258,7 +255,6 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
             "supported_locales": getattr(form, "supported_locales", []),
             "created_at": datetime.now(timezone.utc),
             "updated_at": datetime.now(timezone.utc),
-
         }
         result = await DB.db.forms.insert_one(doc)
         if result.inserted_id:
@@ -309,10 +305,7 @@ async def search_forms(
             # case-insensitive partial match on title
             query["title"] = {"$regex": name, "$options": "i"}
         if ministry:
-            resolved = await resolve_ministry_name(ministry)
-            if resolved is None:
-                return []
-            query["ministries"] = resolved
+            query["ministries"] = {"$in": [ministry]}
 
         cursor = (
             DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
@@ -335,10 +328,7 @@ async def search_all_forms(
         if name:
             query["title"] = {"$regex": name, "$options": "i"}
         if ministry:
-            resolved = await resolve_ministry_name(ministry)
-            if resolved is None:
-                return []
-            query["ministries"] = resolved
+            query["ministries"] = {"$in": [ministry]}
 
         cursor = (
             DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
@@ -394,10 +384,7 @@ async def search_visible_forms(
         if name:
             query["title"] = {"$regex": name, "$options": "i"}
         if ministry:
-            resolved = await resolve_ministry_name(ministry)
-            if resolved is None:
-                return []
-            query["ministries"] = resolved
+            query["ministries"] = {"$in": [ministry]}
 
         cursor = (
             DB.db.forms.find(query).skip(skip).limit(limit).sort([("created_at", -1)])
@@ -527,11 +514,11 @@ def _is_present(value: Any) -> bool:
 def _evaluate_single_condition(condition: str, values: dict) -> bool:
     """
     Evaluate a single condition expression.
-    
+
     Args:
         condition: Single condition like "age >= 18"
         values: Current form values
-        
+
     Returns:
         Boolean result of the condition
     """
@@ -826,6 +813,7 @@ def _canonicalize_response(resp: Any) -> Any:
         canonical[base] = variants[first_key]
     return canonical
 
+
 async def add_response_by_slug(
     slug: str,
     response: Any,
@@ -931,7 +919,6 @@ async def add_response_by_slug(
         return False, "Server error"
 
 
-
 async def update_form(
     form_id: str, user_id: str, update: FormUpdate
 ) -> Optional[FormOut]:
@@ -967,10 +954,10 @@ async def update_form(
                 update_doc["ministries"] = []
             else:
                 try:
-                    update_doc["ministries"] = await canonicalize_ministry_names(
+                    update_doc["ministries"] = await canonicalize_ministry_ids(
                         ministries_value
                     )
-                except MinistryNotFoundError as exc:
+                except Exception as exc:
                     logger.warning("Form update aborted: %s", exc)
                     return None
         if "slug" in provided:
@@ -1110,6 +1097,7 @@ async def get_form_responses(
         )
 
     return {"form_id": form_id, "count": total, "items": items}
+
 
 async def mark_form_response_paid(
     form_id: str,
