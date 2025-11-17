@@ -299,23 +299,32 @@ async def lifespan(app: FastAPI):
         sys.exit(1)
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/docs" if IS_DEBUG_MODE else None,
+    redoc_url="/redoc" if IS_DEBUG_MODE else None,
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,  # Required for auth tokens/cookies
-    allow_methods=["*"],  # Allow all methods (GET, POST, etc.) - we should probably lock this down later
-    allow_headers=["*"],  # Allow all headers
-    expose_headers=["*"],  # Expose all headers
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "User-Agent",
+    ],
+    expose_headers=[
+        "Content-Type",
+        "Content-Length",
+    ],
+    max_age=600,
 )
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-
-##nice looking docs
+#nice looking docs
 @app.get("/scalar", include_in_schema=False)
 async def scalar_html():
     if not IS_DEBUG_MODE:
@@ -331,10 +340,6 @@ async def scalar_html():
 class LoginCredentials(BaseModel):
     email: str
     password: str
-
-
-# TODO: UNCOMMENT ROUTERS
-
 
 #####################################################
 # Public Routers - No Auth
