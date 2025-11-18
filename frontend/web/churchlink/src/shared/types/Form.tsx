@@ -65,17 +65,7 @@ export type CreateFormOrderResponse = {
     currency: string;
 };
 
-// (LEGACY) Capture response from /forms/payments/capture
-// Kept for backward-compat if any code still references it.
-export type CaptureFormOrderResponse = {
-    order_id: string;
-    status: string;                 // PayPal status, e.g. "COMPLETED"
-    capture_id?: string | null;
-    captured_amount?: number | null;
-    paypal: Record<string, any>;    // raw capture blob
-};
 
-// NEW: Combined capture + submit response from /forms/payments/capture-and-submit
 export type CaptureAndSubmitFormResponse = {
     status: "captured_and_submitted" | "already_captured" | "already_processed";
     order_id: string;

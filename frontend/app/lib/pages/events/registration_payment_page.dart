@@ -1172,7 +1172,7 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
+                        color: theme.cardColor,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
@@ -1228,7 +1228,7 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: theme.cardColor,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
@@ -1284,7 +1284,7 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
                       margin: const EdgeInsets.only(bottom: 8),
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: theme.cardColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: const Color(0xFFE5E7EB),

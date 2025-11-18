@@ -6,7 +6,7 @@ import 'package:app/pages/events/eventspage.dart';
 import 'package:app/pages/user/user_settings.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/weeklybulletin.dart';
-import 'package:app/pages/giving.dart';
+import 'package:app/pages/donations/giving.dart';
 import 'package:app/services/connectivity_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

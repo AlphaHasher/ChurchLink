@@ -7,7 +7,6 @@ import type {
     FormSubmissionBody,
     FormSubmissionResult,
     CreateFormOrderResponse,
-    CaptureFormOrderResponse,
     CaptureAndSubmitFormResponse,
     AdminRefundFormPaymentRequest,
     AdminRefundFormPaymentResponse,
@@ -79,11 +78,6 @@ export function normalizePaymentDetails(
     };
 }
 
-/**
- * Step 1 (paid, PayPal): create a PayPal order for a form.
- * - Server validates slug, computes price from answers, and checks PayPal is allowed.
- * - Returns order_id and raw PayPal "order" blob (approval link usually lives in links[]).
- */
 export async function createFormPaymentOrder(
     slug: string,
     answers: Record<string, any>
@@ -92,23 +86,7 @@ export async function createFormPaymentOrder(
     return res.data as CreateFormOrderResponse;
 }
 
-/**
- * (LEGACY) Step 2: capture a previously approved order.
- * - Retained only for compatibility; prefer captureAndSubmitFormPayment() below.
- */
-export async function captureFormPaymentOrder(
-    slug: string,
-    orderId: string
-): Promise<CaptureFormOrderResponse> {
-    const res = await api.post("/v1/forms/payments/capture", { slug, order_id: orderId });
-    return res.data as CaptureFormOrderResponse;
-}
 
-/**
- * Step 2 NEW (preferred): Capture AND submit in one idempotent call.
- * - Backend performs PayPal capture (or short-circuits if already captured)
- * - Backend writes/returns the single saved response (or returns the existing one)
- */
 export async function captureAndSubmitFormPayment(
     slug: string,
     orderId: string,
@@ -122,11 +100,6 @@ export async function captureAndSubmitFormPayment(
     return res.data as CaptureAndSubmitFormResponse;
 }
 
-/**
- * Legacy Step 3: submit the filled form via separate responses endpoint.
- * - Kept for door/free flows or if you intentionally bypass the combined endpoint.
- * - ALWAYS include a top-level `payment` object, even for free forms.
- */
 export async function submitFormResponse(
     slug: string,
     answers: Record<string, any>,

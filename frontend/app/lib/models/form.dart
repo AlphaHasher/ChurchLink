@@ -275,43 +275,6 @@ class CreateFormOrderResponse {
   }
 }
 
-/// Legacy capture response from /forms/payments/capture.
-class CaptureFormOrderResponse {
-  final String orderId;
-  final String status;
-  final String? captureId;
-  final double? capturedAmount;
-  final Map<String, dynamic> paypal;
-
-  CaptureFormOrderResponse({
-    required this.orderId,
-    required this.status,
-    this.captureId,
-    this.capturedAmount,
-    required this.paypal,
-  });
-
-  factory CaptureFormOrderResponse.fromJson(Map<String, dynamic> json) {
-    return CaptureFormOrderResponse(
-      orderId: json['order_id'] as String? ?? '',
-      status: json['status'] as String? ?? '',
-      captureId: json['capture_id'] as String?,
-      capturedAmount: (json['captured_amount'] as num?)?.toDouble(),
-      paypal: Map<String, dynamic>.from((json['paypal'] as Map?) ?? const {}),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'order_id': orderId,
-      'status': status,
-      'capture_id': captureId,
-      'captured_amount': capturedAmount,
-      'paypal': paypal,
-    };
-  }
-}
-
 /// Status for /forms/payments/capture-and-submit.
 enum CaptureAndSubmitFormStatus {
   capturedAndSubmitted,
@@ -344,11 +307,18 @@ String? captureAndSubmitStatusToJson(CaptureAndSubmitFormStatus? value) {
   }
 }
 
-/// Combined capture + submit response from /forms/payments/capture-and-submit.
 class CaptureAndSubmitFormResponse {
   final CaptureAndSubmitFormStatus status;
   final String orderId;
   final String? transactionId;
+
+  /// Saved response JSON from the backend.
+  ///
+  /// Backend historically returned a single object, but in some cases it may
+  /// return an array of responses. To keep the model resilient, we normalize:
+  ///  - Map -> Map
+  ///  - non-empty List of Map -> first element as Map
+  ///  - anything else -> empty map
   final Map<String, dynamic> response;
 
   CaptureAndSubmitFormResponse({
@@ -359,15 +329,38 @@ class CaptureAndSubmitFormResponse {
   });
 
   factory CaptureAndSubmitFormResponse.fromJson(Map<String, dynamic> json) {
+    final status =
+        captureAndSubmitStatusFromJson(json['status'] as String?) ??
+        CaptureAndSubmitFormStatus.capturedAndSubmitted;
+
+    final orderId = json['order_id'] as String? ?? '';
+    final transactionId = json['transaction_id'] as String?;
+
+    // Be defensive about the shape of `response`.
+    final dynamic rawResp = json['response'];
+
+    Map<String, dynamic> normalizedResponse = const <String, dynamic>{};
+
+    if (rawResp is Map) {
+      normalizedResponse = Map<String, dynamic>.from(rawResp);
+    } else if (rawResp is List && rawResp.isNotEmpty) {
+      final first = rawResp.first;
+      if (first is Map) {
+        normalizedResponse = Map<String, dynamic>.from(first);
+      } else {
+        // List exists but isn't a list of maps – ignore contents
+        normalizedResponse = const <String, dynamic>{};
+      }
+    } else {
+      // null or unexpected type → fall back to empty map
+      normalizedResponse = const <String, dynamic>{};
+    }
+
     return CaptureAndSubmitFormResponse(
-      status:
-          captureAndSubmitStatusFromJson(json['status'] as String?) ??
-          CaptureAndSubmitFormStatus.capturedAndSubmitted,
-      orderId: json['order_id'] as String? ?? '',
-      transactionId: json['transaction_id'] as String?,
-      response: Map<String, dynamic>.from(
-        (json['response'] as Map?) ?? const {},
-      ),
+      status: status,
+      orderId: orderId,
+      transactionId: transactionId,
+      response: normalizedResponse,
     );
   }
 

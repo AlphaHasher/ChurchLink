@@ -407,17 +407,13 @@ END:VCALENDAR
                                   label = localize('All Registered');
                                   break;
                                 case MyEventsTypeFilter.registeredNotFavorited:
-                                  label = localize(
-                                    'Registered but not Favorited',
-                                  );
+                                  label = localize('Registered Only');
                                   break;
                                 case MyEventsTypeFilter.favorites:
                                   label = localize('All Favorited');
                                   break;
                                 case MyEventsTypeFilter.favoritesNotRegistered:
-                                  label = localize(
-                                    'Favorited but not Registered',
-                                  );
+                                  label = localize('Favorited Only');
                                   break;
                               }
                               return DropdownMenuItem<MyEventsTypeFilter>(
