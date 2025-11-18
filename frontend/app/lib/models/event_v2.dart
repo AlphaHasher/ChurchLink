@@ -1,4 +1,4 @@
-import 'ministry.dart';
+import 'package:app/models/ministry.dart';
 
 /// How often an event recurs.
 enum EventRecurrence { never, weekly, monthly, yearly, daily }
@@ -633,6 +633,84 @@ class UserFacingEvent {
     final list = value as List<dynamic>;
     return list.map((e) => eventPaymentOptionFromJson(e as String?)).toList();
   }
+
+  UserFacingEvent copyWith({
+    String? id,
+    String? eventId,
+    int? seriesIndex,
+    String? date,
+    String? endDate,
+    int? seatsFilled,
+    Map<String, EventLocalization>? localizations,
+    EventRecurrence? recurring,
+    bool? registrationAllowed,
+    bool? hidden,
+    String? registrationOpens,
+    String? registrationDeadline,
+    String? automaticRefundDeadline,
+    List<String>? ministries,
+    bool? membersOnly,
+    bool? rsvpRequired,
+    int? maxSpots,
+    double? price,
+    double? memberPrice,
+    int? minAge,
+    int? maxAge,
+    EventGenderOption? gender,
+    String? locationAddress,
+    String? imageId,
+    List<EventPaymentOption>? paymentOptions,
+    String? updatedOn,
+    String? overridesDateUpdatedOn,
+    String? defaultTitle,
+    String? defaultDescription,
+    String? defaultLocationInfo,
+    String? defaultLocalization,
+    String? eventDate,
+    bool? hasRegistrations,
+    RegistrationDetails? eventRegistrations,
+    bool? isFavorited,
+  }) {
+    return UserFacingEvent(
+      id: id ?? this.id,
+      eventId: eventId ?? this.eventId,
+      seriesIndex: seriesIndex ?? this.seriesIndex,
+      date: date ?? this.date,
+      endDate: endDate ?? this.endDate,
+      seatsFilled: seatsFilled ?? this.seatsFilled,
+      localizations: localizations ?? this.localizations,
+      recurring: recurring ?? this.recurring,
+      registrationAllowed: registrationAllowed ?? this.registrationAllowed,
+      hidden: hidden ?? this.hidden,
+      registrationOpens: registrationOpens ?? this.registrationOpens,
+      registrationDeadline: registrationDeadline ?? this.registrationDeadline,
+      automaticRefundDeadline:
+          automaticRefundDeadline ?? this.automaticRefundDeadline,
+      ministries: ministries ?? this.ministries,
+      membersOnly: membersOnly ?? this.membersOnly,
+      rsvpRequired: rsvpRequired ?? this.rsvpRequired,
+      maxSpots: maxSpots ?? this.maxSpots,
+      price: price ?? this.price,
+      memberPrice: memberPrice ?? this.memberPrice,
+      minAge: minAge ?? this.minAge,
+      maxAge: maxAge ?? this.maxAge,
+      gender: gender ?? this.gender,
+      locationAddress: locationAddress ?? this.locationAddress,
+      imageId: imageId ?? this.imageId,
+      paymentOptions: paymentOptions ?? this.paymentOptions,
+      updatedOn: updatedOn ?? this.updatedOn,
+      overridesDateUpdatedOn:
+          overridesDateUpdatedOn ?? this.overridesDateUpdatedOn,
+      defaultTitle: defaultTitle ?? this.defaultTitle,
+      defaultDescription: defaultDescription ?? this.defaultDescription,
+      defaultLocationInfo: defaultLocationInfo ?? this.defaultLocationInfo,
+      defaultLocalization: defaultLocalization ?? this.defaultLocalization,
+      eventDate: eventDate ?? this.eventDate,
+      hasRegistrations: hasRegistrations ?? this.hasRegistrations,
+      eventRegistrations: eventRegistrations ?? this.eventRegistrations,
+      isFavorited: isFavorited ?? this.isFavorited,
+    );
+  }
 }
 
 /// Paged results for user-facing events.
@@ -810,7 +888,7 @@ class RegistrationChangeResponse {
   final int? seatsFilled;
   final RegistrationDetails? registrationDetails;
   final ChangeEventRegistration? changeRequest;
-  final Map<String, String>? detailsMap;
+  final Map<String, dynamic>? detailsMap;
 
   RegistrationChangeResponse({
     required this.success,
@@ -853,9 +931,9 @@ class RegistrationChangeResponse {
     };
   }
 
-  static Map<String, String>? _detailsMapFromJson(dynamic value) {
+  static Map<String, dynamic>? _detailsMapFromJson(dynamic value) {
     if (value == null) return null;
-    return Map<String, String>.from(value as Map);
+    return Map<String, dynamic>.from(value as Map);
   }
 }
 

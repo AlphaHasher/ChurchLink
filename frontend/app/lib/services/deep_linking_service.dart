@@ -6,10 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
-import 'package:app/pages/event_showcase.dart';
-import 'package:app/models/event.dart';
-import 'package:app/helpers/api_client.dart';
-import 'package:app/helpers/backend_helper.dart';
+import 'package:app/pages/events/event_showcase_V2.dart';
+import 'package:app/helpers/event_user_helper.dart';
 import 'package:app/services/paypal_service.dart';
 import 'package:app/main.dart';
 import 'package:app/pages/my_bible_plans_page.dart';
@@ -19,7 +17,7 @@ class DeepLinkingService {
   static GlobalKey<NavigatorState>? _navigatorKey;
   static AppLinks? _appLinks;
   static StreamSubscription<Uri>? _linkSubscription;
-  
+
   /// Initialize the service with the navigator key from main.dart
   static void initialize(GlobalKey<NavigatorState> navKey) {
     _navigatorKey = navKey;
@@ -51,34 +49,36 @@ class DeepLinkingService {
   /// Handle PayPal success deep link
   static Future<void> _handlePayPalSuccess(Uri uri) async {
     log('[DeepLinkingService] PayPal success deep link detected');
-    
+
     // Extract PayPal parameters from the URI
-    final paymentId = uri.queryParameters['paymentId'] ?? uri.queryParameters['payment_id'];
-    final payerId = uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
+    final paymentId =
+        uri.queryParameters['paymentId'] ?? uri.queryParameters['payment_id'];
+    final payerId =
+        uri.queryParameters['PayerID'] ?? uri.queryParameters['payer_id'];
     final token = uri.queryParameters['token'];
-    
-    log('[DeepLinkingService] Extracted parameters - paymentId: $paymentId, payerId: $payerId, token: $token');
-    
+
+    log(
+      '[DeepLinkingService] Extracted parameters - paymentId: $paymentId, payerId: $payerId, token: $token',
+    );
+
     // Check if this is an event payment by looking for eventId in path or query parameters
-    String? eventId = uri.queryParameters['eventId'] ?? uri.queryParameters['event_id'];
-    
+    String? eventId =
+        uri.queryParameters['eventId'] ?? uri.queryParameters['event_id'];
+
     // If not in query parameters, check if it's in the path (new format: churchlink://paypal-success/eventId)
     if (eventId == null && uri.pathSegments.isNotEmpty) {
       eventId = uri.pathSegments.first;
     }
-    
+
     log('[DeepLinkingService] Extracted eventId: $eventId');
-    
+
     if (eventId != null && paymentId != null && payerId != null) {
       await _completeEventPayment(eventId, paymentId, payerId);
     } else {
       // Regular donation payment - navigate to success page
       final nav = (_navigatorKey ?? navigatorKey).currentState;
       if (nav != null) {
-        nav.pushNamed(
-          '/paypal-success',
-          arguments: {'token': token},
-        );
+        nav.pushNamed('/paypal-success', arguments: {'token': token});
       }
     }
   }
@@ -86,15 +86,16 @@ class DeepLinkingService {
   /// Handle PayPal cancel deep link
   static Future<void> _handlePayPalCancel(Uri uri) async {
     log('[DeepLinkingService] PayPal cancel deep link detected');
-    
+
     // Check if this is an event payment cancellation by looking for eventId in path or query parameters
-    String? eventId = uri.queryParameters['eventId'] ?? uri.queryParameters['event_id'];
-    
+    String? eventId =
+        uri.queryParameters['eventId'] ?? uri.queryParameters['event_id'];
+
     // If not in query parameters, check if it's in the path (new format: churchlink://paypal-cancel/eventId)
     if (eventId == null && uri.pathSegments.isNotEmpty) {
       eventId = uri.pathSegments.first;
     }
-    
+
     final nav = (_navigatorKey ?? navigatorKey).currentState;
     if (nav != null) {
       if (eventId != null) {
@@ -108,20 +109,30 @@ class DeepLinkingService {
   }
 
   /// Complete event payment after PayPal success
-  static Future<void> _completeEventPayment(String eventId, String paymentId, String payerId) async {
+  static Future<void> _completeEventPayment(
+    String eventId,
+    String paymentId,
+    String payerId,
+  ) async {
     try {
-      log('[DeepLinkingService] Event payment detected - eventId: $eventId, paymentId: $paymentId, payerId: $payerId');
-      
+      log(
+        '[DeepLinkingService] Event payment detected - eventId: $eventId, paymentId: $paymentId, payerId: $payerId',
+      );
+
       // Check if this is a bulk registration by looking for pending bulk registration data
       final pendingBulkData = await _getPendingBulkRegistration();
       log('[DeepLinkingService] Pending bulk data: $pendingBulkData');
       log('[DeepLinkingService] Bulk data exists: ${pendingBulkData != null}');
       if (pendingBulkData != null) {
-        log('[DeepLinkingService] Bulk data eventId: ${pendingBulkData['eventId']}, current eventId: $eventId');
-        log('[DeepLinkingService] EventId match: ${pendingBulkData['eventId'] == eventId}');
+        log(
+          '[DeepLinkingService] Bulk data eventId: ${pendingBulkData['eventId']}, current eventId: $eventId',
+        );
+        log(
+          '[DeepLinkingService] EventId match: ${pendingBulkData['eventId'] == eventId}',
+        );
       }
-      
-  if (pendingBulkData != null && pendingBulkData['eventId'] == eventId) {
+
+      if (pendingBulkData != null && pendingBulkData['eventId'] == eventId) {
         // This is a bulk registration completion
         log('[DeepLinkingService] Processing bulk registration completion');
         final registrations = pendingBulkData['registrations'] as List<dynamic>;
@@ -131,12 +142,12 @@ class DeepLinkingService {
           paymentId: paymentId,
           payerId: payerId,
         );
-        
+
         log('[DeepLinkingService] Bulk registration API result: $result');
-        
+
         // Clear pending data
         await _clearPendingBulkRegistration();
-        
+
         if (result != null && result['success'] == true) {
           log('[DeepLinkingService] Bulk registration completed successfully');
           // Close any open dialogs and clear navigation stack
@@ -167,31 +178,38 @@ class DeepLinkingService {
             );
           });
         } else {
-          log('[DeepLinkingService] Bulk registration failed: ${result?['error']}');
+          log(
+            '[DeepLinkingService] Bulk registration failed: ${result?['error']}',
+          );
           final nav = (_navigatorKey ?? navigatorKey).currentState;
           if (nav != null && nav.mounted) {
-            _showEventPaymentErrorDialog(nav.context, result?['error'] ?? 'Bulk registration failed');
+            _showEventPaymentErrorDialog(
+              nav.context,
+              result?['error'] ?? 'Bulk registration failed',
+            );
           }
         }
       } else {
         // Single event payment
         log('[DeepLinkingService] Processing single event payment completion');
-        
+
         // Get current user email for registration
         final userEmail = FirebaseAuth.instance.currentUser?.email;
         log('[DeepLinkingService] Current user email: $userEmail');
-        
+
         final result = await PaypalService.completeEventPayment(
           eventId: eventId,
           paymentId: paymentId,
           payerId: payerId,
           userEmail: userEmail,
         );
-        
+
         log('[DeepLinkingService] Single event payment API result: $result');
-        
+
         if (result != null && result['success'] == true) {
-          log('[DeepLinkingService] Single event payment completed successfully');
+          log(
+            '[DeepLinkingService] Single event payment completed successfully',
+          );
           // Close any open dialogs and clear navigation stack
           final nav = (_navigatorKey ?? navigatorKey).currentState;
           if (nav == null) return;
@@ -216,10 +234,15 @@ class DeepLinkingService {
             );
           });
         } else {
-          log('[DeepLinkingService] Single event payment failed: ${result?['error']}');
+          log(
+            '[DeepLinkingService] Single event payment failed: ${result?['error']}',
+          );
           final nav = (_navigatorKey ?? navigatorKey).currentState;
           if (nav != null && nav.mounted) {
-            _showEventPaymentErrorDialog(nav.context, result?['error'] ?? 'Payment completion failed');
+            _showEventPaymentErrorDialog(
+              nav.context,
+              result?['error'] ?? 'Payment completion failed',
+            );
           }
         }
       }
@@ -227,7 +250,10 @@ class DeepLinkingService {
       log('[DeepLinkingService] Error completing payment: $e');
       final nav = (_navigatorKey ?? navigatorKey).currentState;
       if (nav != null && nav.mounted) {
-        _showEventPaymentErrorDialog(nav.context, 'Error completing payment: $e');
+        _showEventPaymentErrorDialog(
+          nav.context,
+          'Error completing payment: $e',
+        );
       }
     }
   }
@@ -238,18 +264,22 @@ class DeepLinkingService {
       final prefs = await SharedPreferences.getInstance();
       final pendingDataString = prefs.getString('pending_bulk_registration');
       log('[DeepLinkingService] Raw pending data string: $pendingDataString');
-      
+
       if (pendingDataString != null) {
-        final pendingData = jsonDecode(pendingDataString) as Map<String, dynamic>;
+        final pendingData =
+            jsonDecode(pendingDataString) as Map<String, dynamic>;
         log('[DeepLinkingService] Parsed pending data: $pendingData');
-        
+
         // Check if data is not too old (e.g., within last hour)
         final timestamp = pendingData['timestamp'] as int;
         final now = DateTime.now().millisecondsSinceEpoch;
         final ageMinutes = (now - timestamp) / 60000;
-        log('[DeepLinkingService] Pending data age: ${ageMinutes.toStringAsFixed(1)} minutes');
-        
-        if (now - timestamp < 3600000) { // 1 hour
+        log(
+          '[DeepLinkingService] Pending data age: ${ageMinutes.toStringAsFixed(1)} minutes',
+        );
+
+        if (now - timestamp < 3600000) {
+          // 1 hour
           log('[DeepLinkingService] Pending data is valid');
           return pendingData;
         } else {
@@ -281,39 +311,40 @@ class DeepLinkingService {
   static void _showEventPaymentErrorDialog(BuildContext context, String error) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Payment Error'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error, color: Colors.red, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              'Event payment failed: $error',
-              textAlign: TextAlign.center,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Payment Error'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'Event payment failed: $error',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Please try again or contact support if the problem persists.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Please try again or contact support if the problem persists.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pushReplacementNamed('/events');
-            },
-            child: const Text('Back to Events'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+                  Navigator.of(context).pushReplacementNamed('/events');
+                },
+                child: const Text('Back to Events'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -321,39 +352,40 @@ class DeepLinkingService {
   static void _showEventPaymentCancelDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Payment Cancelled'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cancel, color: Colors.orange, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'Event payment was cancelled. Your registration is not confirmed yet.',
-              textAlign: TextAlign.center,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Payment Cancelled'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cancel, color: Colors.orange, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Event payment was cancelled. Your registration is not confirmed yet.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'You can try again later or complete payment at the event if applicable.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'You can try again later or complete payment at the event if applicable.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
-              Navigator.of(context).pushReplacementNamed('/events');
-            },
-            child: const Text('Back to Events'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+                  Navigator.of(context).pushReplacementNamed('/events');
+                },
+                child: const Text('Back to Events'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -365,13 +397,13 @@ class DeepLinkingService {
   // Notification handler for deep linking (route, link, and actionType)
   static Future<void> handleNotificationData(Map<String, dynamic> data) async {
     if (data.isEmpty) return;
-    
+
     // Handle specific action types first
     if (data['actionType'] != null) {
       await _handleActionType(data);
       return;
     }
-    
+
     if (data['route'] != null) {
       await _handleRouteNavigation(data['route']);
     }
@@ -383,7 +415,7 @@ class DeepLinkingService {
   /// Handle notification action types
   static Future<void> _handleActionType(Map<String, dynamic> data) async {
     final actionType = data['actionType'];
-    
+
     switch (actionType) {
       case 'bible_plan':
         await _handleBiblePlanNavigation(data);
@@ -403,22 +435,22 @@ class DeepLinkingService {
   }
 
   /// Handle Bible plan notification navigation
-  static Future<void> _handleBiblePlanNavigation(Map<String, dynamic> data) async {
+  static Future<void> _handleBiblePlanNavigation(
+    Map<String, dynamic> data,
+  ) async {
     debugPrint('_handleBiblePlanNavigation called with: $data');
     try {
       final context = navigatorKey.currentContext;
       if (context == null) {
-      debugPrint('Navigator context is null');
-      return;
-    }
+        debugPrint('Navigator context is null');
+        return;
+      }
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       // Now navigate to the Bible plans page
       if (navigatorKey.currentContext != null) {
         Navigator.of(navigatorKey.currentContext!).push(
-          MaterialPageRoute(
-            builder: (context) => const MyBiblePlansPage(),
-          ),
+          MaterialPageRoute(builder: (context) => const MyBiblePlansPage()),
         );
         debugPrint('Navigated to MyBiblePlansPage');
       }
@@ -428,11 +460,12 @@ class DeepLinkingService {
       try {
         navigatorKey.currentState?.pushNamed('/bible');
       } catch (fallbackError) {
-        debugPrint('Fallback navigation to Bible page also failed: $fallbackError');
+        debugPrint(
+          'Fallback navigation to Bible page also failed: $fallbackError',
+        );
       }
     }
   }
-
 
   /// Handle route navigation (like /event/event1)
   static Future<void> _handleRouteNavigation(String route) async {
@@ -459,7 +492,8 @@ class DeepLinkingService {
   static Future<void> _handleEventNavigation(String eventId) async {
     try {
       final navKey = _navigatorKey ?? navigatorKey;
-      final event = await _fetchEventById(eventId);
+      final details = await EventUserHelper.fetchEventInstanceDetails(eventId);
+      final event = details.eventDetails;
       if (event == null) {
         return;
       }
@@ -468,7 +502,7 @@ class DeepLinkingService {
         try {
           await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => EventShowcase(event: event),
+              builder: (context) => EventShowcaseV2(initialEvent: event),
             ),
           );
         } catch (navError) {
@@ -491,25 +525,6 @@ class DeepLinkingService {
       }
     } catch (e) {
       debugPrint('Error launching link $link: $e');
-    }
-  }
-
-  /// Fetch event by ID from the API
-  static Future<Event?> _fetchEventById(String eventId) async {
-    try {
-      final api = ApiClient(
-        baseUrl: BackendHelper.apiBase,
-      );
-      final response = await api.dio.get('/v1/events/$eventId');
-      
-      if (response.statusCode == 200) {
-        return Event.fromJson(response.data);
-      } else {
-        return null;
-      }
-    } catch (e) {
-      debugPrint('Error fetching event $eventId: $e');
-      return null;
     }
   }
 
