@@ -2,7 +2,7 @@ import 'package:app/pages/bible.dart';
 import 'package:app/pages/dashboard.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/pages/bulletins.dart';
-import 'package:app/pages/eventspage.dart';
+import 'package:app/pages/events/eventspage.dart';
 import 'package:app/pages/user/user_settings.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/weeklybulletin.dart';

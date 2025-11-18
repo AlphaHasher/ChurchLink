@@ -1,6 +1,6 @@
-import 'dart:async';
 import 'dart:io';
 
+import 'package:app/pages/events/event_showcase_v2.dart';
 import 'package:flutter/material.dart';
 
 import 'package:android_intent_plus/android_intent.dart';
@@ -14,9 +14,7 @@ import 'package:app/helpers/event_user_helper.dart';
 import 'package:app/helpers/ministries_helper.dart';
 import 'package:app/models/event_v2.dart';
 import 'package:app/models/ministry.dart';
-import 'package:app/pages/event_showcase.dart';
-import 'package:app/firebase/firebase_auth_service.dart';
-import 'package:app/widgets/event_card.dart';
+import 'package:app/widgets/events/event_card.dart';
 
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -38,45 +36,27 @@ class _EventsPageState extends State<EventsPage> {
   List<Ministry> _ministries = <Ministry>[];
   Map<String, Ministry> _ministriesById = <String, Ministry>{};
 
-  // Filters (aligned with UserEventSearchParams)
-  int? _minAge;
-  int? _maxAge;
-  String? _gender; // "all" | "male" | "female" | "male_only" | "female_only"
+  // Filters (mirror EventSection.tsx)
+  String _gender =
+      'all'; // "all" | "male" | "female" | "male_only" | "female_only"
+  String _minAgeStr = '';
+  String _maxAgeStr = '';
+  String _maxPriceStr = '';
   final Set<String> _selectedMinistryIds = <String>{};
   bool _uniqueOnly = false;
   bool _favoritesOnly = false;
   bool _membersOnlyOnly = false;
-  double? _maxPrice;
 
-  // Debounce for numeric filters (age / price)
-  Timer? _debounce;
-
-  // Form controllers
-  late final TextEditingController _minAgeController;
-  late final TextEditingController _maxAgeController;
-  late final TextEditingController _maxPriceController;
+  static const int _baseLimit = 12;
 
   @override
   void initState() {
     super.initState();
-    _minAgeController = TextEditingController();
-    _maxAgeController = TextEditingController();
-    _maxPriceController = TextEditingController();
-
     _loadInitial();
   }
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _minAgeController.dispose();
-    _maxAgeController.dispose();
-    _maxPriceController.dispose();
-    super.dispose();
-  }
-
   // ---------------------------------------------------------------------------
-  // LOADING
+  // LOADING & PARAM BUILDING
   // ---------------------------------------------------------------------------
 
   Future<void> _loadInitial() async {
@@ -90,11 +70,10 @@ class _EventsPageState extends State<EventsPage> {
     await _loadMinistries();
     await _fetchPage(reset: true);
 
-    if (mounted) {
-      setState(() {
-        _isInitialLoading = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _isInitialLoading = false;
+    });
   }
 
   Future<void> _loadMinistries() async {
@@ -107,30 +86,44 @@ class _EventsPageState extends State<EventsPage> {
         _ministriesById = {for (final m in list) m.id: m};
       });
     } catch (e, st) {
-      // Hard fail on ministries is not worth it, just log and move on
       debugPrint('Failed to load ministries: $e\n$st');
     }
   }
 
-  UserEventSearchParams _buildSearchParams({bool forNextPage = false}) {
+  UserEventSearchParams _buildSearchParams({
+    required bool forNextPage,
+    int? overrideLimit,
+  }) {
+    final int limit = overrideLimit ?? _baseLimit;
+
+    final int? minAge =
+        _minAgeStr.trim().isNotEmpty ? int.tryParse(_minAgeStr) : null;
+    final int? maxAge =
+        _maxAgeStr.trim().isNotEmpty ? int.tryParse(_maxAgeStr) : null;
+    final double? maxPrice =
+        _maxPriceStr.trim().isNotEmpty ? double.tryParse(_maxPriceStr) : null;
+
+    // Gender: "all" -> null, others as-is
+    final String? genderParam = _gender == 'all' ? null : _gender;
+
     return UserEventSearchParams(
-      limit: 12,
-      minAge: _minAge,
-      maxAge: _maxAge,
-      gender: _gender,
+      limit: limit,
+      minAge: minAge,
+      maxAge: maxAge,
+      gender: genderParam,
       ministries:
           _selectedMinistryIds.isEmpty ? null : _selectedMinistryIds.toList(),
-      uniqueOnly: _uniqueOnly ? true : null,
+      uniqueOnly: _uniqueOnly,
+      favoritesOnly: EventUserHelper.isSignedIn ? _favoritesOnly : null,
+      membersOnlyOnly: _membersOnlyOnly,
+      maxPrice: maxPrice,
       preferredLang: LocalizationHelper.currentLocale,
       cursorScheduledDate: forNextPage ? _nextCursor?.scheduledDate : null,
       cursorId: forNextPage ? _nextCursor?.id : null,
-      favoritesOnly: _favoritesOnly ? true : null,
-      membersOnlyOnly: _membersOnlyOnly ? true : null,
-      maxPrice: _maxPrice,
     );
   }
 
-  Future<void> _fetchPage({bool reset = false}) async {
+  Future<void> _fetchPage({required bool reset, int? overrideLimit}) async {
     if (!mounted) return;
     if (!reset && (!_hasMore || _isLoadingMore)) return;
 
@@ -140,29 +133,29 @@ class _EventsPageState extends State<EventsPage> {
     }
 
     setState(() {
-      if (reset) {
+      if (reset && !_isRefreshing) {
         _isInitialLoading = true;
-      } else {
+      } else if (!reset) {
         _isLoadingMore = true;
       }
     });
 
     try {
-      final params = _buildSearchParams(forNextPage: !reset);
-      final results = await EventUserHelper.fetchUserEvents(params);
-      if (!mounted || results == null) return;
-
-      final converted = convertUserFacingEventsToUserTime(
-        results.items.toList(),
+      final params = _buildSearchParams(
+        forNextPage: !reset,
+        overrideLimit: overrideLimit,
       );
+      final results = await EventUserHelper.fetchUserEvents(params);
+
+      if (!mounted) return;
 
       setState(() {
         if (reset) {
           _events
             ..clear()
-            ..addAll(converted);
+            ..addAll(results.items);
         } else {
-          _events.addAll(converted);
+          _events.addAll(results.items);
         }
         _nextCursor = results.nextCursor;
         _hasMore = _nextCursor != null;
@@ -192,43 +185,57 @@ class _EventsPageState extends State<EventsPage> {
   }
 
   // ---------------------------------------------------------------------------
-  // FILTER SHEET
+  // FILTER SHEET (UI → filter state)
   // ---------------------------------------------------------------------------
+
+  String _summarizeTempMinistries(List<Ministry> all, Set<String> selected) {
+    if (all.isEmpty) {
+      return LocalizationHelper.localize('No ministries available');
+    }
+    if (selected.isEmpty) {
+      return LocalizationHelper.localize('All ministries');
+    }
+    if (selected.length == 1) {
+      return LocalizationHelper.localize('1 selected');
+    }
+    return LocalizationHelper.localize('${selected.length} selected');
+  }
 
   void _showFilterSheet() {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        String? tempGender = _gender;
+        final theme = Theme.of(ctx);
+        final textTheme = theme.textTheme;
+        final colorScheme = theme.colorScheme;
+        final localize = LocalizationHelper.localize;
+
+        String tempGender = _gender;
         bool tempUniqueOnly = _uniqueOnly;
         bool tempFavoritesOnly = _favoritesOnly;
         bool tempMembersOnlyOnly = _membersOnlyOnly;
         final tempMinistryIds = Set<String>.from(_selectedMinistryIds);
-        double? tempMaxPrice = _maxPrice;
-        int? tempMinAge = _minAge;
-        int? tempMaxAge = _maxAge;
+        String tempMinAge = _minAgeStr;
+        String tempMaxAge = _maxAgeStr;
+        String tempMaxPrice = _maxPriceStr;
+        bool ministriesExpanded = false;
 
-        final minAgeController = TextEditingController(
-          text: tempMinAge?.toString() ?? '',
-        );
-        final maxAgeController = TextEditingController(
-          text: tempMaxAge?.toString() ?? '',
-        );
-        final maxPriceController = TextEditingController(
-          text: tempMaxPrice?.toString() ?? '',
-        );
+        final minAgeController = TextEditingController(text: tempMinAge);
+        final maxAgeController = TextEditingController(text: tempMaxAge);
+        final maxPriceController = TextEditingController(text: tempMaxPrice);
+
+        final isSignedIn = EventUserHelper.isSignedIn;
 
         return StatefulBuilder(
           builder: (context, setModalState) {
-            void updateDebounced(void Function() updater) {
-              updater();
-              _debounce?.cancel();
-              _debounce = Timer(const Duration(milliseconds: 400), () {});
-            }
+            final infoStyle = textTheme.bodySmall?.copyWith(
+              color: textTheme.bodySmall?.color?.withOpacity(0.7),
+            );
 
             return Padding(
               padding: EdgeInsets.only(
@@ -242,22 +249,21 @@ class _EventsPageState extends State<EventsPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      LocalizationHelper.localize('Filter Events'),
-                      style: const TextStyle(
-                        fontSize: 18,
+                      localize('Filter Events'),
+                      style: textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 12),
+
                     // Gender
                     DropdownButtonFormField<String>(
                       decoration: InputDecoration(
-                        labelText: LocalizationHelper.localize('Gender'),
+                        labelText: localize('Gender admission'),
                       ),
                       value: tempGender,
                       items:
-                          <String?>[
-                            null,
+                          const <String>[
                             'all',
                             'male',
                             'female',
@@ -266,35 +272,20 @@ class _EventsPageState extends State<EventsPage> {
                           ].map((g) {
                             String label;
                             switch (g) {
-                              case null:
-                                label = LocalizationHelper.localize(
-                                  'Show All Events',
-                                );
-                                break;
                               case 'all':
-                                label = LocalizationHelper.localize(
-                                  'All Genders Allowed',
-                                );
+                                label = localize('All Allowed');
                                 break;
                               case 'male':
-                                label = LocalizationHelper.localize(
-                                  'Male Only (any)',
-                                );
+                                label = localize('Men Allowed');
                                 break;
                               case 'female':
-                                label = LocalizationHelper.localize(
-                                  'Female Only (any)',
-                                );
+                                label = localize('Women Allowed');
                                 break;
                               case 'male_only':
-                                label = LocalizationHelper.localize(
-                                  'Male Only Events (targeted)',
-                                );
+                                label = localize('Men Only');
                                 break;
                               case 'female_only':
-                                label = LocalizationHelper.localize(
-                                  'Female Only Events (targeted)',
-                                );
+                                label = localize('Women Only');
                                 break;
                               default:
                                 label = g;
@@ -304,10 +295,27 @@ class _EventsPageState extends State<EventsPage> {
                               child: Text(label),
                             );
                           }).toList(),
-                      onChanged:
-                          (value) => setModalState(() => tempGender = value),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setModalState(() => tempGender = value);
+                      },
                     ),
                     const SizedBox(height: 12),
+
+                    // Unique-only
+                    SwitchListTile(
+                      value: tempUniqueOnly,
+                      title: Text(localize('Show only one per series')),
+                      subtitle: Text(
+                        localize('Unique only (earliest upcoming per event)'),
+                        style: infoStyle,
+                      ),
+                      onChanged:
+                          (value) =>
+                              setModalState(() => tempUniqueOnly = value),
+                    ),
+                    const SizedBox(height: 4),
+
                     // Min / Max Age
                     Row(
                       children: [
@@ -316,11 +324,14 @@ class _EventsPageState extends State<EventsPage> {
                             controller: minAgeController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              labelText: LocalizationHelper.localize('Min Age'),
+                              labelText: localize('Minimum Age'),
                             ),
                             onChanged:
-                                (v) => updateDebounced(() {
-                                  tempMinAge = int.tryParse(v);
+                                (v) => setModalState(() {
+                                  tempMinAge = v.replaceAll(
+                                    RegExp(r'[^\d]'),
+                                    '',
+                                  );
                                 }),
                           ),
                         ),
@@ -330,17 +341,163 @@ class _EventsPageState extends State<EventsPage> {
                             controller: maxAgeController,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              labelText: LocalizationHelper.localize('Max Age'),
+                              labelText: localize('Maximum Age'),
                             ),
                             onChanged:
-                                (v) => updateDebounced(() {
-                                  tempMaxAge = int.tryParse(v);
+                                (v) => setModalState(() {
+                                  tempMaxAge = v.replaceAll(
+                                    RegExp(r'[^\d]'),
+                                    '',
+                                  );
                                 }),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        localize(
+                          'We’ll show events where everyone between your minimum and maximum ages would be allowed to attend.',
+                        ),
+                        style: infoStyle,
+                      ),
+                    ),
                     const SizedBox(height: 12),
+
+                    // Ministries "dropdown-style" multi-select
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: theme.dividerColor.withOpacity(0.5),
+                        ),
+                      ),
+                      child: Theme(
+                        // Remove default ExpansionTile splash color overrides
+                        data: theme.copyWith(dividerColor: Colors.transparent),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          childrenPadding: const EdgeInsets.only(
+                            left: 12,
+                            right: 12,
+                            bottom: 8,
+                          ),
+                          initiallyExpanded: ministriesExpanded,
+                          onExpansionChanged: (expanded) {
+                            setModalState(() {
+                              ministriesExpanded = expanded;
+                            });
+                          },
+                          title: Text(
+                            localize('Ministries'),
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            _summarizeTempMinistries(
+                              _ministries,
+                              tempMinistryIds,
+                            ),
+                            style: infoStyle,
+                          ),
+                          children: [
+                            if (_ministries.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 4,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    localize('No ministries found.'),
+                                    style: infoStyle,
+                                  ),
+                                ),
+                              )
+                            else
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(
+                                  maxHeight: 260,
+                                ),
+                                child: Scrollbar(
+                                  child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: _ministries.length,
+                                    itemBuilder: (context, index) {
+                                      final m = _ministries[index];
+                                      final selected = tempMinistryIds.contains(
+                                        m.id,
+                                      );
+                                      return CheckboxListTile(
+                                        dense: true,
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        value: selected,
+                                        title: Text(
+                                          LocalizationHelper.localize(m.name),
+                                        ),
+                                        onChanged: (value) {
+                                          setModalState(() {
+                                            if (value == true) {
+                                              tempMinistryIds.add(m.id);
+                                            } else {
+                                              tempMinistryIds.remove(m.id);
+                                            }
+                                          });
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            if (tempMinistryIds.isNotEmpty)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed:
+                                      () => setModalState(
+                                        () => tempMinistryIds.clear(),
+                                      ),
+                                  child: Text(
+                                    localize('Clear'),
+                                    style: TextStyle(color: colorScheme.error),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Members-only
+                    SwitchListTile(
+                      value: tempMembersOnlyOnly,
+                      title: Text(localize('Members-only events only')),
+                      onChanged:
+                          (value) =>
+                              setModalState(() => tempMembersOnlyOnly = value),
+                    ),
+
+                    // Favorites-only (auth only)
+                    if (isSignedIn)
+                      SwitchListTile(
+                        value: tempFavoritesOnly,
+                        title: Text(localize('Favorites only')),
+                        onChanged:
+                            (value) =>
+                                setModalState(() => tempFavoritesOnly = value),
+                      ),
+
+                    const SizedBox(height: 4),
+
                     // Max price
                     TextField(
                       controller: maxPriceController,
@@ -348,98 +505,25 @@ class _EventsPageState extends State<EventsPage> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        labelText: LocalizationHelper.localize(
-                          'Max Price (USD)',
-                        ),
+                        labelText: localize('Maximum Price (USD)'),
                       ),
                       onChanged:
-                          (v) => updateDebounced(() {
-                            tempMaxPrice = double.tryParse(v);
+                          (v) => setModalState(() {
+                            tempMaxPrice = v.replaceAll(RegExp(r'[^\d.]'), '');
                           }),
                     ),
-                    const SizedBox(height: 12),
-                    // Ministry multi-select
+                    const SizedBox(height: 4),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        LocalizationHelper.localize('Ministries'),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        localize(
+                          'We’ll show events that are either free or priced at or below this amount in \$USD.',
+                        ),
+                        style: infoStyle,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    if (_ministries.isEmpty)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          LocalizationHelper.localize('No ministries found.'),
-                        ),
-                      )
-                    else
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children:
-                            _ministries.map((m) {
-                              final selected = tempMinistryIds.contains(m.id);
-                              return FilterChip(
-                                label: Text(m.name),
-                                selected: selected,
-                                onSelected: (value) {
-                                  setModalState(() {
-                                    if (value) {
-                                      tempMinistryIds.add(m.id);
-                                    } else {
-                                      tempMinistryIds.remove(m.id);
-                                    }
-                                  });
-                                },
-                              );
-                            }).toList(),
-                      ),
                     const SizedBox(height: 12),
-                    // Boolean toggles
-                    SwitchListTile(
-                      value: tempUniqueOnly,
-                      title: Text(
-                        LocalizationHelper.localize(
-                          'Show only one per event series',
-                        ),
-                      ),
-                      onChanged:
-                          (value) =>
-                              setModalState(() => tempUniqueOnly = value),
-                    ),
-                    SwitchListTile(
-                      value: tempMembersOnlyOnly,
-                      title: Text(
-                        LocalizationHelper.localize(
-                          'Show only members-only events',
-                        ),
-                      ),
-                      onChanged:
-                          (value) =>
-                              setModalState(() => tempMembersOnlyOnly = value),
-                    ),
-                    FutureBuilder<bool>(
-                      future: FirebaseAuthService.instance.isSignedIn(),
-                      builder: (context, snapshot) {
-                        final isSignedIn = snapshot.data ?? false;
-                        if (!isSignedIn) return const SizedBox.shrink();
-                        return SwitchListTile(
-                          value: tempFavoritesOnly,
-                          title: Text(
-                            LocalizationHelper.localize(
-                              'Show only favorite events',
-                            ),
-                          ),
-                          onChanged:
-                              (value) => setModalState(
-                                () => tempFavoritesOnly = value,
-                              ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 8),
+
                     // Buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -447,10 +531,10 @@ class _EventsPageState extends State<EventsPage> {
                         TextButton(
                           onPressed: () {
                             setModalState(() {
-                              tempGender = null;
-                              tempMinAge = null;
-                              tempMaxAge = null;
-                              tempMaxPrice = null;
+                              tempGender = 'all';
+                              tempMinAge = '';
+                              tempMaxAge = '';
+                              tempMaxPrice = '';
                               tempMinistryIds.clear();
                               tempUniqueOnly = false;
                               tempFavoritesOnly = false;
@@ -462,37 +546,36 @@ class _EventsPageState extends State<EventsPage> {
                             });
                           },
                           child: Text(
-                            LocalizationHelper.localize('Reset'),
-                            style: const TextStyle(color: Colors.red),
+                            localize('Reset'),
+                            style: TextStyle(color: colorScheme.error),
                           ),
                         ),
                         ElevatedButton(
+                          style: ButtonStyle(
+                            backgroundColor: WidgetStatePropertyAll(
+                              theme.primaryColor,
+                            ),
+                            foregroundColor: WidgetStatePropertyAll(
+                              Colors.white,
+                            ),
+                          ),
                           onPressed: () {
                             setState(() {
                               _gender = tempGender;
-                              _minAge = tempMinAge;
-                              _maxAge = tempMaxAge;
-                              _maxPrice = tempMaxPrice;
+                              _minAgeStr = tempMinAge;
+                              _maxAgeStr = tempMaxAge;
+                              _maxPriceStr = tempMaxPrice;
                               _selectedMinistryIds
                                 ..clear()
                                 ..addAll(tempMinistryIds);
                               _uniqueOnly = tempUniqueOnly;
                               _favoritesOnly = tempFavoritesOnly;
                               _membersOnlyOnly = tempMembersOnlyOnly;
-
-                              _minAgeController.text =
-                                  _minAge?.toString() ?? '';
-                              _maxAgeController.text =
-                                  _maxAge?.toString() ?? '';
-                              _maxPriceController.text =
-                                  _maxPrice?.toString() ?? '';
                             });
                             Navigator.of(context).pop();
                             _fetchPage(reset: true);
                           },
-                          child: Text(
-                            LocalizationHelper.localize('Apply Filters'),
-                          ),
+                          child: Text(localize('Apply Filters')),
                         ),
                       ],
                     ),
@@ -513,13 +596,13 @@ class _EventsPageState extends State<EventsPage> {
   Future<void> _navigateToShowcase(UserFacingEvent event) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => EventShowcase(event: event)),
-    );
-
-    if (mounted) {
-      // Refresh events after returning (to update favorites, registrations etc.)
-      _fetchPage(reset: true);
-    }
+      MaterialPageRoute(
+        builder: (context) => EventShowcaseV2(initialEvent: event),
+      ),
+    ).then((_) {
+      if (!mounted) return;
+      _onRefresh();
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -536,7 +619,9 @@ class _EventsPageState extends State<EventsPage> {
     if (e.localizations.containsKey(langOnly)) {
       return e.localizations[langOnly]!;
     }
-    if (e.localizations.isNotEmpty) return e.localizations.values.first;
+    if (e.localizations.isNotEmpty) {
+      return e.localizations.values.first;
+    }
 
     return EventLocalization(
       title: e.defaultTitle,
@@ -671,57 +756,23 @@ END:VCALENDAR
   }
 
   // ---------------------------------------------------------------------------
-  // FAVORITES
+  // FAVORITES: REFRESH LIKE WEB
   // ---------------------------------------------------------------------------
 
   Future<void> _toggleFavorite(UserFacingEvent event, bool newValue) async {
-    final idx = _events.indexWhere((e) => e.id == event.id);
-    if (idx == -1) return;
-
     setState(() {
-      _events[idx] = UserFacingEvent(
-        id: event.id,
-        eventId: event.eventId,
-        seriesIndex: event.seriesIndex,
-        date: event.date,
-        endDate: event.endDate,
-        seatsFilled: event.seatsFilled,
-        localizations: event.localizations,
-        recurring: event.recurring,
-        registrationAllowed: event.registrationAllowed,
-        hidden: event.hidden,
-        registrationOpens: event.registrationOpens,
-        registrationDeadline: event.registrationDeadline,
-        automaticRefundDeadline: event.automaticRefundDeadline,
-        ministries: event.ministries,
-        membersOnly: event.membersOnly,
-        rsvpRequired: event.rsvpRequired,
-        maxSpots: event.maxSpots,
-        price: event.price,
-        memberPrice: event.memberPrice,
-        minAge: event.minAge,
-        maxAge: event.maxAge,
-        gender: event.gender,
-        locationAddress: event.locationAddress,
-        imageId: event.imageId,
-        paymentOptions: event.paymentOptions,
-        updatedOn: event.updatedOn,
-        overridesDateUpdatedOn: event.overridesDateUpdatedOn,
-        defaultTitle: event.defaultTitle,
-        defaultDescription: event.defaultDescription,
-        defaultLocationInfo: event.defaultLocationInfo,
-        defaultLocalization: event.defaultLocalization,
-        eventDate: event.eventDate,
-        hasRegistrations: event.hasRegistrations,
-        eventRegistrations: event.eventRegistrations,
-        isFavorited: newValue,
-      );
+      _isRefreshing = true;
     });
 
     try {
       await EventUserHelper.setFavorite(event.eventId, newValue);
+
+      final int overrideLimit =
+          _events.length > _baseLimit ? _events.length : _baseLimit;
+      await _fetchPage(reset: true, overrideLimit: overrideLimit);
     } catch (e, st) {
       debugPrint('Failed to update favorite: $e\n$st');
+      await _fetchPage(reset: true);
     }
   }
 
@@ -731,21 +782,17 @@ END:VCALENDAR
 
   @override
   Widget build(BuildContext context) {
-    final bool showBackButton = Navigator.canPop(context);
+    final theme = Theme.of(context);
+    final localize = LocalizationHelper.localize;
 
     return Scaffold(
       key: const ValueKey('screen-events'),
       appBar: AppBar(
         centerTitle: true,
-        title: Text(LocalizationHelper.localize('Events')),
-        leading:
-            showBackButton
-                ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => Navigator.pop(context),
-                )
-                : null,
-        automaticallyImplyLeading: showBackButton,
+        title: Text(
+          localize('Upcoming Events'),
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
@@ -761,7 +808,8 @@ END:VCALENDAR
                       const SizedBox(height: 60),
                       Center(
                         child: Text(
-                          LocalizationHelper.localize('No events found.'),
+                          localize('There are no upcoming events.'),
+                          style: theme.textTheme.bodyMedium,
                         ),
                       ),
                     ],
@@ -794,11 +842,7 @@ END:VCALENDAR
                                     ? const CircularProgressIndicator()
                                     : OutlinedButton(
                                       onPressed: _onLoadMore,
-                                      child: Text(
-                                        LocalizationHelper.localize(
-                                          'Load More',
-                                        ),
-                                      ),
+                                      child: Text(localize('Load more')),
                                     ),
                           ),
                         if (_isRefreshing)

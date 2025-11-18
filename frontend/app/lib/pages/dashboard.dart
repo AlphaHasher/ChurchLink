@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:app/pages/bulletins.dart';
-import 'package:app/pages/eventspage.dart';
+import 'package:app/pages/events/eventspage.dart';
 import 'package:app/pages/forms.dart';
 import 'package:app/pages/giving.dart';
 import 'package:app/pages/joinlive.dart';

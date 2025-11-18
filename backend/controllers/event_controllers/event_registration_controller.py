@@ -1198,7 +1198,7 @@ async def _process_refunds_for_removals(
         if cutoff and now > cutoff:
             return {
                 "success": False,
-                "msg": "Refund window has expired for this event. Please contact an administrator.",
+                "msg": "Refund window has expired for this event. Please request a refund with the official portal or contact an administrator.",
             }
 
     # Build a simple accessor that returns (PaymentDetails, person_label)
