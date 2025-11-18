@@ -331,7 +331,7 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         // Price field payment method properties
         'paypal_required', 'paypal_description', 'paypal_option', 'paypal_hint',
         'inperson_required', 'inperson_description', 'inperson_option', 'inperson_hint',
-        'choose_method', 'no_methods'
+        'choose_method', 'no_methods', 'paypal_submit', 'inperson_submit'
       ];
 
       if (allowedProperties.includes(property)) {

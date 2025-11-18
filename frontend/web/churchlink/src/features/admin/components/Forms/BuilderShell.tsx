@@ -597,7 +597,9 @@ export function BuilderShell() {
                       { key: 'inperson_option', text: 'Pay In-Person' },
                       { key: 'inperson_hint', text: '(Pay at location)' },
                       { key: 'choose_method', text: 'Choose Payment Method:' },
-                      { key: 'no_methods', text: 'No payment methods configured' }
+                      { key: 'no_methods', text: 'No payment methods configured' },
+                      { key: 'paypal_submit', text: 'Pay with PayPal & Submit' },
+                      { key: 'inperson_submit', text: 'Submit Form (Pay In-Person Later)' }
                     ];
 
                     const resp = await api.post('/v1/translator/translate-multi', {

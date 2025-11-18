@@ -63,7 +63,9 @@ export function useFieldTranslator() {
             { key: 'inperson_option', default: 'Pay In-Person' },
             { key: 'inperson_hint', default: '(Pay at location)' },
             { key: 'choose_method', default: 'Choose Payment Method:' },
-            { key: 'no_methods', default: 'No payment methods configured' }
+            { key: 'no_methods', default: 'No payment methods configured' },
+            { key: 'paypal_submit', default: 'Pay with PayPal & Submit' },
+            { key: 'inperson_submit', default: 'Submit Form (Pay In-Person Later)' }
           ];
 
           paymentTexts.forEach(({ key, default: defaultText }) => {
