@@ -23,11 +23,19 @@ describe('Admin – Bible Plans', () => {
       body: { language: 'en' },
     }).as('getUserLanguage');
 
-    // Mock bible plans API
-    cy.intercept('GET', '**/api/v1/bible-plans/**', {
-      statusCode: 200,
-      body: { plans: [], total: 0 },
+    // Mock all bible plans API endpoints comprehensively
+    cy.intercept('GET', /\/api\/v1\/bible-plans.*/, (req) => {
+      req.reply({
+        statusCode: 200,
+        body: [],
+      });
     }).as('getBiblePlans');
+
+    // Mock bible notes API
+    cy.intercept('GET', /\/api\/v1\/bible-notes.*/, {
+      statusCode: 200,
+      body: [],
+    }).as('getBibleNotes');
   });
 
   it('loads manage bible plans page', () => {
