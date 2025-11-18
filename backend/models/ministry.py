@@ -5,9 +5,8 @@ from datetime import datetime
 from typing import List, Optional
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, field_validator
-
 from mongo.database import DB
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -185,11 +184,13 @@ async def delete_ministry(ministry_id: str) -> bool:
     result = await DB.db["ministries"].delete_one({"_id": oid})
     if result.deleted_count:
         try:
-            await _remove_ministry_from_references(doc.get("name"))
+            # Remove ministry reference from all associated content (don't delete the content)
+            await _remove_ministry_from_references(ministry_id)
         except Exception as exc:  # pragma: no cover - best effort logging
             logger.error(
-                "Failed to remove ministry '%s' from references: %s",
+                "Failed to remove ministry '%s' (ID: %s) from references: %s",
                 doc.get("name"),
+                ministry_id,
                 exc,
             )
         return True
@@ -317,40 +318,76 @@ async def denormalize_ministry_ids(ministry_ids: Optional[List[str]]) -> List[st
     return [id_to_name[mid] for mid in valid_ids if mid in id_to_name]
 
 
+async def validate_ministry_ids(ministry_ids: Optional[List[str]]) -> List[str]:
+    """
+    Validate that ministry ObjectId hex strings exist in the database.
+
+    Args:
+        ministry_ids: List of ObjectId hex strings
+
+    Returns:
+        List of valid ObjectId hex strings
+
+    Raises:
+        MinistryNotFoundError: If any ministry ID doesn't exist
+    """
+    await _ensure_connection()
+    if not ministry_ids:
+        return []
+
+    # Filter and validate ObjectIds
+    valid_ids = []
+    invalid_ids = []
+
+    for mid in ministry_ids:
+        if mid is None:
+            continue
+        mid_str = str(mid).strip()
+        if not mid_str:
+            continue
+        try:
+            ObjectId(mid_str)
+            valid_ids.append(mid_str)
+        except Exception:
+            invalid_ids.append(mid_str)
+
+    if invalid_ids:
+        raise MinistryNotFoundError(f"Invalid ministry IDs: {', '.join(invalid_ids)}")
+
+    if not valid_ids:
+        return []
+
+    # Convert to ObjectId objects for query
+    oid_list = [ObjectId(mid) for mid in valid_ids]
+
+    # Check which IDs exist in database
+    cursor = DB.db["ministries"].find({"_id": {"$in": oid_list}})
+    docs = await cursor.to_list(length=None)
+    existing_ids = {str(doc.get("_id")) for doc in docs}
+
+    # Find any IDs that don't exist
+    missing_ids = [mid for mid in valid_ids if mid not in existing_ids]
+    if missing_ids:
+        raise MinistryNotFoundError(f"Unknown ministry IDs: {', '.join(missing_ids)}")
+
+    # Return in original order
+    return valid_ids
+
+
 async def _replace_ministry_name_in_references(
     old_name: Optional[str], new_name: str
 ) -> None:
-    if not old_name or old_name == new_name:
-        return
-    if DB.db is None:
-        return
-    array_filters = [{"elem": {"$eq": old_name}}]
-    await DB.db["events"].update_many(
-        {"ministry": old_name},
-        {"$set": {"ministry.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
-    await DB.db["sermons"].update_many(
-        {"ministry": old_name},
-        {"$set": {"ministry.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
-    await DB.db["bulletins"].update_many(
-        {"ministries": old_name},
-        {"$set": {"ministries.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
-    await DB.db["forms"].update_many(
-        {"ministries": old_name},
-        {"$set": {"ministries.$[elem]": new_name}},
-        array_filters=array_filters,
-    )
+    # Note: Since all collections now store ObjectIds, ministry renames don't require
+    # updating references in forms, events, sermons, or bulletins.
+    # The ObjectId remains constant even when the ministry name changes.
+    pass
 
 
-async def _remove_ministry_from_references(name: Optional[str]) -> None:
-    if not name or DB.db is None:
+async def _remove_ministry_from_references(ministry_id: str) -> None:
+    """Remove ministry ObjectId from all references (used when ministry is deleted without cascade)."""
+    if not ministry_id or DB.db is None:
         return
-    await DB.db["events"].update_many({}, {"$pull": {"ministry": name}})
-    await DB.db["sermons"].update_many({}, {"$pull": {"ministry": name}})
-    await DB.db["bulletins"].update_many({}, {"$pull": {"ministries": name}})
-    await DB.db["forms"].update_many({}, {"$pull": {"ministries": name}})
+    await DB.db["events"].update_many({}, {"$pull": {"ministries": ministry_id}})
+    await DB.db["sermons"].update_many({}, {"$pull": {"ministry": ministry_id}})
+    await DB.db["bulletins"].update_many({}, {"$pull": {"ministries": ministry_id}})
+    await DB.db["forms"].update_many({}, {"$pull": {"ministries": ministry_id}})

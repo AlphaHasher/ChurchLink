@@ -4,12 +4,11 @@ from datetime import datetime
 from typing import List, Optional, Set
 from urllib.parse import parse_qs, urlparse
 
-from bson import ObjectId  # type: ignore[import]
-from pydantic import BaseModel, Field, HttpUrl
-
+from bson import ObjectId
 from helpers.MongoHelper import serialize_objectid_deep
+from models.ministry import validate_ministry_ids
 from mongo.database import DB
-from models.ministry import canonicalize_ministry_ids
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class SermonBase(BaseModel):
@@ -120,7 +119,7 @@ async def create_sermon(sermon: SermonCreate) -> Optional[SermonOut]:
     # Convert ministry names to ObjectIds
     ministry_ids = payload.get("ministry", [])
     try:
-        ministry_ids = await canonicalize_ministry_ids(ministry_ids)
+        ministry_ids = await validate_ministry_ids(ministry_ids)
         payload["ministry"] = ministry_ids
     except Exception as exc:
         print(f"Error converting ministry IDs: {exc}")
@@ -187,7 +186,7 @@ async def update_sermon(sermon_id: str, updates: SermonUpdate) -> bool:
     # Convert ministry names to ObjectIds if present
     if "ministry" in update_payload and update_payload["ministry"]:
         try:
-            update_payload["ministry"] = await canonicalize_ministry_ids(
+            update_payload["ministry"] = await validate_ministry_ids(
                 update_payload["ministry"]
             )
         except Exception as exc:

@@ -210,7 +210,7 @@ export function ServicesTable({
     };
 
     return (
-        <div className="container mx-start">
+        <div >
             <div className="flex items-center py-4">
                 <Input 
                     placeholder="Search Title or Description..." 

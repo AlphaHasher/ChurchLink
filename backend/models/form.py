@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Optional, Tuple, Literal
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field, field_validator
-from bson import ObjectId
+from typing import Any, List, Literal, Optional, Tuple
 
-from mongo.database import DB
+from bson import ObjectId
+from helpers.slug_validator import validate_slug
 from models.base.ssbc_base_model import MongoBaseModel
 from models.ministry import (
-    canonicalize_ministry_ids,
+    validate_ministry_ids,
 )
-from helpers.slug_validator import validate_slug
+from mongo.database import DB
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -237,7 +237,7 @@ async def create_form(form: FormCreate, user_id: str) -> Optional[FormOut]:
 
         ministry_ids = getattr(form, "ministries", [])
         try:
-            ministry_ids = await canonicalize_ministry_ids(ministry_ids)
+            ministry_ids = await validate_ministry_ids(ministry_ids)
         except Exception as exc:
             logger.warning("Form creation failed: %s", exc)
             return None
@@ -954,7 +954,7 @@ async def update_form(
                 update_doc["ministries"] = []
             else:
                 try:
-                    update_doc["ministries"] = await canonicalize_ministry_ids(
+                    update_doc["ministries"] = await validate_ministry_ids(
                         ministries_value
                     )
                 except Exception as exc:

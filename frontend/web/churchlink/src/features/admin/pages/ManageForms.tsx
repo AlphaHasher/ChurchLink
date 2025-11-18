@@ -19,7 +19,8 @@ ModuleRegistry.registerModules([
 ]);
 
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
+import { MinistryCards } from '@/shared/components/MinistryCards';
 import { VisibilityToggleCellRenderer } from '@/shared/components/VisibilityToggle';
 import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
@@ -46,12 +47,6 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
   const ministries: string[] = Array.isArray(data.ministries) ? data.ministries : [];
   const { openMinistryAssignment, availableMinistries } = context;
 
-  // Map ministry IDs to names
-  const getMinistryName = (id: string): string => {
-    const ministry = availableMinistries?.find((m: { id: string; name: string }) => m.id === id);
-    return ministry?.name || id;
-  };
-
   if (!ministries.length) {
     return (
       <div className="flex h-full w-full items-center gap-1" title="No ministries assigned">
@@ -70,13 +65,11 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
 
   return (
     <div className="flex items-center gap-2 w-full min-w-0">
-      <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-        {ministries.map((id: string) => (
-          <span key={id} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
-            {getMinistryName(id)}
-          </span>
-        ))}
-      </div>
+      <MinistryCards 
+        ministryIds={ministries}
+        availableMinistries={availableMinistries || []}
+        className="flex-1"
+      />
       <Button
         size="icon"
         variant="ghost"
@@ -784,14 +777,14 @@ const ManageForms = () => {
           </DialogHeader>
           <div className="py-4">
             {availableMinistries.length > 0 ? (
-              <EventMinistryDropdown
+              <MinistryDropdown
                 selected={assignmentTarget?.selected || []}
                 onChange={(updated) => {
                   if (assignmentTarget) {
                     setAssignmentTarget({ ...assignmentTarget, selected: updated });
                   }
                 }}
-                ministries={availableMinistries.map((m: any) => m.name)}
+                ministries={availableMinistries}
               />
             ) : (
               <div className="text-sm text-muted-foreground">No ministries available. Create one from Admin &gt; Ministries first.</div>

@@ -603,7 +603,7 @@ const renderNode = (
             onMouseLeave={handleMouseLeave}
             onClick={handleClick}
           >
-            <PaypalSection />
+            <PaypalSection isEditing={true} />
           </div>
         );
       } else {
@@ -622,7 +622,7 @@ const renderNode = (
                 width: `${100 / (scale || 1)}%`,
               }}
             >
-              <PaypalSection />
+              <PaypalSection isEditing={true} />
             </div>
           </div>
         );

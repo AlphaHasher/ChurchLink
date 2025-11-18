@@ -29,7 +29,7 @@ export function SermonsTable({ data, permData: _permData, onSave }: SermonsTable
     const filtered = data.filter((d) => d.title.toLowerCase().includes(search.toLowerCase()));
 
     return (
-        <div className="container mx-start">
+        <div >
             <div className="flex items-center py-4">
                 <Input placeholder="Search Title..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
                 <div className="ml-auto flex items-center space-x-2">

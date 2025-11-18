@@ -14,8 +14,9 @@ import { ChurchSermon } from "@/shared/types/ChurchSermon";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistriesAsStringArray } from "@/helpers/MinistriesHelper";
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
+import { fetchMinistries } from "@/helpers/MinistriesHelper";
+import { Ministry } from "@/shared/types/Ministry";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateSermonProps {
@@ -39,11 +40,11 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
 
     useEffect(() => {
         if (isOpen) {
-            fetchMinistriesAsStringArray().then(setMinistries)
+            fetchMinistries().then(setMinistries)
         }
     }, [isOpen])
 
@@ -128,7 +129,7 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
                         </label>
 
                         <div>
-                            <EventMinistryDropdown
+                            <MinistryDropdown
                                 selected={sermon.ministry ?? []}
                                 onChange={(next: string[]) => setSermon({ ...sermon, ministry: next })}
                                 ministries={ministries}

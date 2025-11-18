@@ -182,7 +182,7 @@ export default function RefundRequestTable({
     };
 
     return (
-        <div className="container mx-start">
+        <div >
             <div className="ag-theme-quartz" style={{ height: 600, width: "100%" }}>
                 <AgGridReact<Row>
                     rowData={data}
