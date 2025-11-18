@@ -1,5 +1,4 @@
 import 'package:intl/intl.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/helpers/backend_helper.dart';
 
 /// Represents an attachment item in a bulletin

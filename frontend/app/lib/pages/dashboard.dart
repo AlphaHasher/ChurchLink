@@ -7,12 +7,11 @@ import 'package:app/pages/giving.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../helpers/localization_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
 import 'package:app/helpers/backend_helper.dart';
 
 final _apiBaseUrl = BackendHelper.apiBase;

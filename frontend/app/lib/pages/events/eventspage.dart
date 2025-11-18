@@ -261,7 +261,7 @@ class _EventsPageState extends State<EventsPage> {
                       decoration: InputDecoration(
                         labelText: localize('Gender admission'),
                       ),
-                      value: tempGender,
+                      initialValue: tempGender,
                       items:
                           const <String>[
                             'all',

@@ -1,7 +1,7 @@
 // transactions.dart
 // Dart models for unified transactions (non-admin).
 
-import 'donations.dart';
+import 'package:app/models/donations.dart';
 
 enum TransactionKind {
   donationOneTime,

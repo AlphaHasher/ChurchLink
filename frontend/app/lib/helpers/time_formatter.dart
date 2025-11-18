@@ -57,7 +57,7 @@ DateTime? dateFromISO(MaybeISO iso) {
 /// If parsing fails, returns the original value (or null).
 MaybeISO toZonedISOString(MaybeISO utcISO) {
   final d = dateFromISO(utcISO);
-  return d != null ? d.toIso8601String() : utcISO ?? null;
+  return d != null ? d.toIso8601String() : utcISO;
 }
 
 /// Safely parse a date/time string that might be either:

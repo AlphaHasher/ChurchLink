@@ -24,14 +24,14 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify the correct state
-  expect(await $('User Settings').exists, isTrue);
-  expect(await $('Guest').exists, isTrue);
-  expect(await $('Login or Signup').exists, isTrue);
-  expect(await $('To access more features login or signup').exists, isTrue);
-  expect(await $('Theme').exists, isTrue);
-  expect(await $('Language').exists, isTrue);
-  expect(await $('Notifications').exists, isTrue);
-  expect(await $('Terms & Policies').exists, isTrue);
+  expect($('User Settings').exists, isTrue);
+  expect($('Guest').exists, isTrue);
+  expect($('Login or Signup').exists, isTrue);
+  expect($('To access more features login or signup').exists, isTrue);
+  expect($('Theme').exists, isTrue);
+  expect($('Language').exists, isTrue);
+  expect($('Notifications').exists, isTrue);
+  expect($('Terms & Policies').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -54,9 +54,9 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify popup UI
-  expect(await $('Sign in').exists, isTrue);
-  expect(await $('Continue with Email').exists, isTrue);
-  expect(await $('Continue with Google').exists, isTrue);
+  expect($('Sign in').exists, isTrue);
+  expect($('Continue with Email').exists, isTrue);
+  expect($('Continue with Google').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );

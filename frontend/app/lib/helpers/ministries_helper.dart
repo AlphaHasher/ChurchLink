@@ -21,9 +21,9 @@ class MinistriesHelper {
 
       final List<Map<String, dynamic>> raw =
           data
-              .where((e) => e is Map)
+              .whereType<Map>()
               .map<Map<String, dynamic>>(
-                (e) => Map<String, dynamic>.from(e as Map),
+                (e) => Map<String, dynamic>.from(e),
               )
               .toList();
 
@@ -55,9 +55,9 @@ class MinistriesHelper {
 
       final List<Map<String, dynamic>> raw =
           data
-              .where((e) => e is Map)
+              .whereType<Map>()
               .map<Map<String, dynamic>>(
-                (e) => Map<String, dynamic>.from(e as Map),
+                (e) => Map<String, dynamic>.from(e),
               )
               .toList();
 

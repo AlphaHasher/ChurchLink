@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../helpers/localization_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class WeeklyBulletin extends StatefulWidget {
   const WeeklyBulletin({super.key});

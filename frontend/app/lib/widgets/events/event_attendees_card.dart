@@ -367,7 +367,7 @@ class EventAttendeesCard extends StatelessWidget {
       final borderColor = theme.dividerColor.withOpacity(0.6);
       final backgroundColor =
           isDisabled
-              ? theme.colorScheme.surfaceVariant.withOpacity(
+              ? theme.colorScheme.surfaceContainerHighest.withOpacity(
                 theme.brightness == Brightness.dark ? 0.4 : 0.6,
               )
               : theme.cardColor;

@@ -20,15 +20,15 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify page title
-  expect(await $('Weekly Bulletin').exists, isTrue);
+  expect($('Weekly Bulletin').exists, isTrue);
 
   // Check section headers
-  expect(await $('For the week of Nov 10, 2025').exists, isTrue);
-  expect(await $('Bulletin Announcements').exists, isTrue);
+  expect($('For the week of Nov 10, 2025').exists, isTrue);
+  expect($('Bulletin Announcements').exists, isTrue);
 
   // Check for sample entries
-  expect(await $('Test Service').exists, isTrue);
-  expect(await $('Test Bulletin').exists, isTrue);
+  expect($('Test Service').exists, isTrue);
+  expect($('Test Bulletin').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -52,16 +52,16 @@ void main() {
   await $.pumpAndSettle();
 
   // Check that we navigated to the Service Detail
-  expect(await $('Test Service').exists, isTrue);
-  expect(await $('Service Timeline').exists, isTrue);
-  expect(await $('Test Service Timeline Notes').exists, isTrue);
+  expect($('Test Service').exists, isTrue);
+  expect($('Service Timeline').exists, isTrue);
+  expect($('Test Service Timeline Notes').exists, isTrue);
 
   // Go back
   await $(Icons.arrow_back).tap();
   await $.pumpAndSettle();
 
   // Verify we’re back to the main bulletin list
-  expect(await $('Weekly Bulletin').exists, isTrue);
+  expect($('Weekly Bulletin').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -86,8 +86,8 @@ void main() {
   await $.pumpAndSettle();
 
   // Check modal content
-  expect(await $('Test Service').exists, isTrue);
-  expect(await $('Test Bulletin').exists, isTrue);
+  expect($('Test Service').exists, isTrue);
+  expect($('Test Bulletin').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -112,18 +112,18 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify fields exist
-  expect(await $('Filter Announcements').exists, isTrue);
-  expect(await $('Search').exists, isTrue);
-  expect(await $('All ministries').exists, isTrue);
-  expect(await $('Apply').exists, isTrue);
-  expect(await $('Clear').exists, isTrue);
+  expect($('Filter Announcements').exists, isTrue);
+  expect($('Search').exists, isTrue);
+  expect($('All ministries').exists, isTrue);
+  expect($('Apply').exists, isTrue);
+  expect($('Clear').exists, isTrue);
 
   // Close via 'X'
   await $(Icons.close).tap();
   await $.pumpAndSettle();
 
   // Ensure filter closed
-  expect(await $('Filter Announcements').exists, isFalse);
+  expect($('Filter Announcements').exists, isFalse);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -154,7 +154,7 @@ void main() {
   await $('Apply').tap();
   await $.pumpAndSettle();
 
-  expect(await $('Weekly Bulletin').exists, isTrue); // modal dismissed
+  expect($('Weekly Bulletin').exists, isTrue); // modal dismissed
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -177,7 +177,7 @@ void main() {
   await $(Icons.arrow_back).tap();
   await $.pumpAndSettle();
 
-  expect(await $('Join Live').exists, isTrue);
+  expect($('Join Live').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );

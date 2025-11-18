@@ -218,7 +218,7 @@ class _EventTicketCardState extends State<EventTicketCard> {
       width: 220,
       height: 220,
       alignment: Alignment.center,
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -273,7 +273,7 @@ class EventMapCard extends StatelessWidget {
     final localize = LocalizationHelper.localize;
 
     return Container(
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

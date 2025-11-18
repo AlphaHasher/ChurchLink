@@ -483,7 +483,7 @@ class _GivingState extends State<Giving> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${_churchName} ${LocalizationHelper.localize("Giving")}',
+          '$_churchName ${LocalizationHelper.localize("Giving")}',
         ),
         centerTitle: true,
         leading: IconButton(

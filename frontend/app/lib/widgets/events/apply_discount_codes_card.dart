@@ -108,14 +108,14 @@ class _ApplyDiscountCodesCardState extends State<ApplyDiscountCodesCard> {
   ButtonStyle _applyButtonStyle(ThemeData theme) {
     // Active: primary background, white foreground
     return ButtonStyle(
-      backgroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
           return theme.disabledColor.withOpacity(0.12);
         }
         return theme.colorScheme.primary;
       }),
-      foregroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
           return theme.disabledColor.withOpacity(0.38);
         }
         return Colors.white;

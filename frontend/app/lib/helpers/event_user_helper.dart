@@ -172,9 +172,9 @@ class EventUserHelper {
       // Normalize list into List<Map<String,dynamic>>
       final List<Map<String, dynamic>> itemMaps =
           itemsRaw
-              .where((e) => e is Map)
+              .whereType<Map>()
               .map<Map<String, dynamic>>(
-                (e) => Map<String, dynamic>.from(e as Map),
+                (e) => Map<String, dynamic>.from(e),
               )
               .toList();
 
@@ -245,9 +245,9 @@ class EventUserHelper {
 
       final List<Map<String, dynamic>> itemMaps =
           itemsRaw
-              .where((e) => e is Map)
+              .whereType<Map>()
               .map<Map<String, dynamic>>(
-                (e) => Map<String, dynamic>.from(e as Map),
+                (e) => Map<String, dynamic>.from(e),
               )
               .toList();
 
@@ -387,9 +387,9 @@ class EventUserHelper {
       if (rawSisters is List) {
         final sisterMaps =
             rawSisters
-                .where((e) => e is Map)
+                .whereType<Map>()
                 .map<Map<String, dynamic>>(
-                  (e) => Map<String, dynamic>.from(e as Map),
+                  (e) => Map<String, dynamic>.from(e),
                 )
                 .toList();
         final convertedSisters = convertSisterInstanceIdentifiersToUserTime(

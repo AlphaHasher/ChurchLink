@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../helpers/localization_helper.dart';  // Adjust path if needed
+import 'package:app/helpers/localization_helper.dart';  // Adjust path if needed
 
 class DonationSuccessPage extends StatelessWidget {
   final String eventName;

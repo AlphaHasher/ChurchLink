@@ -386,7 +386,7 @@ END:VCALENDAR
                       ),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<MyEventsTypeFilter>(
-                        value: _typeFilter,
+                        initialValue: _typeFilter,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),
@@ -457,7 +457,7 @@ END:VCALENDAR
                       ),
                       const SizedBox(height: 4),
                       DropdownButtonFormField<MyEventsDateFilter>(
-                        value: _dateFilter,
+                        initialValue: _dateFilter,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           border: OutlineInputBorder(),

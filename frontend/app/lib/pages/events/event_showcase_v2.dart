@@ -519,8 +519,7 @@ END:VCALENDAR
                     children: [
                       Expanded(
                         child: Text(
-                          loc('Other upcoming events in the series') +
-                              ' (${otherSisters.length})',
+                          '${loc('Other upcoming events in the series')} (${otherSisters.length})',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
