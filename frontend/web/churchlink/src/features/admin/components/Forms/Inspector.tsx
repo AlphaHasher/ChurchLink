@@ -89,6 +89,11 @@ export function Inspector() {
             </div>
           </div>
         </div>
+
+        {/* Translations panel for price field label */}
+        <div className="border-t pt-3 mt-3">
+          <TranslationsPanel field={field} />
+        </div>
       </div>
     );
   }
@@ -268,6 +273,11 @@ export function Inspector() {
             <Input type="number" value={(field as any).amount ?? 0}
               onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
             <p className="text-xs text-muted-foreground">This is a display field that shows an individual price component.</p>
+          </div>
+
+          {/* Translations panel for pricelabel field */}
+          <div className="border-t pt-3 mt-3">
+            <TranslationsPanel field={field} />
           </div>
         </div>
       )}
