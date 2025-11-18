@@ -1,4 +1,4 @@
-describe('Admin – Bible Plans', () => {
+describe('Admin – WebBuilder Management', () => {
   beforeEach(() => {
     cy.loginWithBearer();
 
@@ -8,7 +8,7 @@ describe('Admin – Bible Plans', () => {
         success: true,
         permissions: {
           admin: true,
-          bible_plan_management: true,
+          web_builder_management: true,
         },
       },
     }).as('getPermissions');
@@ -23,38 +23,39 @@ describe('Admin – Bible Plans', () => {
       body: { language: 'en' },
     }).as('getUserLanguage');
 
-    // Mock bible plans API
-    cy.intercept('GET', '**/api/v1/bible-plans/**', {
+    // Mock pages API for webbuilder
+    cy.intercept('GET', '**/api/v1/pages/**', {
       statusCode: 200,
-      body: { plans: [], total: 0 },
-    }).as('getBiblePlans');
+      body: { pages: [], total: 0 },
+    }).as('getPages');
   });
 
-  it('loads manage bible plans page', () => {
-    cy.visit('/admin/bible-plans/manage-plans');
+  it('loads webbuilder main page', () => {
+    cy.visit('/admin/webbuilder');
     cy.wait('@getPermissions');
     
     cy.get('body').should(($body) => {
       const hasOverlay = $body.find('#vite-error-overlay, vite-error-overlay, .vite-error-overlay').length > 0;
       expect(hasOverlay, 'no Vite compile/runtime overlay').to.be.false;
     });
-    
-    cy.contains('Manage Bible Plans', { timeout: 10000 }).should('be.visible');
-    // Wait for grid to load - it may take time for the real API to respond
-    cy.get('.ag-theme-quartz', { timeout: 15000 }).should('be.visible');
+
+    cy.get('body').should('be.visible');
   });
 
-  it('page is interactive and searchable', () => {
-    cy.visit('/admin/bible-plans/manage-plans');
+  it('loads media library page', () => {
+    cy.visit('/admin/media-library');
     cy.wait('@getPermissions');
     
-    cy.contains('Manage Bible Plans', { timeout: 10000 }).should('be.visible');
-    // Check that search input exists
-    cy.get('input[placeholder*="Search"]', { timeout: 10000 }).should('be.visible');
+    cy.get('body').should(($body) => {
+      const hasOverlay = $body.find('#vite-error-overlay, vite-error-overlay, .vite-error-overlay').length > 0;
+      expect(hasOverlay, 'no Vite compile/runtime overlay').to.be.false;
+    });
+
+    cy.get('body').should('be.visible');
   });
 
-  it('loads bible plan builder page', () => {
-    cy.visit('/admin/bible-plans/plan-builder');
+  it('loads website settings page', () => {
+    cy.visit('/admin/webbuilder/settings');
     cy.wait('@getPermissions');
     
     cy.get('body').should(($body) => {
