@@ -849,10 +849,7 @@ class _UserSettingsState extends State<UserSettings> {
 
     return Scaffold(
       key: ValueKey(
-        'settings-' +
-            LocalizationHelper.currentLocale +
-            '-' +
-            LocalizationHelper.uiVersion.toString(),
+        'settings-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
       ),
       appBar: AppBar(
         title: Text(LocalizationHelper.localize("User Settings")),

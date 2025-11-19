@@ -495,7 +495,7 @@ class _FormFilterSheetState extends State<_FormFilterSheet> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
-              value: _selectedMinistry,
+              initialValue: _selectedMinistry,
               decoration: const InputDecoration(
                 labelText: 'Ministry',
                 prefixIcon: Icon(Icons.church),

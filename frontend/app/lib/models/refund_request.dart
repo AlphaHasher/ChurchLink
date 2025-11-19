@@ -1,7 +1,7 @@
 // refund_request.dart
 // Dart models for refund requests (user + shared core; no admin).
 
-import 'transactions.dart';
+import 'package:app/models/transactions.dart';
 
 enum RefundTxnKind { event, form }
 
@@ -175,28 +175,17 @@ class RefundRequestWithTransaction extends RefundRequest {
   RefundRequestWithTransaction({
     required this.id,
     required this.transaction,
-    required String uid,
-    required RefundTxnKind txnKind,
-    required String txnId,
-    required String message,
-    required bool responded,
-    required bool resolved,
-    String? reason,
-    required String createdOn,
-    String? respondedTo,
-    required List<RefundRequestHistoryItem> history,
-  }) : super(
-         uid: uid,
-         txnKind: txnKind,
-         txnId: txnId,
-         message: message,
-         responded: responded,
-         resolved: resolved,
-         reason: reason,
-         createdOn: createdOn,
-         respondedTo: respondedTo,
-         history: history,
-       );
+    required super.uid,
+    required super.txnKind,
+    required super.txnId,
+    required super.message,
+    required super.responded,
+    required super.resolved,
+    super.reason,
+    required super.createdOn,
+    super.respondedTo,
+    required super.history,
+  });
 
   factory RefundRequestWithTransaction.fromJson(Map<String, dynamic> json) {
     final base = RefundRequest.fromJson(json);

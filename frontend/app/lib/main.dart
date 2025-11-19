@@ -121,19 +121,13 @@ class MyApp extends StatelessWidget {
                 kTestMode
                     ? MyHomePage(
                       key: ValueKey(
-                        'home-' +
-                            LocalizationHelper.currentLocale +
-                            '-' +
-                            LocalizationHelper.uiVersion.toString(),
+                        'home-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
                       ),
                     )
                     : AuthGate(
                       child: MyHomePage(
                         key: ValueKey(
-                          'home-' +
-                              LocalizationHelper.currentLocale +
-                              '-' +
-                              LocalizationHelper.uiVersion.toString(),
+                          'home-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
                         ),
                       ),
                     ),
@@ -240,12 +234,7 @@ class _MyHomePageState extends State<MyHomePage> {
         offstage: !isActive,
         child: Navigator(
           key: ValueKey(
-            'nav-$tabName-' +
-                LocalizationHelper.currentLocale +
-                '-' +
-                LocalizationHelper.uiVersion.toString() +
-                '-' +
-                (_tabReloadVersion[tabName] ?? 0).toString(),
+            'nav-$tabName-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}-${_tabReloadVersion[tabName] ?? 0}',
           ),
           onGenerateRoute:
               (settings) => MaterialPageRoute(
@@ -341,10 +330,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         bottomNavigationBar: BottomNavigationBar(
           key: ValueKey(
-            'nav-' +
-                LocalizationHelper.currentLocale +
-                '-' +
-                LocalizationHelper.uiVersion.toString(),
+            'nav-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
           ),
           type: BottomNavigationBarType.fixed,
           currentIndex: tabProvider.currentIndex,

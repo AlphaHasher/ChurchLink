@@ -1,6 +1,7 @@
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 import { Button } from "@/shared/components/ui/button";
+import { Textarea } from "@/shared/components/ui/textarea";
 import { useBuilderStore } from "./store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
@@ -40,7 +41,7 @@ export function TranslationsPanel({ field }: TranslationsPanelProps) {
   const setTranslation = (locale: string, property: string, value: string) => {
     setTranslations(field.id, locale, property, value);
   };
-  
+
   const handleTranslateLocale = async (locale: string) => {
     setError(null);
     const result = await translateField(field, [locale]);
@@ -55,7 +56,7 @@ export function TranslationsPanel({ field }: TranslationsPanelProps) {
       clearCustomLocales([locale]);
     }
   };
-  
+
   const handleTranslateAll = async () => {
     setError(null);
     const result = await translateField(field, supportedLocales);
@@ -99,11 +100,18 @@ export function TranslationsPanel({ field }: TranslationsPanelProps) {
           )}
         </Button>
       </div>
-      
+
+      {/* Auto-generated notice for price fields */}
+      {field.type === 'price' && (
+        <div className="text-xs text-muted-foreground bg-muted border rounded p-2">
+          ℹ️ Payment method translations are automatically generated when new locales are added.
+        </div>
+      )}
+
       {error && (
         <div className="text-xs text-destructive">{error}</div>
       )}
-      
+
       <Tabs defaultValue={supportedLocales[0] || "es"} className="w-full">
         <TabsList className="w-full justify-start bg-muted">
           {supportedLocales.map((locale) => (
@@ -142,7 +150,7 @@ export function TranslationsPanel({ field }: TranslationsPanelProps) {
               </CardHeader>
               <CardContent className="space-y-3">
                 {/* Label translation */}
-                {field.type !== 'static' && field.type !== 'price' && (
+                {field.type !== 'static' && (
                   <div className="space-y-1">
                     <Label className="text-xs">Label ({locale})</Label>
                     <Input
@@ -171,7 +179,7 @@ export function TranslationsPanel({ field }: TranslationsPanelProps) {
                     />
                   </div>
                 )}
-                
+
                 {/* Content translation (for static text) */}
                 {field.type === "static" && (
                   <div className="space-y-1">
@@ -201,6 +209,104 @@ export function TranslationsPanel({ field }: TranslationsPanelProps) {
                           />
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Payment method text translations */}
+                {field.type === "price" && (
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">PayPal Required Title</Label>
+                      <Input
+                        placeholder="PayPal Payment Required"
+                        value={getTranslation(locale, "paypal_required")}
+                        onChange={(e) => setTranslation(locale, "paypal_required", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">PayPal Description</Label>
+                      <Textarea
+                        placeholder="This form requires payment through PayPal..."
+                        value={getTranslation(locale, "paypal_description")}
+                        onChange={(e) => setTranslation(locale, "paypal_description", e.target.value)}
+                        className="text-sm"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">PayPal Option</Label>
+                      <Input
+                        placeholder="Pay with PayPal"
+                        value={getTranslation(locale, "paypal_option")}
+                        onChange={(e) => setTranslation(locale, "paypal_option", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">PayPal Hint</Label>
+                      <Input
+                        placeholder="(Secure online payment)"
+                        value={getTranslation(locale, "paypal_hint")}
+                        onChange={(e) => setTranslation(locale, "paypal_hint", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">In-Person Required Title</Label>
+                      <Input
+                        placeholder="In-Person Payment Required"
+                        value={getTranslation(locale, "inperson_required")}
+                        onChange={(e) => setTranslation(locale, "inperson_required", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">In-Person Description</Label>
+                      <Textarea
+                        placeholder="This payment will be collected in-person..."
+                        value={getTranslation(locale, "inperson_description")}
+                        onChange={(e) => setTranslation(locale, "inperson_description", e.target.value)}
+                        className="text-sm"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">In-Person Option</Label>
+                      <Input
+                        placeholder="Pay In-Person"
+                        value={getTranslation(locale, "inperson_option")}
+                        onChange={(e) => setTranslation(locale, "inperson_option", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">In-Person Hint</Label>
+                      <Input
+                        placeholder="(Pay at location)"
+                        value={getTranslation(locale, "inperson_hint")}
+                        onChange={(e) => setTranslation(locale, "inperson_hint", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Choose Method Text</Label>
+                      <Input
+                        placeholder="Choose Payment Method:"
+                        value={getTranslation(locale, "choose_method")}
+                        onChange={(e) => setTranslation(locale, "choose_method", e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">No Methods Warning</Label>
+                      <Input
+                        placeholder="No payment methods configured"
+                        value={getTranslation(locale, "no_methods")}
+                        onChange={(e) => setTranslation(locale, "no_methods", e.target.value)}
+                        className="text-sm"
+                      />
                     </div>
                   </div>
                 )}

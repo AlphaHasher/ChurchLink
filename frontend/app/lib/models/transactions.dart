@@ -1,4 +1,4 @@
-import 'donations.dart';
+import 'package:app/models/donations.dart';
 import 'package:app/helpers/time_formatter.dart';
 
 enum TransactionKind {

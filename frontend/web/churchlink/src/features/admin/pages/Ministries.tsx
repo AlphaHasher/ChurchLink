@@ -344,15 +344,14 @@ const Ministries = () => {
                             <div className="space-y-2">
                                 <p>Are you sure you want to delete "{deleteTarget?.name}"?</p>
                                 <p className="font-semibold">
-                                    This will remove the ministry reference from:
+                                    Deleting a ministry removes its association from all linked content but does not delete the content itself. This includes:
                                 </p>
                                 <ul className="list-disc list-inside space-y-1 text-sm">
-                                    <li>All forms that use this ministry</li>
-                                    <li>All events that use this ministry</li>
-                                    <li>All sermons that use this ministry</li>
-                                    <li>All bulletins that use this ministry</li>
+                                    <li>Forms</li>
+                                    <li>Events</li>
+                                    <li>Sermons</li>
+                                    <li>Bulletins</li>
                                 </ul>
-                                <p className="text-sm font-medium text-muted-foreground">The content will not be deleted, only the ministry association.</p>
                             </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>

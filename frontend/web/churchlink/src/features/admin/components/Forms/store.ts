@@ -295,9 +295,15 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     const fieldTrans = s.translations[fieldId] || {};
     const localeTrans = fieldTrans[locale] || {};
 
-    // Ensure the locale is tracked as a custom (manually-entered) locale
+    // Check if this is a price field - price fields should never be marked as custom
+    const field = s.schema.data.find((f: AnyField) => f.id === fieldId);
+    const isPriceField = field?.type === 'price';
+
+    // Ensure the locale is tracked as a custom (manually-entered) locale (except for price fields)
     const newCustom = new Set(s.customLocales);
-    newCustom.add(locale);
+    if (!isPriceField) {
+      newCustom.add(locale);
+    }
 
     // If property is option_N, store in options object (overwrite unconditionally)
     const optionMatch = property.match(/^option_(\d+)$/);
@@ -319,8 +325,16 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         customLocales: newCustom,
       };
     } else {
-      // Set label/placeholder/helpText/content unconditionally
-      if (property === 'label' || property === 'placeholder' || property === 'helpText' || property === 'content') {
+      // Set standard properties unconditionally
+      const allowedProperties = [
+        'label', 'placeholder', 'helpText', 'content',
+        // Price field payment method properties
+        'paypal_required', 'paypal_description', 'paypal_option', 'paypal_hint',
+        'inperson_required', 'inperson_description', 'inperson_option', 'inperson_hint',
+        'choose_method', 'no_methods', 'paypal_submit', 'inperson_submit'
+      ];
+
+      if (allowedProperties.includes(property)) {
         return {
           translations: {
             ...s.translations,

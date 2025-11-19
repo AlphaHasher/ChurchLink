@@ -9,8 +9,12 @@ import { useMemo, useState } from 'react';
 import PreviewUnavailableAlert from './PreviewUnavailableAlert';
 import type { AnyField } from "./types";
 import { getBoundsViolations, getOptionViolations } from "./validation";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 export function PreviewRenderer() {
+  const localize = useLocalize();
   const schema = useBuilderStore((s: BuilderState) => s.schema);
+  const activeLocale = useBuilderStore((s) => s.activeLocale);
+  const translations = useBuilderStore((s) => s.translations);
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const optionViolations = useMemo(() => getOptionViolations(schema), [schema]);
   const zodSchema = schemaToZodObject(schema);
@@ -39,6 +43,26 @@ export function PreviewRenderer() {
   });
   const values = form.watch();
   const [status, setStatus] = useState<string | null>(null);
+
+  // Find the active price field for translations
+  // We prefer the first visible price field, as that's likely the one the user is interacting with
+  const activePriceField = useMemo(() => {
+    const visiblePrice = (schema.data as AnyField[]).find(f =>
+      f.type === 'price' && evaluateVisibility((f as any).visibleIf, values)
+    );
+    return visiblePrice || (schema.data as AnyField[]).find(f => f.type === 'price');
+  }, [schema.data, values]);
+
+  // Translation function for payment buttons
+  const tPayment = (key: string, base: string) => {
+    if (!activePriceField) return base;
+    if (!activeLocale || activeLocale === 'en') return base;
+    const fieldTranslations = translations[activePriceField.id]?.[activeLocale];
+    if (!fieldTranslations) return base;
+    const val = (fieldTranslations as any)[key];
+    return (val != null && val !== '') ? val : base;
+  };
+
   // If there are any bounds violations, show the reusable preview-unavailable alert
   if (boundsViolations.length > 0) {
     return (
@@ -139,6 +163,7 @@ export function PreviewRenderer() {
           const total = computeTotal();
           const hasPayment = total > 0;
 
+
           // For forms with payment (preview mode)
           if (hasPayment) {
             // Scenario 1: PayPal Only
@@ -152,7 +177,7 @@ export function PreviewRenderer() {
                     <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                       <span className="text-blue-600 text-xs font-bold">P</span>
                     </div>
-                    Pay with PayPal & Submit
+                    {tPayment('paypal_submit', localize('Pay with PayPal & Submit'))}
                   </span>
                 </Button>
               );
@@ -169,7 +194,7 @@ export function PreviewRenderer() {
                     <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                       <span className="text-green-600 text-xs">💵</span>
                     </div>
-                    Submit Form (Pay In-Person Later)
+                    {tPayment('inperson_submit', localize('Submit Form (Pay In-Person Later)'))}
                   </span>
                 </Button>
               );
@@ -194,7 +219,7 @@ export function PreviewRenderer() {
                       <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                         <span className="text-blue-600 text-xs font-bold">P</span>
                       </div>
-                      Pay with PayPal & Submit
+                      {tPayment('paypal_submit', localize('Pay with PayPal & Submit'))}
                     </span>
                   </Button>
                 );
@@ -208,7 +233,7 @@ export function PreviewRenderer() {
                       <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                         <span className="text-green-600 text-xs">💵</span>
                       </div>
-                      Submit Form (Pay In-Person Later)
+                      {tPayment('inperson_submit', localize('Submit Form (Pay In-Person Later)'))}
                     </span>
                   </Button>
                 );
