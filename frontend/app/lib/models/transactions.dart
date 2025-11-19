@@ -1,7 +1,5 @@
-// transactions.dart
-// Dart models for unified transactions (non-admin).
-
 import 'donations.dart';
+import 'package:app/helpers/time_formatter.dart';
 
 enum TransactionKind {
   donationOneTime,
@@ -524,15 +522,25 @@ class TransactionsResults {
   });
 
   factory TransactionsResults.fromJson(Map<String, dynamic> json) {
+    // Raw list from the API.
+    final rawItems =
+        (json['items'] as List<dynamic>? ?? [])
+            .map<Map<String, dynamic>>(
+              (e) => Map<String, dynamic>.from(e as Map),
+            )
+            .toList();
+
+    // Normalize created_at / updated_at into the correct user/admin timezone.
+    final convertedItemsMaps = convertTransactionSummaryToUserTime(rawItems);
+
+    // Now build strongly typed models from the converted maps.
+    final items =
+        convertedItemsMaps
+            .map<TransactionSummary>((e) => TransactionSummary.fromJson(e))
+            .toList();
+
     return TransactionsResults(
-      items:
-          (json['items'] as List<dynamic>? ?? [])
-              .map(
-                (e) => TransactionSummary.fromJson(
-                  Map<String, dynamic>.from(e as Map),
-                ),
-              )
-              .toList(),
+      items: items,
       page: (json['page'] as num?)?.toInt() ?? 0,
       pageSize: (json['page_size'] as num?)?.toInt() ?? 0,
       hasMore: json['has_more'] as bool? ?? false,

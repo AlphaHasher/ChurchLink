@@ -93,11 +93,6 @@ export async function fetchMyRefundRequests(
             };
         }
 
-        console.log("TEST BEFORE");
-        console.log(data.items);
-        console.log("TEST AFTER");
-        console.log(convertRefundRequestsToUserTime(data.items));
-
         return {
             items: convertRefundRequestsToUserTime(data.items) ?? [],
             total: data.total ?? data.items.length,
