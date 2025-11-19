@@ -946,6 +946,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
       );
 
       if (pending == null) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -978,6 +979,8 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
               'Your payment was already processed. Your form response is saved.';
           break;
       }
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
@@ -1320,7 +1323,7 @@ class _FormSubmitPageState extends State<FormSubmitPage> {
                       key: Key('form-instance-$_formInstanceId'),
                       physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: visibleFields.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final f = visibleFields[index];
                         return _buildField(f);

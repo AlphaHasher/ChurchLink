@@ -99,12 +99,13 @@ class _ViewRefundRequestsPageState extends State<ViewRefundRequestsPage> {
     } catch (e, st) {
       debugPrint('fetchMyRefundRequests failed: $e\n$st');
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isInitialLoading = false;
-        _isRefreshing = false;
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _isRefreshing = false;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -153,7 +154,7 @@ class _ViewRefundRequestsPageState extends State<ViewRefundRequestsPage> {
                   decoration: InputDecoration(
                     labelText: localize('Transaction Type'),
                   ),
-                  value: tempKind,
+                  initialValue: tempKind,
                   items: [
                     DropdownMenuItem<RefundTxnKind?>(
                       value: null,
@@ -179,7 +180,7 @@ class _ViewRefundRequestsPageState extends State<ViewRefundRequestsPage> {
               Widget buildStatusDropdown() {
                 return DropdownButtonFormField<RefundRequestStatus>(
                   decoration: InputDecoration(labelText: localize('Status')),
-                  value: tempStatus,
+                  initialValue: tempStatus,
                   items: [
                     DropdownMenuItem<RefundRequestStatus>(
                       value: RefundRequestStatus.all,
@@ -279,7 +280,7 @@ class _ViewRefundRequestsPageState extends State<ViewRefundRequestsPage> {
             'View the refund requests you have submitted for your payments.',
           ),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
         const SizedBox(height: 12),
@@ -310,7 +311,7 @@ class _ViewRefundRequestsPageState extends State<ViewRefundRequestsPage> {
               Text(
                 '${localize("Total")}: $_total',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),
           ],

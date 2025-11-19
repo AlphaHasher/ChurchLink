@@ -163,12 +163,13 @@ class _EventsPageState extends State<EventsPage> {
     } catch (e, st) {
       debugPrint('fetchUserEvents failed: $e\n$st');
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isInitialLoading = false;
-        _isRefreshing = false;
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _isRefreshing = false;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -234,7 +235,7 @@ class _EventsPageState extends State<EventsPage> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final infoStyle = textTheme.bodySmall?.copyWith(
-              color: textTheme.bodySmall?.color?.withOpacity(0.7),
+              color: textTheme.bodySmall?.color?.withValues(alpha: 0.7),
             );
 
             return Padding(
@@ -261,7 +262,7 @@ class _EventsPageState extends State<EventsPage> {
                       decoration: InputDecoration(
                         labelText: localize('Gender admission'),
                       ),
-                      value: tempGender,
+                      initialValue: tempGender,
                       items:
                           const <String>[
                             'all',
@@ -371,7 +372,7 @@ class _EventsPageState extends State<EventsPage> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: theme.dividerColor.withOpacity(0.5),
+                          color: theme.dividerColor.withValues(alpha: 0.5),
                         ),
                       ),
                       child: Theme(
@@ -689,11 +690,13 @@ END:VCALENDAR
         mimeType: 'text/calendar',
         name: 'event_${event.id}.ics',
       );
-      await Share.shareXFiles(
-        [xfile],
-        subject: LocalizationHelper.localize('Add to Calendar'),
-        text: LocalizationHelper.localize(
-          'Open this to add the event to your calendar.',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [xfile],
+          subject: LocalizationHelper.localize('Add to Calendar'),
+          text: LocalizationHelper.localize(
+            'Open this to add the event to your calendar.',
+          ),
         ),
       );
     }

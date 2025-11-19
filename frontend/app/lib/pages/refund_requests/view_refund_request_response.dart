@@ -344,8 +344,8 @@ class _ViewRefundRequestResponsePageState
                       Text(
                         typeLabel,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.textTheme.bodySmall?.color?.withOpacity(
-                            0.75,
+                          color: theme.textTheme.bodySmall?.color?.withValues(
+                            alpha: 0.75,
                           ),
                         ),
                       ),
@@ -406,7 +406,9 @@ class _ViewRefundRequestResponsePageState
             Text(
               userMessage,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.85),
+                color: theme.textTheme.bodySmall?.color?.withValues(
+                  alpha: 0.85,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -427,8 +429,8 @@ class _ViewRefundRequestResponsePageState
                   child: Text(
                     responseText,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color?.withOpacity(
-                        0.85,
+                      color: theme.textTheme.bodySmall?.color?.withValues(
+                        alpha: 0.85,
                       ),
                     ),
                   ),
@@ -620,7 +622,8 @@ class _ViewRefundRequestResponsePageState
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.3),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,7 +665,7 @@ class _ViewRefundRequestResponsePageState
                             '${localize("Responded")}: $respondedText',
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.textTheme.bodySmall?.color
-                                  ?.withOpacity(0.8),
+                                  ?.withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -677,8 +680,9 @@ class _ViewRefundRequestResponsePageState
                         Text(
                           userMessage,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.textTheme.bodySmall?.color
-                                ?.withOpacity(0.85),
+                            color: theme.textTheme.bodySmall?.color?.withValues(
+                              alpha: 0.85,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -732,7 +736,9 @@ class _ViewRefundRequestResponsePageState
                 'If you still need help with this payment, you can send a new refund request describing what you are asking for. This will not change the status of the current request.',
               ),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.85),
+                color: theme.textTheme.bodySmall?.color?.withValues(
+                  alpha: 0.85,
+                ),
               ),
             ),
             const SizedBox(height: 12),

@@ -149,7 +149,7 @@ class EventCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -350,8 +350,8 @@ class EventCard extends StatelessWidget {
                       AssetHelper.getPublicUrl(event.imageId),
                       fit: BoxFit.cover,
                       errorBuilder:
-                          (_, __, ___) => Container(
-                            color: theme.colorScheme.surfaceVariant,
+                          (_, _, _) => Container(
+                            color: theme.colorScheme.surfaceContainerHighest,
                             alignment: Alignment.center,
                             child: const Icon(Icons.event, size: 40),
                           ),
@@ -365,8 +365,8 @@ class EventCard extends StatelessWidget {
                           begin: Alignment.bottomCenter,
                           end: Alignment.topCenter,
                           colors: [
-                            Colors.black.withOpacity(0.55),
-                            Colors.black.withOpacity(0.15),
+                            Colors.black.withValues(alpha: 0.55),
+                            Colors.black.withValues(alpha: 0.15),
                             Colors.transparent,
                           ],
                         ),
@@ -399,7 +399,7 @@ class EventCard extends StatelessWidget {
                           background:
                               isRecurring
                                   ? const Color(0xFF4F46E5) // indigo-600
-                                  : Colors.white.withOpacity(0.9),
+                                  : Colors.white.withValues(alpha: 0.9),
                           textColor:
                               isRecurring
                                   ? Colors.white
@@ -425,7 +425,7 @@ class EventCard extends StatelessWidget {
                           color:
                               isFavorited
                                   ? Colors.redAccent
-                                  : Colors.white.withOpacity(0.9),
+                                  : Colors.white.withValues(alpha: 0.9),
                         ),
                         onPressed: () => onFavoriteChanged!(!isFavorited),
                       ),
@@ -478,7 +478,7 @@ class EventCard extends StatelessWidget {
                             location,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.textTheme.bodyMedium?.color
-                                  ?.withOpacity(0.8),
+                                  ?.withValues(alpha: 0.8),
                             ),
                           ),
                         ),
@@ -500,7 +500,7 @@ class EventCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.textTheme.bodyMedium?.color
-                                  ?.withOpacity(0.85),
+                                  ?.withValues(alpha: 0.85),
                             ),
                           ),
                         ),
@@ -515,8 +515,8 @@ class EventCard extends StatelessWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color?.withOpacity(
-                          0.85,
+                        color: theme.textTheme.bodySmall?.color?.withValues(
+                          alpha: 0.85,
                         ),
                       ),
                     ),

@@ -260,7 +260,9 @@ class UserHelper {
           if (code.isNotEmpty) return code;
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      //fall
+    }
     return 'en';
   }
 

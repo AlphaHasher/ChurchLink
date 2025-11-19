@@ -142,7 +142,7 @@ class EventMapCard extends StatelessWidget {
                 Icon(
                   Icons.map_outlined,
                   size: 18,
-                  color: theme.iconTheme.color?.withOpacity(0.8),
+                  color: theme.iconTheme.color?.withValues(alpha: 0.8),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -165,7 +165,7 @@ class EventMapCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: theme.colorScheme.outline.withOpacity(0.3),
+                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
                     ),
                   ),
                   child: AspectRatio(
@@ -179,8 +179,7 @@ class EventMapCard extends StatelessWidget {
                                   staticUrl,
                                   fit: BoxFit.cover,
                                   errorBuilder:
-                                      (_, __, ___) =>
-                                          _buildPlaceholder(context),
+                                      (_, _, _) => _buildPlaceholder(context),
                                 ),
                                 // Overlay "Open in Maps"
                                 Align(
@@ -192,7 +191,9 @@ class EventMapCard extends StatelessWidget {
                                       vertical: 6,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.6),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.6,
+                                      ),
                                       borderRadius: BorderRadius.circular(999),
                                     ),
                                     child: Row(
@@ -233,7 +234,7 @@ class EventMapCard extends StatelessWidget {
                 Icon(
                   Icons.place_outlined,
                   size: 18,
-                  color: theme.iconTheme.color?.withOpacity(0.8),
+                  color: theme.iconTheme.color?.withValues(alpha: 0.8),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -251,8 +252,9 @@ class EventMapCard extends StatelessWidget {
                         Text(
                           locationInfo!.trim(),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.textTheme.bodySmall?.color
-                                ?.withOpacity(0.7),
+                            color: theme.textTheme.bodySmall?.color?.withValues(
+                              alpha: 0.7,
+                            ),
                             height: 1.4,
                           ),
                         ),
@@ -273,7 +275,7 @@ class EventMapCard extends StatelessWidget {
     final localize = LocalizationHelper.localize;
 
     return Container(
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.4),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -281,14 +283,14 @@ class EventMapCard extends StatelessWidget {
             Icon(
               Icons.location_off_outlined,
               size: 28,
-              color: theme.iconTheme.color?.withOpacity(0.55),
+              color: theme.iconTheme.color?.withValues(alpha: 0.55),
             ),
             const SizedBox(height: 8),
             Text(
               localize('No Map Provided'),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.8),
               ),
             ),
           ],

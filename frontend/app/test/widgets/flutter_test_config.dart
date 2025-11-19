@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:app/helpers/logger.dart';
 import 'package:flutter/material.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
@@ -6,7 +7,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   FlutterError.onError = (FlutterErrorDetails details) {
     final exception = details.exception;
     final message = details.exceptionAsString();
-    
+
     // Filter out image-related errors
     if (exception is ArgumentError ||
         message.contains('No host specified in URI') ||
@@ -14,7 +15,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
         message.contains('CachedNetworkImageProvider')) {
       return; // Silently ignore
     }
-    
+
     FlutterError.presentError(details);
   };
 
@@ -25,16 +26,16 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     },
     (error, stack) {
       final errorString = error.toString();
-      
+
       // Filter out image-related errors
       if (error is ArgumentError ||
           errorString.contains('No host specified in URI') ||
           errorString.contains('CachedNetworkImageProvider')) {
         return; // Silently ignore
       }
-      
+
       // Print other errors (or throw them)
-      print('Unhandled error: $error\n$stack');
+      logger.e('Unhandled error: $error\n$stack');
     },
   );
 }

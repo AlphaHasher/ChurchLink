@@ -85,8 +85,9 @@ class RefundRequestCard extends StatelessWidget {
                                 createdText,
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   fontSize: 12,
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.7),
+                                  color: theme.colorScheme.onSurface.withValues(
+                                    alpha: 0.7,
+                                  ),
                                 ),
                               ),
                             ],
@@ -119,7 +120,9 @@ class RefundRequestCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.85),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.85,
+                        ),
                       ),
                     ),
                     if (respondedText != null) ...[
@@ -128,7 +131,9 @@ class RefundRequestCard extends StatelessWidget {
                         '${localize("Responded")}: $respondedText',
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 12,
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],

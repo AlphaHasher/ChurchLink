@@ -24,7 +24,7 @@ class _GivingState extends State<Giving> {
 
   bool _isRecurring = false;
   DonationInterval _interval = DonationInterval.month;
-  DonationCurrency _currency = DonationCurrency.usd;
+  final DonationCurrency _currency = DonationCurrency.usd;
 
   String _churchName = 'Your Church Name';
   Map<String, String> _churchAddress = {
@@ -271,6 +271,8 @@ class _GivingState extends State<Giving> {
           return;
         }
 
+        if (!mounted) return;
+
         await Navigator.of(context).push(
           MaterialPageRoute(
             builder:
@@ -453,7 +455,7 @@ class _GivingState extends State<Giving> {
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<DonationInterval>(
-                value: _interval,
+                initialValue: _interval,
                 items:
                     DonationInterval.values
                         .map(

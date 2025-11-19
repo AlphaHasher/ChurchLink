@@ -207,25 +207,31 @@ class PriceFormComponent extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Column(
-              children: [
-                RadioListTile<FormPaymentType>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: FormPaymentType.paypal,
-                  groupValue: selected,
-                  onChanged: onChangedPaymentType,
-                  title: Text(localize('Pay with PayPal')),
-                ),
-                RadioListTile<FormPaymentType>(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  value: FormPaymentType.door,
-                  groupValue: selected,
-                  onChanged: onChangedPaymentType,
-                  title: Text(localize('Pay in person')),
-                ),
-              ],
+            RadioGroup<FormPaymentType>(
+              groupValue: selected,
+              onChanged: (FormPaymentType? value) {
+                if (value != null) {
+                  onChangedPaymentType!(value);
+                }
+              },
+              child: Column(
+                children: [
+                  RadioListTile<FormPaymentType>(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: FormPaymentType.paypal,
+                    // no groupValue / onChanged here
+                    title: Text(localize('Pay with PayPal')),
+                  ),
+                  RadioListTile<FormPaymentType>(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: FormPaymentType.door,
+                    // no groupValue / onChanged here
+                    title: Text(localize('Pay in person')),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

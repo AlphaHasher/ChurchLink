@@ -138,7 +138,7 @@ class _CreateRefundRequestPageState extends State<CreateRefundRequestPage> {
     final createdAt = tx.createdAt; // adjust to your actual field type/name
     final updatedAt = tx.updatedAt; // may be null
 
-    String _formatDate(dynamic value) {
+    String formatDate(dynamic value) {
       if (value == null) return '';
       if (value is String) return value;
       if (value is DateTime) {
@@ -193,7 +193,7 @@ class _CreateRefundRequestPageState extends State<CreateRefundRequestPage> {
               ],
             ),
             const SizedBox(height: 12),
-            Divider(color: theme.dividerColor.withOpacity(0.4)),
+            Divider(color: theme.dividerColor.withValues(alpha: 0.4)),
             const SizedBox(height: 8),
             // Amounts
             Row(
@@ -223,14 +223,14 @@ class _CreateRefundRequestPageState extends State<CreateRefundRequestPage> {
               value: net != null ? '\$${net.toStringAsFixed(2)}' : '—',
             ),
             const SizedBox(height: 12),
-            Divider(color: theme.dividerColor.withOpacity(0.4)),
+            Divider(color: theme.dividerColor.withValues(alpha: 0.4)),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: _SummaryLine(
                     label: localize('Created'),
-                    value: _formatDate(createdAt),
+                    value: formatDate(createdAt),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -238,7 +238,7 @@ class _CreateRefundRequestPageState extends State<CreateRefundRequestPage> {
                   Expanded(
                     child: _SummaryLine(
                       label: localize('Updated'),
-                      value: _formatDate(updatedAt),
+                      value: formatDate(updatedAt),
                     ),
                   ),
               ],

@@ -269,6 +269,7 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
     );
 
     if (pending == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -325,7 +326,7 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
       appBar: AppBar(
         title: AnimatedBuilder(
           animation: helper,
-          builder: (_, __) => Text(helper.headerLabel),
+          builder: (_, _) => Text(helper.headerLabel),
         ),
       ),
       body: AnimatedBuilder(
@@ -402,7 +403,9 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
                   Text(
                     localize('Choose who’s attending and how you’ll pay.'),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                      color: theme.textTheme.bodySmall?.color?.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                   ),
                 ],
@@ -926,7 +929,7 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: bg.withOpacity(0.8)),
+        border: Border.all(color: bg.withValues(alpha: 0.8)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -992,121 +995,124 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
                 ],
               )
             else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      if (helper.canUsePayPal)
-                        InkWell(
-                          onTap: () => helper.setMethod(PaymentMethod.paypal),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Radio<PaymentMethod>(
-                                value: PaymentMethod.paypal,
-                                groupValue: helper.method,
-                                onChanged:
-                                    (_) =>
-                                        helper.setMethod(PaymentMethod.paypal),
-                              ),
-                              const Icon(Icons.credit_card, size: 18),
-                              const SizedBox(width: 4),
-                              Text(localize('Pay online')),
-                            ],
+              RadioGroup<PaymentMethod>(
+                groupValue: helper.method,
+                onChanged: (PaymentMethod? newMethod) {
+                  if (newMethod != null) {
+                    helper.setMethod(newMethod);
+                  }
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        if (helper.canUsePayPal)
+                          InkWell(
+                            onTap: () => helper.setMethod(PaymentMethod.paypal),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Radio<PaymentMethod>(
+                                  value: PaymentMethod.paypal,
+                                  // no groupValue / onChanged here anymore
+                                ),
+                                const Icon(Icons.credit_card, size: 18),
+                                const SizedBox(width: 4),
+                                Text(localize('Pay online')),
+                              ],
+                            ),
                           ),
-                        ),
-                      if (helper.canUseDoor)
-                        InkWell(
-                          onTap: () => helper.setMethod(PaymentMethod.door),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                        if (helper.canUseDoor)
+                          InkWell(
+                            onTap: () => helper.setMethod(PaymentMethod.door),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Radio<PaymentMethod>(
+                                  value: PaymentMethod.door,
+                                  // no groupValue / onChanged here either
+                                ),
+                                const Icon(
+                                  Icons.door_front_door_outlined,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(localize('Pay at door')),
+                              ],
+                            ),
+                          ),
+                        if (!helper.canUseDoor && !helper.canUsePayPal)
+                          Row(
                             children: [
-                              Radio<PaymentMethod>(
-                                value: PaymentMethod.door,
-                                groupValue: helper.method,
-                                onChanged:
-                                    (_) => helper.setMethod(PaymentMethod.door),
-                              ),
                               const Icon(
-                                Icons.door_front_door_outlined,
+                                Icons.warning_amber_rounded,
                                 size: 18,
+                                color: Color(0xFFB91C1C),
                               ),
                               const SizedBox(width: 4),
-                              Text(localize('Pay at door')),
+                              Text(
+                                localize('No payment methods available'),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: const Color(0xFFB91C1C),
+                                ),
+                              ),
                             ],
                           ),
+                      ],
+                    ),
+                    if (helper.showPayPalFeeWarning) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFBEB),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFCD34D)),
                         ),
-                      if (!helper.canUseDoor && !helper.canUsePayPal)
-                        Row(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Icon(
                               Icons.warning_amber_rounded,
-                              size: 18,
-                              color: Color(0xFFB91C1C),
+                              size: 16,
+                              color: Color(0xFF92400E),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              localize('No payment methods available'),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: const Color(0xFFB91C1C),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    localize(
+                                      'PayPal refunds do not include fees',
+                                    ),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF92400E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    localize(
+                                      'If you pay online using PayPal and later unregister from this event, automatic refunds will return only the ticket amount. Any transaction fees charged by PayPal are non-refundable and will not be returned.',
+                                    ),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: const Color(0xFF92400E),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
+                      ),
                     ],
-                  ),
-                  if (helper.showPayPalFeeWarning) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFFCD34D)),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            size: 16,
-                            color: Color(0xFF92400E),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  localize(
-                                    'PayPal refunds do not include fees',
-                                  ),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF92400E),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  localize(
-                                    'If you pay online using PayPal and later unregister from this event, automatic refunds will return only the ticket amount. Any transaction fees charged by PayPal are non-refundable and will not be returned.',
-                                  ),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: const Color(0xFF92400E),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
           ],
         ),
@@ -1328,7 +1334,9 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
                     ),
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: 11,
-                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                      color: theme.textTheme.bodySmall?.color?.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                   ),
                 ],
@@ -1425,7 +1433,9 @@ class _RegistrationPaymentPageState extends State<RegistrationPaymentPage> {
               child: Text(
                 helperText(),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                  color: theme.textTheme.bodySmall?.color?.withValues(
+                    alpha: 0.7,
+                  ),
                 ),
               ),
             ),

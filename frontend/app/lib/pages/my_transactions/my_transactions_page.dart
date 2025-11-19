@@ -115,12 +115,13 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
     } catch (e, st) {
       debugPrint('fetchMyTransactions failed: $e\n$st');
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isInitialLoading = false;
-        _isRefreshing = false;
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _isRefreshing = false;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -185,7 +186,7 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
               Widget buildKindDropdown() {
                 return DropdownButtonFormField<TransactionKind?>(
                   decoration: InputDecoration(labelText: localize('Type')),
-                  value: tempKind,
+                  initialValue: tempKind,
                   items: [
                     DropdownMenuItem<TransactionKind?>(
                       value: null,
@@ -224,7 +225,7 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
               Widget buildSortDropdown() {
                 return DropdownButtonFormField<TransactionSortMode>(
                   decoration: InputDecoration(labelText: localize('Sort by')),
-                  value: tempSort,
+                  initialValue: tempSort,
                   items: [
                     DropdownMenuItem<TransactionSortMode>(
                       value: TransactionSortMode.createdDesc,
@@ -247,7 +248,7 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
               Widget buildStatusDropdown() {
                 return DropdownButtonFormField<String>(
                   decoration: InputDecoration(labelText: localize('Status')),
-                  value: tempStatusId,
+                  initialValue: tempStatusId,
                   items:
                       tempStatusOptions
                           .map(
@@ -352,7 +353,7 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
             'If something looks off, consider your bank information as the ultimate source of truth.',
           ),
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.7),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ],

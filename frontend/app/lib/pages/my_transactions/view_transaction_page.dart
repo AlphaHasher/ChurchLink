@@ -96,14 +96,14 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
     final createdAt = tx.createdAt;
     final updatedAt = tx.updatedAt;
 
-    String _formatDate(dynamic value) {
+    String formatDate(dynamic value) {
       if (value == null) return '';
 
       // Normalize to string first.
-      final String? raw = value is String ? value : value.toString();
+      final String raw = value is String ? value : value.toString();
 
       final dt = safeParseIsoLocal(raw);
-      if (dt == null) return raw ?? '';
+      if (dt == null) return raw;
 
       const monthNames = [
         'Jan',
@@ -181,7 +181,7 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
               ],
             ),
             const SizedBox(height: 12),
-            Divider(color: theme.dividerColor.withOpacity(0.4)),
+            Divider(color: theme.dividerColor.withValues(alpha: 0.4)),
             const SizedBox(height: 8),
             // Amounts
             Row(
@@ -211,14 +211,14 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
               value: net != null ? '\$${net.toStringAsFixed(2)}' : '—',
             ),
             const SizedBox(height: 12),
-            Divider(color: theme.dividerColor.withOpacity(0.4)),
+            Divider(color: theme.dividerColor.withValues(alpha: 0.4)),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: _SummaryLine(
                     label: localize('Created'),
-                    value: _formatDate(createdAt),
+                    value: formatDate(createdAt),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -226,7 +226,7 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
                   Expanded(
                     child: _SummaryLine(
                       label: localize('Updated'),
-                      value: _formatDate(updatedAt),
+                      value: formatDate(updatedAt),
                     ),
                   ),
               ],
@@ -340,9 +340,9 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
         final List<Map<String, dynamic>> lineItems =
             rawLineItems is List
                 ? rawLineItems
-                    .where((e) => e is Map)
+                    .whereType<Map>()
                     .map<Map<String, dynamic>>(
-                      (e) => Map<String, dynamic>.from(e as Map),
+                      (e) => Map<String, dynamic>.from(e),
                     )
                     .toList()
                 : const [];
@@ -397,8 +397,7 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
                       .toString();
 
               final amountNum = (li['unit_price'] ?? li['unitPrice']) as num?;
-              final double? amount =
-                  amountNum != null ? amountNum.toDouble() : null;
+              final double? amount = amountNum?.toDouble();
 
               final rawRefunds = li['refunds'];
               final List refunds = rawRefunds is List ? rawRefunds : const [];

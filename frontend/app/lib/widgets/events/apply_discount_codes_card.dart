@@ -108,15 +108,15 @@ class _ApplyDiscountCodesCardState extends State<ApplyDiscountCodesCard> {
   ButtonStyle _applyButtonStyle(ThemeData theme) {
     // Active: primary background, white foreground
     return ButtonStyle(
-      backgroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
-          return theme.disabledColor.withOpacity(0.12);
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return theme.disabledColor.withValues(alpha: 0.12);
         }
         return theme.colorScheme.primary;
       }),
-      foregroundColor: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.disabled)) {
-          return theme.disabledColor.withOpacity(0.38);
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return theme.disabledColor.withValues(alpha: 0.38);
         }
         return Colors.white;
       }),
@@ -285,7 +285,9 @@ class _ApplyDiscountCodesCardState extends State<ApplyDiscountCodesCard> {
                       'You may only use 1 discount code per transaction.',
                     ),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                      color: theme.textTheme.bodySmall?.color?.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                   ),
                 ],

@@ -128,7 +128,7 @@ class _EventTicketCardState extends State<EventTicketCard> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(0.3),
+                    color: theme.colorScheme.outline.withValues(alpha: 0.3),
                   ),
                 ),
                 padding: const EdgeInsets.all(8),
@@ -152,7 +152,9 @@ class _EventTicketCardState extends State<EventTicketCard> {
                 'This QR code can be scanned to show an event administrator all of the registrations on your account for this event. You do not need a separate code per registrant—this single code is valid for all of your registrants.',
               ),
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.75),
+                color: theme.textTheme.bodySmall?.color?.withValues(
+                  alpha: 0.75,
+                ),
                 height: 1.4,
               ),
             ),
@@ -163,7 +165,9 @@ class _EventTicketCardState extends State<EventTicketCard> {
               RichText(
                 text: TextSpan(
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.75),
+                    color: theme.textTheme.bodySmall?.color?.withValues(
+                      alpha: 0.75,
+                    ),
                   ),
                   children: [
                     TextSpan(text: '${localize('Registrants')}: '),
@@ -199,7 +203,9 @@ class _EventTicketCardState extends State<EventTicketCard> {
                   Text(
                     localize('Loading registrant count…'),
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                      color: theme.textTheme.bodySmall?.color?.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                   ),
                 ],
@@ -218,21 +224,21 @@ class _EventTicketCardState extends State<EventTicketCard> {
       width: 220,
       height: 220,
       alignment: Alignment.center,
-      color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.error_outline,
             size: 32,
-            color: theme.colorScheme.error.withOpacity(0.8),
+            color: theme.colorScheme.error.withValues(alpha: 0.8),
           ),
           const SizedBox(height: 8),
           Text(
             localize('Unable to generate ticket code'),
             textAlign: TextAlign.center,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.75),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
             ),
           ),
         ],
