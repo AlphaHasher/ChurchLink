@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 import 'package:app/helpers/localization_helper.dart';
 import 'package:app/helpers/asset_helper.dart';
@@ -343,12 +344,27 @@ class EventCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Hero image
+                  // Blurred background image layer (zoomed in)
+                  ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                    child: Transform.scale(
+                      scale: 1.0, // Adjustable: 1.0 = 100% zoom (default)
+                      child: Image.network(
+                        AssetHelper.getPublicUrl(event.imageId),
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (_, _, _) => Container(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                            ),
+                      ),
+                    ),
+                  ),
+                  // Sharp foreground image layer
                   Hero(
                     tag: 'event-image-${event.id}',
                     child: Image.network(
                       AssetHelper.getPublicUrl(event.imageId),
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                       errorBuilder:
                           (_, _, _) => Container(
                             color: theme.colorScheme.surfaceContainerHighest,

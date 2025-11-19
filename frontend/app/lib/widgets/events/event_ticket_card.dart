@@ -134,11 +134,14 @@ class _EventTicketCardState extends State<EventTicketCard> {
                 padding: const EdgeInsets.all(8),
                 child:
                     hasUrl
-                        ? QrImageView(
-                          data: url,
-                          size: 220,
-                          version: QrVersions.auto,
-                          gapless: true,
+                        ? Container(
+                          color: Colors.white,
+                          child: QrImageView(
+                            data: url,
+                            size: 220,
+                            version: QrVersions.auto,
+                            gapless: true,
+                          ),
                         )
                         : _buildQrPlaceholder(context),
               ),
