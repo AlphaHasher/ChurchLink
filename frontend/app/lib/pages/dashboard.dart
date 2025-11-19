@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:app/pages/bulletins.dart';
 import 'package:app/pages/events/eventspage.dart';
 import 'package:app/pages/forms.dart';
-import 'package:app/pages/giving.dart';
+import 'package:app/pages/donations/giving.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/services/dashboard_tiles_service.dart';

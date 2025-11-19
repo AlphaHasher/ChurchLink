@@ -155,10 +155,11 @@ class _EventShowcaseV2State extends State<EventShowcaseV2> {
     } catch (e) {
       // ignore, UI stays as-is
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _busyFav = false;
-      });
+      if (mounted) {
+        setState(() {
+          _busyFav = false;
+        });
+      }
     }
   }
 
@@ -170,9 +171,11 @@ class _EventShowcaseV2State extends State<EventShowcaseV2> {
       final baseUrl = BackendHelper.webBase;
       final sharableUrl = '$baseUrl/sharable_events/${event.id}';
 
-      await Share.share(
-        sharableUrl,
-        subject: LocalizationHelper.localize('Check out this event'),
+      await SharePlus.instance.share(
+        ShareParams(
+          text: sharableUrl,
+          subject: LocalizationHelper.localize('Check out this event'),
+        ),
       );
 
       if (!mounted) return;
@@ -261,11 +264,13 @@ END:VCALENDAR
         mimeType: 'text/calendar',
         name: 'event_${event.id}.ics',
       );
-      await Share.shareXFiles(
-        [xfile],
-        subject: LocalizationHelper.localize('Add to Calendar'),
-        text: LocalizationHelper.localize(
-          'Open this to add the event to your calendar.',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [xfile],
+          subject: LocalizationHelper.localize('Add to Calendar'),
+          text: LocalizationHelper.localize(
+            'Open this to add the event to your calendar.',
+          ),
         ),
       );
     }
@@ -657,7 +662,7 @@ END:VCALENDAR
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: bg.withOpacity(0.6)),
+          border: Border.all(color: bg.withValues(alpha: 0.6)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1447,7 +1452,7 @@ END:VCALENDAR
                       heroUrl,
                       fit: BoxFit.contain,
                       errorBuilder:
-                          (_, __, ___) => Container(
+                          (_, _, _) => Container(
                             color: Colors.black,
                             alignment: Alignment.center,
                             child: const Icon(
@@ -1507,7 +1512,7 @@ END:VCALENDAR
                           ministriesText,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.textTheme.bodyMedium?.color
-                                ?.withOpacity(0.8),
+                                ?.withValues(alpha: 0.8),
                           ),
                         ),
                       ),

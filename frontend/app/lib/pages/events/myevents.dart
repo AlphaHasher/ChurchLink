@@ -143,12 +143,13 @@ class _MyEventsPageState extends State<MyEventsPage> {
     } catch (e, st) {
       debugPrint('fetchMyEvents failed: $e\n$st');
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isInitialLoading = false;
-        _isRefreshing = false;
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _isRefreshing = false;
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -269,11 +270,13 @@ END:VCALENDAR
         mimeType: 'text/calendar',
         name: 'event_${event.id}.ics',
       );
-      await Share.shareXFiles(
-        [xfile],
-        subject: LocalizationHelper.localize('Add to Calendar'),
-        text: LocalizationHelper.localize(
-          'Open this to add the event to your calendar.',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [xfile],
+          subject: LocalizationHelper.localize('Add to Calendar'),
+          text: LocalizationHelper.localize(
+            'Open this to add the event to your calendar.',
+          ),
         ),
       );
     }
@@ -379,8 +382,8 @@ END:VCALENDAR
                       Text(
                         localize('Which Type of Events to Show'),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.textTheme.bodySmall?.color?.withOpacity(
-                            0.8,
+                          color: theme.textTheme.bodySmall?.color?.withValues(
+                            alpha: 0.8,
                           ),
                         ),
                       ),
@@ -407,17 +410,13 @@ END:VCALENDAR
                                   label = localize('All Registered');
                                   break;
                                 case MyEventsTypeFilter.registeredNotFavorited:
-                                  label = localize(
-                                    'Registered but not Favorited',
-                                  );
+                                  label = localize('Registered Only');
                                   break;
                                 case MyEventsTypeFilter.favorites:
                                   label = localize('All Favorited');
                                   break;
                                 case MyEventsTypeFilter.favoritesNotRegistered:
-                                  label = localize(
-                                    'Favorited but not Registered',
-                                  );
+                                  label = localize('Favorited Only');
                                   break;
                               }
                               return DropdownMenuItem<MyEventsTypeFilter>(
@@ -450,8 +449,8 @@ END:VCALENDAR
                       Text(
                         localize('When the Events take Place'),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.textTheme.bodySmall?.color?.withOpacity(
-                            0.8,
+                          color: theme.textTheme.bodySmall?.color?.withValues(
+                            alpha: 0.8,
                           ),
                         ),
                       ),

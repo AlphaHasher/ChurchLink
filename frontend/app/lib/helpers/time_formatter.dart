@@ -24,7 +24,7 @@ const String _defaultAdminTimeZone = 'America/Los_Angeles';
 const String _envAdminTz = String.fromEnvironment('ADMIN_TZ', defaultValue: '');
 
 /// Effective admin timezone for DST logic & conversions.
-final String ADMIN_TZ =
+final String _adminTz =
     _envAdminTz.trim().isNotEmpty ? _envAdminTz.trim() : _defaultAdminTimeZone;
 
 // ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ String formatDateRangeForDisplay(DateTime start, DateTime? end) {
 // ---------------------------------------------------------------------------
 
 tz.Location _getLocation(String timeZone) {
-  final primaryName = timeZone.trim().isNotEmpty ? timeZone.trim() : ADMIN_TZ;
+  final primaryName = timeZone.trim().isNotEmpty ? timeZone.trim() : _adminTz;
 
   try {
     return tz.getLocation(primaryName);
@@ -230,7 +230,7 @@ bool isDstAt(String utcIso, String timeZone) {
 /// - Returns an "en-US" wall-time string in ADMIN_TZ, like:
 ///   "11/13/2025, 5:47:00 PM".
 String? convertTime(MaybeISO eventTime, MaybeISO anchorTime) {
-  final tzName = ADMIN_TZ;
+  final tzName = _adminTz;
 
   final event = dateFromISO(eventTime);
   final utcEvent = assumeUTCIfNaive(eventTime);
@@ -290,7 +290,7 @@ String? localeEnUsToIsoInAdminTz(MaybeISO input) {
   final initialUtc = DateTime.utc(year, month, day, hour, minute, second);
 
   // Compute the timezone offset (in minutes) for ADMIN_TZ at that UTC instant.
-  final offsetMin = _zoneOffsetMinutes(initialUtc, ADMIN_TZ);
+  final offsetMin = _zoneOffsetMinutes(initialUtc, _adminTz);
 
   // True UTC instant is local wall-time minus the zone offset.
   final trueUtc = initialUtc.subtract(Duration(minutes: offsetMin));
@@ -340,7 +340,7 @@ String? _stringOrNull(dynamic v) {
   return v.toString();
 }
 
-/// Matches convertUserFacingEventsToUserTime<T> from TS.
+/// Matches convertUserFacingEventsToUserTime from TS.
 List<JsonMap> convertUserFacingEventsToUserTime(List<JsonMap> items) {
   return items.map((e) {
     final result = Map<String, dynamic>.from(e);
@@ -389,7 +389,7 @@ List<JsonMap> convertUserFacingEventsToUserTime(List<JsonMap> items) {
   }).toList();
 }
 
-/// Matches convertSisterInstanceIdentifiersToUserTime<T> from TS.
+/// Matches convertSisterInstanceIdentifiersToUserTime from TS.
 List<JsonMap> convertSisterInstanceIdentifiersToUserTime(List<JsonMap> items) {
   return items.map((e) {
     final result = Map<String, dynamic>.from(e);
@@ -403,7 +403,7 @@ List<JsonMap> convertSisterInstanceIdentifiersToUserTime(List<JsonMap> items) {
   }).toList();
 }
 
-/// Matches convertTransactionSummaryToUserTime<T> from TS.
+/// Matches convertTransactionSummaryToUserTime from TS.
 List<JsonMap> convertTransactionSummaryToUserTime(List<JsonMap> sums) {
   return sums.map((e) {
     final result = Map<String, dynamic>.from(e);
@@ -418,7 +418,7 @@ List<JsonMap> convertMinistryToUserTime(List<JsonMap> ministries) {
   return convertTransactionSummaryToUserTime(ministries);
 }
 
-/// Matches convertRefundRequestsToUserTime<T> from TS.
+/// Matches convertRefundRequestsToUserTime from TS.
 /// Expects each item to have:
 ///   transaction?: JsonMap | null,
 ///   created_on?: MaybeISO,

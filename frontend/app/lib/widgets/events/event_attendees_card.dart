@@ -364,11 +364,11 @@ class EventAttendeesCard extends StatelessWidget {
       final bool isDisabled =
           disabledReason != null && disabledReason.isNotEmpty;
 
-      final borderColor = theme.dividerColor.withOpacity(0.6);
+      final borderColor = theme.dividerColor.withValues(alpha: 0.6);
       final backgroundColor =
           isDisabled
-              ? theme.colorScheme.surfaceContainerHighest.withOpacity(
-                theme.brightness == Brightness.dark ? 0.4 : 0.6,
+              ? theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: theme.brightness == Brightness.dark ? 0.4 : 0.6,
               )
               : theme.cardColor;
 
@@ -529,7 +529,7 @@ class EventAttendeesCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.dividerColor.withOpacity(0.6)),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -551,7 +551,9 @@ class EventAttendeesCard extends StatelessWidget {
                 localize('Registered Attendees'),
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
+                  color: theme.textTheme.bodySmall?.color?.withValues(
+                    alpha: 0.8,
+                  ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -566,7 +568,7 @@ class EventAttendeesCard extends StatelessWidget {
               localize('Not Registered'),
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.8),
+                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 4),
@@ -578,7 +580,9 @@ class EventAttendeesCard extends StatelessWidget {
               Text(
                 localize('No unregistered family members found.'),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                  color: theme.textTheme.bodySmall?.color?.withValues(
+                    alpha: 0.6,
+                  ),
                 ),
               ),
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app/helpers/logger.dart';
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:app/models/profile_info.dart';
@@ -18,6 +19,8 @@ import 'package:app/theme/theme_controller.dart';
 
 import 'package:app/widgets/change_email_sheet.dart';
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/pages/my_transactions/my_transactions_page.dart';
+import 'package:app/pages/refund_requests/view_refund_requests.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -86,7 +89,6 @@ class _UserSettingsState extends State<UserSettings> {
 
   ProfileInfo? _profile; // backend truth (cached/online)
   String _selectedLanguage = 'en'; // Language preference
-  bool _loading = true;
 
   @override
   void initState() {
@@ -390,8 +392,6 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Update _updateLanguage
   Future<void> _updateLanguage(String newLang) async {
-    setState(() => _loading = true);
-
     try {
       await LocalizationHelper.changeLocaleAndAwait(
         newLang,
@@ -428,10 +428,8 @@ class _UserSettingsState extends State<UserSettings> {
         });
       }
     } catch (e) {
-      print('Failed to update language: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+      logger.e('Failed to update language: $e');
+    } finally {}
   }
 
   void _onLocaleChanged() {
@@ -449,7 +447,6 @@ class _UserSettingsState extends State<UserSettings> {
     if (mounted) {
       setState(() {
         _selectedLanguage = lang;
-        _loading = false;
       });
     }
   }
@@ -575,6 +572,36 @@ class _UserSettingsState extends State<UserSettings> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const MyEventsPage()),
+              );
+            },
+          },
+          {
+            'icon': Icons.attach_money,
+            'title': LocalizationHelper.localize('My Transactions'),
+            'subtitle': LocalizationHelper.localize(
+              'View and manage your payments',
+            ),
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyTransactionsPage(),
+                ),
+              );
+            },
+          },
+          {
+            'icon': Icons.money_off_csred,
+            'title': LocalizationHelper.localize('My Refund Requests'),
+            'subtitle': LocalizationHelper.localize(
+              'View and manage your refund requests',
+            ),
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewRefundRequestsPage(),
+                ),
               );
             },
           },
