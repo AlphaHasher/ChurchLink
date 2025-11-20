@@ -443,16 +443,6 @@ const EventSection: React.FC<EventSectionProps> = ({
                                 />
                             ))}
                         </div>
-
-                        <div className="flex justify-center mt-8">
-                            {cursor ? (
-                                <Button variant="default" onClick={onLoadMore} disabled={loading || refreshing}>
-                                    {loading || refreshing ? localize("Loading…") : localize("Load more")}
-                                </Button>
-                            ) : (
-                                <div className="text-sm text-slate-500">{localize("No more events.")}</div>
-                            )}
-                        </div>
                     </>
                 )}
             </div>

@@ -265,7 +265,7 @@ export const EventListTile: React.FC<Props> = ({
                 </div>
             </div>
 
-            <CardHeader className="pb-0">
+            <CardHeader className="pt-3 pb-0">
                 <h3 className="text-lg font-semibold leading-snug line-clamp-2 text-slate-900">
                     {title || "(Untitled Event)"}
                 </h3>

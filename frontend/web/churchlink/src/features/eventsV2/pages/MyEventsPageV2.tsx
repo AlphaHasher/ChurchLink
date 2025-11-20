@@ -230,16 +230,6 @@ export default function MyEventsPageV2() {
                                 />
                             ))}
                         </div>
-
-                        <div className="mt-8 flex justify-center">
-                            {cursor ? (
-                                <Button onClick={onLoadMore} disabled={loading || refreshing}>
-                                    {loading || refreshing ? localize("Loading…") : localize("Load more")}
-                                </Button>
-                            ) : (
-                                <div className="text-sm text-slate-500">{localize("No more events.")}</div>
-                            )}
-                        </div>
                     </>
                 )}
 
