@@ -173,6 +173,7 @@ const AdminDashboardSideBar = () => {
       children: [
         { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
         { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
+        { title: "Templates", url: "/admin/bible-plans/manage-templates" },
       ]
     },
     {

@@ -67,7 +67,7 @@ export default function CreateEventDialogV2({
             <Button onClick={() => setOpen(true)}>Create Event</Button>
 
             <Dialog open={open} onOpenChange={(v) => { if (!saving) setOpen(v); }}>
-                <DialogContent className="sm:max-w-[90vw] max-h-[80vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[90vw] max-h-[80vh] overflow-y-auto overflow-x-hidden">
                     <DialogHeader>
                         <DialogTitle>New Event</DialogTitle>
                         <DialogDescription>

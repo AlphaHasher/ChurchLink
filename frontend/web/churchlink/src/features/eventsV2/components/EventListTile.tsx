@@ -216,7 +216,7 @@ export const EventListTile: React.FC<Props> = ({
     }
 
     return (
-        <Card className="h-full flex flex-col overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition">
+        <Card className="h-full flex flex-col overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition !py-0 pb-6">
             {/* Image Header with layered blur effect */}
             <div className="relative overflow-hidden">
                 {/* Blurred background layer (zoomed) */}
@@ -265,7 +265,7 @@ export const EventListTile: React.FC<Props> = ({
                 </div>
             </div>
 
-            <CardHeader className="pb-0">
+            <CardHeader className="pt-3 pb-0">
                 <h3 className="text-lg font-semibold leading-snug line-clamp-2 text-slate-900">
                     {title || "(Untitled Event)"}
                 </h3>

@@ -5,7 +5,6 @@ import { fetchMinistries } from "@/helpers/MinistriesHelper";
 
 import type {
     UserFacingEvent,
-    UserEventResults,
     UserEventSearchParams,
     EventGenderOption,
 } from "@/shared/types/Event";
@@ -75,7 +74,6 @@ const EventSection: React.FC<EventSectionProps> = ({
     const [loading, setLoading] = useState<boolean>(true);
     const [refreshing, setRefreshing] = useState<boolean>(false);
     const [items, setItems] = useState<UserFacingEvent[]>([]);
-    const [cursor, setCursor] = useState<UserEventResults["next_cursor"]>(null);
     const [error, setError] = useState<string | null>(null);
     const reqSeq = useRef(0);
 
@@ -140,12 +138,10 @@ const EventSection: React.FC<EventSectionProps> = ({
                 const res = await fetchUserEvents(buildParams());
                 if (!alive || mySeq !== reqSeq.current) return;
                 setItems(res.items || []);
-                setCursor(res.next_cursor ?? null);
             } catch (e: any) {
                 if (!alive || mySeq !== reqSeq.current) return;
                 setError(localize(e?.message ?? "Failed to load events."));
                 setItems([]);
-                setCursor(null);
             } finally {
                 if (alive && mySeq === reqSeq.current) setLoading(false);
             }
@@ -168,26 +164,6 @@ const EventSection: React.FC<EventSectionProps> = ({
         debouncedMaxPrice,
     ]);
 
-    // Load more
-    async function onLoadMore() {
-        if (!cursor) return;
-        setLoading(true);
-        try {
-            const res = await fetchUserEvents(
-                buildParams({
-                    cursor_scheduled_date: cursor.scheduled_date,
-                    cursor_id: cursor.id,
-                })
-            );
-            setItems((prev) => [...prev, ...(res.items || [])]);
-            setCursor(res.next_cursor ?? null);
-        } catch (e: any) {
-            setError(localize(e?.message ?? "Failed to load more events."));
-        } finally {
-            setLoading(false);
-        }
-    }
-
     // Refresh after favorite toggle (also optimistically sync current page)
     async function onFavoriteChanged(eventId: string, newIsFav: boolean) {
         // Optimistic local propagation across the same parent series
@@ -202,7 +178,6 @@ const EventSection: React.FC<EventSectionProps> = ({
                 buildParams({ limit: Math.max((items.length || 0), DEFAULT_PARAMS.limit || 12) })
             );
             setItems(res.items || []);
-            setCursor(res.next_cursor ?? null);
         } catch (e: any) {
             console.error(localize("Refresh after favorite failed"), e);
         } finally {
@@ -442,16 +417,6 @@ const EventSection: React.FC<EventSectionProps> = ({
                                     disabled={refreshing}
                                 />
                             ))}
-                        </div>
-
-                        <div className="flex justify-center mt-8">
-                            {cursor ? (
-                                <Button variant="default" onClick={onLoadMore} disabled={loading || refreshing}>
-                                    {loading || refreshing ? localize("Loading…") : localize("Load more")}
-                                </Button>
-                            ) : (
-                                <div className="text-sm text-slate-500">{localize("No more events.")}</div>
-                            )}
                         </div>
                     </>
                 )}

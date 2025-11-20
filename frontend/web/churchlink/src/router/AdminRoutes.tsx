@@ -26,6 +26,7 @@ const Sermons = lazy(() => import("../features/admin/pages/Sermons"));
 const Bulletins = lazy(() => import("../features/admin/pages/Bulletins"));
 const BiblePlanBuilder = lazy(() => import("../features/admin/pages/BiblePlanBuilder"));
 const ManageBiblePlans = lazy(() => import("../features/admin/pages/ManageBiblePlans"));
+const ManageBiblePlanTemplates = lazy(() => import("../features/admin/pages/ManageBiblePlanTemplates"));
 const FormBuilder = lazy(() => import("../features/admin/pages/FormBuilder"));
 const ManageForms = lazy(() => import("../features/admin/pages/ManageForms"));
 const FormResponses = lazy(() => import("../features/admin/pages/FormResponses"));
@@ -92,6 +93,9 @@ export const AdminRoutes = () => {
         </PermissionGuard>} />
         <Route path="/bible-plans/plan-builder" element={<PermissionGuard requiredPermission="bible_plan_management">
           <BiblePlanBuilder />
+        </PermissionGuard>} />
+        <Route path="/bible-plans/manage-templates" element={<PermissionGuard requiredPermission="bible_plan_management">
+          <ManageBiblePlanTemplates />
         </PermissionGuard>} />
         <Route path="/bulletins" element={<PermissionGuard requiredPermission="bulletin_editing">
           <Bulletins />

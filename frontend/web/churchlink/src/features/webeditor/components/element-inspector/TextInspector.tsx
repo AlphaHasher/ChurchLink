@@ -443,7 +443,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
         <ToggleGroup
           type="single"
           value={node.props?.align || 'left'}
-          onValueChange={(value) => value && handleAlignChange(value)}
+          onValueChange={(value: string) => value && handleAlignChange(value)}
           className="justify-start"
         >
           <ToggleGroupItem value="left" aria-label="Align left">

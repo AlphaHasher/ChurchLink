@@ -156,10 +156,11 @@ const ManageBiblePlans = () => {
       const template = resp.data;
       setStatus(`Template "${template.name}" created successfully`);
       setTimeout(() => setStatus(null), 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create template', err);
-      setStatus('Failed to create template');
-      setTimeout(() => setStatus(null), 3000);
+      const errorMsg = err.response?.data?.detail || 'Failed to create template';
+      setStatus(errorMsg);
+      setTimeout(() => setStatus(null), 5000);
     }
   };
 
