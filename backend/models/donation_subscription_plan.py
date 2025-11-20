@@ -19,7 +19,7 @@ class DonationSubscriptionPlan(BaseModel):
     interval: Interval = "MONTH"
     amount: float = 0.0                    # fixed price per interval
 
-    status: Literal["ACTIVE", "INACTIVE", "CREATED"] = "ACTIVE"
+    status: Literal["ACTIVE", "INACTIVE", "CREATED", "INVALID"] = "ACTIVE"
     meta: Dict[str, Any] = Field(default_factory=dict)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -264,13 +264,15 @@ async def mark_donation_captured(
 async def mark_donation_failed(
     *, paypal_order_id: Optional[str], reason: str, payload: dict | None = None
 ) -> Optional[dict]:
-    q = {"paypal_order_id": paypal_order_id} if paypal_order_id else {}
+    if not paypal_order_id:
+        return None
+    q = {"paypal_order_id": paypal_order_id}
     update = {
         "$set": {
             "status": "failed",
             "fail_reason": reason,
             "failure_payload": payload or {},
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(timezone.utc),
         }
     }
     return await DB.db.donation_transactions.find_one_and_update(q, update, return_document=True)

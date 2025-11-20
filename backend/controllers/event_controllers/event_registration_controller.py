@@ -1012,6 +1012,14 @@ async def process_capture_paid_registration(request: Request, body: CapturePaidR
     tx = await get_transaction_by_order_id(order_id)
     if not tx:
         return {"success": False, "msg": "Event transaction not found for this order_id."}
+    
+    # Rabbit suggested payer safety validation
+    if tx.payer_uid != uid:
+        return {"success": False, "msg": "You are not allowed to capture this transaction."}
+
+    if tx.event_instance_id != instance_id:
+       return {"success": False, "msg": "Order does not belong to this event instance."}
+
 
     if tx.status != "captured":
         # Try to extract a global capture id from the order capture response

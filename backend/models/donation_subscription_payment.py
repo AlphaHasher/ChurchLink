@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from mongo.database import DB
@@ -123,14 +123,14 @@ async def record_subscription_payment_refund(
         "$set": {
             "refunds": [r.dict(by_alias=True, exclude_none=True) for r in refunds],
             "status": new_status,
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(timezone.utc),
         }
     }
 
     # For now we keep `refunded` boolean as a convenience for fully-refunded rows.
     if new_status == "FULLY_REFUNDED":
         update["$set"]["refunded"] = True
-        update["$set"]["refunded_at"] = datetime.utcnow()
+        update["$set"]["refunded_at"] = datetime.now(timezone.utc)
 
     return await DB.db.donation_subscription_payments.find_one_and_update(
         {"_id": doc["_id"]},

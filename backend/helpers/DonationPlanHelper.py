@@ -16,9 +16,7 @@ async def _ensure_product(helper: PayPalHelperV2) -> str:
     """
     Find or create a global PayPal Product in Mongo based on existing plans.
     """
-    any_plan = None
-    if hasattr(helper, "db"):
-        any_plan = await helper.db.db.donation_subscription_plans.find_one({})
+    any_plan = await DB.db.donation_subscription_plans.find_one({})
     if any_plan and any_plan.get("product_id"):
         return any_plan["product_id"]
 
