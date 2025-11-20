@@ -1460,9 +1460,8 @@ END:VCALENDAR
                             child: Image.network(
                               heroUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Container(
-                                color: Colors.black,
-                              ),
+                              errorBuilder:
+                                  (_, _, _) => Container(color: Colors.black),
                             ),
                           ),
                         ),
