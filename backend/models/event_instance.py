@@ -1096,10 +1096,21 @@ async def search_upcoming_event_instances_for_read(
         # Compute EFFECTIVE fields from parent + overrides (overrides win)
         {"$addFields": {
             "eff": {
-                "hidden": {"$or": [
-                    {"$eq": [{"$ifNull": ["$event.hidden", False]}, True]},
-                    {"$eq": [{"$ifNull": ["$overrides.hidden", False]}, True]}
-                ]},
+                "hidden": {
+                    "$switch": {
+                        "branches": [
+                            {
+                                "case": {"$eq": ["$overrides.hidden", True]},
+                                "then": True
+                            },
+                            {
+                                "case": {"$eq": ["$overrides.hidden", False]},
+                                "then": False
+                            },
+                        ],
+                        "default": {"$ifNull": ["$event.hidden", False]},
+                    }
+                },
                 "gender": {"$ifNull": ["$overrides.gender", {"$ifNull": ["$event.gender", "all"]}]},
                 "min_age": {"$ifNull": ["$overrides.min_age", "$event.min_age"]},
                 "max_age": {"$ifNull": ["$overrides.max_age", "$event.max_age"]},
@@ -1519,11 +1530,20 @@ async def get_sister_upcoming_identifiers(event_id: str, instance_id: str) -> Li
             # Effective hidden = event.hidden || overrides.hidden
             {"$addFields": {
                 "eff_hidden": {
-                    "$or": [
-                        {"$eq": [{"$ifNull": ["$event_doc.hidden", False]}, True]},
-                        {"$eq": [{"$ifNull": ["$overrides.hidden", False]}, True]},
-                    ]
-                }
+                    "$switch": {
+                        "branches": [
+                            {
+                                "case": {"$eq": ["$overrides.hidden", True]},
+                                "then": True
+                            },
+                            {
+                                "case": {"$eq": ["$overrides.hidden", False]},
+                                "then": False
+                            },
+                        ],
+                        "default": {"$ifNull": ["$event_doc.hidden", False]},
+                    }
+                },
             }},
             {"$match": {"eff_hidden": {"$ne": True}}},
             {"$sort": {"scheduled_date": 1, "_id": 1}},
