@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { EventListTile } from "@/features/eventsV2/components/EventListTile";
-import { Button } from "@/shared/components/ui/button";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Label } from "@/shared/components/ui/label";
 import {
@@ -13,7 +12,6 @@ import {
 
 import {
     MyEventsSearchParams,
-    MyEventsResults,
     MyEventsTypeFilter,
     MyEventsDateFilter,
     UserFacingEvent,
@@ -39,7 +37,6 @@ export default function MyEventsPageV2() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [items, setItems] = useState<UserFacingEvent[]>([]);
-    const [cursor, setCursor] = useState<MyEventsResults["next_cursor"]>(null);
     const [error, setError] = useState<string | null>(null);
     const reqSeq = useRef(0);
     const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
@@ -80,12 +77,10 @@ export default function MyEventsPageV2() {
                 const res = await fetchMyEvents(buildParams());
                 if (!alive || mySeq !== reqSeq.current) return;
                 setItems(Array.isArray(res.items) ? res.items : []);
-                setCursor(res.next_cursor ?? null);
             } catch (e: any) {
                 if (!alive || mySeq !== reqSeq.current) return;
                 setError(localize(e?.message ?? "Failed to load events."));
                 setItems([]);
-                setCursor(null);
             } finally {
                 if (alive && mySeq === reqSeq.current) setLoading(false);
             }
@@ -109,25 +104,6 @@ export default function MyEventsPageV2() {
         return () => { alive = false; };
     }, []);
 
-    async function onLoadMore() {
-        if (!cursor) return;
-        setLoading(true);
-        try {
-            const res = await fetchMyEvents(
-                buildParams({
-                    cursor_scheduled_date: cursor.scheduled_date,
-                    cursor_id: cursor.id,
-                })
-            );
-            setItems((prev) => [...prev, ...(res.items || [])]);
-            setCursor(res.next_cursor ?? null);
-        } catch (e: any) {
-            setError(localize(e?.message ?? "Failed to load more events."));
-        } finally {
-            setLoading(false);
-        }
-    }
-
     async function onFavoriteChanged(eventId: string, newIsFav: boolean) {
         setItems((prev) =>
             prev.map((ev) => (ev.event_id === eventId ? { ...ev, is_favorited: newIsFav } : ev))
@@ -138,7 +114,6 @@ export default function MyEventsPageV2() {
                 buildParams({ limit: Math.max((items.length || 0), DEFAULT_PARAMS.limit || 12) })
             );
             setItems(res.items || []);
-            setCursor(res.next_cursor ?? null);
         } catch {
             // keep optimistic state
         } finally {
