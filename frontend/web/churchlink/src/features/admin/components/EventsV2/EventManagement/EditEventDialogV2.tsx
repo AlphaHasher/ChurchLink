@@ -92,7 +92,7 @@ export default function EditEventDialogV2({
             </Button>
 
             <Dialog open={open} onOpenChange={(v) => { if (!saving) setOpen(v); }}>
-                <DialogContent className="sm:max-w-[90vw] max-h-[80vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-[90vw] max-h-[80vh] overflow-y-auto overflow-x-hidden">
                     <DialogHeader>
                         <DialogTitle>Edit Event</DialogTitle>
                         <DialogDescription>Update the fields below and save your changes.</DialogDescription>
