@@ -359,7 +359,16 @@ async def _compute_subscription_plan_stats(
             time_filter["$lte"] = config.created_to
         created_query["created_at"] = time_filter
 
-    created_docs = await coll.find(created_query).to_list(length=None)
+    # For created plans
+    created_pipeline = [
+        {"$match": created_query},
+        {"$group": {
+            "_id": "$interval",
+            "count": {"$sum": 1},
+            "amount": {"$sum": "$amount"}
+        }}
+    ]
+    created_agg = await coll.aggregate(created_pipeline).to_list(length=None)
 
     # Local accumulator per interval:
     #   interval -> {
@@ -382,19 +391,12 @@ async def _compute_subscription_plan_stats(
         except (TypeError, ValueError):
             return 0.0
 
-    for doc in created_docs:
-        interval = _norm_interval(doc.get("interval"))
-        bucket = interval_buckets.setdefault(
-            interval,
-            {
-                "created_count": 0,
-                "created_amount": 0.0,
-                "cancelled_count": 0,
-                "cancelled_amount": 0.0,
-            },
-        )
-        bucket["created_count"] += 1
-        bucket["created_amount"] += _amount(doc)
+    for doc in created_agg:
+        interval = _norm_interval(doc["_id"])
+        bucket = interval_buckets.setdefault(interval, {...})
+        bucket["created_count"] += doc["count"]
+        bucket["created_amount"] += doc["amount"]
+
 
     # ---------- Plans CANCELLED (by updated_at when status becomes CANCELLED) ----------
     cancel_query: Dict[str, Any] = {"status": "CANCELLED"}
@@ -406,20 +408,22 @@ async def _compute_subscription_plan_stats(
             time_filter["$lte"] = config.created_to
         cancel_query["updated_at"] = time_filter
 
-    cancelled_docs = await coll.find(cancel_query).to_list(length=None)
-    for doc in cancelled_docs:
-        interval = _norm_interval(doc.get("interval"))
-        bucket = interval_buckets.setdefault(
-            interval,
-            {
-                "created_count": 0,
-                "created_amount": 0.0,
-                "cancelled_count": 0,
-                "cancelled_amount": 0.0,
-            },
-        )
-        bucket["cancelled_count"] += 1
-        bucket["cancelled_amount"] += _amount(doc)
+    cancelled_pipeline = [
+        {"$match": cancel_query},
+        {"$group": {
+            "_id": "$interval",
+            "count": {"$sum": 1},
+            "amount": {"$sum": "$amount"}
+        }}
+    ]
+    
+    cancelled_agg = await coll.aggregate(cancelled_pipeline).to_list(length=None)
+
+    for doc in cancelled_agg:
+        interval = _norm_interval(doc["_id"])
+        bucket = interval_buckets.setdefault(interval, {...})
+        bucket["cancelled_count"] += doc["count"]
+        bucket["cancelled_amount"] += doc["amount"]
 
     # ---------- Build stats model ----------
     total_created_count = 0
