@@ -125,23 +125,26 @@ async def _compute_refund_request_summary(
     if allowed_txn_kinds:
         query["txn_kind"] = {"$in": list(allowed_txn_kinds)}
 
-    docs = await coll.find(query).to_list(length=None)
+    pipeline = [
+        {"$match": query},
+        {"$group": {
+            "_id": None,
+            "total": {"$sum": 1},
+            "responded": {"$sum": {"$cond": [{"$eq": ["$responded", True]}, 1, 0]}},
+            "resolved": {"$sum": {"$cond": [{"$and": [{"$eq": ["$responded", True]}, {"$eq": ["$resolved", True]}]}, 1, 0]}},
+        }}
+    ]
+    docs = await coll.aggregate(pipeline).to_list(length=1)
 
-    total = len(docs)
-    responded = 0
-    resolved = 0
-    unresolved = 0
-
-    for d in docs:
-        responded_flag = bool(d.get("responded", False))
-        resolved_flag = bool(d.get("resolved", False))
-
-        if responded_flag:
-            responded += 1
-            if resolved_flag:
-                resolved += 1
-            else:
-                unresolved += 1
+    # Access with defensive defaults
+    if docs:
+        result = docs[0]
+        total = result.get("total", 0)
+        responded = result.get("responded", 0)
+        resolved = result.get("resolved", 0)
+        unresolved = responded - resolved
+    else:
+        total = responded = resolved = unresolved = 0
 
     return RefundRequestSummary(
         total_requests=total,

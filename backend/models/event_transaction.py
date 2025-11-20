@@ -30,7 +30,6 @@ class TransactionItem(BaseModel):
     status: LineStatus = "pending"
     refunds: List[TransactionRefund] = Field(default_factory=list)
 
-    # NEW: per-line share of the PayPal / processor fee (optional)
     fee_amount: float = 0.0
 
     @property

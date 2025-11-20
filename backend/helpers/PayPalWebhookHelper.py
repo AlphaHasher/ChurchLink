@@ -143,7 +143,7 @@ async def _mark_order_capture_everywhere(order_id: str, capture_id: str, raw_eve
         }
     )
     res = await DB.db.donation_transactions.find_one_and_update(
-        {"order_id": order_id},
+        {"paypal_order_id": order_id},
         {"$set": donation_set},
         return_document=True,
     )
@@ -159,7 +159,7 @@ async def _mark_order_capture_everywhere(order_id: str, capture_id: str, raw_eve
         }
     )
     res = await DB.db.form_transactions.find_one_and_update(
-        {"order_id": order_id},
+        {"paypal_order_id": order_id},
         {"$set": form_set},
         return_document=True,
     )

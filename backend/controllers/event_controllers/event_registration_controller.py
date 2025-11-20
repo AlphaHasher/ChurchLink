@@ -517,6 +517,13 @@ async def do_registration_validation(request: Request, registration: ChangeEvent
     regs = list(dict.fromkeys(registration.family_members_registering or []))
     unregs = list(dict.fromkeys(registration.family_members_unregistering or []))
 
+    # Validate that "SELF" is not in family member lists (reserved value)
+    if "SELF" in regs or "SELF" in unregs:
+        return {
+            "success": False,
+            "msg": "Error! 'SELF' is a reserved value and cannot be used in family member lists.",
+        }
+
     # Check for previous RegistrationDetails on this event
     uid = request.state.uid
     old_reg_details = instance.registration_details.get(uid) or None

@@ -204,7 +204,7 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
         else:
             payload["order"] = 0
 
-    now =strip_timezone_for_mongo(get_local_now())
+    now = strip_timezone_for_mongo(get_local_now())
     payload["created_at"] = now
     payload["updated_at"] = now
 

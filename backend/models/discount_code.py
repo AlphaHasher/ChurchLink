@@ -230,7 +230,7 @@ async def get_all_discount_codes() -> List[DiscountCode]:
 async def increment_discount_usage(code_id: str, uid: str, inc: int) -> bool:
     """
     Atomically bump usage_history for a user on a discount code.
-    Returns True if the code exists and was updated, False otherwise.
+    Returns True on a success, being an update or a no-op, and false otherwise.
     """
     if inc <= 0:
         return True

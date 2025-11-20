@@ -264,7 +264,7 @@ async def cancel_donation_subscription(
         raise HTTPException(404, "Subscription not found")
 
     donor_uid = sub_doc.get("donor_uid")
-    donor_uid = str(donor_uid)
+    donor_uid = str(donor_uid) if donor_uid is not None else None
 
     if not admin_override:  # user path
         if uid is None:
