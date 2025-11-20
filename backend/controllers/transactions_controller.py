@@ -419,8 +419,11 @@ def _map_event_doc(
 
     # Money summary
     amount = float(doc.get("total", 0.0))
-    fee_amount = doc.get("fee_amount")
-    fee_amount = float(fee_amount) if isinstance(fee_amount, (int, float, str)) and fee_amount is not None else None
+    fee_amount_raw = doc.get("fee_amount")
+    try:
+        fee_amount = float(fee_amount_raw) if fee_amount_raw is not None else None
+    except (TypeError, ValueError):
+        fee_amount = None
 
     refunded_total = 0.0
     for li in line_items:

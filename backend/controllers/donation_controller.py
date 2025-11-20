@@ -264,6 +264,7 @@ async def cancel_donation_subscription(
         raise HTTPException(404, "Subscription not found")
 
     donor_uid = sub_doc.get("donor_uid")
+    donor_uid = str(donor_uid)
 
     if not admin_override:  # user path
         if uid is None:
@@ -281,7 +282,7 @@ async def cancel_donation_subscription(
         try:
             data = resp.json()
         except Exception:
-            data = {"raw": await resp.text()}
+            data = {"raw": resp.text()}
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"msg": "Failed to cancel subscription with PayPal", "paypal": data},
@@ -380,7 +381,7 @@ async def admin_refund_one_time_donation(
         try:
             payload = resp.json()
         except Exception:
-            payload = {"raw": await resp.text()}
+            payload = {"raw": resp.text()}
         raise HTTPException(
             status_code=502,
             detail={
@@ -528,7 +529,7 @@ async def admin_refund_donation_subscription_payment(
         try:
             payload = resp.json()
         except Exception:
-            payload = {"raw": await resp.text()}
+            payload = {"raw": resp.text()}
         raise HTTPException(
             status_code=502,
             detail={

@@ -2,6 +2,7 @@ from fastapi import Request
 from mongo.churchuser import UserHandler
 from models.event import get_event_doc_by_id
 from typing import List
+import logging
 from models.ministry import list_ministries
 from models.event_instance import get_event_instance_for_read_by_id, get_sister_upcoming_identifiers
 
@@ -37,7 +38,7 @@ async def process_remove_favorite_event(request:Request, event_id: str):
     if not modified:
         return {'success':False, 'msg':f'Failed to apply updates to remove event with id {event_id} from favorite events!'}
     
-    return {'success':True, 'msg':f'Successly removed event with id {event_id} from favorites!'}
+    return {'success':True, 'msg':f'Successfully removed event with id {event_id} from favorites!'}
 
 async def get_instance_details(
     instance_id: str,
@@ -100,10 +101,11 @@ async def get_instance_details(
             "ministries": mins,
         }
     except Exception as e:
+        logging.exception("get_instance_details failed: %s", e)
         mins = await list_ministries()
         return {
             "success": False,
-            "msg": f"Failed to fetch event instance details: {e}",
+            "msg": "Failed to fetch event instance details due to some exception!",
             "event_details": None,
             "sister_details": [],
             "ministries": mins,

@@ -16,7 +16,7 @@ from mongo.database import DB
 class DiscountCodeUpdate(BaseModel):
     name: str
     # Description represents the description so an admin can view the code and understand what its purpose is
-    description: Optional[str]
+    description: Optional[str] = None
     # This is the actual code itself, that the user would type. E.G. 20FORTACOS
     code: str
     # Defines if bool is percentage off or not. If true, the numerical value will represent a percentage, else, a raw value of a discount
@@ -25,7 +25,7 @@ class DiscountCodeUpdate(BaseModel):
     discount: float
     # Max uses. This is the maximum amount of uses (with 1 use being 1 person rather than 1 sign up)
     # Can be set to None for unlimited uses
-    max_uses: Optional[int]
+    max_uses: Optional[int] = None
     # This is a boolean that determines if a discount code is active. Can always be flipped on or off from the admin panel.
     active: bool
 

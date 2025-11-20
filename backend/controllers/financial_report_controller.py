@@ -260,12 +260,7 @@ async def generate_and_save_financial_report(
     Generate a full financial report and persist it in the financial_reports collection.
     Returns the saved report as a dict.
     """
-    uid = getattr(request.state, "uid", None)
-    if not uid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required.",
-        )
+    uid = request.state.uid
 
     started = perf_counter()
     stats = await _compute_financial_stats_for_config(body, admin_uid=uid)
@@ -295,12 +290,7 @@ async def preview_financial_report(
     Generate a report on demand WITHOUT saving it.
     Useful for "try out" / ad-hoc analysis in the admin panel.
     """
-    uid = getattr(request.state, "uid", None)
-    if not uid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required.",
-        )
+    uid = request.state.uid
 
     started = perf_counter()
     stats = await _compute_financial_stats_for_config(body, admin_uid=uid)

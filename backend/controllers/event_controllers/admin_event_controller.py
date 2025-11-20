@@ -103,7 +103,7 @@ async def process_edit_event(event_id: str, event: EventUpdate):
     try:
         recalculate = await recalculate_published_dates(event_id)
         if not recalculate['success']:
-            return {'success':False, 'msg':f"Warning! Event update was successful, but we failed to recalculate the dates for event instances! Error: {recalculate['message']}"}
+            return {'success':False, 'msg':f"Warning! Event update was successful, but we failed to recalculate the dates for event instances! Error: {recalculate['msg']}"}
     except Exception as e:
         return {'success':False, 'msg':f"Warning! Event update was successful, but we failed to recalculate the dates for event instances! Exception: {e}"}
     
@@ -289,13 +289,17 @@ async def package_overrides(overrides: Dict[str, Any], old_event):
         flag_index += 1
 
     # Assemble as override instance
-    assembly = EventInstanceOverrides.model_validate(new_overrides)
+    try:
+        assembly = EventInstanceOverrides.model_validate(new_overrides)
+    except Exception as exc:
+       return {"success": False, "msg": f"Invalid overrides payload: {exc}"}
 
-    if assembly:
-        # Return overrides and tracker
-        return {'success':True, 'overrides': new_overrides, 'assembly':assembly, 'tracker': new_tracker}
-    else:
-        return {'success':False}
+    return {
+        "success": True,
+        "overrides": new_overrides,
+        "assembly": assembly,
+        "tracker": new_tracker,
+    }
     
 
 
@@ -406,6 +410,8 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
     else:
         overrides_update_date = parent_event.get("updated_on")
         old_instance = await get_instance_by_event_and_series_index(event_id, series_index)
+        if not old_instance:
+            return {"success": False, "msg": "Event instance not found for provided series_index."}
         scheduled_date = old_instance.get("target_date")
 
     # Package overrides by groups
@@ -447,7 +453,6 @@ async def process_instance_overrides(overrides: Dict[str, Any], event_id: str, s
     if 'date' in overrides:
         date_check = True
 
-    # IMPORTANT: skip 'date in future' during overrides so past occurrences can be edited if needed
     validation = do_event_validation(effective_event, validate_date=date_check)
     if not validation.get("success"):
         return {"success": False, "msg": validation.get("msg", "Validation failed.")}

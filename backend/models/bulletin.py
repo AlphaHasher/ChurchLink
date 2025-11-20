@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from bson import ObjectId
@@ -204,7 +204,7 @@ async def create_bulletin(bulletin: BulletinCreate) -> Optional[BulletinOut]:
         else:
             payload["order"] = 0
 
-    now = datetime.utcnow()
+    now =strip_timezone_for_mongo(get_local_now())
     payload["created_at"] = now
     payload["updated_at"] = now
 
@@ -552,7 +552,7 @@ async def reorder_bulletins(bulletin_ids: List[str]) -> bool:
         for idx, object_id in enumerate(object_ids):
             await DB.db["bulletins"].update_one(
                 {"_id": object_id},
-                {"$set": {"order": idx, "updated_at": datetime.timezone.utc}},
+                {"$set": {"order": idx, "updated_at": strip_timezone_for_mongo(get_local_now())}},
             )
         return True
     except Exception as exc:
