@@ -6,7 +6,7 @@ import 'package:app/widgets/sermon_detail_sheet.dart';
 import 'package:app/widgets/sermon_filter_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class SermonsPage extends StatefulWidget {
   const SermonsPage({super.key});
@@ -19,7 +19,7 @@ class _SermonsPageState extends State<SermonsPage> {
   @override
   void initState() {
     super.initState();
-    LocalizationHelper.addListener(_onLocaleChanged);
+    addLocaleListener(_onLocaleChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<SermonsProvider>();
       if (provider.items.isEmpty) {
@@ -35,7 +35,7 @@ class _SermonsPageState extends State<SermonsPage> {
 
   @override
   void dispose() {
-    LocalizationHelper.removeListener(_onLocaleChanged);
+    removeLocaleListener(_onLocaleChanged);
     super.dispose();
   }
 
@@ -44,7 +44,7 @@ class _SermonsPageState extends State<SermonsPage> {
     return Scaffold(
       key: const ValueKey('screen-sermons'),
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize('Sermons', capitalize: true)),
+        title: Text('Sermons').localized(),
         actions: [
           IconButton(icon: const Icon(Icons.search), onPressed: _openFilters),
         ],
@@ -87,9 +87,9 @@ class _SermonsPageState extends State<SermonsPage> {
                                 SizedBox(height: 12),
                                 Center(
                                   child: Text(
-                                    LocalizationHelper.localize('No Sermons available yet. Pull to refresh.', capitalize: true),
+                                    'No Sermons available yet. Pull to refresh.',
                                     style: TextStyle(color: Colors.grey),
-                                  ),
+                                  ).localized(),
                                 ),
                               ],
                             )
@@ -182,8 +182,8 @@ class _ErrorBanner extends StatelessWidget {
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
         title: Text(
-          LocalizationHelper.localize(message, capitalize: true),
-        ),
+          message,
+        ).localized(),
         trailing: IconButton(
           icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,

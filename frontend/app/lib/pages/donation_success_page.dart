@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../helpers/localization_helper.dart';  // Adjust path if needed
+import 'package:app/helpers/localized_widgets.dart';
 
 class DonationSuccessPage extends StatelessWidget {
   final String eventName;
@@ -10,7 +10,7 @@ class DonationSuccessPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize('Thank You', capitalize: true)),
+        title: Text('Thank You').localized(),
         backgroundColor: const Color.fromARGB(255, 142, 163, 168),
         foregroundColor: Colors.white,
       ),
@@ -24,10 +24,10 @@ class DonationSuccessPage extends StatelessWidget {
               const Icon(Icons.volunteer_activism, size: 72, color: Color.fromARGB(255, 34, 197, 94)),
               const SizedBox(height: 24),
               Text(
-                LocalizationHelper.localize('Thank you for supporting', capitalize: true),
+                'Thank you for supporting',
                 style: Theme.of(context).textTheme.titleMedium,
                 textAlign: TextAlign.center,
-              ),
+              ).localized(),
               const SizedBox(height: 8),
               Text(
                 eventName,
@@ -36,10 +36,10 @@ class DonationSuccessPage extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                LocalizationHelper.localize('Your donation was successful. We appreciate your generosity.', capitalize: true),  // Keep $amount dynamic
+                'Your donation was successful. We appreciate your generosity.',  // Keep $amount dynamic
                 style: TextStyle(fontSize: 16),
                 textAlign: TextAlign.center,
-              ),
+              ).localized(),
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {
@@ -50,8 +50,8 @@ class DonationSuccessPage extends StatelessWidget {
                   backgroundColor: const Color.fromARGB(255, 142, 163, 168),
                 ),
                 child: Text(
-                  LocalizationHelper.localize('Close', capitalize: true),
-                ),
+                  'Close',
+                ).localized(),
               ),
             ],
           ),

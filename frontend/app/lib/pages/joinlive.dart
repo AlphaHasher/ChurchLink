@@ -3,7 +3,7 @@ import 'package:app/components/livestreams/stream_viewer.dart';
 import 'package:flutter/material.dart';
 import 'package:app/helpers/youtube_helper.dart';
 import 'package:app/helpers/logger.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class JoinLive extends StatefulWidget {
   const JoinLive({super.key});
@@ -49,7 +49,7 @@ class _JoinLiveState extends State<JoinLive> {
     return Scaffold(
       key: const ValueKey('screen-joinlive'),
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize('YouTube Live', capitalize: true)),
+        title: Text('YouTube Live').localized(),
         centerTitle: true,
       ),
       body: SafeArea(

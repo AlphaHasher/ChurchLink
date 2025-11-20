@@ -21,10 +21,10 @@ void main() {
   await $.pumpAndSettle();
 
   // Check for lock icon and message
-  expect(await $('Please sign in to view your forms.').exists, isTrue);
+  expect($('Please sign in to view your forms.').exists, isTrue);
 
   // Check for "Log In" button
-  expect(await $('Log In').exists, isTrue);
+  expect($('Log In').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -49,9 +49,9 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify modal content
-  expect(await $('Sign in').exists, isTrue);
-  expect(await $('Continue with Email').exists, isTrue);
-  expect(await $('Continue with Google').exists, isTrue);
+  expect($('Sign in').exists, isTrue);
+  expect($('Continue with Email').exists, isTrue);
+  expect($('Continue with Google').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -77,7 +77,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify something changes — for example:
-  expect(await $('Sign in').exists, isFalse);
+  expect($('Sign in').exists, isFalse);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -101,7 +101,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Confirm we’re back on Home screen
-  expect(await $('Join Live').exists, isTrue);
+  expect($('Join Live').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );

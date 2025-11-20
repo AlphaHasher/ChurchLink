@@ -7,7 +7,7 @@ import 'package:app/models/event_registration_summary.dart';
 import 'package:app/services/event_registration_service.dart';
 import 'package:app/pages/event_showcase.dart';
 import 'package:app/widgets/event_card.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 // ICS sharing + open
 import 'dart:io';
@@ -194,27 +194,26 @@ class _EventsPageState extends State<EventsPage> {
                 runSpacing: 12,
                 children: [
                   Text(
-                    LocalizationHelper.localize("Filter Events"),
+                    'Filter Events',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  ).localized(),
                   TextField(
                     controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: LocalizationHelper.localize("Search by Name"),
-                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Search by Name',
+                    ).localizedLabels(),
                     onChanged: (value) => setModalState(() => tempName = value),
                   ),
                   TextField(
                     controller: _maxPriceController,
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Max Price")),
+                    decoration: const InputDecoration(labelText: 'Max Price').localizedLabels(),
                     keyboardType: TextInputType.number,
-                    onChanged:
-                        (value) => setModalState(
-                          () => tempMaxPrice = double.tryParse(value),
-                        ),
-                  ),
+                    onChanged: (value) => setModalState(
+                      () => tempMaxPrice = double.tryParse(value),
+                    ),
+                  ).localizedRebuild(),
                   DropdownButtonFormField<String>(
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Gender")),
+                    decoration: const InputDecoration(labelText: 'Gender').localizedLabels(),
                     initialValue: tempGender,
                     items:
                         [
@@ -225,20 +224,20 @@ class _EventsPageState extends State<EventsPage> {
                         ].map((g) {
                           String label;
                           if (g == null) {
-                            label = LocalizationHelper.localize('Show All');
+                            label = 'Show All';
                           } else if (g == 'all') {
-                            label = LocalizationHelper.localize('All Genders Allowed');
+                            label = 'All Genders Allowed';
                           } else if (g == 'male') {
-                            label = LocalizationHelper.localize('Male Only');
+                            label = 'Male Only';
                           } else if (g == 'female') {
-                            label = LocalizationHelper.localize('Female Only');
+                            label = 'Female Only';
                           } else {
                             label =
                                 '${g[0].toUpperCase()}${g.substring(1)} Only';
                           }
                           return DropdownMenuItem<String>(
                             value: g,
-                            child: Text(label),
+                            child: Text(label).localized(),
                           );
                         }).toList(),
                     onChanged:
@@ -246,14 +245,14 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   TextField(
                     controller: _ageController,
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Age")),
+                    decoration: const InputDecoration(labelText: 'Age').localizedLabels(),
                     keyboardType: TextInputType.number,
                     onChanged:
                         (value) =>
                             setModalState(() => tempAge = int.tryParse(value)),
                   ),
                   DropdownButtonFormField<String>(
-                    decoration: InputDecoration(labelText: LocalizationHelper.localize("Ministry")),
+                    decoration: const InputDecoration(labelText: 'Ministry').localizedLabels(),
                     initialValue: tempMinistry,
                     items:
                         [
@@ -271,7 +270,7 @@ class _EventsPageState extends State<EventsPage> {
                         ].map((m) {
                           return DropdownMenuItem<String>(
                             value: m,
-                            child: Text(LocalizationHelper.localize(m ?? 'All Ministries')),
+                            child: Text(m ?? 'All Ministries').localized(),
                           );
                         }).toList(),
                     onChanged:
@@ -281,9 +280,9 @@ class _EventsPageState extends State<EventsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        LocalizationHelper.localize("Date Range"),
+                        'Date Range',
                         style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
+                      ).localized(),
                       RangeSlider(
                         values: tempDateRange,
                         min: 0,
@@ -327,9 +326,9 @@ class _EventsPageState extends State<EventsPage> {
                           });
                         },
                         child: Text(
-                          LocalizationHelper.localize("Reset Filters"),
+                          'Reset Filters',
                           style: const TextStyle(color: Colors.red),
-                        ),
+                        ).localized(),
                       ),
                       ElevatedButton(
                         onPressed: () {
@@ -349,7 +348,7 @@ class _EventsPageState extends State<EventsPage> {
                           Navigator.pop(context);
                           _loadEvents();
                         },
-                        child: Text(LocalizationHelper.localize("Apply Filters")),
+                        child: Text("Apply Filters").localized(),
                       ),
                     ],
                   ),
@@ -425,8 +424,8 @@ END:VCALENDAR
       );
       await Share.shareXFiles(
         [xfile],
-        subject: LocalizationHelper.localize('Add to Calendar'),
-        text: LocalizationHelper.localize('Open this to add the event to your calendar.'),
+        subject: 'Add to Calendar',
+        text: 'Open this to add the event to your calendar.',
       );
     }
   }
@@ -495,7 +494,7 @@ END:VCALENDAR
       key: const ValueKey('screen-events'),
       appBar: AppBar(
         centerTitle: true,
-        title: Text(LocalizationHelper.localize('Events')),
+        title: Text('Events').localized(),
         leading:
             showBackButton
                 ? IconButton(
@@ -523,7 +522,7 @@ END:VCALENDAR
                     : _events.isEmpty
                     ? Padding(
                        padding: EdgeInsets.symmetric(vertical: 50),
-                       child: Text(LocalizationHelper.localize("No events found.")),
+                       child: Text("No events found.").localized(),
                      )
                     : ListView.builder(
                       physics: const NeverScrollableScrollPhysics(),
@@ -543,7 +542,7 @@ END:VCALENDAR
                               bottom: 12,
                               right: 12,
                               child: IconButton(
-                                tooltip: LocalizationHelper.localize('Add to Calendar'),
+                                tooltip: 'Add to Calendar',
                                 icon: const Icon(Icons.calendar_month_outlined),
                                 onPressed: () => _onAddToCalendar(event),
                               ),

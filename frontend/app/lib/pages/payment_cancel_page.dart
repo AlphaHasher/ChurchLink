@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class PaymentCancelPage extends StatelessWidget {
   final String? paymentId;
@@ -20,7 +20,7 @@ class PaymentCancelPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.orange.shade50,
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize('Payment Cancelled', capitalize: true)),
+        title: Text('Payment Cancelled').localized(),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -50,34 +50,34 @@ class PaymentCancelPage extends StatelessWidget {
               
               // Cancel Title
               Text(
-                LocalizationHelper.localize('Payment Cancelled', capitalize: true),
+                'Payment Cancelled',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.orange.shade700,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
-              ),
+              ).localized(),
               
               const SizedBox(height: 16),
               
               // Cancel Message
               Text(
-                LocalizationHelper.localize('Your payment was cancelled and no charges were made.', capitalize: true),
+                'Your payment was cancelled and no charges were made.',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey.shade700,
                 ),
                 textAlign: TextAlign.center,
-              ),
+              ).localized(),
               
               if (eventName != null) ...[
                 const SizedBox(height: 16),
                 Text(
-                  LocalizationHelper.localize('You have not been registered for: $eventName', capitalize: true),
+                  'You have not been registered for: $eventName',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: Colors.grey.shade600,
                   ),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
               ],
               
               if (reason != null) ...[
@@ -166,9 +166,9 @@ class PaymentCancelPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize('Try Again', capitalize: true),
+                        'Try Again',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                      ).localized(),
                     ),
                   ),
                   
@@ -189,12 +189,12 @@ class PaymentCancelPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize('Back to Events', capitalize: true),
+                        'Back to Events',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.orange.shade700,
                         ),
-                      ),
+                      ).localized(),
                     ),
                   ),
                 ],

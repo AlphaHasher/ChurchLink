@@ -22,7 +22,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Check header and message
-  expect(await $('No sermons available yet. Pull to refresh.').exists, isTrue);
+  expect($('No sermons available yet. Pull to refresh.').exists, isTrue);
 
 },
   timeout: Timeout(Duration(seconds: 30)),
@@ -48,12 +48,12 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify the filter dialog title and key controls
-  expect(await $('Filter Sermons').exists, isTrue);
-  expect(await $('Search').exists, isTrue);
-  expect(await $('Speaker').exists, isTrue);
-  expect(await $('All ministries').exists, isTrue);
-  expect(await $('Apply').exists, isTrue);
-  expect(await $('Clear').exists, isTrue);
+  expect($('Filter Sermons').exists, isTrue);
+  expect($('Search').exists, isTrue);
+  expect($('Speaker').exists, isTrue);
+  expect($('All ministries').exists, isTrue);
+  expect($('Apply').exists, isTrue);
+  expect($('Clear').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -84,7 +84,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify filter closed (Apply should dismiss dialog)
-  expect(await $('Filter Sermons').exists, isFalse);
+  expect($('Filter Sermons').exists, isFalse);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -108,7 +108,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify we're back on Home screen
-  expect(await $('Join Live').exists, isTrue);
+  expect($('Join Live').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
@@ -135,7 +135,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify dialog closed
-  expect(await $('Filter Sermons').exists, isFalse);
+  expect($('Filter Sermons').exists, isFalse);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );

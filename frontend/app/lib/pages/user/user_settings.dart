@@ -19,7 +19,7 @@ import 'package:app/theme/theme_controller.dart';
  
 
 import 'package:app/widgets/change_email_sheet.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -42,28 +42,28 @@ class _TermsDialogState extends State<_TermsDialog> {
   @override
   void initState() {
     super.initState();
-    LocalizationHelper.addListener(_onLocaleChanged);
+    addLocaleListener(_onLocaleChanged);
   }
 
   @override
   void dispose() {
-    LocalizationHelper.removeListener(_onLocaleChanged);
+    removeLocaleListener(_onLocaleChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(LocalizationHelper.localize('Terms & Policies')),
+      title: Text('Terms & Policies').localized(),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              LocalizationHelper.localize('Trust me bro'),
+              'Trust me bro',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            ).localized(),
             const SizedBox(height: 8),
             Text('.'),
           ],
@@ -72,7 +72,7 @@ class _TermsDialogState extends State<_TermsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(LocalizationHelper.localize('Close')),
+          child: Text('Close').localized(),
         ),
       ],
     );
@@ -95,7 +95,7 @@ class _UserSettingsState extends State<UserSettings> {
     super.initState();
 
     _loadLanguageFromServer();
-    LocalizationHelper.addListener(_onLocaleChanged);
+    addLocaleListener(_onLocaleChanged);
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) async {
       if (!mounted) return;
       await _loadProfile();
@@ -127,7 +127,7 @@ class _UserSettingsState extends State<UserSettings> {
 
   @override
   void dispose() {
-    LocalizationHelper.removeListener(_onLocaleChanged);
+    removeLocaleListener(_onLocaleChanged);
     _authSub?.cancel();
     _userSub?.cancel();
     _scrollController.dispose();
@@ -193,7 +193,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_light'),
                 leading: const Icon(Icons.wb_sunny_outlined),
-                title: Text(LocalizationHelper.localize('Light', capitalize: true)),
+                title: Text('Light').localized(),
                 trailing: current == ThemeMode.light
                     ? const Icon(Icons.check)
                     : null,
@@ -206,7 +206,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_system'),
                 leading: const Icon(Icons.brightness_auto),
-                title: Text(LocalizationHelper.localize('System', capitalize: true)),
+                title: Text('System').localized(),
                 trailing: current == ThemeMode.system
                     ? const Icon(Icons.check)
                     : null,
@@ -219,7 +219,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_dark'),
                 leading: const Icon(Icons.nights_stay_outlined),
-                title: Text(LocalizationHelper.localize('Dark', capitalize: true)),
+                title: Text('Dark').localized(),
                 trailing: current == ThemeMode.dark
                     ? const Icon(Icons.check)
                     : null,
@@ -238,12 +238,13 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Show language selection bottom sheet
   void _showLanguageSheet() {
-    final languages = LocalizationHelper.availableLanguages;
+    final languages = availableLanguages;
     final currentCode = _selectedLanguage;
     String searchQuery = '';
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -256,8 +257,14 @@ class _UserSettingsState extends State<UserSettings> {
           ).toList();
 
           return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: AnimatedPadding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.85,
+              child: Column(
+              mainAxisSize: MainAxisSize.max,
               children: [
                 const SizedBox(height: 12),
                 Container(
@@ -270,9 +277,9 @@ class _UserSettingsState extends State<UserSettings> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  LocalizationHelper.localize("Select Language"),
+                  'Select Language',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
+                ).localized(),
                 const Divider(height: 24),
                 // Search field
                 Padding(
@@ -283,12 +290,12 @@ class _UserSettingsState extends State<UserSettings> {
                       setSheetState(() {});
                     },
                     decoration: InputDecoration(
-                      hintText: LocalizationHelper.localize("Search languages"),
+                      hintText: 'Search languages',
                       prefixIcon: const Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
+                    ).localizedLabels(),
                   ),
                 ),
                 // Current language
@@ -301,30 +308,30 @@ class _UserSettingsState extends State<UserSettings> {
                         languages.firstWhere((l) => l.code == currentCode).name,
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text(LocalizationHelper.localize("Current")),
+                      subtitle: Text('Current').localized(),
                       enabled: false,
                     ),
                   ),
                 const Divider(),
                 // List
                 if (languages.isEmpty)
-                   Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Column(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text(LocalizationHelper.localize('Loading languages...', capitalize: true)),
-                      ],
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading languages...').localized(),
+                        ],
+                      ),
                     ),
                   )
-                else ...[
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.6,
-                    ),
+                else
+                  Expanded(
                     child: ListView.builder(
-                      shrinkWrap: true,
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
                         final lang = filtered[index];
@@ -344,9 +351,10 @@ class _UserSettingsState extends State<UserSettings> {
                       },
                     ),
                   ),
-                ],
                 const SizedBox(height: 12),
               ],
+              ),
+              ),
             ),
           );
         },
@@ -359,7 +367,7 @@ class _UserSettingsState extends State<UserSettings> {
     setState(() => _loading = true);
 
     try {
-      await LocalizationHelper.changeLocaleAndAwait(
+      await changeLocaleAndAwait(
         newLang,
         warmupKeys: const [
           'User Settings', 'Theme', 'System', 'Language', 'Notifications', 'Terms & Policies',
@@ -395,7 +403,7 @@ class _UserSettingsState extends State<UserSettings> {
     String lang = await UserHelper.fetchUserLanguage();
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      lang = LocalizationHelper.currentLocale;
+      lang = currentLocale;
     }
     if (mounted) {
       setState(() {
@@ -449,8 +457,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.account_circle,
-            'title': LocalizationHelper.localize('Edit Profile'),
-            'subtitle': LocalizationHelper.localize('First/Last name, birthday, gender'),
+            'title': 'Edit Profile',
+            'subtitle': 'First/Last name, birthday, gender',
             'ontap': () async {
               if (user == null) return;
               // Await result and update immediately if we get a ProfileInfo back
@@ -469,8 +477,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.contact_page,
-            'title': LocalizationHelper.localize('Edit Contact Info'),
-            'subtitle': LocalizationHelper.localize('Phone and address'),
+            'title': 'Edit Contact Info',
+            'subtitle': 'Phone and address',
             'ontap': () {
               if (user != null) {
                 Navigator.push(
@@ -484,8 +492,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.card_membership,
-            'title': LocalizationHelper.localize('View Membership Status'),
-            'subtitle': LocalizationHelper.localize('View your Church Membership Status'),
+            'title': 'View Membership Status',
+            'subtitle': 'View your Church Membership Status',
             'ontap': () {
               if (user != null) {
                 Navigator.push(
@@ -497,8 +505,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.family_restroom,
-            'title': LocalizationHelper.localize('Family Members'),
-            'subtitle': LocalizationHelper.localize('Manage your family members'),
+            'title': 'Family Members',
+            'subtitle': 'Manage your family members',
             'ontap': () {
               Navigator.push(
                 context,
@@ -510,8 +518,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.event,
-            'title': LocalizationHelper.localize('My Events'),
-            'subtitle': LocalizationHelper.localize('Your registrations and RSVPs'),
+            'title': 'My Events',
+            'subtitle': 'Your registrations and RSVPs',
             'ontap': () {
               Navigator.push(
                 context,
@@ -521,14 +529,14 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.alternate_email,
-            'title': LocalizationHelper.localize('Change Email'),
-            'subtitle': LocalizationHelper.localize('Request an email to change your address'),
+            'title': 'Change Email',
+            'subtitle': 'Request an email to change your address',
             'ontap': () => ChangeEmailSheet.show(context),
           },
           {
             'icon': Icons.password,
-            'title': LocalizationHelper.localize('Change Password'),
-            'subtitle': LocalizationHelper.localize('Request an email to reset your password'),
+            'title': 'Change Password',
+            'subtitle': 'Request an email to reset your password',
             'ontap': () {
               PasswordReset.show(context, user?.email);
             },
@@ -540,8 +548,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.account_circle,
-            'title': LocalizationHelper.localize('Login or Signup'),
-            'subtitle': LocalizationHelper.localize('To access more features login or signup'),
+            'title': 'Login or Signup',
+            'subtitle': 'To access more features login or signup',
             'ontap': () {
               AuthPopup.show(context);
             },
@@ -553,16 +561,16 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.dark_mode,
-            'title': LocalizationHelper.localize('Theme'),
+            'title': 'Theme',
             'subtitle': themeLabel,
             'ontap': _showThemeSheet,
             'key': const ValueKey('settings_theme_tile'),
           },
           {
             'icon': Icons.language,
-            'title': LocalizationHelper.localize('Language'),
+            'title': 'Language',
             'subtitle': () {
-              final selectedLang = LocalizationHelper.availableLanguages.firstWhere(
+              final selectedLang = availableLanguages.firstWhere(
                 (l) => l.code == _selectedLanguage,
                 orElse: () => const LanguageOption(code: 'en', name: 'English'),
               );
@@ -572,8 +580,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.notifications,
-            'title': LocalizationHelper.localize('Notifications'),
-            'subtitle': LocalizationHelper.localize('Customize alert preferences'),
+            'title': 'Notifications',
+            'subtitle': 'Customize alert preferences',
             'ontap': () {
               Navigator.push(
                 context,
@@ -590,8 +598,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.policy,
-            'title': LocalizationHelper.localize('Terms & Policies'),
-            'subtitle': LocalizationHelper.localize('Privacy policy and terms of use'),
+            'title': 'Terms & Policies',
+            'subtitle': 'Privacy policy and terms of use',
             'ontap': () => _showTermsAndPolicies(context),
           },
         ],
@@ -651,9 +659,9 @@ class _UserSettingsState extends State<UserSettings> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Text(
-            LocalizationHelper.localize(catName),
+            catName,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          ).localized(),
         ),
       );
 
@@ -688,8 +696,8 @@ class _UserSettingsState extends State<UserSettings> {
                   item['icon'] as IconData,
                   color: theme.colorScheme.primary,
                 ),
-                title: Text(item['title'] as String),
-                subtitle: Text(item['subtitle'] as String),
+                title: Text(item['title'] as String).localized(),
+                subtitle: Text(item['subtitle'] as String).localized(),
                 trailing:
                     item['trailing'] as Widget? ??
                     const Icon(Icons.arrow_forward_ios, size: 16),
@@ -739,15 +747,14 @@ class _UserSettingsState extends State<UserSettings> {
                 ),
               ),
             ),
-            child: Text(LocalizationHelper.localize('Logout'), style: const TextStyle(fontSize: 16)),
+            child: Text('Logout', style: const TextStyle(fontSize: 16)).localized(),
           ),
         ),
       );
     }
 
     return Scaffold(
-      key: ValueKey('settings-' + LocalizationHelper.currentLocale + '-' + LocalizationHelper.uiVersion.toString()),
-      appBar: AppBar(title: Text(LocalizationHelper.localize("User Settings")), centerTitle: true),
+      appBar: AppBar(title: Text('User Settings').localized(), centerTitle: true),
       backgroundColor: theme.brightness == Brightness.dark
           ? theme.colorScheme.surface
           : theme.colorScheme.surfaceContainerLow,

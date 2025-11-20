@@ -9,7 +9,7 @@ import 'package:app/widgets/bulletin_detail_sheet.dart';
 import 'package:app/widgets/bulletin_filter_sheet.dart';
 import 'package:app/widgets/service_card.dart';
 import 'package:app/pages/service_detail.dart';
-import '../helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class BulletinsPage extends StatefulWidget {
   const BulletinsPage({super.key});
@@ -34,7 +34,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize('Weekly Bulletin', capitalize: true)),
+        title: Text('Weekly Bulletin').localized(),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -92,9 +92,9 @@ class _BulletinsPageState extends State<BulletinsPage> {
           SizedBox(height: 12),
           Center(
             child: Text(
-              LocalizationHelper.localize('No content available yet. Pull to refresh.', capitalize: true),
+              'No content available yet. Pull to refresh.',
               style: TextStyle(color: Colors.grey),
-            ),
+            ).localized(),
           ),
         ],
       );
@@ -110,11 +110,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
             child: Text(
               provider.serverWeek != null
                   ? provider.serverWeek!.weekLabel
-                  : LocalizationHelper.localize('Upcoming Services', capitalize: true),
+                  : 'Upcoming Services',
               style: Theme.of(
                 context,
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
+            ).localized(),
           ),
           ...provider.services.map(
             (service) => ServiceCard(
@@ -136,11 +136,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  LocalizationHelper.localize('Announcements', capitalize: true),
+                  'Announcements',
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
+                ).localized(),
               ],
             ),
           ),
@@ -211,8 +211,8 @@ class _ErrorBanner extends StatelessWidget {
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
         title: Text(
-          LocalizationHelper.localize(message, capitalize: true),
-        ),
+          message,
+        ).localized(),
         trailing: IconButton(
           icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,
@@ -247,8 +247,8 @@ class _ErrorState extends StatelessWidget {
             ElevatedButton(
               onPressed: onRetry,
               child: Text(
-                LocalizationHelper.localize('Try again', capitalize: true),
-              ),
+                'Try again',
+              ).localized(),
             ),
           ],
         ),

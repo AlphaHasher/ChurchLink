@@ -7,7 +7,7 @@ import 'dart:developer';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 
 class Giving extends StatefulWidget {
@@ -277,15 +277,15 @@ class _GivingState extends State<Giving> {
   String _getIntervalCountHelperText() {
     switch (_intervalUnit) {
       case 'DAY':
-        return LocalizationHelper.localize('Min: 1, Max: 365');
+        return 'Min: 1, Max: 365';
       case 'WEEK':
-        return LocalizationHelper.localize('Min: 1, Max: 52');
+        return 'Min: 1, Max: 52';
       case 'MONTH':
-        return LocalizationHelper.localize('Min: 1, Max: 12');
+        return 'Min: 1, Max: 12';
       case 'YEAR':
-        return LocalizationHelper.localize('Min: 1, Max: 1');
+        return 'Min: 1, Max: 1';
       default:
-        return LocalizationHelper.localize('Min: 1');
+        return 'Min: 1';
     }
   }
 
@@ -353,20 +353,20 @@ class _GivingState extends State<Giving> {
                   Navigator.pop(context);
                   Navigator.of(context).push(MaterialPageRoute(
                     builder: (context) => Scaffold(
-                      appBar: AppBar(title: Text(LocalizationHelper.localize('Confirmation', capitalize: true))),
+                      appBar: AppBar(title: Text('Confirmation').localized()),
                       body: Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.check_circle, color: Colors.green, size: 80),
                             const SizedBox(height: 20),
-                            Text(LocalizationHelper.localize('Thank you for your subscription!', capitalize: true), style: TextStyle(fontSize: 22)),
+                            Text('Thank you for your subscription!', style: TextStyle(fontSize: 22)).localized(),
                             const SizedBox(height: 10),
-                            Text(LocalizationHelper.localize('Your recurring donation was set up successfully.', capitalize: true), style: TextStyle(fontSize: 16)),
+                            Text('Your recurring donation was set up successfully.', style: TextStyle(fontSize: 16)).localized(),
                             const SizedBox(height: 30),
                             ElevatedButton(
                               onPressed: () => Navigator.pop(context),
-                              child: Text(LocalizationHelper.localize('Back to Giving', capitalize: true)),
+                              child: Text('Back to Giving').localized(),
                             ),
                           ],
                         ),
@@ -390,7 +390,7 @@ class _GivingState extends State<Giving> {
         if (mounted) {
           Navigator.of(context).push(MaterialPageRoute(
             builder: (context) => Scaffold(
-              appBar: AppBar(title: Text(LocalizationHelper.localize('PayPal Subscription', capitalize: true))),
+              appBar: AppBar(title: Text('PayPal Subscription').localized()),
               body: WebViewWidget(controller: controller),
             ),
           ));
@@ -424,20 +424,20 @@ class _GivingState extends State<Giving> {
                       Navigator.pop(context);
                       Navigator.of(context).push(MaterialPageRoute(
                         builder: (context) => Scaffold(
-                          appBar: AppBar(title: Text(LocalizationHelper.localize('Confirmation', capitalize: true))),
+                          appBar: AppBar(title: Text('Confirmation').localized()),
                           body: Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(Icons.check_circle, color: Colors.green, size: 80),
                                 const SizedBox(height: 20),
-                                Text(LocalizationHelper.localize('Thank you for your donation!', capitalize: true), style: TextStyle(fontSize: 22)),
+                                Text('Thank you for your donation!', style: TextStyle(fontSize: 22)).localized(),
                                 const SizedBox(height: 10),
-                                Text(LocalizationHelper.localize('Your payment was completed successfully.', capitalize: true), style: TextStyle(fontSize: 16)),
+                                Text('Your payment was completed successfully.', style: TextStyle(fontSize: 16)).localized(),
                                 const SizedBox(height: 30),
                                 ElevatedButton(
                                   onPressed: () => Navigator.pop(context),
-                                  child: Text(LocalizationHelper.localize('Back to Giving', capitalize: true)),
+                                  child: Text('Back to Giving').localized(),
                                 ),
                               ],
                             ),
@@ -463,7 +463,7 @@ class _GivingState extends State<Giving> {
         if (mounted) {
           Navigator.of(context).push(MaterialPageRoute(
             builder: (context) => Scaffold(
-              appBar: AppBar(title: Text(LocalizationHelper.localize('PayPal Payment', capitalize: true))),
+              appBar: AppBar(title: Text('PayPal Payment').localized()),
               body: WebViewWidget(controller: controller),
             ),
           ));
@@ -483,8 +483,8 @@ class _GivingState extends State<Giving> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${_churchName} ${LocalizationHelper.localize("Giving")}',
-        ),
+          '$_churchName Giving',
+        ).localized(),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -505,15 +505,15 @@ class _GivingState extends State<Giving> {
                     ),
                   const SizedBox(height: 16),
                   
-                  Text(LocalizationHelper.localize('Supporting $_churchName'), style: Theme.of(context).textTheme.titleLarge),
+                  Text('Supporting $_churchName', style: Theme.of(context).textTheme.titleLarge).localized(),
                   const SizedBox(height: 12),
                   Text(
-                      LocalizationHelper.localize('Your donations help our mission to support and uplift you and the community! Every contribution, large or small, has a meaningful difference!'),
+                      'Your donations help our mission to support and uplift you and the community! Every contribution, large or small, has a meaningful difference!',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                       textAlign: TextAlign.center,
-                    ),
+                    ).localized(),
                   const SizedBox(height: 16),
                   Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -525,23 +525,23 @@ class _GivingState extends State<Giving> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          LocalizationHelper.localize('Thank you for your generosity!'),
+                          'Thank you for your generosity!',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                             fontStyle: FontStyle.italic,
                           ),
                           textAlign: TextAlign.center,
-                        ),
+                        ).localized(),
                       ],
                     ),
                   const SizedBox(height: 32),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: Text(
-                      LocalizationHelper.localize('Enter your name and donation details below. Payment will be processed securely through PayPal.'),
+                      'Enter your name and donation details below. Payment will be processed securely through PayPal.',
                       style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
-                    ),
+                    ).localized(),
                   ),
                   const SizedBox(height: 10),
                   Card(
@@ -552,12 +552,12 @@ class _GivingState extends State<Giving> {
                       child: Column(
                         children: [
                           Text(
-                            LocalizationHelper.localize('Enter Amount'),
+                            'Enter Amount',
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
                             ),
-                          ),
+                          ).localized(),
                           const SizedBox(height: 16),
                           TextField(
                             controller: _amountController,
@@ -590,10 +590,10 @@ class _GivingState extends State<Giving> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     initialValue: _purpose,
-                    decoration: InputDecoration(
-                      labelText: LocalizationHelper.localize('Purpose'),
-                      border: const OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Purpose',
+                      border: OutlineInputBorder(),
+                    ).localizedLabels(),
                     items: _fundPurposes.map((purpose) => DropdownMenuItem(
                       value: purpose,
                       child: Text(purpose),
@@ -607,10 +607,10 @@ class _GivingState extends State<Giving> {
                   const SizedBox(height: 10),
                   TextField(
                       controller: _messageController,
-                      decoration: InputDecoration(
-                        labelText: LocalizationHelper.localize('Message (optional)'),
-                        border: const OutlineInputBorder(),
-                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Message (optional)',
+                        border: OutlineInputBorder(),
+                      ).localizedLabels(),
                     ),
                     const SizedBox(height: 10),
                   Row(
@@ -624,7 +624,7 @@ class _GivingState extends State<Giving> {
                           });
                         },
                       ),
-                      Text(LocalizationHelper.localize('Recurring giving')),
+                      Text('Recurring giving').localized(),
                     ],
                   ),
                   if (_isSubscription) ...[
@@ -636,20 +636,20 @@ class _GivingState extends State<Giving> {
                           Expanded(
                             child: TextField(
                               controller: _firstNameController,
-                              decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize('First Name'),
-                                border: const OutlineInputBorder(),
-                              ),
+                              decoration: const InputDecoration(
+                                labelText: 'First Name',
+                                border: OutlineInputBorder(),
+                              ).localizedLabels(),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: TextField(
                               controller: _lastNameController,
-                              decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize('Last Name'),
-                                border: const OutlineInputBorder(),
-                              ),
+                              decoration: const InputDecoration(
+                                labelText: 'Last Name',
+                                border: OutlineInputBorder(),
+                              ).localizedLabels(),
                             ),
                           ),
                         ],
@@ -663,15 +663,15 @@ class _GivingState extends State<Giving> {
                           Expanded(
                             child: DropdownButtonFormField<String>(
                               initialValue: _intervalUnit,
-                              decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize('Interval Unit'),
-                                border: const OutlineInputBorder(),
-                              ),
+                              decoration: const InputDecoration(
+                                labelText: 'Interval Unit',
+                                border: OutlineInputBorder(),
+                              ).localizedLabels(),
                               items: [
-                                DropdownMenuItem(value: 'DAY', child: Text(LocalizationHelper.localize('Day'))),
-                                DropdownMenuItem(value: 'WEEK', child: Text(LocalizationHelper.localize('Week'))),
-                                DropdownMenuItem(value: 'MONTH', child: Text(LocalizationHelper.localize('Month'))),
-                                DropdownMenuItem(value: 'YEAR', child: Text(LocalizationHelper.localize('Year'))),
+                                DropdownMenuItem(value: 'DAY', child: Text('Day').localized()),
+                                DropdownMenuItem(value: 'WEEK', child: Text('Week').localized()),
+                                DropdownMenuItem(value: 'MONTH', child: Text('Month').localized()),
+                                DropdownMenuItem(value: 'YEAR', child: Text('Year').localized()),
                               ],
                               onChanged: (val) {
                                 setState(() {
@@ -685,10 +685,10 @@ class _GivingState extends State<Giving> {
                             child: TextFormField(
                               initialValue: _intervalCount.toString(),
                               decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize('Interval Count'),
+                                labelText: 'Interval Count',
                                 helperText: _getIntervalCountHelperText(),
                                 border: const OutlineInputBorder(),
-                              ),
+                              ).localizedLabels(),
                               keyboardType: TextInputType.number,
                               onChanged: (val) {
                                 final parsed = int.tryParse(val);
@@ -711,10 +711,10 @@ class _GivingState extends State<Giving> {
                           Expanded(
                             child: TextFormField(
                               initialValue: _cycles.toString(),
-                              decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize('Cycles (max 60)'),
-                                border: const OutlineInputBorder(),
-                              ),
+                              decoration: const InputDecoration(
+                                labelText: 'Cycles (max 60)',
+                                border: OutlineInputBorder(),
+                              ).localizedLabels(),
                               keyboardType: TextInputType.number,
                               onChanged: (val) {
                                 final parsed = int.tryParse(val);
@@ -732,10 +732,10 @@ class _GivingState extends State<Giving> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: LocalizationHelper.localize('Start Date'),
-                          border: const OutlineInputBorder(),
-                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Start Date',
+                          border: OutlineInputBorder(),
+                        ).localizedLabels(),
                         child: InkWell(
                           onTap: () async {
                             final picked = await showDatePicker(
@@ -752,15 +752,15 @@ class _GivingState extends State<Giving> {
                           },
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12.0),
-                            child: Text(
-                              _startDate != null
-                                  ? '${_startDate!.month}/${_startDate!.day}/${_startDate!.year}'
-                                  : LocalizationHelper.localize('Choose date'),
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontSize: 16,
-                                color: _startDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
-                              ),
-                            ),
+                              child: Text(
+                                _startDate != null
+                                    ? '${_startDate!.month}/${_startDate!.day}/${_startDate!.year}'
+                                    : 'Choose date',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontSize: 16,
+                                  color: _startDate != null ? Theme.of(context).colorScheme.onSurface : Theme.of(context).hintColor,
+                                ),
+                              ).localized(),
                           ),
                         ),
                       ),
@@ -776,7 +776,7 @@ class _GivingState extends State<Giving> {
                     ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.volunteer_activism),
-                    label: Text(LocalizationHelper.localize('Give with PayPal')),
+                    label: Text('Give with PayPal').localized(),
                     onPressed: _loading ? null : _give,
                     style: ElevatedButton.styleFrom(
                       // Leave PayPal button hard coded blue, matches their branding
@@ -810,22 +810,22 @@ class _GivingState extends State<Giving> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            LocalizationHelper.localize('Donate In Person'),
+                            'Donate In Person',
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context).colorScheme.primary,
                             ),
-                          ),
+                          ).localized(),
                         ],
                       ),
 
                       const SizedBox(height: 12),
                       Text(
-                        LocalizationHelper.localize('Visit us during service hours to offer donations as cash or checks, any amount is gratefully accepted!'),
+                        'Visit us during service hours to offer donations as cash or checks, any amount is gratefully accepted!',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
-                      ),
+                      ).localized(),
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -846,12 +846,12 @@ class _GivingState extends State<Giving> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  LocalizationHelper.localize('Service Times:'),
+                                  'Service Times:',
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                   ),
-                                ),
+                                ).localized(),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -861,32 +861,32 @@ class _GivingState extends State<Giving> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    LocalizationHelper.localize('Sunday Mornings - 9:30 AM'),
+                                    'Sunday Mornings - 9:30 AM',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface,
                                     ),
-                                  ),
+                                  ).localized(),
                                   const SizedBox(height: 4),
                                   Text(
-                                    LocalizationHelper.localize('Sunday United Service - 12:15 PM'),
+                                    'Sunday United Service - 12:15 PM',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface,
                                     ),
-                                  ),
+                                  ).localized(),
                                   const SizedBox(height: 4),
                                   Text(
-                                    LocalizationHelper.localize('Sunday Evenings - 5:00 PM'),
+                                    'Sunday Evenings - 5:00 PM',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface,
                                     ),
-                                  ),
+                                  ).localized(),
                                   const SizedBox(height: 4),
                                   Text(
-                                    LocalizationHelper.localize('Thursday Prayer Service - 7:00 PM'),
+                                    'Thursday Prayer Service - 7:00 PM',
                                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface,
                                     ),
-                                  ),
+                                  ).localized(),
                                 ],
                               ),
                             ),
@@ -920,21 +920,21 @@ class _GivingState extends State<Giving> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            LocalizationHelper.localize('Mail-in Donations'),
+                            'Mail-in Donations',
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context).colorScheme.primary,
                             ),
-                          ),
+                          ).localized(),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        LocalizationHelper.localize('Prefer to send a check? Mail your donation to our church address. Please make checks payable to $_churchName.'),
+                        'Prefer to send a check? Mail your donation to our church address. Please make checks payable to $_churchName.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
-                      ),
+                      ).localized(),
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -1014,22 +1014,22 @@ class _GivingState extends State<Giving> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(LocalizationHelper.localize('Payment Error')),
+        title: Text('Payment Error').localized(),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error, color: Theme.of(context).colorScheme.error, size: 48),
             const SizedBox(height: 16),
             Text(
-              LocalizationHelper.localize('Event payment failed: $error'),
+              'Event payment failed: $error',
               textAlign: TextAlign.center,
-            ),
+            ).localized(),
             const SizedBox(height: 16),
             Text(
-              LocalizationHelper.localize('Please try again or contact support if the problem persists.'),
+              'Please try again or contact support if the problem persists.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
-            ),
+            ).localized(),
           ],
         ),
         actions: [
@@ -1038,11 +1038,11 @@ class _GivingState extends State<Giving> {
               Navigator.of(context).pop(); // Close dialog
               Navigator.of(context).pushReplacementNamed('/events');
             },
-            child: Text(LocalizationHelper.localize('Back to Events')),
+            child: Text('Back to Events').localized(),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(LocalizationHelper.localize('OK')),
+            child: Text('OK').localized(),
           ),
         ],
       ),
@@ -1053,22 +1053,22 @@ class _GivingState extends State<Giving> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(LocalizationHelper.localize('Payment Cancelled')),
+        title: Text('Payment Cancelled').localized(),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.cancel, color: Colors.orange, size: 48),
             const SizedBox(height: 16),
             Text(
-              LocalizationHelper.localize('Event payment was cancelled. Your registration is not confirmed yet.'),
+              'Event payment was cancelled. Your registration is not confirmed yet.',
               textAlign: TextAlign.center,
-            ),
+            ).localized(),
             const SizedBox(height: 16),
             Text(
-              LocalizationHelper.localize('You can try again later or complete payment at the event if applicable.'),
+              'You can try again later or complete payment at the event if applicable.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
-            ),
+            ).localized(),
           ],
         ),
         actions: [
@@ -1077,11 +1077,11 @@ class _GivingState extends State<Giving> {
               Navigator.of(context).pop(); // Close dialog
               Navigator.of(context).pushReplacementNamed('/events');
             },
-            child: Text(LocalizationHelper.localize('Back to Events')),
+            child: Text('Back to Events').localized(),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(LocalizationHelper.localize('OK')),
+            child: Text('OK').localized(),
           ),
         ],
       ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class PaymentSuccessPage extends StatelessWidget {
   final String? paymentId;
@@ -20,7 +20,7 @@ class PaymentSuccessPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.green.shade50,
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize('Payment Successful', capitalize: true)),
+        title: Text('Payment Successful').localized(),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -63,13 +63,13 @@ class PaymentSuccessPage extends StatelessWidget {
               // Success Message
               Text(
                 paymentId != null 
-                    ? LocalizationHelper.localize('Your payment was processed successfully.', capitalize: true)
-                    : LocalizationHelper.localize('Your registration has been completed successfully.', capitalize: true),
+                    ? 'Your payment was processed successfully.'
+                    : 'Your registration has been completed successfully.',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey.shade700,
                 ),
                 textAlign: TextAlign.center,
-              ),
+              ).localized(),
               
               if (eventName != null) ...[
                 const SizedBox(height: 16),
@@ -160,9 +160,9 @@ class PaymentSuccessPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize('View All Events', capitalize: true),
+                        'View All Events',
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                      ).localized(),
                     ),
                   ),
                   
@@ -182,12 +182,12 @@ class PaymentSuccessPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize('Back to Home', capitalize: true),
+                        'Back to Home',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.green.shade700,
                         ),
-                      ),
+                      ).localized(),
                     ),
                   ),
                 ],
