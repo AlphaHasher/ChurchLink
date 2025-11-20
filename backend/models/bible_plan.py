@@ -336,6 +336,16 @@ async def create_template_from_plan(plan_id: str, user_id: str) -> Optional[Read
         if not plan:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
         
+        # Ensure unique index on template name
+        try:
+            await DB.db.bible_plan_templates.create_index(
+                [("name", 1)], 
+                unique=True, 
+                name="uniq_template_name"
+            )
+        except Exception:
+            pass  # index already exists or cannot be created now
+        
         # Create template document (without user_id, created_at, updated_at, visible)
         template_doc = {
             "name": plan.name,
