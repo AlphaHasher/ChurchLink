@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Literal, Any, Dict
 from pydantic import BaseModel, Field
 
@@ -22,8 +22,8 @@ class DonationSubscriptionPlan(BaseModel):
     status: Literal["ACTIVE", "INACTIVE", "CREATED", "INVALID"] = "ACTIVE"
     meta: Dict[str, Any] = Field(default_factory=dict)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_mongo(self):
         return self.dict(by_alias=True, exclude_none=True)
@@ -40,7 +40,7 @@ async def get_plan(*, currency: str, interval: str, amount: float) -> Optional[d
 
 
 async def save_plan(doc: dict) -> dict:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     doc.setdefault("created_at", now)
     doc["updated_at"] = now
     res = await DB.db.donation_subscription_plans.insert_one(doc)

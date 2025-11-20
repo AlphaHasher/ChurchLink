@@ -337,8 +337,7 @@ async def _compute_subscription_plan_stats(
     """
     Aggregate donation subscription plan metrics for the report window.
 
-    We treat donation_subscriptions similarly to refund requests: they are
-    reported separately from monetary totals.
+    Donation subscription plans are calcualted for net plans and for monetary value of said plans
     """
     # If the caller explicitly excluded donation_subscription from the kinds
     # filter, skip this computation.

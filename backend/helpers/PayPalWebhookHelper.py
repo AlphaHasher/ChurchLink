@@ -22,7 +22,7 @@ def _res(evt: Dict[str, Any]) -> Dict[str, Any]:
 def _safe_float(v: Any) -> float:
     try:
         return float(v)
-    except Exception:
+    except (TypeError, ValueError):
         return 0.0
 
 def _extract_order_id(event: Dict[str, Any]) -> Optional[str]:
@@ -36,12 +36,6 @@ def _extract_order_id(event: Dict[str, Any]) -> Optional[str]:
     order_id = sup.get("order_id")
     if order_id:
         return order_id
-    # fallback: custom fields if you set them on the purchase_units
-    try:
-        pu = (r.get("links") or [])
-        # As a last resort, we don't guess. Better to return None than mis-associate.
-    except Exception:
-        pass
     return None
 
 def _extract_capture_id(event: Dict[str, Any]) -> Optional[str]:

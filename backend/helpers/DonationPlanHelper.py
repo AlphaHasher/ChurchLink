@@ -125,7 +125,7 @@ def _paypal_plan_matches_request(
             return False
 
         return True
-    except Exception:
+    except (KeyError, ValueError, TypeError, IndexError):
         # If we can't parse it in a reasonable way, don't trust it.
         return False
 

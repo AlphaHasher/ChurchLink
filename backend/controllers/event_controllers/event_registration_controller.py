@@ -437,7 +437,7 @@ async def process_change_event_registration(
 
 
 
-async def calculate_discounted_event_price(base_price: float, is_percent:bool, discount_value: float, count:int, limit:int=None,):
+async def calculate_discounted_event_price(base_price: float, is_percent:bool, discount_value: float, count:int, limit:Optional[int]=None,):
     """
     CALCULATES A NEW UNIT PRICE FOR AN EVENT
     TAKES PARAMS:
@@ -604,17 +604,23 @@ async def do_registration_validation(request: Request, registration: ChangeEvent
         # If registration not yet open, forbid registration
         if instance.registration_opens:
             reg_open, err = _coerce_to_aware_utc(instance.registration_opens)
+            if not reg_open:
+                return {"success": False, "msg": "Error! Invalid registration open date."}
             if reg_open > now:
                 return {"success": False, "msg": "Error! You cannot register for an event before the opening date!"}
 
         # If registration deadline passed, forbid registration
         if instance.registration_deadline:
             reg_dead, err = _coerce_to_aware_utc(instance.registration_deadline)
+            if not reg_dead:
+                return {"success": False, "msg": "Error! Invalid registration deadline date."}
             if now >= reg_dead:
                 return {"success": False, "msg": "Error! You cannot register for an event after the registration deadline!"}
 
     # If the event date has already passed, forbid any update
     ev_date, err = _coerce_to_aware_utc(instance.date)
+    if not ev_date:
+        return {"success": False, "msg": "Error! Invalid event date."}
     if now >= ev_date:
         return {
             "success": False,
@@ -759,7 +765,11 @@ async def do_eligibility_validation(gender: str, dob: datetime, instance: Assemb
 
     # Coerce dates to being UTC aware and calculate age
     aware_dob, err = _coerce_to_aware_utc(dob)
+    if not aware_dob:
+        return False
     aware_date, err = _coerce_to_aware_utc(instance.date)
+    if not aware_date:
+        return False
     age = relativedelta(aware_date.date(), aware_dob.date()).years
 
     # Identify if age is out of bounds
@@ -770,7 +780,7 @@ async def do_eligibility_validation(gender: str, dob: datetime, instance: Assemb
 
     return True
 
-async def do_discount_check(uid: str, event_id:str, *, discount_code:str=None, code_id:str=None):
+async def do_discount_check(uid: str, event_id:str, *, discount_code:Optional[str] = None, code_id:Optional[str] = None):
 
     # First validate that code exists. We should expect a discount_code or code_id 
     
@@ -1323,41 +1333,6 @@ async def _process_refunds_for_removals(
         results.append((label, refund_id, amount))
 
     return {"success": True, "refunded": results}
-
-
-# ----------------------------
-# Admin Helpers (loose validation)
-# ----------------------------
-
-async def _load_upcoming_instance(instance_id: str) -> Optional[AssembledEventInstance]:
-    instance_doc = await get_event_instance_assembly_by_id(instance_id)
-    if not instance_doc:
-        return None
-    try:
-        assembled = AssembledEventInstance(**instance_doc)
-    except Exception:
-        return None
-
-    # upcoming-only requirement
-    now = datetime.now(timezone.utc)
-    ev_dt, _ = _coerce_to_aware_utc(assembled.date)
-    if not ev_dt or now >= ev_dt:
-        return None
-    return assembled
-
-
-def _build_forced_payment_details(kind: Literal["free", "door"], price: float) -> PaymentDetails:
-    # payment_complete only for "free"; "door" means pay later
-    return PaymentDetails(
-        payment_type=kind,
-        price=round(float(price or 0), 2),
-        payment_complete=(kind == "free"),
-        discount_code_id=None,
-        automatic_refund_eligibility=False,
-        transaction_id=None,
-        line_id=None,
-        is_forced=True, 
-    )
 
 
 # ----------------------------

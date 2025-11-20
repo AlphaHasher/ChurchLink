@@ -58,7 +58,7 @@ async def upsert_subscription_record(
     message: Optional[str] = None,
     meta: Optional[dict] = None,
 ):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     doc = {
         "paypal_subscription_id": paypal_subscription_id,
         "status": status,
@@ -85,7 +85,7 @@ async def upsert_subscription_record(
 async def set_subscription_status(*, paypal_subscription_id: str, status: str):
     return await DB.db.donation_subscriptions.find_one_and_update(
         {"paypal_subscription_id": paypal_subscription_id},
-        {"$set": {"status": status, "updated_at": datetime.utcnow()}},
+        {"$set": {"status": status, "updated_at": datetime.now(timezone.utc)}},
         return_document=True,
     )
 

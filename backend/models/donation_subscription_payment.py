@@ -45,7 +45,7 @@ def _normalize_refunds(raw_list: Any) -> List[TransactionRefund]:
                 refund_id=str(legacy_id),
                 amount=legacy_amount,
                 currency=legacy_currency,  # type: ignore[arg-type]
-                created_at=raw.get("created_at") or datetime.utcnow(),
+                created_at=raw.get("created_at") or datetime.now(timezone.utc),
                 source="legacy",
                 paypal_refund_payload=raw,
             )

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from mongo.database import DB
 from models.refund_models import TransactionRefund
+import logging
 
 """
 A lightweight ledger for one-time donations captured via PayPal Orders v2.
@@ -151,8 +152,8 @@ def _normalize_refunds(raw_list: Any) -> List[TransactionRefund]:
         try:
             refunds.append(TransactionRefund.parse_obj(raw))
             continue
-        except Exception:
-            pass
+        except Exception as e:
+            logging.warning(f"Failed to parse refund entry at index {idx}: {e}")
 
         legacy_amount = float(raw.get("amount", 0.0) or 0.0)
         legacy_currency = (raw.get("currency") or "USD").upper()
@@ -168,7 +169,7 @@ def _normalize_refunds(raw_list: Any) -> List[TransactionRefund]:
                 refund_id=str(legacy_id),
                 amount=legacy_amount,
                 currency=legacy_currency,  # type: ignore[arg-type]
-                created_at=raw.get("at") or datetime.utcnow(),
+                created_at=raw.get("at") or datetime.now(timezone.utc),
                 source="legacy_webhook",
                 paypal_refund_payload=raw.get("paypal_refund_payload") or raw,
             )
@@ -222,8 +223,8 @@ async def create_donation_transaction(
         "message": message,
         "paypal_order_id": paypal_order_id,
         "paypal_capture_id": None,
-        "created_at": datetime.utcnow(),
-        "updated_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
         "meta": meta or {},
         "refunds": [],
     }
@@ -244,7 +245,7 @@ async def mark_donation_captured(
         "status": "captured",
         "paypal_capture_id": capture_id,
         "capture_payload": capture_payload or {},
-        "updated_at": datetime.utcnow(),
+        "updated_at": datetime.now(timezone.utc),
     }
     if gross is not None:
         set_fields["gross_amount"] = float(gross)
@@ -317,7 +318,7 @@ async def record_donation_refund(
         "$set": {
             "refunds": [r.dict(by_alias=True, exclude_none=True) for r in refunds],
             "status": new_status,
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(timezone.utc),
         }
     }
 
