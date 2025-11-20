@@ -217,14 +217,31 @@ export const EventListTile: React.FC<Props> = ({
 
     return (
         <Card className="h-full flex flex-col overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition">
-            {/* Image Header */}
-            <div className="relative pb-5">
+            {/* Image Header with layered blur effect */}
+            <div className="relative overflow-hidden">
+                {/* Blurred background layer (zoomed) */}
                 <div
-                    className="w-full aspect-[16/9] bg-cover bg-center"
+                    className="absolute inset-0 w-full h-full bg-center"
                     style={{
                         backgroundImage: heroUrl
                             ? `url("${heroUrl}")`
                             : `linear-gradient(45deg,var(--background),var(--muted))`,
+                        backgroundSize: "cover",
+                        backgroundRepeat: "no-repeat",
+                        filter: heroUrl ? "blur(25px)" : "none",
+                        transform: "scale(1.0)", // Adjustable: 1.0 = 100% zoom (default)
+                    }}
+                />
+                {/* Sharp foreground layer */}
+                <div
+                    className="relative w-full aspect-[16/9] bg-center"
+                    style={{
+                        backgroundImage: heroUrl
+                            ? `url("${heroUrl}")`
+                            : `linear-gradient(45deg,var(--background),var(--muted))`,
+                        backgroundSize: "contain",
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "center",
                     }}
                 />
                 {/* Top-right badges: favorited (left) + recurrence (right) */}

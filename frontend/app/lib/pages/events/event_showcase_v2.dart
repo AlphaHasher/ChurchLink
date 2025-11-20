@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:android_intent_plus/android_intent.dart';
@@ -1441,26 +1442,45 @@ END:VCALENDAR
 
     return Column(
       children: [
-        // HERO IMAGE
+        // HERO IMAGE with layered effect: sharp foreground + blurred background
         Container(
           color: Colors.black,
           child: AspectRatio(
             aspectRatio: 16 / 9,
             child:
                 heroUrl.isNotEmpty
-                    ? Image.network(
-                      heroUrl,
-                      fit: BoxFit.contain,
-                      errorBuilder:
-                          (_, _, _) => Container(
-                            color: Colors.black,
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.event,
-                              size: 48,
-                              color: Colors.white70,
+                    ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Blurred background image layer (zoomed in)
+                        ImageFiltered(
+                          imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                          child: Transform.scale(
+                            scale: 1.0, // Adjustable: 1.0 = 100% zoom (default)
+                            child: Image.network(
+                              heroUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (_, _, _) => Container(color: Colors.black),
                             ),
                           ),
+                        ),
+                        // Sharp foreground image layer
+                        Image.network(
+                          heroUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (_, _, _) => Container(
+                                color: Colors.black,
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.event,
+                                  size: 48,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                        ),
+                      ],
                     )
                     : Container(
                       color: Colors.black,

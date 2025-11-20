@@ -353,16 +353,31 @@ function EventDetailsBody({
     return (
         <div className="flex flex-col">
             <div
-                className="w-full shrink-0 flex items-center justify-center bg-neutral-950"
+                className="w-full shrink-0 flex items-center justify-center bg-neutral-950 relative overflow-hidden"
             >
                 {heroUrl ? (
-                    <img
-                        src={heroUrl}
-                        alt={title || localize("Event image")}
-                        className=" block w-full h-auto object-contain max-h-[60vh] min-h-[15rem] md:min-h-[20rem] lg:min-h-[22rem]"
-                        loading="lazy"
-                        decoding="async"
-                    />
+                    <>
+                        {/* Blurred background layer */}
+                        <img
+                            src={heroUrl}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover"
+                            style={{
+                                filter: "blur(25px)",
+                                transform: "scale(1.0)", // Adjustable: 1.0 = 100% zoom (default)
+                            }}
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        {/* Sharp foreground layer */}
+                        <img
+                            src={heroUrl}
+                            alt={title || localize("Event image")}
+                            className="relative block w-full h-auto object-contain max-h-[60vh] min-h-[15rem] md:min-h-[20rem] lg:min-h-[22rem]"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                    </>
                 ) : (
                     <div className="h-[15rem] md:h-[20rem] lg:h-[22rem] w-full" />
                 )}
