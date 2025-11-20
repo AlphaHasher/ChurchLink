@@ -366,3 +366,53 @@ async def create_template_from_plan(plan_id: str, user_id: str) -> Optional[Read
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating template from plan: {e}")
 
+
+async def update_bible_plan_template(template_id: str, name: str) -> Optional[ReadingPlanTemplateOut]:
+    """Update a Bible plan template's name"""
+    try:
+        tid = ObjectId(template_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid template ID")
+    
+    try:
+        result = await DB.db.bible_plan_templates.update_one(
+            {"_id": tid},
+            {"$set": {"name": name}}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+        
+        updated = await DB.db.bible_plan_templates.find_one({"_id": tid})
+        if updated:
+            readings = {k: [BiblePassage(**p) for p in v] for k, v in updated.get("readings", {}).items()}
+            return ReadingPlanTemplateOut(
+                id=str(updated.get("_id")),
+                name=updated["name"],
+                duration=updated["duration"],
+                readings=readings
+            )
+        return None
+    except DuplicateKeyError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A template with this name already exists")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating template: {e}")
+
+
+async def delete_bible_plan_template(template_id: str) -> bool:
+    """Delete a Bible plan template"""
+    try:
+        tid = ObjectId(template_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid template ID")
+    
+    try:
+        result = await DB.db.bible_plan_templates.delete_one({"_id": tid})
+        return result.deleted_count > 0
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting template: {e}")
+

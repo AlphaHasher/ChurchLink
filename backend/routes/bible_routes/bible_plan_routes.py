@@ -21,6 +21,8 @@ from models.bible_plan import (
     get_bible_plan_template_by_id,
     get_published_reading_plans,
     create_template_from_plan,
+    update_bible_plan_template,
+    delete_bible_plan_template,
 )
 
 
@@ -107,6 +109,24 @@ async def create_template_from_plan_endpoint(plan_id: str, request: Request) -> 
     if not template:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create template")
     return template
+
+# Update template name
+@mod_bible_plan_router.patch("/templates/{template_id}", response_model=ReadingPlanTemplateOut)
+async def update_template(template_id: str, name: str) -> ReadingPlanTemplateOut:
+    """Update a Bible plan template's name"""
+    updated = await update_bible_plan_template(template_id, name)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found or update failed")
+    return updated
+
+# Delete template
+@mod_bible_plan_router.delete("/templates/{template_id}")
+async def delete_template(template_id: str) -> dict:
+    """Delete a Bible plan template"""
+    ok = await delete_bible_plan_template(template_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return {"message": "Template deleted"}
 
 
 # Get plan by ID
