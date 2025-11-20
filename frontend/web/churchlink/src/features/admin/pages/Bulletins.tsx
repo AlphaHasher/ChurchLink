@@ -6,6 +6,7 @@ import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import BulletinsTable from '@/features/admin/components/Bulletins/BulletinsTable';
 import ServicesTable from '@/features/admin/components/Bulletins/ServicesTable';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
+import { Skeleton } from '@/shared/components/ui/skeleton';
 
 const Bulletins = () => {
     const [bulletins, setBulletins] = useState<ChurchBulletin[]>([]);
@@ -97,7 +98,17 @@ const Bulletins = () => {
         loadData(); 
     }, [loadData]);
 
-    if (loading) return <p>Loading Weekly Bulletin...</p>;
+    if (loading) {
+        return (
+            <div className="p-6">
+                <h1 className="text-xl font-bold mb-4">Weekly Bulletin Management</h1>
+                <Skeleton className="h-6 w-1/3 mb-4" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-2/3 mb-2" />
+            </div>
+        );
+    }
 
     return (
         <div className="p-6">
