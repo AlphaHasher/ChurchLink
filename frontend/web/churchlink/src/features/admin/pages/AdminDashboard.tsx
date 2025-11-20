@@ -510,7 +510,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <CardDescription className="mb-4">
+                    <CardDescription className="pt-2 mb-4">
                       {description}
                       {hasNoRoleAssigned && (
                         <span className="block mt-2 text-xs text-amber-600 dark:text-amber-300 font-medium">
