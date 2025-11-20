@@ -186,7 +186,8 @@ class DB:
         },
         {
             "name": "bible_plan_templates",
-            "indexes": ["name"]
+            "indexes": [],
+            "unique_indexes": ["name"]
         },
         {
             "name": "app_config",

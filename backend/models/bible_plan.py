@@ -344,7 +344,10 @@ async def create_template_from_plan(plan_id: str, user_id: str) -> Optional[Read
         }
         
         # Insert into bible_plan_templates collection
-        result = await DB.db.bible_plan_templates.insert_one(template_doc)
+        try:
+            result = await DB.db.bible_plan_templates.insert_one(template_doc)
+        except DuplicateKeyError:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A template with this name already exists")
         
         if result.inserted_id:
             created = await DB.db.bible_plan_templates.find_one({"_id": result.inserted_id})
