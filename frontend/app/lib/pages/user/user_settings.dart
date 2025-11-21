@@ -239,6 +239,233 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
+  // Show the theme selection bottom sheet
+  void _showManageAccount() {
+    final current = ThemeController.instance.mode;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: Text(
+                  LocalizationHelper.localize('Delete Account', capitalize: true),
+                  style: const TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteAccountWarning();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteAccountWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.warning, color: Colors.red),
+              const SizedBox(width: 8),
+              Text(LocalizationHelper.localize('Delete Account?', capitalize: true)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                LocalizationHelper.localize('This action cannot be undone. You will permanently lose:', capitalize: true),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _buildWarningItem('All your personal data'),
+              _buildWarningItem('Your saved preferences'),
+              _buildWarningItem('Purchase history and subscriptions'),
+              _buildWarningItem('Access to this account'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(LocalizationHelper.localize('Cancel', capitalize: true)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showDeleteAccountConfirmation();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text(LocalizationHelper.localize('Continue', capitalize: true)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteAccountConfirmation() {
+    final TextEditingController confirmationController = TextEditingController();
+    const String confirmationText = 'DELETE';
+    bool isConfirmationValid = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(LocalizationHelper.localize('Final Confirmation', capitalize: true)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    LocalizationHelper.localize('Type DELETE to confirm account deletion:', capitalize: true),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: confirmationController,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      hintText: confirmationText,
+                    ),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        isConfirmationValid = value == confirmationText;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    confirmationController.dispose();
+                    Navigator.pop(context);
+                  },
+                  child: Text(LocalizationHelper.localize('Cancel', capitalize: true)),
+                ),
+                TextButton(
+                  onPressed: isConfirmationValid
+                      ? () {
+                          confirmationController.dispose();
+                          Navigator.pop(context);
+                          _performAccountDeletion();
+                        }
+                      : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    disabledForegroundColor: Colors.grey,
+                  ),
+                  child: Text(LocalizationHelper.localize('Delete Account', capitalize: true)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildWarningItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.close, size: 16, color: Colors.red),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(LocalizationHelper.localize(text, capitalize: true)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performAccountDeletion() async {
+  // Show loading indicator
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    },
+  );
+
+  try {
+    final result = await UserHelper.deleteAccount();
+    
+    if (mounted) {
+      Navigator.pop(context); // Close loading dialog
+      
+      if (result.success) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              LocalizationHelper.localize(
+                result.msg.isNotEmpty ? result.msg : 'Account deleted successfully',
+                capitalize: true,
+              ),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+      } else {
+        // Show error message from server
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              LocalizationHelper.localize(
+                result.msg.isNotEmpty 
+                    ? result.msg 
+                    : 'Failed to delete account. Please try again.',
+                capitalize: true,
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      Navigator.pop(context); // Close loading dialog
+      
+      // Show generic error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LocalizationHelper.localize(
+              'An unexpected error occurred. Please try again.',
+              capitalize: true,
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
   // Show language selection bottom sheet
   void _showLanguageSheet() {
     final languages = LocalizationHelper.availableLanguages;
@@ -621,6 +848,14 @@ class _UserSettingsState extends State<UserSettings> {
             ),
             'ontap': () {
               PasswordReset.show(context, user?.email);
+            },
+          },
+          {
+            'icon': Icons.no_accounts,
+            'title': LocalizationHelper.localize('Manage Account Status'),
+            'subtitle': LocalizationHelper.localize('Delete Account'),
+            'ontap': () {
+              _showManageAccount();
             },
           },
         ],
