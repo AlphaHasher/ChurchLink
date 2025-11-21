@@ -5,9 +5,10 @@ import { useLanguage } from "@/provider/LanguageProvider";
 import { useLocalize } from "@/shared/utils/localizationUtils";
 
 interface FooterItem {
-    title: string;
-    titles?: Record<string, string>;
-    url: string;
+    titles: Record<string, string>;
+    url?: string | null;
+    slug?: string;
+    is_hardcoded_url?: boolean;
     visible?: boolean;
 }
 
@@ -31,7 +32,6 @@ interface FooterProps {
 const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
     const [footerData, setFooterData] = useState<FooterData | null>(propFooterData ? { items: propFooterData } : null);
     const [loading, setLoading] = useState(!propFooterData);
-    const [error, setError] = useState<string | null>(null);
     const { locale } = useLanguage();
     const localize = useLocalize();
 
@@ -40,7 +40,6 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
         if (propFooterData) {
             setFooterData({ items: propFooterData });
             setLoading(false);
-            setError(null);
             return;
         }
 
@@ -50,10 +49,8 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
                 setLoading(true);
                 const response = await api.get("/v1/footer/items");
                 setFooterData(response.data);
-                setError(null);
             } catch (err) {
                 console.error("Failed to fetch footer data:", err);
-                setError("Failed to load footer sections");
             } finally {
                 setLoading(false);
             }
@@ -81,7 +78,7 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
     };
 
     if (loading) return <div className="h-24 bg-neutral-300 flex items-center justify-center text-black/60 font-[Montserrat]!">Loading footer...</div>;
-    if (error) return <div className="h-24 bg-neutral-300 flex items-center justify-center text-red-600 font-[Montserrat]!">{error}</div>;
+    // Don't show error if footer simply doesn't exist - it's optional
     if (!footerData || !footerData.items || footerData.items.length === 0) return null;
 
     return (
@@ -93,24 +90,33 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
                             <div key={index} className="w-full px-4 mb-8 md:w-1/2 lg:w-1/4">
                                 <h3 className="text-[21px]! font-bold mb-4 font-['Playfair_Display']">{getLabelFromTitles((section as any).titles, section.title)}</h3>
                                 <ul className="space-y-2">
-                                    {section.items.map((item, itemIndex) => (
-                                        item.visible !== false && (
-                                            typeof item.url === "string" ? (
+                                    {section.items.map((item, itemIndex) => {
+                                        // Determine the link destination
+                                        let linkTo: string | null = null;
+                                        
+                                        if (item.is_hardcoded_url && item.url && item.url.trim() !== "") {
+                                            linkTo = item.url;
+                                        } else if (!item.is_hardcoded_url && item.slug && item.slug.trim() !== "") {
+                                            linkTo = `/${item.slug.replace(/^\/+/g, "")}`;
+                                        }
+                                        
+                                        return item.visible !== false && (
+                                            linkTo ? (
                                                 <li key={itemIndex}>
                                                     <Link
-                                                        to={item.url}
+                                                        to={linkTo}
                                                         className="text-neutral-800 hover:text-black transition-colors duration-200"
                                                     >
-                                                        {getLabelFromTitles((item as any).titles, item.title)}
+                                                        {getLabelFromTitles(item.titles)}
                                                     </Link>
                                                 </li>
                                             ) : (
-                                                <div key={itemIndex}>
-                                                    <span className="text-neutral-800">{getLabelFromTitles((item as any).titles, item.title)}</span>
-                                                </div>
+                                                <li key={itemIndex}>
+                                                    <span className="text-neutral-800">{getLabelFromTitles(item.titles)}</span>
+                                                </li>
                                             )
-                                        )
-                                    ))}
+                                        );
+                                    })}
                                 </ul>
                             </div>
                         )

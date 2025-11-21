@@ -204,9 +204,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [pages, setPages] = useState<Page[]>([]);
 
     // Locales management for header labels
-    const { languages, setLocale } = useLanguage();
+    const { languages, setLocale, locale: globalLocale } = useLanguage();
     const [addLocaleOpen, setAddLocaleOpen] = useState(false);
-    const [headerLocale, setHeaderLocale] = useState<string>('en');
+    const [headerLocale, setHeaderLocale] = useState<string>(globalLocale || 'en');
     const [availableLocales, setAvailableLocales] = useState<string[]>(['en']);
     const [translationCache, setTranslationCache] = useState<Record<string, Record<string, string>>>({});
 
@@ -274,6 +274,13 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         void fetchLocales();
         void fetchPages();
     }, []);
+
+    // Sync headerLocale with global locale from LanguageProvider
+    useEffect(() => {
+        if (globalLocale && globalLocale !== headerLocale) {
+            setHeaderLocale(globalLocale);
+        }
+    }, [globalLocale]);
 
     const fetchLocales = async () => {
         try {
@@ -606,8 +613,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             setEditTitle(savedLocaleValue);
             setEditPlaceholder(savedLocaleValue);
         } else {
-            setEditTitle("");
-            setEditPlaceholder(translationCache[headerLocale]?.[english] || english || item.title);
+            const autoTranslation = translationCache[headerLocale]?.[english] || english || item.title;
+            setEditTitle(autoTranslation);
+            setEditPlaceholder(autoTranslation);
         }
 
         if ('url' in item) {
@@ -619,7 +627,24 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             setEditSlug("");
             setEditUrl("");
             setEditIsHardcoded(false);
-            setEditDropdownItems(item.items);
+            // Map dropdown items to show the current locale's title
+            const mappedItems = item.items.map((subItem: any) => {
+                const subEnglish = subItem.titles?.en || subItem.title;
+                const subSavedLocale = subItem.titles?.[headerLocale];
+                let displayTitle = subItem.title;
+                if (headerLocale === 'en') {
+                    displayTitle = subEnglish || subItem.title;
+                } else if (subSavedLocale && String(subSavedLocale).trim()) {
+                    displayTitle = subSavedLocale;
+                } else {
+                    displayTitle = translationCache[headerLocale]?.[subEnglish] || subEnglish || subItem.title;
+                }
+                return {
+                    ...subItem,
+                    title: displayTitle,
+                };
+            });
+            setEditDropdownItems(mappedItems);
         }
 
         setIsEditModalOpen(true);
