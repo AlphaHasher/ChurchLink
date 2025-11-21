@@ -57,6 +57,9 @@ function Signup() {
     }
   };
 
+  const hasNonAlphanumeric = (password: string): boolean =>
+    /[^a-zA-Z0-9]/.test(password);
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -68,6 +71,11 @@ function Signup() {
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    if (!hasNonAlphanumeric(password)) {
+      setError("Password must have at least one special character. Please include at least 1 character that is not a letter or a number.");
       return;
     }
 
