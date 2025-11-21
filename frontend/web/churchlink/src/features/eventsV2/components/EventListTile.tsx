@@ -216,7 +216,7 @@ export const EventListTile: React.FC<Props> = ({
     }
 
     return (
-        <Card className="h-full flex flex-col overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition !py-0 pb-6">
+        <Card className="h-full flex flex-col overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition p-0 pb-6">
             {/* Image Header with layered blur effect */}
             <div className="relative overflow-hidden">
                 {/* Blurred background layer (zoomed) */}
