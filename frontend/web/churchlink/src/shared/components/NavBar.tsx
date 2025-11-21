@@ -227,11 +227,11 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                                 to="/auth/login"
                                 className="block bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white font-medium text-[15px]! tracking-wide! font-[Montserrat]! transition-colors duration-200"
                             >
-                                Login
+                                {localize("Log In")}
                             </Link>
                         </div>
                     )}
-                    
+
                     {/* Mobile Hamburger Menu Trigger - Positioned on the Right */}
                     <SidebarTrigger className="lg:hidden flex items-center justify-center text-white hover:text-gray-300 hover:bg-white/10 transition-colors duration-200 rounded-md p-2 ml-auto [&_svg:not([class*='size-'])]:size-6" />
                 </NavigationMenuList>
