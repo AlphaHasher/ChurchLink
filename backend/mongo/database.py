@@ -142,11 +142,11 @@ class DB:
         },
         {
             "name": "header-items",
-            "indexes": ["title"]
+            "indexes": ["titles.en"]
         },
         {
             "name": "footer-items",
-            "indexes": ["title"]
+            "indexes": ["titles.en"]
         },
         {
             "name": "localization-info",

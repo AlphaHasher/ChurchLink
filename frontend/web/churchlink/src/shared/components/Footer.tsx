@@ -13,8 +13,7 @@ interface FooterItem {
 }
 
 interface FooterSection {
-    title: string;
-    titles?: Record<string, string>;
+    titles: Record<string, string>;
     items: FooterItem[];
     visible?: boolean;
 }
@@ -88,7 +87,7 @@ const Footer = ({ footerData: propFooterData }: FooterProps = {}) => {
                     {footerData.items.map((section, index) => (
                         section.visible !== false && (
                             <div key={index} className="w-full px-4 mb-8 md:w-1/2 lg:w-1/4">
-                                <h3 className="text-[21px]! font-bold mb-4 font-['Playfair_Display']">{getLabelFromTitles((section as any).titles, section.title)}</h3>
+                                <h3 className="text-[21px]! font-bold mb-4 font-['Playfair_Display']">{getLabelFromTitles((section as any).titles, (section as any).titles.en)}</h3>
                                 <ul className="space-y-2">
                                     {section.items.map((item, itemIndex) => {
                                         // Determine the link destination

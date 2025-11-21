@@ -7,16 +7,16 @@ import Footer from "@/shared/components/Footer";
 
 // Define interfaces for header and footer data
 interface HeaderLink {
-  title: string;
-  russian_title: string;
-  url: string;
+  titles: Record<string, string>;
+  url?: string;
+  slug?: string;
+  is_hardcoded_url?: boolean;
   visible?: boolean;
   type?: string;
 }
 
 interface HeaderDropdown {
-  title: string;
-  russian_title: string;
+  titles: Record<string, string>;
   items: HeaderLink[];
   visible?: boolean;
   type?: string;
@@ -25,15 +25,15 @@ interface HeaderDropdown {
 type HeaderItem = HeaderLink | HeaderDropdown;
 
 interface FooterItem {
-  title: string;
-  titles?: Record<string, string>;
-  url: string;
+  titles: Record<string, string>;
+  url?: string;
+  slug?: string;
+  is_hardcoded_url?: boolean;
   visible?: boolean;
 }
 
 interface FooterSection {
-  title: string;
-  titles?: Record<string, string>;
+  titles: Record<string, string>;
   items: FooterItem[];
   visible?: boolean;
 }
