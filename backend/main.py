@@ -230,6 +230,14 @@ async def lifespan(app: FastAPI):
         await DatabaseManager.init_db()
         logger.info("MongoDB connected")
 
+        try:
+            logger.info("Ensuring legal_pages collection and seeding defaults")
+            await ensure_indexes()
+            await seed_initial_pages()
+            logger.info("Legal pages ensured and seeded (if missing)")
+        except Exception as e:
+            logger.error(f"Legal pages setup failed: {e}")
+
         # Run one-time migration to update header/footer items titles
         try:
             from datetime import datetime, timezone
@@ -363,6 +371,7 @@ public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
 public_router.include_router(public_ministry_router)
+public_router.include_router(user_legal_router)
 
 
 #####################################################
@@ -404,6 +413,7 @@ mod_router.include_router(app_config_private_router)
 mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
+mod_router.include_router(admin_legal_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
