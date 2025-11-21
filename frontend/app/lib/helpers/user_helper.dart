@@ -63,16 +63,6 @@ class AllPeopleResult {
   });
 }
 
-class DeleteAccountResult {
-  final bool success;
-  final String msg;
-
-  const DeleteAccountResult({
-    required this.success,
-    required this.msg,
-  });
-}
-
 class UserHelper {
   static Future<Map<String, dynamic>?> getIsInit() async {
     try {
@@ -377,40 +367,6 @@ class UserHelper {
         msg: 'Unexpected error in fetching people: $e',
         profile: null,
         familyMembers: const <FamilyMember>[],
-      );
-    }
-  }
-
-  static Future<DeleteAccountResult> deleteAccount() async {
-    try {
-      final res = await api.delete('/v1/users/delete-account');
-      
-      final data = (res.data is Map)
-          ? Map<String, dynamic>.from(res.data)
-          : const <String, dynamic>{};
-
-      final success = data['success'] == true;
-      final msg = (data['msg'] is String) ? data['msg'] as String : '';
-
-      // If successful, clear all cached data
-      if (success) {
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid != null) {
-          await UserStatusCache.clear(uid);
-          await UserProfileCache.clear(uid);
-          await ContactInfoCache.clear(uid);
-        }
-        
-        // Sign out from Firebase
-        await FirebaseAuth.instance.signOut();
-      }
-
-      return DeleteAccountResult(success: success, msg: msg);
-    } catch (e, st) {
-      logger.e('deleteAccount failed', error: e, stackTrace: st);
-      return const DeleteAccountResult(
-        success: false,
-        msg: 'Failed to delete account. Please try again.',
       );
     }
   }

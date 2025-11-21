@@ -25,8 +25,7 @@ import HeaderDove from "@/assets/HeaderDove";
 
 // Define interfaces for header data types
 interface HeaderLink {
-  title: string;
-  titles?: Record<string, string>;
+  titles: Record<string, string>;
   url?: string;
   slug?: string;
   is_hardcoded_url?: boolean;
@@ -35,8 +34,7 @@ interface HeaderLink {
 }
 
 interface HeaderDropdown {
-  title: string;
-  titles?: Record<string, string>;
+  titles: Record<string, string>;
   items: HeaderLink[];
   visible?: boolean;
   type?: string;
@@ -256,18 +254,18 @@ export function AppSidebar() {
                 .filter((item) => item.visible !== false)
                 .map((item) => {
                 const isDropdown = 'items' in item;
-                const isExpanded = expandedDropdowns.has(item.title);
+                const isExpanded = expandedDropdowns.has(item.titles.en);
 
                 if (isDropdown) {
                   // Render dropdown with collapsible sub-items
                   const dropdown = item as HeaderDropdown;
                   return (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem key={item.titles.en}>
                       <SidebarMenuButton
                         className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 justify-between font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
-                        onClick={() => toggleDropdown(item.title)}
+                        onClick={() => toggleDropdown(item.titles.en)}
                       >
-                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words! flex-1">{getLabelFromTitles(dropdown.titles, dropdown.title)}</span>
+                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words! flex-1">{getLabelFromTitles(dropdown.titles, dropdown.titles.en)}</span>
                         <ChevronDown
                           className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
                         />
@@ -278,12 +276,12 @@ export function AppSidebar() {
                           {dropdown.items
                             .filter((subItem) => subItem.visible !== false)
                             .map((subItem) => (
-                              <SidebarMenuSubItem key={`${item.title}-${subItem.title}`}>
+                              <SidebarMenuSubItem key={`${item.titles.en}-${subItem.titles.en}`}>
                                 <SidebarMenuSubButton
                                   className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] whitespace-normal! break-words! [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                                   onClick={() => handleNavigation(subItem)}
                                 >
-                                  {getLabelFromTitles(subItem.titles, subItem.title)}
+                                  {getLabelFromTitles(subItem.titles, subItem.titles.en)}
                                 </SidebarMenuSubButton>
                               </SidebarMenuSubItem>
                             ))}
@@ -295,12 +293,12 @@ export function AppSidebar() {
                   // Render regular link
                   const link = item as HeaderLink;
                   return (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem key={item.titles.en}>
                       <SidebarMenuButton
                         className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
                         onClick={() => handleNavigation(link)}
                       >
-                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words!">{getLabelFromTitles(link.titles, link.title)}</span>
+                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words!">{getLabelFromTitles(link.titles, link.titles.en)}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

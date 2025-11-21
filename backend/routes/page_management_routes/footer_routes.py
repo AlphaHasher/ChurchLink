@@ -39,26 +39,21 @@ def _nonempty(field: str, value: Any) -> Tuple[bool, str]:
 
 
 def validate_footer_item(item: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], str]:
-    ok, msg = _nonempty("title", item.get("title"))
-    if not ok:
-        return False, {}, msg
     titles = item.get("titles")
     if not isinstance(titles, dict) or not titles.get("en"):
         return False, {}, "titles must be an object with at least an 'en' label"
 
     cleaned = {
-        "title": _clean(item["title"]),
         "titles": {k: _clean(v) for k, v in titles.items()},
         "url": _clean(item.get("url")),
+        "slug": _clean(item.get("slug")),
+        "is_hardcoded_url": bool(item.get("is_hardcoded_url", False)),
         "visible": bool(item.get("visible", True)),
     }
     return True, cleaned, ""
 
 
 def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], str]:
-    ok, msg = _nonempty("title", payload.get("title"))
-    if not ok:
-        return False, {}, msg
     titles = payload.get("titles")
     if not isinstance(titles, dict) or not titles.get("en"):
         return False, {}, "titles must be an object with at least an 'en' label"
@@ -75,7 +70,6 @@ def validate_footer_section_update(payload: Dict[str, Any]) -> Tuple[bool, Dict[
         cleaned_items.append(cl)
 
     cleaned = {
-        "title": _clean(payload["title"]),
         "titles": {k: _clean(v) for k, v in titles.items()},
         "items": cleaned_items,  # keep as dicts for DB
         "visible": bool(payload.get("visible", True)),

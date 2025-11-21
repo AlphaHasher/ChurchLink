@@ -230,20 +230,6 @@ async def lifespan(app: FastAPI):
         await DatabaseManager.init_db()
         logger.info("MongoDB connected")
 
-        try:
-            logger.info("Ensuring legal_pages collection and seeding defaults")
-            await ensure_indexes()
-            await seed_initial_pages()
-            logger.info("Legal pages ensured and seeded (if missing)")
-        except Exception as e:
-            logger.error(f"Legal pages setup failed: {e}")
-
-        # Initialize PayPal helper (singleton) once on startup
-        paypal = await PayPalHelperV2.get_instance()
-        await paypal.start()
-        app.state.paypal = paypal
-        logger.info(f"PayPal helper initialized: {paypal.base_url}")
-
         # Run one-time migration to update header/footer items titles
         try:
             from datetime import datetime, timezone
@@ -377,12 +363,6 @@ public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
 public_router.include_router(public_ministry_router)
-public_router.include_router(public_event_router)
-public_router.include_router(public_forms_router)
-public_router.include_router(webbuilder_config_public_router)
-public_router.include_router(paypal_central_webhook_router)
-public_router.include_router(donation_router)
-public_router.include_router(user_legal_router)
 
 
 #####################################################
@@ -424,8 +404,6 @@ mod_router.include_router(app_config_private_router)
 mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
-mod_router.include_router(mod_event_router)
-mod_router.include_router(admin_legal_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
