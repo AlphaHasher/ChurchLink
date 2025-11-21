@@ -88,12 +88,6 @@ export const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
                     <div className="space-y-2">
                         <Label htmlFor="email">Email Used</Label>
                         <Input id="email" value={email} disabled />
-                        <p className="text-sm text-muted-foreground">
-                            Your account’s email cannot be readily changed like the rest of your information{" "}
-                            <a href="#" className="underline underline-offset-4 hover:no-underline">
-                                For assistance in changing your email, please click here
-                            </a>.
-                        </p>
                     </div>
 
                     <PersonInfoInput value={person} onChange={setPerson} idPrefix="self" />

@@ -28,15 +28,17 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDarkMode = theme.brightness == Brightness.dark;
-    
+
     // Define button colors based on theme
     final buttonBackgroundColor = isDarkMode ? Colors.black : Colors.grey[700];
     final buttonTextColor = Colors.white;
     final forgotPasswordColor = isDarkMode ? Colors.white : Colors.black;
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize(_isLogin ? 'Sign In' : 'Create Account')),
+        title: Text(
+          LocalizationHelper.localize(_isLogin ? 'Sign In' : 'Create Account'),
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -57,13 +59,15 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         height: 100,
                         margin: const EdgeInsets.only(bottom: 32),
                         decoration: BoxDecoration(
-                          color: isDarkMode ? Colors.grey[800] : Colors.grey[200],
+                          color:
+                              isDarkMode ? Colors.grey[800] : Colors.grey[200],
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: isDarkMode 
-                                  ? Colors.black.withOpacity(0.3)
-                                  : Colors.grey.withOpacity(0.2),
+                              color:
+                                  isDarkMode
+                                      ? Colors.black.withValues(alpha: 0.3)
+                                      : Colors.grey.withValues(alpha: 0.2),
                               spreadRadius: 2,
                               blurRadius: 8,
                               offset: const Offset(0, 4),
@@ -72,7 +76,8 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         ),
                         child: CircleAvatar(
                           radius: 50,
-                          backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+                          backgroundColor:
+                              isDarkMode ? Colors.grey[900] : Colors.white,
                           backgroundImage: const AssetImage(
                             'assets/user/ssbc-dove.png',
                           ),
@@ -88,14 +93,19 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                             child: TextFormField(
                               controller: _firstNameController,
                               decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize('First Name'),
+                                labelText: LocalizationHelper.localize(
+                                  'First Name',
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(
-                                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                                    color:
+                                        isDarkMode
+                                            ? Colors.grey[700]!
+                                            : Colors.grey[300]!,
                                   ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
@@ -107,12 +117,17 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                                 ),
                                 prefixIcon: Icon(
                                   Icons.person_outline,
-                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  color:
+                                      isDarkMode
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
                                 ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return LocalizationHelper.localize('Required');
+                                  return LocalizationHelper.localize(
+                                    'Required',
+                                  );
                                 }
                                 return null;
                               },
@@ -123,14 +138,19 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                             child: TextFormField(
                               controller: _lastNameController,
                               decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize('Last Name'),
+                                labelText: LocalizationHelper.localize(
+                                  'Last Name',
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                   borderSide: BorderSide(
-                                    color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                                    color:
+                                        isDarkMode
+                                            ? Colors.grey[700]!
+                                            : Colors.grey[300]!,
                                   ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
@@ -142,12 +162,17 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                                 ),
                                 prefixIcon: Icon(
                                   Icons.person_outline,
-                                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                                  color:
+                                      isDarkMode
+                                          ? Colors.grey[400]
+                                          : Colors.grey[600],
                                 ),
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return LocalizationHelper.localize('Required');
+                                  return LocalizationHelper.localize(
+                                    'Required',
+                                  );
                                 }
                                 return null;
                               },
@@ -168,7 +193,10 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(
-                            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                            color:
+                                isDarkMode
+                                    ? Colors.grey[700]!
+                                    : Colors.grey[300]!,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -180,13 +208,16 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         ),
                         prefixIcon: Icon(
                           Icons.email_outlined,
-                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          color:
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         ),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return LocalizationHelper.localize('Please enter your email');
+                          return LocalizationHelper.localize(
+                            'Please enter your email',
+                          );
                         }
                         return null;
                       },
@@ -202,7 +233,10 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: BorderSide(
-                            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                            color:
+                                isDarkMode
+                                    ? Colors.grey[700]!
+                                    : Colors.grey[300]!,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -214,13 +248,16 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         ),
                         prefixIcon: Icon(
                           Icons.lock_outlined,
-                          color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                          color:
+                              isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         ),
                       ),
                       obscureText: true,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return LocalizationHelper.localize('Please enter your password');
+                          return LocalizationHelper.localize(
+                            'Please enter your password',
+                          );
                         }
                         return null;
                       },
@@ -230,14 +267,19 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                       TextFormField(
                         controller: _confirmPasswordController,
                         decoration: InputDecoration(
-                          labelText: LocalizationHelper.localize('Confirm Password'),
+                          labelText: LocalizationHelper.localize(
+                            'Confirm Password',
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide(
-                              color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+                              color:
+                                  isDarkMode
+                                      ? Colors.grey[700]!
+                                      : Colors.grey[300]!,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
@@ -249,16 +291,23 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                           ),
                           prefixIcon: Icon(
                             Icons.lock_outlined,
-                            color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                            color:
+                                isDarkMode
+                                    ? Colors.grey[400]
+                                    : Colors.grey[600],
                           ),
                         ),
                         obscureText: true,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return LocalizationHelper.localize('Please confirm your password');
+                            return LocalizationHelper.localize(
+                              'Please confirm your password',
+                            );
                           }
                           if (value.trim() != _passwordController.text.trim()) {
-                            return LocalizationHelper.localize('Passwords do not match');
+                            return LocalizationHelper.localize(
+                              'Passwords do not match',
+                            );
                           }
                           return null;
                         },
@@ -297,7 +346,9 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize(_isLogin ? 'Sign In' : 'Create Account'),
+                        LocalizationHelper.localize(
+                          _isLogin ? 'Sign In' : 'Create Account',
+                        ),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -314,19 +365,23 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                       },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: isDarkMode ? Colors.white70 : Colors.grey[800]!,
+                          color:
+                              isDarkMode ? Colors.white70 : Colors.grey[800]!,
                           width: 1.5,
                         ),
-                        foregroundColor: isDarkMode ? Colors.white : Colors.grey[800],
+                        foregroundColor:
+                            isDarkMode ? Colors.white : Colors.grey[800],
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize(_isLogin
-                            ? 'Need an account? Sign up'
-                            : 'Already have an account? Sign in'),
+                        LocalizationHelper.localize(
+                          _isLogin
+                              ? 'Need an account? Sign up'
+                              : 'Already have an account? Sign in',
+                        ),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
@@ -370,10 +425,14 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
       } else {
         String email = _emailController.text.trim();
         String password = _passwordController.text.trim();
-        String? tokenOrError = await authService.registerWithEmail(email, password);
+        String? tokenOrError = await authService.registerWithEmail(
+          email,
+          password,
+        );
 
         // If registration returns a token, proceed. Otherwise, show error.
-        if (tokenOrError != null && tokenOrError.length > 100) { // crude check for JWT token
+        if (tokenOrError != null && tokenOrError.length > 100) {
+          // crude check for JWT token
           await authService.getCurrentUser()?.updateProfile(
             displayName:
                 '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}',
@@ -382,13 +441,18 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
           await _handleLogin();
         } else {
           if (mounted) {
-            String errorMsg = tokenOrError ?? LocalizationHelper.localize('Registration failed.');
-            if (errorMsg.contains('already registered') || errorMsg.contains('already in use')) {
-              errorMsg = LocalizationHelper.localize('This email is already signed up. Please use a different email or sign in.');
+            String errorMsg =
+                tokenOrError ??
+                LocalizationHelper.localize('Registration failed.');
+            if (errorMsg.contains('already registered') ||
+                errorMsg.contains('already in use')) {
+              errorMsg = LocalizationHelper.localize(
+                'This email is already signed up. Please use a different email or sign in.',
+              );
             }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(errorMsg)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(errorMsg)));
           }
         }
       }
@@ -406,4 +470,3 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
     super.dispose();
   }
 }
-

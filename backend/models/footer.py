@@ -5,13 +5,13 @@ from pydantic import BaseModel, Field
 from mongo.database import DB
 
 class FooterSubItem(BaseModel):
-    title: str
     titles: Dict[str, str] = Field(default_factory=dict)
-    url: Optional[str]
+    url: Optional[str] = None
+    slug: Optional[str] = None
+    is_hardcoded_url: Optional[bool] = False
     visible: Optional[bool] = True
 
 class FooterItem(BaseModel):
-    title: str
     titles: Dict[str, str] = Field(default_factory=dict)
     items: List[FooterSubItem]
     visible: Optional[bool] = True
@@ -52,7 +52,6 @@ async def get_footer_items() -> Optional[Footer]:
         for i in range(len(items_data)):
             item = items_data[i]
             footer_items[item["index"]] = FooterItem(
-                title=item["title"],
                 titles=item.get("titles") or {},
                 items=item["items"],
                 visible=item["visible"]
@@ -71,7 +70,7 @@ async def change_visibility(title: str, visible: bool) -> bool:
     """
     try:
         result = await DB.db[db_path].update_one(
-            {"title": title},
+            {"titles.en": title},
             {"$set": {"visible": visible, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
@@ -89,7 +88,7 @@ async def reorder_items(titles: List[str]) -> bool:
         for index, title in enumerate(titles):
             # Update the document where title matches
             result = await DB.db[db_path].update_one(
-                {"title": title},
+                {"titles.en": title},
                 {"$set": {"index": index, "updated_at": datetime.utcnow()}}
             )
 
@@ -108,7 +107,7 @@ async def remove_item_by_name(title: str) -> bool:
     Removes a footer item by its title.
     """
     try:
-        result = await DB.delete_documents(db_path, {"title": title})
+        result = await DB.delete_documents(db_path, {"titles.en": title})
         return result > 0  # Return True if at least one document was deleted
     except Exception as e:
         print(f"Error removing footer item: {e}")
@@ -120,13 +119,14 @@ async def add_item(item: dict) -> bool:
     """
     try:
         res = await DB.insert_document(db_path, {
-            "title": item["title"],
             "titles": item.get("titles") or {},
             "items": [
                 {
-                    "title": subitem.title,
                     "titles": getattr(subitem, "titles", {}),
-                    "url": subitem.url or None
+                    "url": subitem.url or None,
+                    "slug": getattr(subitem, "slug", None),
+                    "is_hardcoded_url": getattr(subitem, "is_hardcoded_url", False),
+                    "visible": getattr(subitem, "visible", True)
                 } for subitem in item["items"]
             ],
             "visible": item.get("visible", True),
@@ -144,13 +144,13 @@ async def get_item_by_title(title: str) -> Optional[FooterItem]:
     Returns the item as either FooterLink or FooterDropdown based on its type.
     """
     try:
-        items = await DB.find_documents(db_path, {"title": title})
+        items = await DB.find_documents(db_path, {"titles.en": title})
         item = items[0] if items else None
 
         if not item:
             return None
 
-        return FooterItem(title=item["title"], titles=item.get("titles") or {}, items=item["items"])
+        return FooterItem(titles=item.get("titles") or {}, items=item["items"])
 
     except Exception as e:
         print(f"Error getting footer item by title: {e}")
@@ -159,7 +159,7 @@ async def get_item_by_title(title: str) -> Optional[FooterItem]:
 async def update_item(title: str, updated_item: dict) -> bool:
     try:
         # Check if the item exists
-        item = (await DB.find_documents(db_path, {"title": title}))[0]
+        item = (await DB.find_documents(db_path, {"titles.en": title}))[0]
         if not item:
             return False
 
@@ -168,7 +168,7 @@ async def update_item(title: str, updated_item: dict) -> bool:
 
         # Update the document
         result = await DB.db[db_path].update_one(
-            {"title": title},
+            {"titles.en": title},
             {"$set": updated_item}
         )
 

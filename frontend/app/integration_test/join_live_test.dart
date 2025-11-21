@@ -21,7 +21,7 @@ void main() {
     await $.pumpAndSettle();
 
     // Verify offline message
-    expect(await $('We are not currently live!').exists, isTrue);
+    expect($('We are not currently live!').exists, isTrue);
 
   },
     timeout: Timeout(Duration(seconds: 30)),
@@ -73,7 +73,7 @@ void main() {
   await $.pumpAndSettle();
 
   // Verify we're back on the home screen
-  expect(await $('Join Live').exists, true); // back to home
+  expect($('Join Live').exists, true); // back to home
 },
   timeout: Timeout(Duration(seconds: 20)),
 );
@@ -95,7 +95,7 @@ void main() {
 
   final offlineMsg = $('We are not currently live!');
 
-  expect(await offlineMsg.exists, true);
+  expect(offlineMsg.exists, true);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );

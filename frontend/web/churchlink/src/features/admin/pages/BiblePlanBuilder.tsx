@@ -22,7 +22,7 @@ const BiblePlanBuilder = () => {
   useEffect(() => {
     if (planIdFromUrl) {
       setIsLoadingPlan(true);
-      api.get(`/v1/bible-plans/${planIdFromUrl}`)
+      api.get(`/v1/bible-plans/by-id/${planIdFromUrl}`)
         .then(response => {
           const loadedPlan = response.data;
           setPlan({

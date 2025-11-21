@@ -33,12 +33,12 @@ class VisualizeMembership extends StatelessWidget {
             ? const [
               'Lower members-only event prices',
               'Access to members-only events',
-              'Other benefits that are undefined',
+              'Other great benefits outside of this app',
             ]
             : const [
               'General event pricing applies',
               'Some members-only events may be restricted',
-              'Other benefits that are undefined',
+              'Other great benefits outside of this app',
             ];
 
     return AnimatedContainer(
@@ -140,4 +140,3 @@ class VisualizeMembership extends StatelessWidget {
     );
   }
 }
-

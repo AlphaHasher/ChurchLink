@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from typing import List
 
 from models.form import (
@@ -6,7 +6,11 @@ from models.form import (
 	get_form_by_id_unrestricted,
 	list_all_forms,
 	search_all_forms,
+    add_response_by_slug,
+    get_form_by_slug
 )
+
+from controllers.form_payment_controller import compute_expected_payment
 
 
 private_forms_router = APIRouter(prefix="/forms", tags=["Forms"])
@@ -34,6 +38,30 @@ async def get_form(form_id: str, request: Request) -> FormOut:
 	if not form:
 		raise HTTPException(status_code=404, detail="Form not found")
 	return form
+
+@private_forms_router.post("/slug/{slug}/responses")
+async def submit_response_by_slug(slug: str, request: Request):
+
+	form = await get_form_by_slug(slug)
+	if form is None:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
+	try:
+		payload = await request.json()
+	except Exception:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON")
+	
+	payment = payload.get("payment")
+	
+	expected_payment = await compute_expected_payment(form.id, payload)
+	if expected_payment > 0:
+		if payment is None or payment.get("price") in [None, 0] or payment.get("payment_type") != 'door':
+			raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment required but not provided")
+		payload['payment']['price'] = expected_payment
+
+	ok, info = await add_response_by_slug(slug, payload, user_id=request.state.uid, passed_payment=payload.get("payment"))
+	if not ok:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=info or "Failed to store response")
+	return {"message": "Response recorded", "response_id": info}
 
 
 __all__ = ["private_forms_router"]

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app/helpers/logger.dart';
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:app/models/profile_info.dart';
@@ -13,13 +14,13 @@ import 'package:flutter/material.dart';
 import 'package:app/components/auth_popup.dart';
 import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
-import 'package:app/pages/my_events_page.dart';
+import 'package:app/pages/events/myevents.dart';
 import 'package:app/theme/theme_controller.dart';
-
- 
 
 import 'package:app/widgets/change_email_sheet.dart';
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/pages/my_transactions/my_transactions_page.dart';
+import 'package:app/pages/refund_requests/view_refund_requests.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -88,7 +89,6 @@ class _UserSettingsState extends State<UserSettings> {
 
   ProfileInfo? _profile; // backend truth (cached/online)
   String _selectedLanguage = 'en'; // Language preference
-  bool _loading = true;
 
   @override
   void initState() {
@@ -122,8 +122,6 @@ class _UserSettingsState extends State<UserSettings> {
 
     _loadProfile();
   }
-
- 
 
   @override
   void dispose() {
@@ -193,10 +191,11 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_light'),
                 leading: const Icon(Icons.wb_sunny_outlined),
-                title: Text(LocalizationHelper.localize('Light', capitalize: true)),
-                trailing: current == ThemeMode.light
-                    ? const Icon(Icons.check)
-                    : null,
+                title: Text(
+                  LocalizationHelper.localize('Light', capitalize: true),
+                ),
+                trailing:
+                    current == ThemeMode.light ? const Icon(Icons.check) : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.light);
                   Navigator.pop(context);
@@ -206,10 +205,13 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_system'),
                 leading: const Icon(Icons.brightness_auto),
-                title: Text(LocalizationHelper.localize('System', capitalize: true)),
-                trailing: current == ThemeMode.system
-                    ? const Icon(Icons.check)
-                    : null,
+                title: Text(
+                  LocalizationHelper.localize('System', capitalize: true),
+                ),
+                trailing:
+                    current == ThemeMode.system
+                        ? const Icon(Icons.check)
+                        : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.system);
                   Navigator.pop(context);
@@ -219,10 +221,11 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_dark'),
                 leading: const Icon(Icons.nights_stay_outlined),
-                title: Text(LocalizationHelper.localize('Dark', capitalize: true)),
-                trailing: current == ThemeMode.dark
-                    ? const Icon(Icons.check)
-                    : null,
+                title: Text(
+                  LocalizationHelper.localize('Dark', capitalize: true),
+                ),
+                trailing:
+                    current == ThemeMode.dark ? const Icon(Icons.check) : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.dark);
                   Navigator.pop(context);
@@ -248,129 +251,175 @@ class _UserSettingsState extends State<UserSettings> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (BuildContext context) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final filtered = languages.where((lang) =>
-            lang.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            lang.code.toLowerCase().contains(searchQuery.toLowerCase())
-          ).toList();
+      builder:
+          (BuildContext context) => StatefulBuilder(
+            builder: (context, setSheetState) {
+              final filtered =
+                  languages
+                      .where(
+                        (lang) =>
+                            lang.name.toLowerCase().contains(
+                              searchQuery.toLowerCase(),
+                            ) ||
+                            lang.code.toLowerCase().contains(
+                              searchQuery.toLowerCase(),
+                            ),
+                      )
+                      .toList();
 
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  LocalizationHelper.localize("Select Language"),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                ),
-                const Divider(height: 24),
-                // Search field
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: TextField(
-                    onChanged: (value) {
-                      searchQuery = value;
-                      setSheetState(() {});
-                    },
-                    decoration: InputDecoration(
-                      hintText: LocalizationHelper.localize("Search languages"),
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+              return SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    Container(
+                      width: 50,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                  ),
-                ),
-                // Current language
-                if (currentCode.isNotEmpty && languages.any((l) => l.code == currentCode))
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: ListTile(
-                      leading: const Icon(Icons.language, color: Colors.blue),
-                      title: Text(
-                        languages.firstWhere((l) => l.code == currentCode).name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                    const SizedBox(height: 16),
+                    Text(
+                      LocalizationHelper.localize("Select Language"),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
-                      subtitle: Text(LocalizationHelper.localize("Current")),
-                      enabled: false,
                     ),
-                  ),
-                const Divider(),
-                // List
-                if (languages.isEmpty)
-                   Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Column(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text(LocalizationHelper.localize('Loading languages...', capitalize: true)),
-                      ],
-                    ),
-                  )
-                else ...[
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.6,
-                    ),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) {
-                        final lang = filtered[index];
-                        final isSelected = lang.code == currentCode;
-                        return ListTile(
-                          leading: Icon(
-                            Icons.language,
-                            color: isSelected ? Colors.blue : null,
+                    const Divider(height: 24),
+                    // Search field
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: TextField(
+                        onChanged: (value) {
+                          searchQuery = value;
+                          setSheetState(() {});
+                        },
+                        decoration: InputDecoration(
+                          hintText: LocalizationHelper.localize(
+                            "Search languages",
                           ),
-                          title: Text(lang.name),
-                          trailing: isSelected ? const Icon(Icons.check, color: Colors.blue) : null,
-                          onTap: () {
-                            Navigator.pop(context);
-                            _updateLanguage(lang.code);
-                          },
-                        );
-                      },
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-              ],
-            ),
-          );
-        },
-      ),
+                    // Current language
+                    if (currentCode.isNotEmpty &&
+                        languages.any((l) => l.code == currentCode))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.language,
+                            color: Colors.blue,
+                          ),
+                          title: Text(
+                            languages
+                                .firstWhere((l) => l.code == currentCode)
+                                .name,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(
+                            LocalizationHelper.localize("Current"),
+                          ),
+                          enabled: false,
+                        ),
+                      ),
+                    const Divider(),
+                    // List
+                    if (languages.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.all(32.0),
+                        child: Column(
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              LocalizationHelper.localize(
+                                'Loading languages...',
+                                capitalize: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else ...[
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.6,
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final lang = filtered[index];
+                            final isSelected = lang.code == currentCode;
+                            return ListTile(
+                              leading: Icon(
+                                Icons.language,
+                                color: isSelected ? Colors.blue : null,
+                              ),
+                              title: Text(lang.name),
+                              trailing:
+                                  isSelected
+                                      ? const Icon(
+                                        Icons.check,
+                                        color: Colors.blue,
+                                      )
+                                      : null,
+                              onTap: () {
+                                Navigator.pop(context);
+                                _updateLanguage(lang.code);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              );
+            },
+          ),
     );
   }
 
   // Update _updateLanguage
   Future<void> _updateLanguage(String newLang) async {
-    setState(() => _loading = true);
-
     try {
       await LocalizationHelper.changeLocaleAndAwait(
         newLang,
         warmupKeys: const [
-          'User Settings', 'Theme', 'System', 'Language', 'Notifications', 'Terms & Policies',
-          'Login or Signup', 'To access more features login or signup',
-          'Home', 'Bible', 'Sermons', 'Events', 'Profile',
+          'User Settings',
+          'Theme',
+          'System',
+          'Language',
+          'Notifications',
+          'Terms & Policies',
+          'Login or Signup',
+          'To access more features login or signup',
+          'Home',
+          'Bible',
+          'Sermons',
+          'Events',
+          'Profile',
           'No events found.',
           'Customize alert preferences',
           'Privacy policy and terms of use',
-          'Account', 'Guest', 'Preferences', 'Support',
-          'Trust me bro', 'Close',
-          'Notification Preferences', 'ßChoose which notifications you want to receive:',
+          'Account',
+          'Guest',
+          'Preferences',
+          'Support',
+          'Trust me bro',
+          'Close',
+          'Notification Preferences',
+          'ßChoose which notifications you want to receive:',
         ],
       );
       if (mounted) {
@@ -379,10 +428,8 @@ class _UserSettingsState extends State<UserSettings> {
         });
       }
     } catch (e) {
-      print('Failed to update language: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+      logger.e('Failed to update language: $e');
+    } finally {}
   }
 
   void _onLocaleChanged() {
@@ -400,17 +447,13 @@ class _UserSettingsState extends State<UserSettings> {
     if (mounted) {
       setState(() {
         _selectedLanguage = lang;
-        _loading = false;
       });
     }
   }
 
   // Show Terms and Policies popup
   void _showTermsAndPolicies(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const _TermsDialog(),
-    );
+    showDialog(context: context, builder: (context) => const _TermsDialog());
   }
 
   @override
@@ -419,22 +462,24 @@ class _UserSettingsState extends State<UserSettings> {
     final user = authService.getCurrentUser();
     final bool loggedIn = user != null;
 
-    final displayName = (() {
-      final p = _profile;
-      if (p != null) {
-        final fn = p.firstName.trim();
-        final ln = p.lastName.trim();
-        final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
-        if (joined.isNotEmpty) return joined;
-      }
-      return user?.displayName ?? "(Please set your display name)";
-    })();
+    final displayName =
+        (() {
+          final p = _profile;
+          if (p != null) {
+            final fn = p.firstName.trim();
+            final ln = p.lastName.trim();
+            final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
+            if (joined.isNotEmpty) return joined;
+          }
+          return user?.displayName ?? "(Please set your display name)";
+        })();
 
-    final displayEmail = (() {
-      final email = _profile?.email;
-      if (email != null && email.trim().isNotEmpty) return email.trim();
-      return user?.email ?? "(Please set your display email)";
-    })();
+    final displayEmail =
+        (() {
+          final email = _profile?.email;
+          if (email != null && email.trim().isNotEmpty) return email.trim();
+          return user?.email ?? "(Please set your display email)";
+        })();
 
     final mode = ThemeController.instance.mode;
     final themeLabel = switch (mode) {
@@ -450,15 +495,20 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.account_circle,
             'title': LocalizationHelper.localize('Edit Profile'),
-            'subtitle': LocalizationHelper.localize('First/Last name, birthday, gender'),
+            'subtitle': LocalizationHelper.localize(
+              'First/Last name, birthday, gender',
+            ),
             'ontap': () async {
               if (user == null) return;
               // Await result and update immediately if we get a ProfileInfo back
               final result = await Navigator.push<ProfileInfo>(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      EditProfileScreen(user: user, initialProfile: _profile),
+                  builder:
+                      (context) => EditProfileScreen(
+                        user: user,
+                        initialProfile: _profile,
+                      ),
                 ),
               );
               if (!mounted) return;
@@ -485,7 +535,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.card_membership,
             'title': LocalizationHelper.localize('View Membership Status'),
-            'subtitle': LocalizationHelper.localize('View your Church Membership Status'),
+            'subtitle': LocalizationHelper.localize(
+              'View your Church Membership Status',
+            ),
             'ontap': () {
               if (user != null) {
                 Navigator.push(
@@ -498,7 +550,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.family_restroom,
             'title': LocalizationHelper.localize('Family Members'),
-            'subtitle': LocalizationHelper.localize('Manage your family members'),
+            'subtitle': LocalizationHelper.localize(
+              'Manage your family members',
+            ),
             'ontap': () {
               Navigator.push(
                 context,
@@ -511,7 +565,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.event,
             'title': LocalizationHelper.localize('My Events'),
-            'subtitle': LocalizationHelper.localize('Your registrations and RSVPs'),
+            'subtitle': LocalizationHelper.localize(
+              'Your registrations and RSVPs',
+            ),
             'ontap': () {
               Navigator.push(
                 context,
@@ -520,15 +576,49 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
+            'icon': Icons.attach_money,
+            'title': LocalizationHelper.localize('My Transactions'),
+            'subtitle': LocalizationHelper.localize(
+              'View and manage your payments',
+            ),
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyTransactionsPage(),
+                ),
+              );
+            },
+          },
+          {
+            'icon': Icons.money_off_csred,
+            'title': LocalizationHelper.localize('My Refund Requests'),
+            'subtitle': LocalizationHelper.localize(
+              'View and manage your refund requests',
+            ),
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewRefundRequestsPage(),
+                ),
+              );
+            },
+          },
+          {
             'icon': Icons.alternate_email,
             'title': LocalizationHelper.localize('Change Email'),
-            'subtitle': LocalizationHelper.localize('Request an email to change your address'),
+            'subtitle': LocalizationHelper.localize(
+              'Request an email to change your address',
+            ),
             'ontap': () => ChangeEmailSheet.show(context),
           },
           {
             'icon': Icons.password,
             'title': LocalizationHelper.localize('Change Password'),
-            'subtitle': LocalizationHelper.localize('Request an email to reset your password'),
+            'subtitle': LocalizationHelper.localize(
+              'Request an email to reset your password',
+            ),
             'ontap': () {
               PasswordReset.show(context, user?.email);
             },
@@ -541,7 +631,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.account_circle,
             'title': LocalizationHelper.localize('Login or Signup'),
-            'subtitle': LocalizationHelper.localize('To access more features login or signup'),
+            'subtitle': LocalizationHelper.localize(
+              'To access more features login or signup',
+            ),
             'ontap': () {
               AuthPopup.show(context);
             },
@@ -562,10 +654,12 @@ class _UserSettingsState extends State<UserSettings> {
             'icon': Icons.language,
             'title': LocalizationHelper.localize('Language'),
             'subtitle': () {
-              final selectedLang = LocalizationHelper.availableLanguages.firstWhere(
-                (l) => l.code == _selectedLanguage,
-                orElse: () => const LanguageOption(code: 'en', name: 'English'),
-              );
+              final selectedLang = LocalizationHelper.availableLanguages
+                  .firstWhere(
+                    (l) => l.code == _selectedLanguage,
+                    orElse:
+                        () => const LanguageOption(code: 'en', name: 'English'),
+                  );
               return selectedLang.name;
             }(),
             'ontap': _showLanguageSheet,
@@ -573,7 +667,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.notifications,
             'title': LocalizationHelper.localize('Notifications'),
-            'subtitle': LocalizationHelper.localize('Customize alert preferences'),
+            'subtitle': LocalizationHelper.localize(
+              'Customize alert preferences',
+            ),
             'ontap': () {
               Navigator.push(
                 context,
@@ -591,7 +687,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.policy,
             'title': LocalizationHelper.localize('Terms & Policies'),
-            'subtitle': LocalizationHelper.localize('Privacy policy and terms of use'),
+            'subtitle': LocalizationHelper.localize(
+              'Privacy policy and terms of use',
+            ),
             'ontap': () => _showTermsAndPolicies(context),
           },
         ],
@@ -610,10 +708,11 @@ class _UserSettingsState extends State<UserSettings> {
               CircleAvatar(
                 radius: 32,
                 backgroundColor: theme.colorScheme.primary,
-                backgroundImage: (user.photoURL != null && user.photoURL!.isNotEmpty
-                    ? NetworkImage(user.photoURL!)
-                    : const AssetImage('assets/user/ssbc-dove.png')
-                        as ImageProvider),
+                backgroundImage:
+                    (user.photoURL != null && user.photoURL!.isNotEmpty
+                        ? NetworkImage(user.photoURL!)
+                        : const AssetImage('assets/user/ssbc-dove.png')
+                            as ImageProvider),
               ),
               const SizedBox(width: 16),
               Column(
@@ -739,18 +838,27 @@ class _UserSettingsState extends State<UserSettings> {
                 ),
               ),
             ),
-            child: Text(LocalizationHelper.localize('Logout'), style: const TextStyle(fontSize: 16)),
+            child: Text(
+              LocalizationHelper.localize('Logout'),
+              style: const TextStyle(fontSize: 16),
+            ),
           ),
         ),
       );
     }
 
     return Scaffold(
-      key: ValueKey('settings-' + LocalizationHelper.currentLocale + '-' + LocalizationHelper.uiVersion.toString()),
-      appBar: AppBar(title: Text(LocalizationHelper.localize("User Settings")), centerTitle: true),
-      backgroundColor: theme.brightness == Brightness.dark
-          ? theme.colorScheme.surface
-          : theme.colorScheme.surfaceContainerLow,
+      key: ValueKey(
+        'settings-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
+      ),
+      appBar: AppBar(
+        title: Text(LocalizationHelper.localize("User Settings")),
+        centerTitle: true,
+      ),
+      backgroundColor:
+          theme.brightness == Brightness.dark
+              ? theme.colorScheme.surface
+              : theme.colorScheme.surfaceContainerLow,
       body: SafeArea(
         child: ListView(
           controller: _scrollController,
@@ -761,4 +869,3 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 }
-

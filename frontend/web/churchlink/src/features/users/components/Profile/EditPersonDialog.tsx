@@ -91,7 +91,7 @@ export const EditPersonDialog: React.FC<EditPersonDialogProps> = ({
                 </Button>
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg z-500">
                 <DialogHeader>
                     <DialogTitle>{localize("Edit Family Member")}</DialogTitle>
                     <DialogDescription>{localize("Update the person’s details below.")}</DialogDescription>

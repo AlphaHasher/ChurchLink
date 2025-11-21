@@ -13,8 +13,11 @@ import sys
 import os
 import logging
 from typing import List, Dict, Any
+from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, auth
+
+load_dotenv()
 
 # Add the current directory to Python path to import local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

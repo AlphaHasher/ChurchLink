@@ -16,6 +16,7 @@ import { Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { normalizeDateOnly } from '@/helpers/DateHelper'
 import { useBuilderStore } from "./store";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 const PHONE_MAX_DIGITS = 10;
 const NON_DIGIT_REGEX = /\D/g;
@@ -53,6 +54,8 @@ type Props = {
 };
 
 export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
+  const localize = useLocalize();
+
   const colClass = cn("col-span-12", widthToCols(field.width));
   const activeLocale = useBuilderStore((s) => s.activeLocale);
   const allFields = useBuilderStore((s) => s.schema.data);
@@ -94,12 +97,21 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
       return (val != null && val !== '') ? val : base;
     };
 
-    const priceSummaryLabel = t('label', 'Price Summary');
+    const priceSummaryLabel = t('label', localize('Price Summary'));
 
     // Determine UI behavior based on enabled payment methods
     const paypalOnly = allowPayPal && !allowInPerson;
     const inPersonOnly = !allowPayPal && allowInPerson;
     const bothEnabled = allowPayPal && allowInPerson;
+
+    // Translation function that supports all payment method text keys
+    const tPayment = (key: string, base?: string) => {
+      if (!activeLocale || activeLocale === 'en') return base;
+      const fieldTranslations = translations[field.id]?.[activeLocale];
+      if (!fieldTranslations) return base;
+      const val = (fieldTranslations as any)[key];
+      return (val != null && val !== '') ? val : base;
+    };
 
     return (
       <div className={cn("flex flex-col gap-3", colClass)}>
@@ -110,10 +122,10 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
               <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
                 <span className="text-white text-xs font-bold">P</span>
               </div>
-              <span className="font-medium">PayPal Payment Required</span>
+              <span className="font-medium">{tPayment('paypal_required', localize('PayPal Payment Required'))}</span>
             </div>
             <p className="text-sm text-blue-600">
-              This form requires payment through PayPal. You'll be redirected to PayPal to complete the payment when submitting.
+              {tPayment('paypal_description', localize('This form requires payment through PayPal. You\'ll be redirected to PayPal to complete the payment when submitting.'))}
             </p>
             {/* Price display */}
             <div className="flex items-center justify-between pt-2 border-t border-blue-200">
@@ -135,11 +147,10 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
               <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center">
                 <span className="text-white text-xs">💵</span>
               </div>
-              <span className="font-medium">In-Person Payment Required</span>
+              <span className="font-medium">{tPayment('inperson_required', localize('In-Person Payment Required'))}</span>
             </div>
             <p className="text-sm text-green-600">
-              This payment will be collected in-person at the event or location.
-              You can submit the form now and complete payment when you arrive.
+              {tPayment('inperson_description', localize('This payment will be collected in-person at the event or location. You can submit the form now and complete payment when you arrive.'))}
             </p>
             {/* Price display */}
             <div className="flex items-center justify-between pt-2 border-t border-green-200">
@@ -157,7 +168,7 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
         {/* Scenario 3: Both Enabled - Show selection options */}
         {bothEnabled && (
           <div className="border rounded-lg p-4 space-y-3">
-            <div className="text-sm font-medium mb-2">Choose Payment Method:</div>
+            <div className="text-sm font-medium mb-2">{tPayment('choose_method', localize('Choose Payment Method:'))}</div>
 
             <Controller
               name={`${field.name}_payment_method`}
@@ -179,9 +190,9 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
                       <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
                         <span className="text-white text-xs font-bold">P</span>
                       </div>
-                      <span className="text-sm font-medium">Pay with PayPal</span>
+                      <span className="text-sm font-medium">{tPayment('paypal_option', localize('Pay with PayPal'))}</span>
                       <span className="text-xs text-muted-foreground ml-auto">
-                        (Secure online payment)
+                        {tPayment('paypal_hint', localize('(Secure online payment)'))}
                       </span>
                     </div>
                   </label>
@@ -200,9 +211,9 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
                       <div className="w-5 h-5 bg-green-600 rounded flex items-center justify-center">
                         <span className="text-white text-xs">💵</span>
                       </div>
-                      <span className="text-sm font-medium">Pay In-Person</span>
+                      <span className="text-sm font-medium">{tPayment('inperson_option', localize('Pay In-Person'))}</span>
                       <span className="text-xs text-muted-foreground ml-auto">
-                        (Pay at location)
+                        {tPayment('inperson_hint', localize('(Pay at location)'))}
                       </span>
                     </div>
                   </label>
@@ -226,7 +237,7 @@ export function FieldRenderer({ field, control, error, dynamicTotal }: Props) {
         {/* No payment methods configured */}
         {!allowPayPal && !allowInPerson && (
           <div className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
-            ⚠️ No payment methods configured
+            ⚠️ {tPayment('no_methods', localize('No payment methods configured'))}
           </div>
         )}
 

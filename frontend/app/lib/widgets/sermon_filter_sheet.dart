@@ -2,19 +2,14 @@ import 'package:app/models/sermon_filter.dart';
 import 'package:flutter/material.dart';
 
 class SermonFilterSheet extends StatefulWidget {
-  const SermonFilterSheet({super.key, required this.initialFilter});
+  const SermonFilterSheet({
+    super.key,
+    required this.initialFilter,
+    this.availableMinistries = const [],
+  });
 
   final SermonFilter initialFilter;
-
-  static const List<String> ministryOptions = <String>[
-    'Adults',
-    'Youth',
-    'Kids',
-    'Worship',
-    'Family',
-    'Education',
-    'Outreach',
-  ];
+  final List<String> availableMinistries;
 
   @override
   State<SermonFilterSheet> createState() => _SermonFilterSheetState();
@@ -102,7 +97,7 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
                   value: null,
                   child: Text('All ministries'),
                 ),
-                ...SermonFilterSheet.ministryOptions.map(
+                ...widget.availableMinistries.map(
                   (ministry) => DropdownMenuItem<String?>(
                     value: ministry,
                     child: Text(ministry),
@@ -162,20 +157,37 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.of(context).pop(
-                        const SermonFilter(limit: 50, skip: 0),
-                      );
+                      Navigator.of(
+                        context,
+                      ).pop(const SermonFilter(limit: 50, skip: 0));
                     },
-                    child: const Text('Clear'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.clear_all),
+                    label: const Text('Clear All'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: _apply,
-                    child: const Text('Apply'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 2,
+                    ),
+                    icon: const Icon(Icons.check),
+                    label: const Text(
+                      'Apply Filters',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ),
               ],

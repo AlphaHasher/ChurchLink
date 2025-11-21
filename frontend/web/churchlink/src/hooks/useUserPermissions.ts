@@ -7,7 +7,6 @@ interface UserPermissions {
   web_builder_management: boolean;
   mobile_ui_management: boolean;
   event_editing: boolean;
-  event_management: boolean;
   media_management: boolean;
   sermon_editing: boolean;
   bulletin_editing: boolean;
@@ -28,7 +27,7 @@ export const useUserPermissions = () => {
       try {
         setLoading(true);
         const response = await api.get('/v1/users/permissions');
-        
+
         if (response.data?.success) {
           setPermissions(response.data.permissions);
         } else {

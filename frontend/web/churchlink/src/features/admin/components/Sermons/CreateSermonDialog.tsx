@@ -14,8 +14,9 @@ import { ChurchSermon } from "@/shared/types/ChurchSermon";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
+import { fetchMinistries } from "@/helpers/MinistriesHelper";
+import { Ministry } from "@/shared/types/Ministry";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateSermonProps {
@@ -39,7 +40,7 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -128,7 +129,7 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
                         </label>
 
                         <div>
-                            <EventMinistryDropdown
+                            <MinistryDropdown
                                 selected={sermon.ministry ?? []}
                                 onChange={(next: string[]) => setSermon({ ...sermon, ministry: next })}
                                 ministries={ministries}
@@ -142,7 +143,7 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Date Posted</span>
-                                            <input type="date" className="border p-2 rounded" value={sermon.date_posted ? sermon.date_posted.toISOString().slice(0,10) : ''} onChange={(e) => setSermon({ ...sermon, date_posted: e.target.value ? new Date(e.target.value) : new Date() })} />
+                            <input type="date" className="border p-2 rounded" value={sermon.date_posted ? sermon.date_posted.toISOString().slice(0, 10) : ''} onChange={(e) => setSermon({ ...sermon, date_posted: e.target.value ? new Date(e.target.value) : new Date() })} />
                         </label>
 
                         <label className="flex items-center space-x-2">

@@ -6,6 +6,7 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { verifyAndSyncUser } from "@/helpers/UserHelper";
 import { getChurchName } from "@/helpers/ChurchSettingsHelper";
 import { getAuthErrorMessage } from "../utils/errorMessages";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 function Signup() {
   const [email, setEmail] = useState("");
@@ -15,6 +16,7 @@ function Signup() {
   const [churchName, setChurchName] = useState("Your Church Name");
   const { user } = useAuth();
   const navigate = useNavigate();
+  const localize = useLocalize();
 
   useEffect(() => {
     if (user) {
@@ -55,6 +57,9 @@ function Signup() {
     }
   };
 
+  const hasNonAlphanumeric = (password: string): boolean =>
+    /[^a-zA-Z0-9]/.test(password);
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -64,10 +69,17 @@ function Signup() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
+
+    if (!hasNonAlphanumeric(password)) {
+      setError("Password must have at least one special character. Please include at least 1 character that is not a letter or a number.");
+      return;
+    }
+
+
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
@@ -92,28 +104,28 @@ function Signup() {
         <h2
           className="text-3xl font-bold text-gray-900 mb-2"
         >
-          Sign Up
+          {localize("Sign Up")}
         </h2>
         <div className="text-gray-600 mb-6">
-          {churchName} welcomes you! Please create your
-          credentials below.
+          {localize(`${churchName} welcomes you! Please create your
+          credentials below.`)}
         </div>
 
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6">
-            {error}
+            {localize(error)}
           </div>
         )}
 
         <form onSubmit={handleSignup} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
+              {localize("Email Address")}
             </label>
             <input
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               type="email"
-              placeholder="Enter email address"
+              placeholder={localize("Enter email address")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -122,12 +134,12 @@ function Signup() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              {localize("Password")}
             </label>
             <input
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               type="password"
-              placeholder="Enter password"
+              placeholder={localize("Enter password")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -136,12 +148,12 @@ function Signup() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
+              {localize("Confirm Password")}
             </label>
             <input
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               type="password"
-              placeholder="Confirm password"
+              placeholder={localize("Confirm password")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -152,7 +164,7 @@ function Signup() {
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg"
           >
-            Sign Up
+            {localize("Sign Up")}
           </button>
         </form>
 
@@ -188,13 +200,13 @@ function Signup() {
               fill="#EA4335"
             />
           </svg>
-          Sign up with Google
+          {localize("Sign up with Google")}
         </button>
 
         <div className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{" "}
+          {localize("Already have an account?")}{" "}
           <Link to="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium">
-            Go back to login
+            {localize("Go back to login")}
           </Link>
         </div>
       </div>

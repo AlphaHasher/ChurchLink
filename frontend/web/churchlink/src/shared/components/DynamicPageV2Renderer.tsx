@@ -1,5 +1,5 @@
 import React from "react";
-import EventSection from "@sections/EventSection";
+import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import MapSection from "@sections/MapSection";
 import ServiceTimesSection from "@sections/ServiceTimesSection";
 import MenuSection from "@sections/MenuSection";
@@ -144,8 +144,8 @@ const renderNode = (
       let htmlToInject = (directHtml != null && String(directHtml).trim())
         ? String(directHtml)
         : ((isNonDefaultLocale && baseHtml && localizeFn)
-            ? localizeFn(String(baseHtml))
-            : String(baseHtml));
+          ? localizeFn(String(baseHtml))
+          : String(baseHtml));
 
       // Sanitize user-controlled HTML to prevent XSS attacks; DOMPurify strips dangerous tags/attrs
       // (e.g., <script>, onload) while allowing safe text formatting. Defaults block unsafe URI schemes like javascript:.
@@ -246,8 +246,8 @@ const renderNode = (
       const label = (direct != null && String(direct).trim())
         ? direct
         : ((activeLocale && activeLocale !== 'en' && baseLabel && localizeFn)
-            ? localizeFn(String(baseLabel))
-            : String(baseLabel));
+          ? localizeFn(String(baseLabel))
+          : String(baseLabel));
       const href = (node as any).props?.href;
       const className = cn(
         (node as any).style?.className ?? "px-4 py-2 bg-blue-600 text-white rounded text-center",
@@ -314,7 +314,6 @@ const renderNode = (
           >
             <EventSection
               showFilters={(node as any).props?.showFilters !== false}
-              eventName={(node as any).props?.eventName}
               lockedFilters={(node as any).props?.lockedFilters}
               title={(node as any).props?.title}
               showTitle={(node as any).props?.showTitle !== false}
@@ -358,7 +357,7 @@ const renderNode = (
       if (forceFlowLayout) {
         return (
           <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={inlineStyle}>
-            <PaypalSection data={{}} isEditing={false} />
+            <PaypalSection isEditing={false} />
           </div>
         );
       } else {
@@ -371,7 +370,7 @@ const renderNode = (
                 width: `${100 / (scale || 1)}%`,
               }}
             >
-              <PaypalSection data={{}} isEditing={false} />
+              <PaypalSection isEditing={false} />
             </div>
           </div>
         );
@@ -511,8 +510,8 @@ const renderNode = (
       const alt = (directAlt != null && String(directAlt).trim())
         ? directAlt
         : ((activeLocale && activeLocale !== 'en' && baseAlt && localizeFn)
-            ? localizeFn(String(baseAlt))
-            : String(baseAlt));
+          ? localizeFn(String(baseAlt))
+          : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || "cover";
       const inlineStyles: React.CSSProperties = {
         ...nodeStyle,
@@ -623,7 +622,7 @@ const SectionWithVirtualGridPublic: React.FC<{
       >
         {section.children.map((node) => {
           const hasLayout = !!node.layout?.units;
-        const rendered = renderNode(node, highlightNodeId, sectionFontFamily, transform, locked, activeLocale, defaultLocale, localize, containerDomOffsets);
+          const rendered = renderNode(node, highlightNodeId, sectionFontFamily, transform, locked, activeLocale, defaultLocale, localize, containerDomOffsets);
 
           if (hasLayout && !locked && transform) {
             const { xu, yu, wu, hu } = node.layout!.units;

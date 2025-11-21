@@ -9,10 +9,10 @@ interface PermissionGuardProps {
   fallback?: React.ReactNode;
 }
 
-export const PermissionGuard: React.FC<PermissionGuardProps> = ({ 
-  children, 
-  requiredPermission, 
-  fallback 
+export const PermissionGuard: React.FC<PermissionGuardProps> = ({
+  children,
+  requiredPermission,
+  fallback
 }) => {
   const { permissions, loading } = useUserPermissions();
 
@@ -36,7 +36,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   const hasPermission = () => {
     if (Array.isArray(requiredPermission)) {
       // User needs ANY of the permissions in the array
-      return requiredPermission.some(perm => 
+      return requiredPermission.some(perm =>
         permissions[perm as keyof typeof permissions] || permissions.admin
       );
     } else {

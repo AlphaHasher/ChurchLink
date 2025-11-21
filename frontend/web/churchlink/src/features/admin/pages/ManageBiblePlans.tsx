@@ -25,7 +25,7 @@ import { Button } from '@/shared/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/shared/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
-import { MoreHorizontal, Pencil, Copy, Download, Trash, RefreshCcw } from 'lucide-react';
+import { MoreHorizontal, Pencil, Copy, Download, Trash, RefreshCcw, BookTemplate } from 'lucide-react';
 import { Skeleton } from '@/shared/components/ui/skeleton';
 
 // Cell renderer for visible column
@@ -40,6 +40,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
     handleEdit,
     handleDuplicate,
     handleExport,
+    handleMakeTemplate,
     setRenameTarget,
     setConfirmDeleteIds
   } = context;
@@ -58,6 +59,7 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
           <DropdownMenuItem onClick={() => handleDuplicate(data.id)}><Copy className="h-4 w-4 mr-2" /> Duplicate</DropdownMenuItem>
           <DropdownMenuItem onClick={() => setRenameTarget({ id: data.id, name: data.name })}><Pencil className="h-4 w-4 mr-2" /> Rename</DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleExport(data.id)}><Download className="h-4 w-4 mr-2" /> Export JSON</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleMakeTemplate(data.id)}><BookTemplate className="h-4 w-4 mr-2" /> Make Template</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-red-600" onClick={() => setConfirmDeleteIds([data.id])}><Trash className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>
         </DropdownMenuContent>
@@ -100,7 +102,7 @@ const ManageBiblePlans = () => {
 
   const handleToggleVisible = async (planId: string, visible: boolean) => {
     try {
-      await api.patch(`/v1/bible-plans/${planId}`, { visible });
+      await api.patch(`/v1/bible-plans/by-id/${planId}`, { visible });
       setAllPlans((prev) => prev.map((p) => (p.id === planId ? { ...p, visible } : p)));
       setStatus('Visibility updated');
       setTimeout(() => setStatus(null), 3000);
@@ -147,11 +149,26 @@ const ManageBiblePlans = () => {
     }
   };
 
+  const handleMakeTemplate = async (planId: string) => {
+    try {
+      setStatus('Creating template...');
+      const resp = await api.post(`/v1/bible-plans/${planId}/make-template`);
+      const template = resp.data;
+      setStatus(`Template "${template.name}" created successfully`);
+      setTimeout(() => setStatus(null), 3000);
+    } catch (err: any) {
+      console.error('Failed to create template', err);
+      const errorMsg = err.response?.data?.detail || 'Failed to create template';
+      setStatus(errorMsg);
+      setTimeout(() => setStatus(null), 5000);
+    }
+  };
+
   const handleRename = async () => {
     if (!renameTarget || !newName.trim()) return;
 
     try {
-      await api.patch(`/v1/bible-plans/${renameTarget.id}`, { name: newName.trim() });
+      await api.patch(`/v1/bible-plans/by-id/${renameTarget.id}`, { name: newName.trim() });
       setAllPlans((prev) => prev.map((p) => (p.id === renameTarget.id ? { ...p, name: newName.trim() } : p)));
       setStatus('Renamed successfully');
       setTimeout(() => setStatus(null), 3000);
@@ -169,7 +186,7 @@ const ManageBiblePlans = () => {
     try {
       setStatus('Deleting...');
       for (const id of confirmDeleteIds) {
-        await api.delete(`/v1/bible-plans/${id}`);
+        await api.delete(`/v1/bible-plans/by-id/${id}`);
       }
       setAllPlans((prev) => prev.filter((p) => !confirmDeleteIds.includes(p.id)));
       setStatus(`Deleted ${confirmDeleteIds.length} plan(s)`);
@@ -226,6 +243,7 @@ const ManageBiblePlans = () => {
     },
     handleDuplicate,
     handleExport,
+    handleMakeTemplate,
     setRenameTarget,
     setConfirmDeleteIds,
   };

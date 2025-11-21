@@ -89,6 +89,11 @@ export function Inspector() {
             </div>
           </div>
         </div>
+
+        {/* Translations panel for price field label */}
+        <div className="border-t pt-3 mt-3">
+          <TranslationsPanel field={field} />
+        </div>
       </div>
     );
   }
@@ -218,7 +223,7 @@ export function Inspector() {
               <ToggleGroup
                 type="multiple"
                 value={[(field as any).bold ? "bold" : "", (field as any).underline ? "underline" : ""].filter(Boolean)}
-                onValueChange={(values) =>
+                onValueChange={(values: string | string[]) =>
                   onChange({ bold: values.includes("bold"), underline: values.includes("underline") } as any)
                 }
                 className="w-full justify-start"
@@ -269,6 +274,11 @@ export function Inspector() {
               onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
             <p className="text-xs text-muted-foreground">This is a display field that shows an individual price component.</p>
           </div>
+
+          {/* Translations panel for pricelabel field */}
+          <div className="border-t pt-3 mt-3">
+            <TranslationsPanel field={field} />
+          </div>
         </div>
       )}
 
@@ -290,7 +300,7 @@ export function Inspector() {
             <ToggleGroup
               type="single"
               value={field.required ? "required" : ""}
-              onValueChange={(value) => {
+              onValueChange={(value: string) => {
                 onChange({ required: value === "required" });
               }}
               className="w-full justify-start"

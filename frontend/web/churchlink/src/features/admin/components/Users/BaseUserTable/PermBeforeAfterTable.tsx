@@ -83,7 +83,7 @@ export function PermBeforeAfterTable({ data }: PermBeforeAfterTableProps) {
   });
 
   return (
-    <div className="container mx-start">
+    <div >
       {/* Scrollable Table Container */}
       <div className="rounded-md border overflow-x-auto max-w-full">
         <Table className="w-full min-w-max">

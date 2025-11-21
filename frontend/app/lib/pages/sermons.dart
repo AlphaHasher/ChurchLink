@@ -6,7 +6,7 @@ import 'package:app/widgets/sermon_detail_sheet.dart';
 import 'package:app/widgets/sermon_filter_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../helpers/localization_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class SermonsPage extends StatefulWidget {
   const SermonsPage({super.key});
@@ -87,7 +87,10 @@ class _SermonsPageState extends State<SermonsPage> {
                                 SizedBox(height: 12),
                                 Center(
                                   child: Text(
-                                    LocalizationHelper.localize('No Sermons available yet. Pull to refresh.', capitalize: true),
+                                    LocalizationHelper.localize(
+                                      'No Sermons available yet. Pull to refresh.',
+                                      capitalize: true,
+                                    ),
                                     style: TextStyle(color: Colors.grey),
                                   ),
                                 ),
@@ -116,8 +119,19 @@ class _SermonsPageState extends State<SermonsPage> {
     );
   }
 
+  Set<String> _getAvailableMinistries() {
+    final Set<String> ministries = {};
+    for (final sermon in context.read<SermonsProvider>().items) {
+      if (sermon.ministry.isNotEmpty) {
+        ministries.addAll(sermon.ministry);
+      }
+    }
+    return ministries;
+  }
+
   Future<void> _openFilters() async {
     final provider = context.read<SermonsProvider>();
+    final availableMinistries = _getAvailableMinistries().toList()..sort();
     final result = await showModalBottomSheet<SermonFilter>(
       context: context,
       isScrollControlled: true,
@@ -125,7 +139,10 @@ class _SermonsPageState extends State<SermonsPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder:
-          (context) => SermonFilterSheet(initialFilter: provider.activeFilter),
+          (context) => SermonFilterSheet(
+            initialFilter: provider.activeFilter,
+            availableMinistries: availableMinistries,
+          ),
     );
 
     if (result != null) {
@@ -181,9 +198,7 @@ class _ErrorBanner extends StatelessWidget {
       color: theme.colorScheme.error.withValues(alpha: 0.1),
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
-        title: Text(
-          LocalizationHelper.localize(message, capitalize: true),
-        ),
+        title: Text(LocalizationHelper.localize(message, capitalize: true)),
         trailing: IconButton(
           icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,
@@ -222,4 +237,3 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
-

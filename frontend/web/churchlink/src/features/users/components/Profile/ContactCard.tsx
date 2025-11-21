@@ -43,7 +43,7 @@ export const ContactCard: React.FC<ContactCardProps> = ({
                         aria-disabled="true"
                     >
                         <dl className="cursor-not-allowed">
-                            <OverviewRow label={localize("Phone") } value={phoneDisplay} />
+                            <OverviewRow label={localize("Phone")} value={phoneDisplay} />
                             <Separator />
                             <OverviewRow label={localize("Address")} value={addressLines[0]} />
                             <Separator />
@@ -54,7 +54,7 @@ export const ContactCard: React.FC<ContactCardProps> = ({
                     </div>
                 </CardContent>
 
-                {footer ? <CardFooter className="justify-center">{footer}</CardFooter> : null}
+                {footer ? <CardFooter className="justify-center pt-4">{footer}</CardFooter> : null}
             </Card>
         </motion.div>
     );

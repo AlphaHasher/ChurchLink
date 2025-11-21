@@ -101,8 +101,7 @@ async def purge_form_responses(form_id: str, request: Request) -> dict:
 async def list_form_responses(form_id: str, request: Request, skip: int = 0, limit: int | None = None):
 	"""Return responses for the specified form for moderator review."""
 
-	uid = request.state.uid
-	data = await get_form_responses(form_id, uid, skip=skip, limit=limit)
+	data = await get_form_responses(form_id, skip=skip, limit=limit)
 	if data is None:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Form not found")
 	return data

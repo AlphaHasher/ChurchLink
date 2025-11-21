@@ -4,7 +4,7 @@ import 'package:app/widgets/sermon_card.dart';
 import 'package:app/widgets/sermon_detail_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../helpers/localization_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class MySermonsPage extends StatefulWidget {
   const MySermonsPage({super.key});

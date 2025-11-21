@@ -22,7 +22,6 @@ class AuthPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDarkMode = theme.brightness == Brightness.dark;
 
     // Define button colors based on theme
@@ -56,9 +55,10 @@ class AuthPopup extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: isDarkMode
-                ? Colors.black.withOpacity(0.5)
-                : Colors.grey.withOpacity(0.3),
+            color:
+                isDarkMode
+                    ? Colors.black.withValues(alpha: 0.5)
+                    : Colors.grey.withValues(alpha: 0.3),
             spreadRadius: 1,
             blurRadius: 10,
             offset: const Offset(0, -2),
@@ -120,7 +120,10 @@ class AuthPopup extends StatelessWidget {
                   foregroundColor: option['foregroundColor'],
                   minimumSize: const Size(double.infinity, 56),
                   elevation: 2,
-                  shadowColor: isDarkMode ? Colors.black.withOpacity(0.5) : Colors.grey.withOpacity(0.3),
+                  shadowColor:
+                      isDarkMode
+                          ? Colors.black.withValues(alpha: 0.5)
+                          : Colors.grey.withValues(alpha: 0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -128,7 +131,11 @@ class AuthPopup extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(option['icon'], size: 26, color: option['foregroundColor']),
+                    Icon(
+                      option['icon'],
+                      size: 26,
+                      color: option['foregroundColor'],
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       option['title'],
@@ -178,12 +185,11 @@ class AuthPopup extends StatelessWidget {
   void _continueWithGoogle(BuildContext context) async {
     try {
       final String? token = await authService.signInWithGoogle();
-      
+
       if (token != null) {
         if (context.mounted) {
           Navigator.pop(context);
         }
-                       
       } else {
         // Google Sign-In was cancelled or failed
         debugPrint("Google Sign-In returned null (cancelled or failed)");

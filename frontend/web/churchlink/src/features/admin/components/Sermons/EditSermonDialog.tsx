@@ -22,16 +22,19 @@ import { ChurchSermon } from "@/shared/types/ChurchSermon";
 import { updateSermon, deleteSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
+import { fetchMinistries } from "@/helpers/MinistriesHelper";
+import { Ministry } from "@/shared/types/Ministry";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface EditSermonProps {
     sermon: ChurchSermon;
     onSave: () => Promise<void>;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonProps) {
+export function EditSermonDialog({ sermon: initialSermon, onSave, open: externalOpen, onOpenChange }: EditSermonProps) {
     const [sermon, setSermon] = useState<ChurchSermon>(initialSermon);
 
     const [isOpen, setIsOpen] = useState(false);
@@ -39,19 +42,29 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
     const [checkingPerms, setCheckingPerms] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
+
+    // Use external open state if provided, otherwise use internal state
+    const dialogOpen = externalOpen !== undefined ? externalOpen : isOpen;
+    const setDialogOpen = (open: boolean) => {
+        if (onOpenChange) {
+            onOpenChange(open);
+        } else {
+            setIsOpen(open);
+        }
+    };
 
     useEffect(() => {
-        if (isOpen) {
+        if (dialogOpen) {
             fetchMinistries().then(setMinistries)
         }
-    }, [isOpen])
+    }, [dialogOpen])
 
     const handleDialogClose = () => {
         setSermon(initialSermon);
         setDeleteConfirmOpen(false);
         setDeleting(false);
-        setIsOpen(false);
+        setDialogOpen(false);
     };
 
     const handleSave = async () => {
@@ -91,7 +104,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
             const result = await getMyPermissions(requestOptions);
             if (result?.success) {
                 if (result?.perms?.admin || result?.perms?.sermon_editing) {
-                    setIsOpen(true);
+                    setDialogOpen(true);
                 } else {
                     alert("You must have the Sermon Editor permission to edit sermons.");
                 }
@@ -107,8 +120,8 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
 
     return (
         <>
-            <Button size="sm" variant="ghost" onClick={handleDialogOpen} disabled={checkingPerms}>Edit</Button>
-            <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
+            {!externalOpen && <Button size="sm" variant="ghost" onClick={handleDialogOpen} disabled={checkingPerms}>Edit</Button>}
+            <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
                 <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Sermon</DialogTitle>
@@ -135,7 +148,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">Ministry</span>
-                            <EventMinistryDropdown
+                            <MinistryDropdown
                                 selected={sermon.ministry ?? []}
                                 onChange={(next: string[]) => setSermon({ ...sermon, ministry: next })}
                                 ministries={ministries}
@@ -181,30 +194,30 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            onClick={handleDelete}
-                                            disabled={deleting}
-                                        >
-                                            {deleting ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Deleting...
-                                                </>
-                                            ) : (
-                                                'Delete permanently'
-                                            )}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setDeleteConfirmOpen(false)}
-                                            disabled={deleting}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </AlertDialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                    disabled={deleting}
+                                >
+                                    {deleting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        'Delete permanently'
+                                    )}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setDeleteConfirmOpen(false)}
+                                    disabled={deleting}
+                                >
+                                    Cancel
+                                </Button>
+                            </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
 
