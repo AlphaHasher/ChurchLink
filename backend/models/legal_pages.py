@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Dict, List
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, ConfigDict
-from mongo import database as DB  # assumes you have DB.db available
+from mongo.database import DB  # assumes you have DB.db available
 
 
 # ---------------------------

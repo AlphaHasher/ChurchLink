@@ -18,6 +18,7 @@ from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
 from mongo.scheduled_notifications import scheduled_notification_loop
+from models.legal_pages import ensure_indexes, seed_initial_pages
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
@@ -124,7 +125,13 @@ from routes.webhook_listener_routes.paypal_central_webhook_routes import (
 from routes.webhook_listener_routes.youtube_listener_routes import (
     youtube_listener_router,
 )
+from routes.legal_routes import (
+    admin_legal_router,
+    user_legal_router,
+)
+
 from scalar_fastapi import get_scalar_api_reference
+
 
 load_dotenv()
 
@@ -222,6 +229,14 @@ async def lifespan(app: FastAPI):
         logger.info("Connecting to MongoDB...")
         await DatabaseManager.init_db()
         logger.info("MongoDB connected")
+
+        try:
+            logger.info("Ensuring legal_pages collection and seeding defaults")
+            await ensure_indexes()
+            await seed_initial_pages()
+            logger.info("Legal pages ensured and seeded (if missing)")
+        except Exception as e:
+            logger.error(f"Legal pages setup failed: {e}")
 
         # Initialize PayPal helper (singleton) once on startup
         paypal = await PayPalHelperV2.get_instance()
@@ -367,6 +382,7 @@ public_router.include_router(public_forms_router)
 public_router.include_router(webbuilder_config_public_router)
 public_router.include_router(paypal_central_webhook_router)
 public_router.include_router(donation_router)
+public_router.include_router(user_legal_router)
 
 
 #####################################################
@@ -409,6 +425,7 @@ mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
 mod_router.include_router(mod_event_router)
+mod_router.include_router(admin_legal_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
