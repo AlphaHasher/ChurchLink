@@ -288,7 +288,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             }
           }}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Mode" /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[1000]">
               <SelectItem value="solid">Solid</SelectItem>
               <SelectItem value="transparent">Transparent</SelectItem>
               <SelectItem value="gradient">Gradient</SelectItem>
