@@ -135,7 +135,7 @@ export default function AssignDiscountCodesDialog({ event, onSaved }: Props) {
                                     </Button>
                                 </DropdownMenuTrigger>
 
-                                <DropdownMenuContent align="start" className="max-h-[50vh] overflow-y-auto">
+                                <DropdownMenuContent align="start" className="z-[700] max-h-[50vh] overflow-y-auto">
                                     {sortedOptions.map((c) => {
                                         const checked = selectedIds.includes(c.id);
                                         return (
