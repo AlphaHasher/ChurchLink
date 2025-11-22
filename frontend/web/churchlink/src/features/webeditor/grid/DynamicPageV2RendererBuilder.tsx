@@ -269,6 +269,7 @@ const renderNode = (
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
         ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
         ...(color ? { color } : {}),
+        whiteSpace: 'pre-line',
       };
 
       const nodeClassName = nodeStyleRaw?.className;
