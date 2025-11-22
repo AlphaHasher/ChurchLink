@@ -1,4 +1,3 @@
-const LOGIN_PATH = '/auth/login';
 const REDIRECT_AFTER_LOGIN = '/';
 
 // Pull from Cypress env (CYPRESS_USER_EMAIL, etc)
