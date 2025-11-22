@@ -10,5 +10,8 @@ export default defineConfig({
     screenshotOnRunFailure: true,
     viewportWidth: 1280, // Set viewport to "lg" breakpoint for Tailwind (1024px+)
     viewportHeight: 720,
+    testIsolation: true
   },
 });
+
+

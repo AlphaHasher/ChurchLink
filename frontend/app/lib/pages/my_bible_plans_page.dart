@@ -1028,14 +1028,9 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       context: context,
       builder:
           (context) => AlertDialog(
-            backgroundColor: Theme.of(context).colorScheme.surface,
-            title: const Text(
-              'Restart Plan?',
-              style: TextStyle(color: Colors.white),
-            ),
+            title: const Text('Restart Plan?'),
             content: const Text(
-              'Restarting will reset your progress and set your start date to today. Are you sure you want to restart? ',
-              style: TextStyle(color: Color.fromRGBO(200, 200, 200, 1)),
+              'Restarting will reset your progress and set your start date to today. Are you sure you want to restart?',
             ),
             actions: [
               TextButton(
@@ -1151,7 +1146,6 @@ class _PlanProgressCardState extends State<_PlanProgressCard> {
       context: context,
       builder:
           (context) => AlertDialog(
-            backgroundColor: const Color.fromRGBO(65, 65, 65, 1),
             title: const Text('Complete Plan?'),
             content: const Text(
               'Marking the plan as complete will unsubscribe you from the plan and erase your progress. Are you sure you want to complete the plan?',

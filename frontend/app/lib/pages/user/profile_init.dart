@@ -52,33 +52,31 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
     setState(() => _saving = false);
 
     if (result.success) {
+      final successMsg = await LocalizationHelper.localizeAsync(
+        'Profile initialized!',
+      );
 
-      final successMsg = await LocalizationHelper.localizeAsync('Profile initialized!');
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMsg)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMsg)));
 
       Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
-
     } else {
-
       String errorMsg;
 
       if (result.msg.isNotEmpty) {
-
         errorMsg = await LocalizationHelper.localizeAsync(result.msg);
-
       } else {
-
-        errorMsg = await LocalizationHelper.localizeAsync('Failed to initialize profile.');
-
+        errorMsg = await LocalizationHelper.localizeAsync(
+          'Failed to initialize profile.',
+        );
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(content: Text(errorMsg)),
-
-      );
-
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMsg)));
     }
   }
 
@@ -96,7 +94,9 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
     final (first, last) = _splitFirebaseName();
 
     return Scaffold(
-      appBar: AppBar(title: Text(LocalizationHelper.localize('Initialize Profile'))),
+      appBar: AppBar(
+        title: Text(LocalizationHelper.localize('Initialize Profile')),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -104,7 +104,9 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                LocalizationHelper.localize('In order to use your account, please initialize your profile. Otherwise, you may log out.'),
+                LocalizationHelper.localize(
+                  'In order to use your account, please initialize your profile. Otherwise, you may log out.',
+                ),
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 16),

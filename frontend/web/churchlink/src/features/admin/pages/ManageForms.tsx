@@ -19,7 +19,8 @@ ModuleRegistry.registerModules([
 ]);
 
 import FormsTabs from '@/features/admin/components/Forms/FormsTabs';
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
+import { MinistryCards } from '@/shared/components/MinistryCards';
 import { VisibilityToggleCellRenderer } from '@/shared/components/VisibilityToggle';
 import api from '@/api/api';
 import { Input } from '@/shared/components/ui/input';
@@ -44,7 +45,7 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
   if (!data) return null;
 
   const ministries: string[] = Array.isArray(data.ministries) ? data.ministries : [];
-  const { openMinistryAssignment } = context;
+  const { openMinistryAssignment, availableMinistries } = context;
 
   if (!ministries.length) {
     return (
@@ -64,13 +65,11 @@ const MinistriesCellRenderer = (props: ICellRendererParams) => {
 
   return (
     <div className="flex items-center gap-2 w-full min-w-0">
-      <div className="flex flex-wrap gap-1 flex-1 min-w-0">
-        {ministries.map((name: string) => (
-          <span key={name} className="inline-flex items-center rounded border px-2 py-0.5 text-xs bg-muted/40">
-            {name}
-          </span>
-        ))}
-      </div>
+      <MinistryCards 
+        ministryIds={ministries}
+        availableMinistries={availableMinistries || []}
+        className="flex-1"
+      />
       <Button
         size="icon"
         variant="ghost"
@@ -686,6 +685,7 @@ const ManageForms = () => {
                 slugify,
                 setAssignmentTarget,
                 openMinistryAssignment,
+                availableMinistries,
               }}
               pagination={true}
               paginationPageSizeSelector={[10, 20, 50]}
@@ -777,14 +777,14 @@ const ManageForms = () => {
           </DialogHeader>
           <div className="py-4">
             {availableMinistries.length > 0 ? (
-              <EventMinistryDropdown
+              <MinistryDropdown
                 selected={assignmentTarget?.selected || []}
                 onChange={(updated) => {
                   if (assignmentTarget) {
                     setAssignmentTarget({ ...assignmentTarget, selected: updated });
                   }
                 }}
-                ministries={availableMinistries.map((m: any) => m.name)}
+                ministries={availableMinistries}
               />
             ) : (
               <div className="text-sm text-muted-foreground">No ministries available. Create one from Admin &gt; Ministries first.</div>

@@ -121,7 +121,7 @@ export default function MembershipCard({
     const perks = [
         localize("Lower members-only event prices"),
         localize("Access to members-only events"),
-        localize("Other benefits that are undefined"),
+        localize("Other great benefits outside of this website"),
     ];
 
 

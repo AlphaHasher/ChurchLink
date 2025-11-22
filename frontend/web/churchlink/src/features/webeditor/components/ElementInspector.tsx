@@ -10,6 +10,10 @@ import { Separator } from "@/shared/components/ui/separator";
 import { Node, TextNode, SectionV2 } from "@/shared/types/pageV2";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
+import MediaLibrary from "@/features/admin/pages/MediaLibrary";
+import { getPublicUrl, getThumbnailUrl } from "@/helpers/MediaInteraction";
+import type { ImageResponse } from "@/shared/types/ImageData";
 
 import { ButtonInspector } from "./element-inspector/ButtonInspector";
 import { ContainerInspector } from "./element-inspector/ContainerInspector";
@@ -27,8 +31,8 @@ interface ElementInspectorProps {
   sectionId?: string;
   activeLocale?: string;
   defaultLocale?: string;
-  fontManager?: any; 
-  section?: SectionV2; 
+  fontManager?: any;
+  section?: SectionV2;
   onRequestDeleteNode?: () => void;
 }
 
@@ -76,7 +80,18 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
     const bgColor = String((style.backgroundColor ?? '') as string).trim();
     const hasBackground = bgString.length > 0;
     const isLinear = /linear-gradient\(/i.test(bgString);
+    const isImageUrl = /url\(/i.test(bgString);
     const isTransparent = bgColor === 'transparent' || (!bgColor && !hasBackground);
+
+    // Extract image ID if background is set via our media library
+    const extractImageId = React.useCallback((): string | null => {
+      if (!isImageUrl) return null;
+      const match = bgString.match(/url\(['"]?([^'")]+)['"]?\)/i);
+      if (!match) return null;
+      const url = match[1];
+      const idMatch = url.match(/\/v1\/assets\/public\/id\/([a-f0-9]{24})/i);
+      return idMatch ? idMatch[1] : null;
+    }, [bgString, isImageUrl]);
 
     const extractColorOnly = React.useCallback((input: string | undefined): string => {
       if (!input) return '#4f46e5';
@@ -92,14 +107,14 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
       if (typeof value === 'string') return value;
       // Prefer string() so alpha is preserved (rgba/hsla)
       if (value && typeof value.string === 'function') {
-        try { return value.string(); } catch {}
+        try { return value.string(); } catch { }
       }
       // Fallbacks
       if (value && typeof value.hexa === 'function') {
-        try { return value.hexa(); } catch {}
+        try { return value.hexa(); } catch { }
       }
       if (value && typeof value.hex === 'function') {
-        try { return value.hex(); } catch {}
+        try { return value.hex(); } catch { }
       }
       return String(value ?? '');
     }, []);
@@ -151,12 +166,19 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
     const { angle: parsedAngle, c1: parsedC1, c2: parsedC2 } = React.useMemo(() => parseLinearGradient(), [parseLinearGradient]);
 
     const [mode, setMode] = React.useState<string>(
-      hasBackground ? (isLinear ? 'gradient' : 'custom') : (isTransparent ? 'transparent' : 'solid')
+      hasBackground ? (isLinear ? 'gradient' : (isImageUrl ? 'image' : 'custom')) : (isTransparent ? 'transparent' : 'solid')
     );
     const [angle, setAngle] = React.useState<number>(parsedAngle);
     const [c1, setC1] = React.useState<string>(parsedC1);
     const [c2, setC2] = React.useState<string>(parsedC2);
     const [custom, setCustom] = React.useState<string>(hasBackground ? bgString : '');
+    const [imageId, setImageId] = React.useState<string>(extractImageId() || '');
+    const [mediaModalOpen, setMediaModalOpen] = React.useState(false);
+    const [bgSize, setBgSize] = React.useState<string>((style.backgroundSize as string) || 'cover');
+    const [bgPosition, setBgPosition] = React.useState<string>((style.backgroundPosition as string) || 'center');
+    const [bgRepeat, setBgRepeat] = React.useState<string>((style.backgroundRepeat as string) || 'no-repeat');
+    const [brightness, setBrightness] = React.useState<number>(100);
+    const [hexInput, setHexInput] = React.useState<string>(style.backgroundColor?.trim()?.length && style.backgroundColor !== 'transparent' ? style.backgroundColor : '#ffffff');
     const userInitiatedModeChangeRef = React.useRef(false);
 
     const scheduleRef = React.useRef<number | null>(null);
@@ -184,24 +206,46 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
         userInitiatedModeChangeRef.current = false;
         return;
       }
-      
+
       const currentBgColor = String((node as any)?.style?.backgroundColor ?? '').trim();
       const currentBg = String((node as any)?.style?.background ?? '').trim();
+      const currentBgImage = String((node as any)?.style?.backgroundImage ?? '').trim();
       const currentIsLinear = /linear-gradient\(/i.test(currentBg);
-      const currentHasBackground = currentBg.length > 0;
+      const currentIsImageUrl = /url\(/i.test(currentBg) || /url\(/i.test(currentBgImage);
+      const currentHasBackground = currentBg.length > 0 || currentBgImage.length > 0;
       const currentIsTransparent = currentBgColor === 'transparent' || (!currentBgColor && !currentHasBackground);
-      
+
       if (currentHasBackground) {
-        if (currentIsLinear && mode !== 'gradient') {
+        if (currentIsLinear) {
           setMode('gradient');
-        } else if (!currentIsLinear && mode !== 'custom') {
+        } else if (currentIsImageUrl) {
+          setMode('image');
+          const nextImageId = extractImageId() || '';
+          setImageId(nextImageId);
+        } else {
           setMode('custom');
         }
-      } else if (currentIsTransparent && mode !== 'transparent') {
+      } else if (currentIsTransparent) {
         setMode('transparent');
-      } else if (!currentIsTransparent && mode === 'transparent' && currentBgColor && currentBgColor !== 'transparent') {
+      } else if (currentBgColor && currentBgColor !== 'transparent') {
         setMode('solid');
       }
+
+      // Sync hex input with background color
+      const currentSolidBg = currentBgColor && currentBgColor !== 'transparent' ? currentBgColor : '#ffffff';
+      setHexInput(currentSolidBg);
+
+      // Parse CSS variable for brightness
+      const cssVarBrightness = String((node as any)?.style?.['--bg-brightness'] ?? '').trim();
+      if (cssVarBrightness) {
+        const numMatch = cssVarBrightness.match(/(\d+)/);
+        if (numMatch) {
+          setBrightness(parseInt(numMatch[1], 10));
+        }
+      } else {
+        setBrightness(100);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [node.id]);
 
     const applyGradient = React.useCallback((nextAngle: number, nextC1: string, nextC2: string) => {
@@ -249,6 +293,33 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
       }));
     }, [onUpdateNode, node.id]);
 
+    const applyImage = React.useCallback((id: string, size?: string, position?: string, repeat?: string, bright?: number) => {
+      const imageUrl = getPublicUrl(id);
+      const css = `url("${imageUrl}")`;
+      const targetSize = size || bgSize;
+      const targetPosition = position || bgPosition;
+      const targetRepeat = repeat || bgRepeat;
+      const targetBrightness = bright !== undefined ? bright : brightness;
+
+      onUpdateNode((n) => {
+        const newStyle: any = {
+          ...(n as any).style,
+          backgroundImage: css,
+          backgroundSize: targetSize,
+          backgroundPosition: targetPosition,
+          backgroundRepeat: targetRepeat,
+          backgroundColor: undefined,
+          background: undefined,
+          '--bg-brightness': `${targetBrightness}`,
+        };
+
+        return {
+          ...n,
+          style: newStyle,
+        };
+      });
+    }, [onUpdateNode, bgSize, bgPosition, bgRepeat, brightness]);
+
     // Stable change handlers to avoid triggering ColorPicker's "notify parent" effect on every render
     const handleSolidChange = React.useCallback((c: any) => {
       if (!open) return;
@@ -288,10 +359,11 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             }
           }}>
             <SelectTrigger className="w-40"><SelectValue placeholder="Mode" /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[1000]">
               <SelectItem value="solid">Solid</SelectItem>
               <SelectItem value="transparent">Transparent</SelectItem>
               <SelectItem value="gradient">Gradient</SelectItem>
+              <SelectItem value="image">Image</SelectItem>
               <SelectItem value="custom">Custom CSS</SelectItem>
             </SelectContent>
           </Select>
@@ -317,9 +389,32 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
                   <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
                     <ColorPickerSelection />
                     <ColorPickerHue />
-                    <ColorPickerAlpha />
+                    <ColorPickerAlpha 
+                      style={{
+                        background: 'linear-gradient(to right, transparent, currentColor)',
+                        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                      }}
+                    />
                   </div>
-                  <div className="mt-1 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2">
+                    <Label htmlFor="elem-bg-hex-input" className="text-xs whitespace-nowrap">Hex:</Label>
+                    <input
+                      id="elem-bg-hex-input"
+                      type="text"
+                      value={hexInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setHexInput(val);
+                        // Only apply if valid hex format
+                        if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^#([0-9A-Fa-f]{8})$/.test(val)) {
+                          applySolid(val);
+                        }
+                      }}
+                      className="h-8 text-xs font-mono border rounded px-2 flex-1"
+                      placeholder="#ffffff"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
                     <ColorPickerOutput />
                   </div>
                 </ColorPicker>
@@ -376,6 +471,121 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
           </div>
         )}
 
+        {mode === 'image' && (
+          <div className="space-y-3">
+            <Label>Background Image</Label>
+            {imageId && (
+              <div className="relative w-full h-32 rounded border overflow-hidden">
+                <img
+                  src={getThumbnailUrl(imageId)}
+                  alt="Background preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMediaModalOpen(true)}
+                className="flex-1"
+              >
+                {imageId ? 'Change Image' : 'Select Image'}
+              </Button>
+              {imageId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setImageId('');
+                    applySolid('#ffffff');
+                    setMode('solid');
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+
+            {imageId && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="elem-bg-size">Size</Label>
+                  <Select value={bgSize} onValueChange={(v) => {
+                    setBgSize(v);
+                    applyImage(imageId, v, bgPosition, bgRepeat);
+                  }}>
+                    <SelectTrigger id="elem-bg-size"><SelectValue /></SelectTrigger>
+                    <SelectContent side="bottom" align="start" sideOffset={4} className="z-[10000] max-h-[300px] overflow-y-auto">
+                      <SelectItem value="cover">Cover (fill, crop if needed)</SelectItem>
+                      <SelectItem value="contain">Contain (fit, show all)</SelectItem>
+                      <SelectItem value="auto">Auto (original size)</SelectItem>
+                      <SelectItem value="100% 100%">Stretch (distort to fit)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="elem-bg-position">Position</Label>
+                  <Select value={bgPosition} onValueChange={(v) => {
+                    setBgPosition(v);
+                    applyImage(imageId, bgSize, v, bgRepeat);
+                  }}>
+                    <SelectTrigger id="elem-bg-position"><SelectValue /></SelectTrigger>
+                    <SelectContent side="bottom" align="start" sideOffset={4} className="z-[10000] max-h-[300px] overflow-y-auto">
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="top">Top</SelectItem>
+                      <SelectItem value="bottom">Bottom</SelectItem>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                      <SelectItem value="top left">Top Left</SelectItem>
+                      <SelectItem value="top right">Top Right</SelectItem>
+                      <SelectItem value="bottom left">Bottom Left</SelectItem>
+                      <SelectItem value="bottom right">Bottom Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="elem-bg-repeat">Repeat</Label>
+                  <Select value={bgRepeat} onValueChange={(v) => {
+                    setBgRepeat(v);
+                    applyImage(imageId, bgSize, bgPosition, v);
+                  }}>
+                    <SelectTrigger id="elem-bg-repeat"><SelectValue /></SelectTrigger>
+                    <SelectContent side="bottom" align="start" sideOffset={4} className="z-[10000] max-h-[300px] overflow-y-auto">
+                      <SelectItem value="no-repeat">No Repeat</SelectItem>
+                      <SelectItem value="repeat">Repeat (tile pattern)</SelectItem>
+                      <SelectItem value="repeat-x">Repeat Horizontal</SelectItem>
+                      <SelectItem value="repeat-y">Repeat Vertical</SelectItem>
+                      <SelectItem value="space">Space (with gaps)</SelectItem>
+                      <SelectItem value="round">Round (stretch to fit)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator className="my-3" />
+
+                <div className="space-y-2">
+                  <Label htmlFor="elem-bg-brightness">Brightness (%)</Label>
+                  <NumericDragInput
+                    id="elem-bg-brightness"
+                    min={0}
+                    max={200}
+                    step={5}
+                    value={brightness}
+                    onChange={(val) => {
+                      const next = typeof val === 'number' ? val : brightness;
+                      setBrightness(next);
+                      applyImage(imageId, bgSize, bgPosition, bgRepeat, next);
+                    }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {mode === 'custom' && (
           <div className="space-y-2">
             <Label htmlFor="custom-bg">CSS background</Label>
@@ -392,6 +602,25 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             />
           </div>
         )}
+
+        {/* Media Library Dialog */}
+        <Dialog open={mediaModalOpen} onOpenChange={setMediaModalOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] p-0">
+            <DialogHeader className="p-4 border-b">
+              <DialogTitle>Select Background Image</DialogTitle>
+            </DialogHeader>
+            <div className="p-4 overflow-auto max-h-[75vh]">
+              <MediaLibrary
+                selectionMode
+                onSelect={(asset: ImageResponse) => {
+                  setImageId(asset.id);
+                  applyImage(asset.id, bgSize, bgPosition, bgRepeat);
+                  setMediaModalOpen(false);
+                }}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div>
           <Button

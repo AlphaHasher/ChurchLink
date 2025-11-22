@@ -9,7 +9,7 @@ import 'package:app/widgets/bulletin_detail_sheet.dart';
 import 'package:app/widgets/bulletin_filter_sheet.dart';
 import 'package:app/widgets/service_card.dart';
 import 'package:app/pages/service_detail.dart';
-import '../helpers/localization_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class BulletinsPage extends StatefulWidget {
   const BulletinsPage({super.key});

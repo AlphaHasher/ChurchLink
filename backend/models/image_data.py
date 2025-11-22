@@ -9,17 +9,9 @@ from bson import ObjectId
 from mongo.database import DB
 
 COLLECTION_NAME = "image_data"
-_indexes_ensured = False
 
 async def _get_collection():
-    global _indexes_ensured
-    coll = DB.db[COLLECTION_NAME]
-    if not _indexes_ensured:
-        await coll.create_index("path")
-        await coll.create_index("created_at")
-        await coll.create_index("name")
-        _indexes_ensured = True
-    return coll
+    return DB.db[COLLECTION_NAME]
 
 class ImageData(BaseModel):
     name: str

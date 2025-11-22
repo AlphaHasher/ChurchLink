@@ -14,8 +14,6 @@ import {
   deleteScheduledNotification,
   tzDateTimeToUTCISO,
 } from "../../../helpers/NotificationHelper";
-import { fetchEvents } from "../../../helpers/EventsHelper";
-import { ChurchEvent } from "../../../shared/types/ChurchEvent";
 
 type ActiveTab = "scheduled" | "history";
 
@@ -44,7 +42,6 @@ const Notification = () => {
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
   const [notificationHistory, setNotificationHistory] = useState<HistoryNotification[]>([]);
   const [targetAudience, setTargetAudience] = useState<NotificationTarget>("all");
-  const [events, setEvents] = useState<ChurchEvent[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
@@ -124,21 +121,11 @@ const Notification = () => {
     }
   }, []);
 
-  const fetchEventsList = useCallback(async () => {
-    try {
-      const data = await fetchEvents();
-      setEvents(data);
-    } catch {
-      setEvents([]);
-    }
-  }, []);
-
   // initial loads
   useEffect(() => {
     fetchHistory();
     fetchScheduled();
-    fetchEventsList();
-  }, [fetchHistory, fetchScheduled, fetchEventsList]);
+  }, [fetchHistory, fetchScheduled]);
 
   // poll while on "scheduled"
   useEffect(() => {
@@ -241,8 +228,8 @@ const Notification = () => {
             ...(newNotification.actionType === "event" && newNotification.eventId ? { eventId: newNotification.eventId, route: `/event/${newNotification.eventId}` } : {}),
           },
         };
-            // Debug print to verify payload before sending
-            console.log('[DEBUG] Instant notification payload:', payload);
+        // Debug print to verify payload before sending
+        console.log('[DEBUG] Instant notification payload:', payload);
 
         const res = await sendNotificationNow(payload);
         if (res.status >= 200 && res.status < 300 && res.data?.success !== false) {
@@ -393,7 +380,7 @@ const Notification = () => {
             <option value="event">Navigate to Event</option>
           </select>
         </div>
-        
+
         {newNotification.actionType === "route" && (
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-1">Select Page</label>
@@ -430,24 +417,17 @@ const Notification = () => {
           </div>
         )}
 
-        
-
         {newNotification.actionType === "event" && (
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Select Event</label>
-            <select
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Event Instance ID</label>
+            <input
+              type="text"
+              placeholder="Paste Event Instance ID (e.g. 69198b57a552ad2e18c3e44c)"
               value={newNotification.eventId || ""}
               onChange={(e) => setNewNotification({ ...newNotification, eventId: e.target.value })}
               className="border p-2 w-full"
-            >
-              <option value="">Select an event...</option>
-              {events.map((event) => (
-                <option key={event.id} value={event.id}>
-                  {event.name} - {new Date(event.date).toLocaleDateString()} ({event.location})
-                </option>
-              ))}
-            </select>
-            <p className="text-sm text-gray-600 mt-1">This will show the specific event</p>
+            />
+            <p className="text-sm text-gray-600 mt-1">This will deep-link to the specific event by instance ID.</p>
           </div>
         )}
 
@@ -574,9 +554,7 @@ const Notification = () => {
                 if (actionType === "link" && link) {
                   detailContent = link;
                 } else if (actionType === "event" && eventId) {
-                  const matchedEvent = events.find(e => e.id === eventId);
-                  const eventName = matchedEvent ? matchedEvent.name : `Event ${eventId}`;
-                  detailContent = `Open event: ${eventName}`;
+                  detailContent = `Open event instance ID: ${eventId}`;
                 } else if (actionType === "route" && route) {
                   detailContent = `Open page: ${route}`;
                 } else if (route) {
@@ -595,12 +573,11 @@ const Notification = () => {
                     <td className="p-2 border">{n.title}</td>
                     <td className="p-2 border">{msg}</td>
                     <td className="p-2 border">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        actionType === "link" ? "bg-blue-100 text-blue-800" :
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${actionType === "link" ? "bg-blue-100 text-blue-800" :
                         actionType === "event" ? "bg-purple-100 text-purple-800" :
-                        actionType === "route" ? "bg-green-100 text-green-800" :
-                        "bg-gray-100 text-gray-800"
-                      }`}>
+                          actionType === "route" ? "bg-green-100 text-green-800" :
+                            "bg-gray-100 text-gray-800"
+                        }`}>
                         {actionType.toUpperCase()}
                       </span>
                     </td>
@@ -688,22 +665,20 @@ const Notification = () => {
                   const route = (n.route || (n.data as any)?.route) ?? null;
                   const eventId = (n as any).eventId || ((n.data as any)?.eventId ?? null);
                   const actionType = (n as any).actionType || (n.data as any)?.actionType || "text";
-                  
-                            // Improved detail content for event and route
-                            let detailContent = "-";
-                            if (actionType === "link" && link) {
-                              detailContent = link;
-                            } else if (actionType === "event" && eventId) {
-                              const matchedEvent = events.find(e => e.id === eventId);
-                              const eventName = matchedEvent ? matchedEvent.name : `Event ${eventId}`;
-                              detailContent = `Open event: ${eventName}`;
-                            } else if (actionType === "route" && route) {
-                              detailContent = `Open page: ${route}`;
-                            } else if (route) {
-                              detailContent = route;
-                            } else if (link) {
-                              detailContent = link;
-                            }
+
+                  // Improved detail content for event and route
+                  let detailContent = "-";
+                  if (actionType === "link" && link) {
+                    detailContent = link;
+                  } else if (actionType === "event" && eventId) {
+                    detailContent = `Open event ID: ${eventId}`;
+                  } else if (actionType === "route" && route) {
+                    detailContent = `Open page: ${route}`;
+                  } else if (route) {
+                    detailContent = route;
+                  } else if (link) {
+                    detailContent = link;
+                  }
 
                   return (
                     <tr key={(n.id as any) || n._id || idx} className="border">
@@ -713,11 +688,10 @@ const Notification = () => {
                       <td className="p-2 border">{n.title}</td>
                       <td className="p-2 border">{msg}</td>
                       <td className="p-2 border">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          actionType === "link" ? "bg-blue-100 text-blue-800" :
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${actionType === "link" ? "bg-blue-100 text-blue-800" :
                           actionType === "event" ? "bg-purple-100 text-purple-800" :
-                          "bg-gray-100 text-gray-800"
-                        }`}>
+                            "bg-gray-100 text-gray-800"
+                          }`}>
                           {actionType.toUpperCase()}
                         </span>
                       </td>

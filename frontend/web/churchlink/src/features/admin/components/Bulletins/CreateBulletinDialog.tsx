@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import {
@@ -16,12 +16,13 @@ import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 import { BulletinImageSelector } from "./BulletinImageSelector";
 import { Switch } from "@/shared/components/ui/switch";
-import { BULLETIN_MINISTRY_OPTIONS } from "@/features/admin/constants/bulletinMinistryOptions";
+import { fetchMinistries } from "@/helpers/MinistriesHelper";
+import { Ministry } from "@/shared/types/Ministry";
 
 interface CreateBulletinProps {
     onSave: () => Promise<void>;
@@ -46,16 +47,17 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchMinistries().then(setMinistries);
+        }
+    }, [isOpen]);
+
     const ministryOptions = useMemo(() => {
-        const base = new Set<string>(BULLETIN_MINISTRY_OPTIONS);
-        (bulletin.ministries || []).forEach((name) => {
-            const normalized = (name || "").trim();
-            if (normalized) {
-                base.add(normalized);
-            }
-        });
-        return Array.from(base).sort((a, b) => a.localeCompare(b));
-    }, [bulletin.ministries]);
+        return ministries;
+    }, [ministries]);
 
     const handleDialogClose = () => {
         setBulletin(initial);
@@ -189,7 +191,7 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                         />
 
                         <div>
-                            <EventMinistryDropdown
+                            <MinistryDropdown
                                 selected={bulletin.ministries ?? []}
                                 onChange={(next: string[]) => setBulletin({ ...bulletin, ministries: next })}
                                 ministries={ministryOptions}

@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/Dialog";
 import { getChurchName } from "@/helpers/ChurchSettingsHelper";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -31,6 +32,7 @@ function Login() {
   const [resetError, setResetError] = useState<string>("");
   const [resetLoading, setResetLoading] = useState<boolean>(false);
   const [churchName, setChurchName] = useState("Your Church Name");
+  const localize = useLocalize();
 
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -174,27 +176,27 @@ function Login() {
           />
         </div>
 
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">{localize("Sign In")}</h2>
         <div className="text-gray-600 mb-6">
-          {churchName} welcomes you back! Please enter your
-          credentials below.
+          {localize(`${churchName} welcomes you back! Please enter your
+          credentials below.`)}
         </div>
 
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6">
-            {error}
+            {localize(error)}
           </div>
         )}
 
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
+              {localize("Email Address")}
             </label>
             <input
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               type="email"
-              placeholder="Enter email address"
+              placeholder={localize("Enter email address")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -203,12 +205,12 @@ function Login() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              {localize("Password")}
             </label>
             <input
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               type="password"
-              placeholder="Enter password"
+              placeholder={localize("Enter password")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -221,7 +223,7 @@ function Login() {
               onClick={handleForgotPassword}
               className="text-sm text-blue-600 hover:text-blue-700 hover:underline transition-all"
             >
-              Forgot your password?
+              {localize("Forgot your password?")}
             </button>
           </div>
 
@@ -229,7 +231,7 @@ function Login() {
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg"
           >
-            Sign In
+            {localize("Sign In")}
           </button>
         </form>
 
@@ -238,7 +240,7 @@ function Login() {
             <div className="w-full border-t border-gray-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+            <span className="px-2 bg-white text-gray-500">{localize("Or continue with")}</span>
           </div>
         </div>
 
@@ -265,20 +267,20 @@ function Login() {
               fill="#EA4335"
             />
           </svg>
-          Sign in with Google
+          {localize("Sign in with Google")}
         </button>
 
         <div className="mt-6 text-center text-sm text-gray-600">
-          Don't have an account?{" "}
+          {localize("Don't have an account?")}{" "}
           <Link to="/auth/signup" className="text-blue-600 hover:text-blue-700 font-medium">
-            Sign up here
+            {localize("Sign up here")}
           </Link>
         </div>
       </div>
 
       {/* Password Reset Modal */}
-      <Dialog 
-        open={showResetModal} 
+      <Dialog
+        open={showResetModal}
         onOpenChange={(open) => {
           // Clear timeout when modal is closed
           if (!open && resetTimeoutRef.current) {
@@ -290,16 +292,16 @@ function Login() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset Your Password</DialogTitle>
+            <DialogTitle>{localize("Reset Your Password")}</DialogTitle>
             <DialogDescription>
-              Enter your email address and we'll send you a link to reset your password.
+              {localize("Enter your email address and we'll send you a link to reset your password.")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
+                {localize("Email Address")}
               </label>
               <input
                 type="email"
@@ -310,7 +312,7 @@ function Login() {
                     handlePasswordReset();
                   }
                 }}
-                placeholder="Enter your email address"
+                placeholder={localize("Enter your email address")}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 autoFocus
               />
@@ -318,13 +320,13 @@ function Login() {
 
             {resetError && (
               <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
-                {resetError}
+                {localize(resetError)}
               </div>
             )}
 
             {resetEmailSent && (
               <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm">
-                Password reset email sent! Please check your inbox.
+                {localize("Password reset email sent! Please check your inbox.")}
               </div>
             )}
 
@@ -341,14 +343,14 @@ function Login() {
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
                 disabled={resetLoading}
               >
-                Cancel
+                {localize("Cancel")}
               </button>
               <button
                 onClick={handlePasswordReset}
                 disabled={resetLoading || resetEmailSent}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
               >
-                {resetLoading ? "Sending..." : "Send Reset Email"}
+                {resetLoading ? localize("Sending...") : localize("Send Reset Email")}
               </button>
             </div>
           </div>

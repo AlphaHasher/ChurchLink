@@ -4,7 +4,7 @@ import { GridOverlay } from './GridOverlay';
 import { DraggableNode } from './DraggableNode';
 import { makeVirtualTransform, VirtualTransform } from './virtualGrid';
 import { PageV2, SectionV2, Node } from '@/shared/types/pageV2';
-import EventSection from '@sections/EventSection';
+import EventSection from '@/features/admin/components/WebBuilder/sections/EventSection';
 import MapSection from '@sections/MapSection';
 import ServiceTimesSection from '@sections/ServiceTimesSection';
 import MenuSection from '@sections/MenuSection';
@@ -149,7 +149,7 @@ const renderNode = (
   onNodeDoubleClick?: (sectionId: string, nodeId: string) => void,
   hoveredNodeId?: string | null,
   selectedNodeId?: string | null,
-  transform?: VirtualTransform,  
+  transform?: VirtualTransform,
   onUpdateNodeLayout?: (sectionId: string, nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => void,  // Added for nested commits
   forceFlowLayout?: boolean,
   activeLocale?: string,
@@ -203,8 +203,8 @@ const renderNode = (
       const html = (directHtml != null && String(directHtml).trim())
         ? directHtml
         : ((activeLocale && activeLocale !== 'en' && baseHtml && localizeFn)
-            ? localizeFn(String(baseHtml))
-            : String(baseHtml));
+          ? localizeFn(String(baseHtml))
+          : String(baseHtml));
       const align = (node as any).props?.align ?? 'left';
       const variant = (node as any).props?.variant ?? 'p';
       const nodeStyleRaw = (node as any).style || {};
@@ -269,6 +269,7 @@ const renderNode = (
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
         ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
         ...(color ? { color } : {}),
+        whiteSpace: 'pre-line',
       };
 
       const nodeClassName = nodeStyleRaw?.className;
@@ -316,9 +317,10 @@ const renderNode = (
       const alt = (directAlt != null && String(directAlt).trim())
         ? directAlt
         : ((activeLocale && activeLocale !== 'en' && baseAlt && localizeFn)
-            ? localizeFn(String(baseAlt))
-            : String(baseAlt));
+          ? localizeFn(String(baseAlt))
+          : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || 'cover';
+      const styleFilter = (nodeStyleRaw as any)?.filter as string | undefined;
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
@@ -348,7 +350,7 @@ const renderNode = (
               src={getPublicUrl(src)}
               alt={alt}
               draggable={false}
-              style={{ width: '100%', height: '100%', objectFit }}
+              style={{ width: '100%', height: '100%', objectFit, filter: styleFilter }}
               onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
             />
           </div>
@@ -363,8 +365,8 @@ const renderNode = (
       const label = (direct != null && String(direct).trim())
         ? direct
         : ((activeLocale && activeLocale !== 'en' && baseLabel && localizeFn)
-            ? localizeFn(String(baseLabel))
-            : String(baseLabel));
+          ? localizeFn(String(baseLabel))
+          : String(baseLabel));
       const href = (node as any).props?.href;
       const className = cn(
         (node as any).style?.className ?? 'px-4 py-2 bg-blue-600 text-white rounded text-center',
@@ -379,6 +381,7 @@ const renderNode = (
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        ...(nodeStyleRaw?.color ? { color: nodeStyleRaw.color } : {}),
         fontSize: `${fontSizeRemBtn * 16 * gridScaleBtn}px`,
         display: 'flex',
         alignItems: 'center',
@@ -462,7 +465,6 @@ const renderNode = (
           >
             <EventSection
               showFilters={(node as any).props?.showFilters !== false}
-              eventName={(node as any).props?.eventName}
               lockedFilters={(node as any).props?.lockedFilters}
               title={(node as any).props?.title}
               showTitle={(node as any).props?.showTitle !== false}
@@ -604,7 +606,7 @@ const renderNode = (
             onMouseLeave={handleMouseLeave}
             onClick={handleClick}
           >
-            <PaypalSection data={{}} isEditing={false} />
+            <PaypalSection isEditing={true} />
           </div>
         );
       } else {
@@ -623,7 +625,7 @@ const renderNode = (
                 width: `${100 / (scale || 1)}%`,
               }}
             >
-              <PaypalSection data={{}} isEditing={false} />
+              <PaypalSection isEditing={true} />
             </div>
           </div>
         );
@@ -872,158 +874,182 @@ const SectionWithVirtualGrid: React.FC<{
   localize,
   activePaddingOverlay,
 }) => {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [transform, setTransform] = useState<VirtualTransform | null>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [transform, setTransform] = useState<VirtualTransform | null>(null);
 
-  const updateTransform = useCallback(() => {
-    if (!contentRef.current) return;
-    const rect = contentRef.current.getBoundingClientRect();
-    const hasInvalidCols = typeof cols !== 'number' || cols <= 0 || Number.isNaN(cols);
-    const hasInvalidAspectNum = !aspect || typeof aspect.num !== 'number' || aspect.num <= 0 || Number.isNaN(aspect.num);
-    const safeCols = hasInvalidCols ? 1 : cols;
-    const safeAspectNum = hasInvalidAspectNum ? 1 : aspect.num;
-    const hasInvalidAspectDen = !aspect || typeof aspect.den !== 'number' || aspect.den <= 0 || Number.isNaN(aspect.den);
-    const safeAspectDen = hasInvalidAspectDen ? 1 : aspect.den;
-    if (hasInvalidCols || hasInvalidAspectNum || hasInvalidAspectDen) {
-      console.warn('SectionWithVirtualGrid: Invalid grid config detected; coercing to safe defaults.', {
-        cols,
-        aspect,
-      });
-    }
-    const virtualHeightPx = rect.width * safeAspectDen / safeAspectNum;
-    const newTransform = makeVirtualTransform(
-      { width: rect.width, height: virtualHeightPx },
-      safeCols,
-      { num: safeAspectNum, den: safeAspectDen }
-    );
-    setTransform(newTransform);
-  }, [cols, aspect, aspect?.den]);
+    const updateTransform = useCallback(() => {
+      if (!contentRef.current) return;
+      const rect = contentRef.current.getBoundingClientRect();
+      const hasInvalidCols = typeof cols !== 'number' || cols <= 0 || Number.isNaN(cols);
+      const hasInvalidAspectNum = !aspect || typeof aspect.num !== 'number' || aspect.num <= 0 || Number.isNaN(aspect.num);
+      const safeCols = hasInvalidCols ? 1 : cols;
+      const safeAspectNum = hasInvalidAspectNum ? 1 : aspect.num;
+      const hasInvalidAspectDen = !aspect || typeof aspect.den !== 'number' || aspect.den <= 0 || Number.isNaN(aspect.den);
+      const safeAspectDen = hasInvalidAspectDen ? 1 : aspect.den;
+      if (hasInvalidCols || hasInvalidAspectNum || hasInvalidAspectDen) {
+        console.warn('SectionWithVirtualGrid: Invalid grid config detected; coercing to safe defaults.', {
+          cols,
+          aspect,
+        });
+      }
+      const virtualHeightPx = rect.width * safeAspectDen / safeAspectNum;
+      const newTransform = makeVirtualTransform(
+        { width: rect.width, height: virtualHeightPx },
+        safeCols,
+        { num: safeAspectNum, den: safeAspectDen }
+      );
+      setTransform(newTransform);
+    }, [cols, aspect, aspect?.den]);
 
-  useEffect(() => {
-    updateTransform();
-    const resizeObserver = new ResizeObserver(() => {
+    useEffect(() => {
       updateTransform();
-    });
-    if (contentRef.current) {
-      resizeObserver.observe(contentRef.current);
+      const resizeObserver = new ResizeObserver(() => {
+        updateTransform();
+      });
+      if (contentRef.current) {
+        resizeObserver.observe(contentRef.current);
+      }
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, [updateTransform]);
+
+    const locked = section.lockLayout === true;
+    const rootContainerNode = (section.children || []).find((n) => n.type === 'container') || null;
+    const rootContainerId = rootContainerNode?.id;
+    const baseBgStyle = (section.background?.style as React.CSSProperties) || {};
+    const brightnessVar = (baseBgStyle as any)['--bg-brightness'];
+    const bgImage = (baseBgStyle as any).backgroundImage as string | undefined;
+    // Build style for section WITHOUT brightness filter so children unaffected
+    const sectionStyle: React.CSSProperties = { ...baseBgStyle };
+    delete (sectionStyle as any)['--bg-brightness'];
+    if (bgImage && brightnessVar && String(brightnessVar) !== '100') {
+      // Remove image from base so we can render it in overlay with brightness filter
+      delete (sectionStyle as any).backgroundImage;
     }
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [updateTransform]);
 
-  const locked = section.lockLayout === true;
-  const rootContainerNode = (section.children || []).find((n) => n.type === 'container') || null;
-  const rootContainerId = rootContainerNode?.id;
-
-  return (
-    <section
-      className={cn(
-        'w-full relative',
-        bg,
-        sectionFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
-      )}
-      style={{
-        ...(section.background?.style as React.CSSProperties),
-        ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
-        ...(locked
-          ? {}
-          : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
-      }}
-    >
-      {gridEnabled && transform && (
-        <div className="pointer-events-none absolute inset-0">
-          <GridOverlay
-            cellPx={transform.cellPx}
-            offsetX={transform.offsetX}
-            offsetY={transform.offsetY}
-            active={shouldShowGrid}
-          />
-        </div>
-      )}
-
-      {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
-      <div
-        ref={contentRef}
-        className={cn(gridClasses, 'relative', !locked && 'h-full min-h-full')}
-        id={`section-content-${section.id}`}
-        style={{ ...(locked ? {} : { minHeight: 'inherit' }), position: 'relative' }}
+    return (
+      <section
+        className={cn(
+          'w-full relative',
+          bg,
+          sectionFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
+        )}
+        style={{
+          ...sectionStyle,
+          ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
+          ...(locked
+            ? {}
+            : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
+        }}
       >
-        {transform &&
-          (() => {
-            const sectionUnits = { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows };
-            const normalizeUnits = (units?: { xu?: number; yu?: number; wu?: number; hu?: number } | null, fallback = sectionUnits) => ({
-              xu: typeof units?.xu === 'number' ? units.xu : fallback.xu,
-              yu: typeof units?.yu === 'number' ? units.yu : fallback.yu,
-              wu: typeof units?.wu === 'number' ? units.wu : fallback.wu,
-              hu: typeof units?.hu === 'number' ? units.hu : fallback.hu,
-            });
-            const rootUnits = normalizeUnits(rootContainerNode?.layout?.units, sectionUnits);
-
-            return section.children.map((node) => {
-              const hasLayout = !!node.layout?.units;
-              let rendered: React.ReactNode;
-              if (hasLayout && !locked) {
-                const topLevelSize = transform.toPx(node.layout!.units);
-                const w = topLevelSize.w;
-                const h = topLevelSize.h;
-                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
-
-                const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
-                  if (node.type !== 'container') {
-                    onUpdateNodeLayout(section.id, nodeId, units as any);
-                    return;
-                  }
-
-                  const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
-
-                  const nextUnits = {
-                    xu: units.xu ?? prevUnits.xu ?? 0,
-                    yu: units.yu ?? prevUnits.yu ?? 0,
-                    wu: units.wu ?? prevUnits.wu,
-                    hu: units.hu ?? prevUnits.hu,
-                  };
-
-                  onUpdateNodeLayout(section.id, nodeId, nextUnits);
-                };
-
-                return (
-                  <DraggableNode
-                    key={node.id}
-                    sectionId={section.id}
-                    node={{
-                      ...node,
-                      layout: { units: node.layout!.units },
-                    }}
-                    transform={transform}
-                    defaultSize={{ w, h }}
-                    selected={node.id === selectedNodeId}
-                    onCommitLayout={handleCommitLayout}
-                    onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
-                    onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
-                    render={() => rendered}
-                    containerId={node.type === 'container' ? `section-content-${section.id}` : (rootContainerId ?? `section-content-${section.id}`)}
-                    parentUnits={node.type === 'container' ? sectionUnits : rootUnits}
-                    enforceChildFullSize
-                    allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
-                    disabled={locked}
-                  />
-                );
-              } else {
-                rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
-                return <div key={node.id} className="relative">{rendered}</div>;
-              }
-            });
-          })()}
-
-        {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && transform && (
-          <PaddingOverlay
-            layer={activePaddingOverlay}
-            transform={transform}
-            node={section.children.find((n) => n.id === activePaddingOverlay.nodeId) ?? null}
+        {bgImage && brightnessVar && String(brightnessVar) !== '100' && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: bgImage,
+              backgroundSize: (baseBgStyle as any).backgroundSize,
+              backgroundPosition: (baseBgStyle as any).backgroundPosition,
+              backgroundRepeat: (baseBgStyle as any).backgroundRepeat,
+              filter: `brightness(${brightnessVar}%)`,
+              zIndex: 0,
+            }}
           />
         )}
-      </div>
-    </section>
-  );
-};
+        {gridEnabled && transform && (
+          <div className="pointer-events-none absolute inset-0">
+            <GridOverlay
+              cellPx={transform.cellPx}
+              offsetX={transform.offsetX}
+              offsetY={transform.offsetY}
+              active={shouldShowGrid}
+            />
+          </div>
+        )}
+
+        {/* Content wrapper with original grid classes for layout constraints - remains relative for absolute children */}
+        <div
+          ref={contentRef}
+          className={cn(gridClasses, 'relative', !locked && 'h-full min-h-full')}
+          id={`section-content-${section.id}`}
+          style={{ ...(locked ? {} : { minHeight: 'inherit' }), position: 'relative' }}
+        >
+          {transform &&
+            (() => {
+              const sectionUnits = { xu: 0, yu: 0, wu: transform.cols, hu: transform.rows };
+              const normalizeUnits = (units?: { xu?: number; yu?: number; wu?: number; hu?: number } | null, fallback = sectionUnits) => ({
+                xu: typeof units?.xu === 'number' ? units.xu : fallback.xu,
+                yu: typeof units?.yu === 'number' ? units.yu : fallback.yu,
+                wu: typeof units?.wu === 'number' ? units.wu : fallback.wu,
+                hu: typeof units?.hu === 'number' ? units.hu : fallback.hu,
+              });
+              const rootUnits = normalizeUnits(rootContainerNode?.layout?.units, sectionUnits);
+
+              return section.children.map((node) => {
+                const hasLayout = !!node.layout?.units;
+                let rendered: React.ReactNode;
+                if (hasLayout && !locked) {
+                  const topLevelSize = transform.toPx(node.layout!.units);
+                  const w = topLevelSize.w;
+                  const h = topLevelSize.h;
+                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, false, activeLocale, defaultLocale, localize);
+
+                  const handleCommitLayout = (nodeId: string, units: Partial<{ xu: number; yu: number; wu: number; hu: number }>) => {
+                    if (node.type !== 'container') {
+                      onUpdateNodeLayout(section.id, nodeId, units as any);
+                      return;
+                    }
+
+                    const prevUnits = node.layout?.units ?? { xu: 0, yu: 0, wu: node.layout?.units?.wu, hu: node.layout?.units?.hu };
+
+                    const nextUnits = {
+                      xu: units.xu ?? prevUnits.xu ?? 0,
+                      yu: units.yu ?? prevUnits.yu ?? 0,
+                      wu: units.wu ?? prevUnits.wu,
+                      hu: units.hu ?? prevUnits.hu,
+                    };
+
+                    onUpdateNodeLayout(section.id, nodeId, nextUnits);
+                  };
+
+                  return (
+                    <DraggableNode
+                      key={node.id}
+                      sectionId={section.id}
+                      node={{
+                        ...node,
+                        layout: { units: node.layout!.units },
+                      }}
+                      transform={transform}
+                      defaultSize={{ w, h }}
+                      selected={node.id === selectedNodeId}
+                      onCommitLayout={handleCommitLayout}
+                      onSelect={() => !locked && onNodeClick?.(section.id, node.id)}
+                      onDoubleSelect={() => !locked && onNodeDoubleClick?.(section.id, node.id)}
+                      render={() => rendered}
+                      containerId={node.type === 'container' ? `section-content-${section.id}` : (rootContainerId ?? `section-content-${section.id}`)}
+                      parentUnits={node.type === 'container' ? sectionUnits : rootUnits}
+                      enforceChildFullSize
+                      allowContentPointerEvents={node.type === 'container' || node.type === 'button'}
+                      disabled={locked}
+                    />
+                  );
+                } else {
+                  rendered = renderNode(node, highlightNodeId, sectionFontFamily, section.id, onNodeHover, onNodeClick, onNodeDoubleClick, hoveredNodeId, selectedNodeId, transform, onUpdateNodeLayout, locked, activeLocale, defaultLocale, localize);
+                  return <div key={node.id} className="relative">{rendered}</div>;
+                }
+              });
+            })()}
+
+          {activePaddingOverlay && activePaddingOverlay.sectionId === section.id && activePaddingOverlay.nodeId && transform && (
+            <PaddingOverlay
+              layer={activePaddingOverlay}
+              transform={transform}
+              node={section.children.find((n) => n.id === activePaddingOverlay.nodeId) ?? null}
+            />
+          )}
+        </div>
+      </section>
+    );
+  };

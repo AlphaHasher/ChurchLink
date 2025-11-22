@@ -98,8 +98,8 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
         const url = useStaging
           ? `/v1/pages/staging/${encodeURIComponent(slug)}`
           : (isPreviewMode
-              ? `/v1/pages/preview/${encodeURIComponent(slug)}`
-              : `/v1/pages/slug/${encodeURIComponent(slug)}`);
+            ? `/v1/pages/preview/${encodeURIComponent(slug)}`
+            : `/v1/pages/slug/${encodeURIComponent(slug)}`);
         console.log("DynamicPage: Fetching from:", url);
         const res = await api.get(url, {
           signal: ctrl.signal,

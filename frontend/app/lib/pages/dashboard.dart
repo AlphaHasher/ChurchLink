@@ -1,20 +1,20 @@
 import 'dart:convert';
 
 import 'package:app/pages/bulletins.dart';
-import 'package:app/pages/eventspage.dart';
+import 'package:app/pages/events/eventspage.dart';
 import 'package:app/pages/forms.dart';
-import 'package:app/pages/giving.dart';
+import 'package:app/pages/donations/giving.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/services/dashboard_tiles_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../helpers/localization_helper.dart';
+import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/backend_helper.dart';
 
-final _apiBaseUrl = dotenv.get('BACKEND_URL');
+final _apiBaseUrl = BackendHelper.apiBase;
 
 // Class for Pages so they can be sorted
 class _PageSpec {
@@ -46,8 +46,16 @@ final Map<String, _PageSpec> _kDashboardPages = {
     Colors.orange.shade600,
     (c) => const EventsPage(),
   ),
-  'giving': _PageSpec(LocalizationHelper.localize('Giving', capitalize: true), Colors.green.shade600, (c) => const Giving()),
-  'forms': _PageSpec(LocalizationHelper.localize('Forms', capitalize: true), Colors.brown.shade600, (c) => const Forms()),
+  'giving': _PageSpec(
+    LocalizationHelper.localize('Giving', capitalize: true),
+    Colors.green.shade600,
+    (c) => const Giving(),
+  ),
+  'forms': _PageSpec(
+    LocalizationHelper.localize('Forms', capitalize: true),
+    Colors.brown.shade600,
+    (c) => const Forms(),
+  ),
 };
 
 class DashboardPage extends StatefulWidget {

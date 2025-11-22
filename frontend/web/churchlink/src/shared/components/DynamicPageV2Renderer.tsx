@@ -1,5 +1,5 @@
 import React from "react";
-import EventSection from "@sections/EventSection";
+import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import MapSection from "@sections/MapSection";
 import ServiceTimesSection from "@sections/ServiceTimesSection";
 import MenuSection from "@sections/MenuSection";
@@ -144,8 +144,8 @@ const renderNode = (
       let htmlToInject = (directHtml != null && String(directHtml).trim())
         ? String(directHtml)
         : ((isNonDefaultLocale && baseHtml && localizeFn)
-            ? localizeFn(String(baseHtml))
-            : String(baseHtml));
+          ? localizeFn(String(baseHtml))
+          : String(baseHtml));
 
       // Sanitize user-controlled HTML to prevent XSS attacks; DOMPurify strips dangerous tags/attrs
       // (e.g., <script>, onload) while allowing safe text formatting. Defaults block unsafe URI schemes like javascript:.
@@ -211,6 +211,7 @@ const renderNode = (
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
         ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
         ...(color ? { color } : {}),
+        whiteSpace: 'pre-line',
       };
 
       return (
@@ -246,8 +247,8 @@ const renderNode = (
       const label = (direct != null && String(direct).trim())
         ? direct
         : ((activeLocale && activeLocale !== 'en' && baseLabel && localizeFn)
-            ? localizeFn(String(baseLabel))
-            : String(baseLabel));
+          ? localizeFn(String(baseLabel))
+          : String(baseLabel));
       const href = (node as any).props?.href;
       const className = cn(
         (node as any).style?.className ?? "px-4 py-2 bg-blue-600 text-white rounded text-center",
@@ -266,6 +267,7 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         fontSize: `${fontSizeRem * 16 * gridScale}px`,
+        ...(nodeStyleRaw?.color ? { color: nodeStyleRaw.color } : {}),
         ...(typeof paddingTop === "number" && transform ? { paddingTop: paddingTop * transform.cellPx } : {}),
         ...(typeof paddingBottom === "number" && transform ? { paddingBottom: paddingBottom * transform.cellPx } : {}),
         ...(typeof paddingLeft === "number" && transform ? { paddingLeft: paddingLeft * transform.cellPx } : {}),
@@ -314,7 +316,6 @@ const renderNode = (
           >
             <EventSection
               showFilters={(node as any).props?.showFilters !== false}
-              eventName={(node as any).props?.eventName}
               lockedFilters={(node as any).props?.lockedFilters}
               title={(node as any).props?.title}
               showTitle={(node as any).props?.showTitle !== false}
@@ -358,7 +359,7 @@ const renderNode = (
       if (forceFlowLayout) {
         return (
           <div className={cn((node as any).style?.className, highlightClass(node, highlightNodeId))} style={inlineStyle}>
-            <PaypalSection data={{}} isEditing={false} />
+            <PaypalSection isEditing={false} />
           </div>
         );
       } else {
@@ -371,7 +372,7 @@ const renderNode = (
                 width: `${100 / (scale || 1)}%`,
               }}
             >
-              <PaypalSection data={{}} isEditing={false} />
+              <PaypalSection isEditing={false} />
             </div>
           </div>
         );
@@ -511,13 +512,15 @@ const renderNode = (
       const alt = (directAlt != null && String(directAlt).trim())
         ? directAlt
         : ((activeLocale && activeLocale !== 'en' && baseAlt && localizeFn)
-            ? localizeFn(String(baseAlt))
-            : String(baseAlt));
+          ? localizeFn(String(baseAlt))
+          : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || "cover";
+      const styleFilter = (nodeStyle as any)?.filter as string | undefined;
+      const hasShadow = styleFilter ? /drop-shadow\(/.test(styleFilter) : false;
       const inlineStyles: React.CSSProperties = {
         ...nodeStyle,
-        overflow: "hidden",
-        display: "block",
+        ...(hasShadow ? {} : { overflow: 'hidden' }),
+        display: 'block',
       };
       return (
         <>
@@ -526,7 +529,7 @@ const renderNode = (
             style={inlineStyles}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit }} />
+            <img src={src} alt={alt} style={{ width: '100%', height: '100%', objectFit, filter: styleFilter }} />
           </div>
         </>
       );
@@ -600,6 +603,14 @@ const SectionWithVirtualGridPublic: React.FC<{
     setContainerDomOffsets(mapping);
   }, [section.children, transform]);
 
+  const baseBgStyle = (section.background?.style as React.CSSProperties) || {};
+  const brightnessVar = (baseBgStyle as any)['--bg-brightness'];
+  const bgImage = (baseBgStyle as any).backgroundImage as string | undefined;
+  const sectionStyle: React.CSSProperties = { ...baseBgStyle };
+  delete (sectionStyle as any)['--bg-brightness'];
+  if (bgImage && brightnessVar && String(brightnessVar) !== '100') {
+    delete (sectionStyle as any).backgroundImage;
+  }
   return (
     <section
       className={cn(
@@ -608,13 +619,27 @@ const SectionWithVirtualGridPublic: React.FC<{
         sectionFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]"
       )}
       style={{
-        ...(section.background?.style as React.CSSProperties),
+        ...sectionStyle,
         ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
         ...(locked
           ? {}
           : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
       }}
     >
+      {bgImage && brightnessVar && String(brightnessVar) !== '100' && (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: bgImage,
+            backgroundSize: (baseBgStyle as any).backgroundSize,
+            backgroundPosition: (baseBgStyle as any).backgroundPosition,
+            backgroundRepeat: (baseBgStyle as any).backgroundRepeat,
+            filter: `brightness(${brightnessVar}%)`,
+            zIndex: 0,
+          }}
+        />
+      )}
       <div
         ref={contentRef}
         className={cn(gridClasses, "relative", !locked && "h-full min-h-full")}
@@ -623,7 +648,7 @@ const SectionWithVirtualGridPublic: React.FC<{
       >
         {section.children.map((node) => {
           const hasLayout = !!node.layout?.units;
-        const rendered = renderNode(node, highlightNodeId, sectionFontFamily, transform, locked, activeLocale, defaultLocale, localize, containerDomOffsets);
+          const rendered = renderNode(node, highlightNodeId, sectionFontFamily, transform, locked, activeLocale, defaultLocale, localize, containerDomOffsets);
 
           if (hasLayout && !locked && transform) {
             const { xu, yu, wu, hu } = node.layout!.units;
@@ -687,21 +712,9 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia("(max-width: 768px)");
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    try {
-      mq.addEventListener("change", handler);
-    } catch {
-      // Safari
-      mq.addListener(handler);
-    }
-    return () => {
-      try {
-        mq.removeEventListener("change", handler);
-      } catch {
-        mq.removeListener(handler);
-      }
-    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
-
   return (
     <div
       className="w-full min-h-full overflow-x-hidden max-w-full"

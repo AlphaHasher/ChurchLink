@@ -23,12 +23,13 @@ import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
 import { updateBulletin, deleteBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
+import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 import { BulletinImageSelector } from "./BulletinImageSelector";
 import { Switch } from "@/shared/components/ui/switch";
-import { BULLETIN_MINISTRY_OPTIONS } from "@/features/admin/constants/bulletinMinistryOptions";
+import { fetchMinistries } from "@/helpers/MinistriesHelper";
+import { Ministry } from "@/shared/types/Ministry";
 
 interface EditBulletinProps {
     bulletin: ChurchBulletin;
@@ -44,17 +45,17 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
     const [checkingPerms, setCheckingPerms] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchMinistries().then(setMinistries);
+        }
+    }, [isOpen]);
 
     const ministryOptions = useMemo(() => {
-        const base = new Set<string>(BULLETIN_MINISTRY_OPTIONS);
-        (bulletin.ministries || []).forEach((name) => {
-            const normalized = (name || "").trim();
-            if (normalized) {
-                base.add(normalized);
-            }
-        });
-        return Array.from(base).sort((a, b) => a.localeCompare(b));
-    }, [bulletin.ministries]);
+        return ministries;
+    }, [ministries]);
 
     useEffect(() => {
         if (!isOpen) {
@@ -259,7 +260,7 @@ export function EditBulletinDialog({ bulletin: initialBulletin, onSave }: EditBu
                         />
 
                         <div>
-                            <EventMinistryDropdown
+                            <MinistryDropdown
                                 selected={bulletin.ministries ?? []}
                                 onChange={(next: string[]) => setBulletin({ ...bulletin, ministries: next })}
                                 ministries={ministryOptions}

@@ -6,7 +6,6 @@ export type AccountPermissions = {
   web_builder_management: boolean;
   mobile_ui_management: boolean;
   event_editing: boolean;
-  event_management: boolean;
   sermon_editing: boolean;
   media_management: boolean;
   finance: boolean;
@@ -31,7 +30,6 @@ export const permissionLabels: Record<string, string> = {
   web_builder_management: "Web Builder Manager",
   mobile_ui_management: "Mobile UI Manager",
   event_editing: "Event Editor",
-  event_management: "Event Manager",
   sermon_editing: "Sermon Editor",
   media_management: "Media Library Manager",
   finance: "Finance Manager",

@@ -7,17 +7,23 @@ import { useBuilderStore } from "./store";
 import { Button } from "@/shared/components/ui/button";
 import type { AnyField, DateField, SelectField } from "./types";
 import { format } from "date-fns";
-import api from '@/api/api';
 import { useState, useEffect, useMemo } from 'react';
 import { MailCheck } from 'lucide-react';
 import { formWidthToClass } from "./types";
 import { cn } from "@/lib/utils";
-import { formPaymentApi } from "@/features/forms/api/formPaymentApi";
+import {
+  createFormPaymentOrder,
+  submitDoorPaymentForm,
+  submitFreeForm,
+} from "@/helpers/FormSubmissionHelper";
 import { getBoundsViolations, getOptionViolations } from "./validation";
 import PreviewUnavailableAlert from './PreviewUnavailableAlert';
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 
 export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true }: { slug?: string, instanceId?: string, applyFormWidth?: boolean }) {
+  const localize = useLocalize();
+
   const schema = useBuilderStore((s) => s.schema);
   const boundsViolations = useMemo(() => getBoundsViolations(schema), [schema]);
   const optionViolations = useMemo(() => !slug ? getOptionViolations(schema) : [], [schema, slug]);
@@ -39,7 +45,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
 
   const [submitState, setSubmitState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
-  const [paymentConfig, setPaymentConfig] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'in-person' | null>(null);
 
   useEffect(() => {
@@ -57,7 +62,6 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
   // Check if form requires payment when slug is available
   useEffect(() => {
     if (slug) {
-      checkPaymentRequirement();
 
       // Try to restore form data from localStorage on page load
       const savedFormDataKey = `form_data_${slug}`;
@@ -103,37 +107,25 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
     }
   }, [slug, form]);
 
-  const checkPaymentRequirement = async () => {
-    if (!slug) return;
-
-    try {
-      // Check if form requires payment by trying to get payment config
-      const response = await api.get(`/v1/forms/slug/${slug}/payment-config`);
-      if (response.data && response.data.requires_payment) {
-        setPaymentConfig(response.data);
-      }
-    } catch (err) {
-      // If payment config endpoint doesn't exist or fails, form doesn't require payment
-      console.log('Payment not required for this form');
-    }
-  };
 
   // Backend PayPal integration functions
   const initiatePayPalPayment = async () => {
+    if (!slug) return;
+
     try {
       const formTotal = computeTotal();
 
       // Check if the form actually has price fields that would require payment
-      const priceFields = schema.data.filter(field => field.type === 'price');
+      const priceFields = schema.data.filter((field) => field.type === "price");
       if (priceFields.length === 0) {
-        console.error('This form does not have any payment fields configured.');
-        alert('This form does not have any payment fields configured.');
+        console.error("This form does not have any payment fields configured.");
+        alert("This form does not have any payment fields configured.");
         return;
       }
 
       if (formTotal <= 0) {
-        console.error('Payment amount must be greater than zero.');
-        alert('Payment amount must be greater than zero.');
+        console.error("Payment amount must be greater than zero.");
+        alert("Payment amount must be greater than zero.");
         return;
       }
 
@@ -141,44 +133,48 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
       const formData = form.getValues();
       const formDataWithTimestamp = {
         ...formData,
-        _timestamp: Date.now()
+        _timestamp: Date.now(),
       };
-      localStorage.setItem(`form_data_${slug}`, JSON.stringify(formDataWithTimestamp));
-      console.log('Saved form data to localStorage:', formData);
+      const savedFormDataKey = `form_data_${slug}`;
+      localStorage.setItem(savedFormDataKey, JSON.stringify(formDataWithTimestamp));
+      console.log("Saved form data to localStorage:", formData);
 
-      // Include additional payment context for the backend
-      const paymentData = {
-        payment_amount: formTotal,
-        form_response: formData, // Use current form data
-        payment_method: 'paypal',
-        requires_payment: true,
-        // Include schema information to help backend understand pricing
-        form_schema: priceFields.map(field => ({
-          id: field.id,
-          name: field.name,
-          type: field.type,
-          amount: (field as any).amount,
-          paymentMethods: (field as any).paymentMethods
-        }))
-      };
+      const order = await createFormPaymentOrder(slug, formData);
 
-      console.log('Sending payment data to backend:', paymentData);
+      // New response shape: { order_id, paypal, amount, currency }
+      const links = ((order as any)?.paypal?.links ?? []) as Array<{
+        rel?: string;
+        href?: string;
+      }>;
 
-      const response = await formPaymentApi.createFormPaymentOrder(slug!, paymentData);
-
-      if (response.success && response.approval_url) {
-        // Redirect to PayPal for payment
-        window.location.href = response.approval_url;
-      } else {
-        throw new Error(response.error || 'Failed to create PayPal payment');
+      let approvalUrl: string | undefined;
+      for (const link of links) {
+        if (link.rel === "approve") {
+          approvalUrl = link.href;
+          break;
+        }
       }
+      if (!approvalUrl && links.length > 0) {
+        approvalUrl = links[0].href;
+      }
+
+      if (!approvalUrl) {
+        console.error("No approval URL returned from backend/PayPal.");
+        setSubmitState("error");
+        setSubmitMessage("Failed to initiate PayPal payment (no approval URL).");
+        return;
+      }
+
+      // Redirect to PayPal
+      window.location.href = approvalUrl;
     } catch (error: any) {
-      console.error('PayPal payment initiation failed:', error);
-      setSubmitState('error');
-      setSubmitMessage(`PayPal payment failed: ${error.message || 'Unknown error'}`);
+      console.error("PayPal payment initiation failed:", error);
+      setSubmitState("error");
+      setSubmitMessage(
+        `PayPal payment failed: ${error?.message || "Unknown error"}`,
+      );
     }
   };
-
   // Handle PayPal return from payment - redirect to success page
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -288,7 +284,27 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
     );
   }
 
+  const buildPaymentForm = (total: number) => {
+
+    const methods = getAvailablePaymentMethods();
+    const payment_options: ("paypal" | "door")[] = [];
+
+    if (methods.allowPayPal) {
+      payment_options.push("paypal");
+    }
+    if (methods.allowInPerson) {
+      payment_options.push("door");
+    }
+
+    return {
+      submission_price: total,
+      payment_options,
+    };
+  };
+
+
   const onSubmit = form.handleSubmit(async (data: any) => {
+
     // Prevent duplicate submissions from multiple form instances, with timestamp-based expiration
     const globalSubmitKey = `form_submitting_${slug || 'preview'}`;
     const LOCK_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
@@ -326,7 +342,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
 
         // Check if form has pricing and requires payment
         const formTotal = computeTotal();
-        const hasPaymentRequired = paymentConfig?.requires_payment || formTotal > 0;
+        const hasPaymentRequired = formTotal > 0;
 
         if (hasPaymentRequired) {
           const availableMethods = getAvailablePaymentMethods();
@@ -334,90 +350,85 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           const inPersonOnly = !availableMethods.allowPayPal && availableMethods.allowInPerson;
           const bothEnabled = availableMethods.allowPayPal && availableMethods.allowInPerson;
 
-          // Auto-determine payment method based on configuration
           let selectedPaymentMethod = paymentMethod;
 
-          // Scenario 1: PayPal Only - auto-select PayPal
           if (paypalOnly) {
-            selectedPaymentMethod = 'paypal';
-          }
-          // Scenario 2: In-Person Only - auto-select in-person
-          else if (inPersonOnly) {
-            selectedPaymentMethod = 'in-person';
-          }
-          // Scenario 3: Both enabled - use user selection or default to PayPal
-          else if (bothEnabled) {
+            selectedPaymentMethod = "paypal";
+          } else if (inPersonOnly) {
+            selectedPaymentMethod = "in-person";
+          } else if (bothEnabled) {
             if (!selectedPaymentMethod) {
-              // Check form data for payment method selection
-              const formPaymentMethod = Object.keys(data).find(key =>
-                key.includes('_payment_method')
+              const formPaymentMethod = Object.keys(data).find((key) =>
+                key.includes("_payment_method"),
               );
               if (formPaymentMethod) {
-                selectedPaymentMethod = data[formPaymentMethod] as 'paypal' | 'in-person';
-                setPaymentMethod(selectedPaymentMethod);
-              } else {
-                selectedPaymentMethod = 'paypal'; // default
+                selectedPaymentMethod = data[formPaymentMethod] as "paypal" | "in-person";
                 setPaymentMethod(selectedPaymentMethod);
               }
             }
+
+            if (!selectedPaymentMethod) {
+              setSubmitState("error");
+              setSubmitMessage("Please choose a payment method before submitting.");
+              sessionStorage.removeItem(globalSubmitKey);
+              return;
+            }
           }
 
+
           // Handle PayPal payment flow
-          if (selectedPaymentMethod === 'paypal') {
-            // Initiate PayPal payment via backend
-            setSubmitState('submitting');
-            setSubmitMessage('Redirecting to PayPal...');
+          if (selectedPaymentMethod === "paypal") {
+            setSubmitState("submitting");
+            setSubmitMessage("Redirecting to PayPal.");
 
             try {
               await initiatePayPalPayment();
               // Don't remove lock here - PayPal will redirect and come back
             } catch (error) {
-              // Error handling is done in initiatePayPalPayment function
-              // Remove lock on PayPal error
               sessionStorage.removeItem(globalSubmitKey);
             }
 
             return;
           }
 
-          // If in-person payment selected, submit normally with note
-          if (selectedPaymentMethod === 'in-person') {
-            await api.post(`/v1/forms/slug/${slug}/responses`, {
-              ...data,
-              payment_method: 'in-person',
-              payment_amount: formTotal,
-              payment_status: 'pending'
-            });
-            setSubmitState('success');
-            setSubmitMessage('Thanks for your response! Please complete payment in-person as arranged.');
+          // If in-person payment selected, submit with normalized payment details
+          if (selectedPaymentMethod === "in-person") {
+            const formMeta = buildPaymentForm(formTotal);
+            await submitDoorPaymentForm(slug, data, formMeta);
+
+            setSubmitState("success");
+            setSubmitMessage("Thanks for your response! Please complete payment in-person as arranged.");
             form.reset(defaultValues);
             sessionStorage.removeItem(globalSubmitKey);
             return;
           }
         }
 
-        // Regular form submission (no payment required)
-        await api.post(`/v1/forms/slug/${slug}/responses`, data);
-        setSubmitState('success');
-        setSubmitMessage('Thanks for your response! We have received it.');
+        // Regular form submission (no payment required) – still runs through helper
+        const freeFormMeta = buildPaymentForm(formTotal);
+        await submitFreeForm(slug, data, freeFormMeta);
+
+        setSubmitState("success");
+        setSubmitMessage("Thanks for your response! We have received it.");
         form.reset(defaultValues);
+        sessionStorage.removeItem(globalSubmitKey);
       } catch (err: any) {
         console.error('Submit failed', err);
         const detail = err?.response?.data?.detail || err?.response?.data?.message || err?.message || 'Submit failed';
         const detailStr = typeof detail === 'string' ? detail.toLowerCase() : '';
         // Map server reasons to full-page friendly error messages
         if (detailStr.includes('expired')) {
-          setPageError('This form has expired and is no longer accepting responses.');
+          setPageError(localize('This form has expired and is no longer accepting responses.'));
           setSubmitState('error');
           return;
         }
         if (detailStr.includes('not available') || detailStr.includes('not visible')) {
-          setPageError('This form is not available for public viewing.');
+          setPageError(localize('This form is not available for public viewing.'));
           setSubmitState('error');
           return;
         }
         if (detailStr.includes('not found')) {
-          setPageError('Form not found.');
+          setPageError(localize('Form not found.'));
           setSubmitState('error');
           return;
         }
@@ -505,9 +516,9 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             <MailCheck className="h-6 w-6" aria-hidden="true" />
           </span>
-          <h2 className="text-xl font-semibold">Thank you!</h2>
+          <h2 className="text-xl font-semibold">{localize("Thank you!")}</h2>
           <p className="text-muted-foreground max-w-md">
-            {submitMessage}
+            {localize(submitMessage)}
           </p>
         </div>
       </div>
@@ -524,7 +535,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12A9 9 0 1112 3a9 9 0 019 9z" />
             </svg>
           </span>
-          <h2 className="text-xl font-semibold">Form unavailable</h2>
+          <h2 className="text-xl font-semibold">{localize("Form unavailable")}</h2>
           <p className="text-destructive max-w-md">{pageError}</p>
         </div>
       </div>
@@ -568,7 +579,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                       <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                         <span className="text-blue-600 text-xs font-bold">P</span>
                       </div>
-                      {isSubmitting ? 'Processing...' : 'Pay with PayPal & Submit'}
+                      {isSubmitting ? localize('Processing...') : localize('Pay with PayPal & Submit')}
                     </span>
                   </Button>
                 );
@@ -586,7 +597,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                       <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                         <span className="text-green-600 text-xs">💵</span>
                       </div>
-                      {isSubmitting ? 'Submitting...' : 'Submit Form (Pay In-Person Later)'}
+                      {isSubmitting ? localize('Submitting...') : localize('Submit Form (Pay In-Person Later)')}
                     </span>
                   </Button>
                 );
@@ -615,7 +626,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                         <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                           <span className="text-blue-600 text-xs font-bold">P</span>
                         </div>
-                        {isSubmitting ? 'Processing...' : 'Pay with PayPal & Submit'}
+                        {isSubmitting ? localize('Processing...') : localize('Pay with PayPal & Submit')}
                       </span>
                     </Button>
                   );
@@ -630,7 +641,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                         <div className="w-4 h-4 bg-white rounded flex items-center justify-center">
                           <span className="text-green-600 text-xs">💵</span>
                         </div>
-                        {isSubmitting ? 'Submitting...' : 'Submit Form (Pay In-Person Later)'}
+                        {isSubmitting ? localize('Submitting...') : localize('Submit Form (Pay In-Person Later)')}
                       </span>
                     </Button>
                   );
@@ -644,7 +655,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
                 type="submit"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Submitting...' : 'Submit'}
+                {isSubmitting ? localize('Submitting...') : localize('Submit')}
               </Button>
             );
           })()}
@@ -653,7 +664,7 @@ export function PreviewRendererClient({ slug, instanceId, applyFormWidth = true 
             <div
               className={`text-sm mt-2 ${submitState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}
             >
-              {submitMessage}
+              {localize(submitMessage)}
             </div>
           )}
         </div>

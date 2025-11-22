@@ -2,6 +2,7 @@ import * as React from "react";
 import { EditPersonDialog } from "./EditPersonDialog";
 import { DeletePersonDialog } from "./DeletePersonDialog";
 import { PersonDetails } from "@/shared/types/Person";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type Props = {
     person: PersonDetails;
@@ -11,6 +12,16 @@ type Props = {
 };
 
 export const PersonTile: React.FC<Props> = ({ person, className, onUpdated, onDeleted }) => {
+    const localize = useLocalize();
+
+    let genderDisplay = person.gender.toString();
+    if (genderDisplay === "M") {
+        genderDisplay = localize("Male");
+    }
+    else {
+        genderDisplay = localize("Female");
+    }
+
     return (
         <li
             className={[
@@ -27,7 +38,7 @@ export const PersonTile: React.FC<Props> = ({ person, className, onUpdated, onDe
                     {person.first_name} {person.last_name}
                 </div>
                 <div className="truncate text-xs text-muted-foreground">
-                    DOB: {formatDob(person.date_of_birth)}, Gender: {person.gender}
+                    {localize("Date of Birth")}: {formatDob(person.date_of_birth)}, {localize("Gender")}: {genderDisplay}
                 </div>
             </div>
 

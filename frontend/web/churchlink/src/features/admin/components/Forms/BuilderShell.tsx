@@ -9,7 +9,7 @@ import { useBuilderStore } from "./store";
 import { FORM_WIDTH_VALUES, DEFAULT_FORM_WIDTH, normalizeFormWidth, collectAvailableLocales } from "./types";
 import { getBoundsViolations } from "./validation";
 import { Button } from "@/shared/components/ui/button";
-import { EventMinistryDropdown } from "@/features/admin/components/Events/EventMinistryDropdown";
+import { MinistryDropdown } from "@/shared/components/MinistryDropdown";
 import { Calendar } from '@/shared/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Calendar as CalendarIcon } from 'lucide-react'
@@ -353,7 +353,6 @@ export function BuilderShell() {
       lastSavedSnapshotRef.current = JSON.stringify({ title: formName, description, ministries, supported_locales: supportedLocales, formWidth: snapshotWidth, data: dataWithTranslations });
       return true;
     } catch (err: any) {
-      console.error('Failed to save form to server', err);
       if (err?.response?.status === 409) {
         const payload = err.response?.data || err.response?.data?.detail || {};
         // If backend provided existing_id, prompt override
@@ -574,12 +573,53 @@ export function BuilderShell() {
         <div className="mb-3 p-3 border rounded bg-muted/50">
           <LocaleSelector
             supportedLocales={supportedLocales}
-            onAddLocale={(locale) => {
+            onAddLocale={async (locale) => {
               if (!supportedLocales.includes(locale)) {
                 const newLocales = [...supportedLocales, locale];
                 setSupportedLocales(newLocales);
                 // Immediately update schema so Inspector shows translation tabs
                 updateSchemaMeta({ supported_locales: newLocales });
+
+                // Auto-translate payment method field for the new locale
+                const dataArray: any[] = (schema as any)?.data || [];
+                const paymentField = dataArray.find((f: any) => f.type === 'price');
+                if (paymentField) {
+                  try {
+                    // All payment method texts to translate
+                    const paymentTexts = [
+                      { key: 'label', text: paymentField.label || 'Payment Method' },
+                      { key: 'paypal_required', text: 'PayPal Payment Required' },
+                      { key: 'paypal_description', text: 'This form requires payment through PayPal. You\'ll be redirected to PayPal to complete the payment when submitting.' },
+                      { key: 'paypal_option', text: 'Pay with PayPal' },
+                      { key: 'paypal_hint', text: '(Secure online payment)' },
+                      { key: 'inperson_required', text: 'In-Person Payment Required' },
+                      { key: 'inperson_description', text: 'This payment will be collected in-person at the event or location. You can submit the form now and complete payment when you arrive.' },
+                      { key: 'inperson_option', text: 'Pay In-Person' },
+                      { key: 'inperson_hint', text: '(Pay at location)' },
+                      { key: 'choose_method', text: 'Choose Payment Method:' },
+                      { key: 'no_methods', text: 'No payment methods configured' },
+                      { key: 'paypal_submit', text: 'Pay with PayPal & Submit' },
+                      { key: 'inperson_submit', text: 'Submit Form (Pay In-Person Later)' }
+                    ];
+
+                    const resp = await api.post('/v1/translator/translate-multi', {
+                      items: paymentTexts.map(pt => pt.text),
+                      src: 'en',
+                      dest_languages: [locale],
+                    });
+                    const translations = resp.data?.translations || {};
+
+                    // Apply all translations
+                    paymentTexts.forEach(({ key, text }) => {
+                      const translated = translations[text]?.[locale];
+                      if (translated) {
+                        setTranslations(paymentField.id, locale, key, translated);
+                      }
+                    });
+                  } catch (e) {
+                    console.error('Failed to auto-translate payment field:', e);
+                  }
+                }
               }
             }}
             onRemoveLocale={(locale) => {
@@ -633,8 +673,6 @@ export function BuilderShell() {
 
                 const translatedFieldIds = new Set<string>();
                 let applied = 0;
-                const dataArray: any[] = (schema as any)?.data || [];
-                const fieldById = new Map<string, any>(dataArray.map((f: any) => [f.id, f]));
 
                 // Iterate texts by index and map using per-text translation results
                 texts.forEach((text, index) => {
@@ -642,9 +680,6 @@ export function BuilderShell() {
                   if (!mapping) return;
 
                   const { fieldId, property, optionIdx } = mapping;
-                  // Never apply translations to price fields
-                  const fieldMeta = fieldById.get(fieldId);
-                  if (fieldMeta && fieldMeta.type === 'price') return;
                   const perTextLocales = translationsByText![text] || {};
 
                   Object.keys(perTextLocales).forEach((locale) => {
@@ -725,10 +760,10 @@ export function BuilderShell() {
             <Input placeholder="Name" value={formName} onChange={(e) => setFormName(e.target.value)} />
             <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
             {availableMinistries && availableMinistries.length > 0 ? (
-              <EventMinistryDropdown
+              <MinistryDropdown
                 selected={ministries}
                 onChange={setMinistries}
-                ministries={availableMinistries.map(m => m.name)}
+                ministries={availableMinistries}
               />
             ) : (
               <div className="space-y-2">

@@ -1,0 +1,152 @@
+import { useState } from "react";
+import { XCircle } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogTrigger,
+} from "@/shared/components/ui/Dialog";
+import { Button } from "@/shared/components/ui/button";
+import type { TransactionSummary } from "@/shared/types/Transactions";
+import { adminCancelDonationSubscription } from "@/helpers/DonationHelper";
+
+type Props = {
+    tx: TransactionSummary;
+    onAfterCancel?: () => void;
+};
+
+export default function CancelDonationSubscriptionDialog({ tx, onAfterCancel }: Props) {
+    const [open, setOpen] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState<string | null>(null);
+    const [ok, setOk] = useState<boolean | null>(null);
+
+    const kind = tx.kind as string;
+    const isDonationPlan = kind === "donation_subscription";
+    const subscriptionId = tx.paypal_subscription_id || null;
+
+    const statusUpper = (tx.status || "").toString().toUpperCase();
+    const isActive = statusUpper === "ACTIVE";
+
+    // Only render for ACTIVE donation plans with a subscription id
+    if (!isDonationPlan || !subscriptionId || !isActive) {
+        return null;
+    }
+
+    const resetAndClose = () => {
+        setOpen(false);
+        setBusy(false);
+        setMsg(null);
+        setOk(null);
+    };
+
+    const handleCancel = async () => {
+        setBusy(true);
+        setMsg(null);
+        setOk(null);
+
+        try {
+            const res = await adminCancelDonationSubscription({
+                subscription_id: subscriptionId,
+            });
+
+            setMsg(
+                res.msg ||
+                "The donation plan has been cancelled. Future charges will no longer be attempted.",
+            );
+            const success = !!res.success;
+            setOk(success);
+
+            if (success) {
+                if (onAfterCancel) {
+                    onAfterCancel();
+                }
+                // Close on success so we don't leave a stale dialog up
+                resetAndClose();
+            }
+        } catch (err) {
+            console.error("[CancelDonationSubscriptionDialog] handleCancel error", err);
+            setMsg("Unexpected error cancelling this subscription.");
+            setOk(false);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(next) => (next ? setOpen(true) : resetAndClose())}>
+            <DialogTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    type="button"
+                    title="Cancel this donation plan"
+                >
+                    <XCircle className="h-4 w-4" />
+                    <span className="sr-only">Cancel donation plan</span>
+                </Button>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Cancel donation plan</DialogTitle>
+                    <DialogDescription>
+                        This will cancel the recurring donation plan associated with this
+                        transaction. PayPal will no longer attempt future charges.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-2 text-sm text-muted-foreground">
+                    <div>
+                        <span className="font-medium text-foreground">User uid:</span>{" "}
+                        {tx.user_uid || "Unknown user"}
+                    </div>
+                    <div>
+                        <span className="font-medium text-foreground">
+                            PayPal subscription ID:
+                        </span>{" "}
+                        {subscriptionId}
+                    </div>
+                    <p className="mt-2">
+                        Existing successful payments will remain on record. This does not
+                        retroactively refund past charges; it simply prevents new ones from
+                        being created.
+                    </p>
+                </div>
+
+                {msg && (
+                    <div
+                        className={`mt-3 rounded-md border px-3 py-2 text-sm ${ok
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                                : "border-red-200 bg-red-50 text-red-900"
+                            }`}
+                    >
+                        {msg}
+                    </div>
+                )}
+
+                <div className="mt-4 flex justify-between gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={resetAndClose}
+                        disabled={busy}
+                    >
+                        Close
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleCancel}
+                        disabled={busy}
+                    >
+                        {busy ? "Cancelling..." : "Confirm cancel"}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}

@@ -17,7 +17,6 @@ describe('Web Builder parity using page.json mock', () => {
             web_builder_management: true,
             mobile_ui_management: true,
             event_editing: true,
-            event_management: true,
             media_management: true,
             sermon_editing: true,
             bulletin_editing: true,
