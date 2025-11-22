@@ -1,4 +1,7 @@
 {
+  "include": [
+    "cypress/support/commands.js"
+  ],
   "references": [
     {
       "path": "./tsconfig.app.json"
@@ -9,9 +12,6 @@
   ],
   "compilerOptions": {
     "baseUrl": "./",
-    "types": [
-      "cypress"
-    ],
     "paths": {
       "@/*": [
         "src/*"
@@ -20,10 +20,5 @@
         "src/features/admin/components/WebBuilder/sections/*"
       ]
     }
-  },
-  "include": [
-    "cypress/**/*.ts",
-    "cypress/**/*.d.ts",
-    "cypress/support/commands.js"
-  ]
+  }
 }
