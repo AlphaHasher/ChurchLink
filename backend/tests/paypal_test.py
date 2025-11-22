@@ -1,3 +1,5 @@
+#tested 3 failed, 2 passed, 1 skipped on nov 22
+
 from dotenv import load_dotenv
 import httpx
 import pytest
