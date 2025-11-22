@@ -1,5 +1,3 @@
-#tested 1 error on nov 22
-
 from datetime import datetime, timezone
 import uuid
 
