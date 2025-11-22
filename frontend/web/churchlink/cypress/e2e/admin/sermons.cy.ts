@@ -23,8 +23,8 @@ describe('Admin – Sermons Management', () => {
       body: { language: 'en' },
     }).as('getUserLanguage');
 
-    // Mock sermons API
-    cy.intercept('GET', '**/api/v1/sermons/**', {
+    // Mock sermons list API only (not detail/action endpoints)
+    cy.intercept('GET', '**/api/v1/sermons?*', {
       statusCode: 200,
       body: { sermons: [], total: 0 },
     }).as('getSermons');
