@@ -178,6 +178,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
     const [bgPosition, setBgPosition] = React.useState<string>((style.backgroundPosition as string) || 'center');
     const [bgRepeat, setBgRepeat] = React.useState<string>((style.backgroundRepeat as string) || 'no-repeat');
     const [brightness, setBrightness] = React.useState<number>(100);
+    const [hexInput, setHexInput] = React.useState<string>(style.backgroundColor?.trim()?.length && style.backgroundColor !== 'transparent' ? style.backgroundColor : '#ffffff');
     const userInitiatedModeChangeRef = React.useRef(false);
 
     const scheduleRef = React.useRef<number | null>(null);
@@ -229,6 +230,10 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
       } else if (currentBgColor && currentBgColor !== 'transparent') {
         setMode('solid');
       }
+
+      // Sync hex input with background color
+      const currentSolidBg = currentBgColor && currentBgColor !== 'transparent' ? currentBgColor : '#ffffff';
+      setHexInput(currentSolidBg);
 
       // Parse CSS variable for brightness
       const cssVarBrightness = String((node as any)?.style?.['--bg-brightness'] ?? '').trim();
@@ -384,9 +389,32 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
                   <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
                     <ColorPickerSelection />
                     <ColorPickerHue />
-                    <ColorPickerAlpha />
+                    <ColorPickerAlpha 
+                      style={{
+                        background: 'linear-gradient(to right, transparent, currentColor)',
+                        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                      }}
+                    />
                   </div>
-                  <div className="mt-1 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2">
+                    <Label htmlFor="elem-bg-hex-input" className="text-xs whitespace-nowrap">Hex:</Label>
+                    <input
+                      id="elem-bg-hex-input"
+                      type="text"
+                      value={hexInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setHexInput(val);
+                        // Only apply if valid hex format
+                        if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^#([0-9A-Fa-f]{8})$/.test(val)) {
+                          applySolid(val);
+                        }
+                      }}
+                      className="h-8 text-xs font-mono border rounded px-2 flex-1"
+                      placeholder="#ffffff"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
                     <ColorPickerOutput />
                   </div>
                 </ColorPicker>

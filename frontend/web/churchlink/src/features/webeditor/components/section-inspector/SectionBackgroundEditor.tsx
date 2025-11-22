@@ -6,6 +6,7 @@ import { NumericDragInput } from "@/shared/components/NumericDragInput";
 import { Button } from "@/shared/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
 import { Separator } from "@/shared/components/ui/separator";
+import { Input } from "@/shared/components/ui/input";
 import MediaLibrary from "@/features/admin/pages/MediaLibrary";
 import { getPublicUrl, getThumbnailUrl } from "@/helpers/MediaInteraction";
 import type { ImageResponse } from "@/shared/types/ImageData";
@@ -109,6 +110,7 @@ export const SectionBackgroundEditor: React.FC<SectionBackgroundEditorProps> = (
   const [bgPosition, setBgPosition] = React.useState<string>((style.backgroundPosition as string) || 'center');
   const [bgRepeat, setBgRepeat] = React.useState<string>((style.backgroundRepeat as string) || 'no-repeat');
   const [brightness, setBrightness] = React.useState<number>(100);
+  const [hexInput, setHexInput] = React.useState<string>(style.backgroundColor?.trim()?.length ? style.backgroundColor : '#ffffff');
 
   useEffect(() => {
     if (!open) return;
@@ -126,6 +128,10 @@ export const SectionBackgroundEditor: React.FC<SectionBackgroundEditorProps> = (
     const filterStr = (style.filter as string) || '';
     const brightnessMatch = filterStr.match(/brightness\((\d+(?:\.\d+)?)%?\)/);
     setBrightness(brightnessMatch ? parseFloat(brightnessMatch[1]) : 100);
+    
+    // Sync hex input with background color
+    const currentBgColor = style.backgroundColor?.trim()?.length ? style.backgroundColor : '#ffffff';
+    setHexInput(currentBgColor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, section.id, hasBackground, isLinear, isImageUrl, parsedAngle, parsedC1, parsedC2, bgString, extractImageId]);
 
@@ -306,12 +312,6 @@ export const SectionBackgroundEditor: React.FC<SectionBackgroundEditorProps> = (
     });
   }, [section.id, scheduleSetSections, stripBgUtilities, bgSize, bgPosition, bgRepeat, brightness]);
 
-  const handleSolidChange = React.useCallback((c: any) => {
-    if (!open || skipInitialRef.current) return;
-    const css = toCssColor(c);
-    applySolid(css);
-  }, [toCssColor, applySolid, open]);
-
   const handleC1Change = React.useCallback((c: any) => {
     if (!open || skipInitialRef.current) return;
     const css = toCssColor(c);
@@ -345,15 +345,42 @@ export const SectionBackgroundEditor: React.FC<SectionBackgroundEditorProps> = (
         <div className="space-y-2">
           <ColorPicker
             value={style.backgroundColor?.trim()?.length ? style.backgroundColor : '#ffffff'}
-            onChange={handleSolidChange}
+            onChange={(c) => {
+              if (!open || skipInitialRef.current) return;
+              const css = toCssColor(c);
+              applySolid(css);
+            }}
             className="flex flex-col gap-2"
           >
             <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
               <ColorPickerSelection />
               <ColorPickerHue />
-              <ColorPickerAlpha />
+              <ColorPickerAlpha 
+                style={{
+                  background: 'linear-gradient(to right, transparent, currentColor)',
+                  boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                }}
+              />
             </div>
-            <div className="mt-1 flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2">
+              <Label htmlFor="bg-hex-input" className="text-xs whitespace-nowrap">Hex:</Label>
+              <Input
+                id="bg-hex-input"
+                type="text"
+                value={hexInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setHexInput(val);
+                  // Only apply if valid hex format
+                  if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^#([0-9A-Fa-f]{8})$/.test(val)) {
+                    applySolid(val);
+                  }
+                }}
+                className="h-8 text-xs font-mono"
+                placeholder="#ffffff"
+              />
+            </div>
+            <div className="flex items-center gap-2">
               <ColorPickerOutput />
             </div>
           </ColorPicker>

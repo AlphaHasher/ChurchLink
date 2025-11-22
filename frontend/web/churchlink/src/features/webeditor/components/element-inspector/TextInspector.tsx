@@ -54,6 +54,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
   const [localHtml, setLocalHtml] = React.useState(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
   const prevRef = React.useRef<Node | null>(null);
   const [colorOpen, setColorOpen] = React.useState(false);
+  const [hexInput, setHexInput] = React.useState<string>((node.style as any)?.color || '#000000');
 
   React.useEffect(() => {
     const fam = (node.style as any)?.fontFamily as string | undefined;
@@ -64,6 +65,12 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
   React.useEffect(() => {
     setLocalHtml(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
   }, [node.props?.html, (node as any).i18n, activeLocale, defaultLocale, node.props?.text]);
+
+  // Sync hex input when color changes externally
+  React.useEffect(() => {
+    const currentColor = (node.style as any)?.color || '#000000';
+    setHexInput(currentColor);
+  }, [(node.style as any)?.color]);
 
   const handleHtmlChange = (value: string) => {
     setLocalHtml(value);
@@ -310,9 +317,42 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
                 <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
                   <ColorPickerSelection />
                   <ColorPickerHue />
-                  <ColorPickerAlpha />
+                  <ColorPickerAlpha 
+                    style={{
+                      background: 'linear-gradient(to right, transparent, currentColor)',
+                      boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                    }}
+                  />
                 </div>
-                <div className="mt-1 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2">
+                  <Label htmlFor="hex-input" className="text-xs whitespace-nowrap">Hex:</Label>
+                  <Input
+                    id="hex-input"
+                    type="text"
+                    value={hexInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setHexInput(val);
+                      // Only apply if valid hex format
+                      if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^#([0-9A-Fa-f]{8})$/.test(val)) {
+                        onUpdate((n) =>
+                          n.type === 'text'
+                            ? ({
+                                ...n,
+                                style: {
+                                  ...(n.style || {}),
+                                  color: val,
+                                },
+                              } as Node)
+                            : n
+                        );
+                      }
+                    }}
+                    className="h-8 text-xs font-mono"
+                    placeholder="#000000"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
                   <ColorPickerOutput />
                 </div>
               </ColorPicker>
