@@ -513,10 +513,12 @@ const renderNode = (
           ? localizeFn(String(baseAlt))
           : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || "cover";
+      const styleFilter = (nodeStyle as any)?.filter as string | undefined;
+      const hasShadow = styleFilter ? /drop-shadow\(/.test(styleFilter) : false;
       const inlineStyles: React.CSSProperties = {
         ...nodeStyle,
-        overflow: "hidden",
-        display: "block",
+        ...(hasShadow ? {} : { overflow: 'hidden' }),
+        display: 'block',
       };
       return (
         <>
@@ -525,7 +527,7 @@ const renderNode = (
             style={inlineStyles}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={alt} style={{ width: "100%", height: "100%", objectFit }} />
+            <img src={src} alt={alt} style={{ width: '100%', height: '100%', objectFit, filter: styleFilter }} />
           </div>
         </>
       );
@@ -599,6 +601,14 @@ const SectionWithVirtualGridPublic: React.FC<{
     setContainerDomOffsets(mapping);
   }, [section.children, transform]);
 
+  const baseBgStyle = (section.background?.style as React.CSSProperties) || {};
+  const brightnessVar = (baseBgStyle as any)['--bg-brightness'];
+  const bgImage = (baseBgStyle as any).backgroundImage as string | undefined;
+  const sectionStyle: React.CSSProperties = { ...baseBgStyle };
+  delete (sectionStyle as any)['--bg-brightness'];
+  if (bgImage && brightnessVar && String(brightnessVar) !== '100') {
+    delete (sectionStyle as any).backgroundImage;
+  }
   return (
     <section
       className={cn(
@@ -607,13 +617,27 @@ const SectionWithVirtualGridPublic: React.FC<{
         sectionFontFamily && "[&>*]:font-[inherit] [&>*_*]:font-[inherit]"
       )}
       style={{
-        ...(section.background?.style as React.CSSProperties),
+        ...sectionStyle,
         ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
         ...(locked
           ? {}
           : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
       }}
     >
+      {bgImage && brightnessVar && String(brightnessVar) !== '100' && (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: bgImage,
+            backgroundSize: (baseBgStyle as any).backgroundSize,
+            backgroundPosition: (baseBgStyle as any).backgroundPosition,
+            backgroundRepeat: (baseBgStyle as any).backgroundRepeat,
+            filter: `brightness(${brightnessVar}%)`,
+            zIndex: 0,
+          }}
+        />
+      )}
       <div
         ref={contentRef}
         className={cn(gridClasses, "relative", !locked && "h-full min-h-full")}
@@ -686,21 +710,9 @@ const DynamicPageV2Renderer: React.FC<{ page: PageV2; highlightNodeId?: string; 
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
     const mq = window.matchMedia("(max-width: 768px)");
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    try {
-      mq.addEventListener("change", handler);
-    } catch {
-      // Safari
-      mq.addListener(handler);
-    }
-    return () => {
-      try {
-        mq.removeEventListener("change", handler);
-      } catch {
-        mq.removeListener(handler);
-      }
-    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
-
   return (
     <div
       className="w-full min-h-full overflow-x-hidden max-w-full"
