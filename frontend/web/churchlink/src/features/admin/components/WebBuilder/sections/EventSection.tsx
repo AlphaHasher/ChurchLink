@@ -210,7 +210,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                             {localize("Filters")}
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[720px]" align="start" onWheel={(e) => e.stopPropagation()}>
+                    <PopoverContent className="w-[720px] z-[300]" align="start" onWheel={(e) => e.stopPropagation()}>
                         <div className="grid grid-cols-2 gap-4">
                             {/* Gender */}
                             <div className="flex flex-col gap-1">
@@ -219,7 +219,7 @@ const EventSection: React.FC<EventSectionProps> = ({
                                     <SelectTrigger id="genderSel">
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="z-[1000]">
                                         <SelectItem value="all">{localize("All Allowed")}</SelectItem>
                                         <SelectItem value="male">{localize("Men Allowed")}</SelectItem>
                                         <SelectItem value="female">{localize("Women Allowed")}</SelectItem>

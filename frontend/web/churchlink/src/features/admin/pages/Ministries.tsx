@@ -51,10 +51,10 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
 
     return (
         <div className="flex items-center h-full gap-2">
-            <Button size="sm" variant="outline" onClick={() => openRename(ministry)}>
+            <Button size="sm" variant="outline" aria-label="Rename Ministry" title="Rename Ministry" onClick={() => openRename(ministry)}>
                 <Pencil className="mr-2 h-4 w-4" /> Rename
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => openDelete(ministry)}>
+            <Button size="sm" variant="destructive" aria-label="Delete Ministry" title="Delete Ministry" onClick={() => openDelete(ministry)}>
                 <Trash className="mr-2 h-4 w-4" /> Delete
             </Button>
         </div>
@@ -361,13 +361,14 @@ const Ministries = () => {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => void handleDelete()}
                             disabled={deleting}
+                            title='Confirm Delete'
                         >
                             {deleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 };
 

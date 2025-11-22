@@ -7,7 +7,7 @@ import pytest
 import pytest_asyncio
 from bson import ObjectId
 
-from helpers.form_payment_helper import FormPaymentHelper
+from controllers.form_payment_controller import compute_expected_payment
 from mongo.database import DB
 
 
@@ -28,7 +28,6 @@ async def db_connection():
 @pytest_asyncio.fixture
 async def form_factory(db_connection):
     created_ids: list[ObjectId] = []
-
     async def _create_form(data, **overrides):
         now = datetime.now(timezone.utc)
         doc = {
@@ -64,7 +63,6 @@ async def form_factory(db_connection):
 
 @pytest.mark.asyncio
 async def test_compute_expected_payment_price_and_checkbox(form_factory):
-    helper = FormPaymentHelper()
     form_id = await form_factory(
         [
             {"id": "price_summary", "type": "price", "label": "Summary", "amount": "30"},
@@ -78,13 +76,12 @@ async def test_compute_expected_payment_price_and_checkbox(form_factory):
         ]
     )
 
-    total = await helper.compute_expected_payment(form_id, {"vip_upgrade": True})
+    total = await compute_expected_payment(form_id, {"vip_upgrade": True})
     assert total == pytest.approx(50.0)
 
 
 @pytest.mark.asyncio
 async def test_compute_expected_payment_multiselect_options(form_factory):
-    helper = FormPaymentHelper()
     form_id = await form_factory(
         [
             {
@@ -102,13 +99,12 @@ async def test_compute_expected_payment_multiselect_options(form_factory):
         ]
     )
 
-    total = await helper.compute_expected_payment(form_id, {"addons": ["meal", "parking"]})
+    total = await compute_expected_payment(form_id, {"addons": ["meal", "parking"]})
     assert total == pytest.approx(25.0)
 
 
 @pytest.mark.asyncio
 async def test_compute_expected_payment_hidden_field_ignored(form_factory):
-    helper = FormPaymentHelper()
     form_id = await form_factory(
         [
             {
@@ -128,7 +124,7 @@ async def test_compute_expected_payment_hidden_field_ignored(form_factory):
         ]
     )
 
-    total = await helper.compute_expected_payment(
+    total = await compute_expected_payment(
         form_id,
         {"need_child_care": False, "child_care_fee": True},
     )
@@ -137,7 +133,6 @@ async def test_compute_expected_payment_hidden_field_ignored(form_factory):
 
 @pytest.mark.asyncio
 async def test_compute_expected_payment_invalid_option(form_factory):
-    helper = FormPaymentHelper()
     form_id = await form_factory(
         [
             {
@@ -154,12 +149,11 @@ async def test_compute_expected_payment_invalid_option(form_factory):
     )
 
     with pytest.raises(ValueError, match="invalid selection"):
-        await helper.compute_expected_payment(form_id, {"ticket_type": "bitcoin"})
+        await compute_expected_payment(form_id, {"ticket_type": "bitcoin"})
 
 
 @pytest.mark.asyncio
 async def test_compute_expected_payment_date_pricing(form_factory):
-    helper = FormPaymentHelper()
     form_id = await form_factory(
         [
             {
@@ -181,5 +175,5 @@ async def test_compute_expected_payment_date_pricing(form_factory):
     )
 
     response = {"camp_dates": {"from": "2025-11-14", "to": "2025-11-16"}}
-    total = await helper.compute_expected_payment(form_id, response)
+    total = await compute_expected_payment(form_id, response)
     assert total == pytest.approx(35.0)
