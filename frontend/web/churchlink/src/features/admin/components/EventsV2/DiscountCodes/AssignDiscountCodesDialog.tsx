@@ -143,7 +143,6 @@ export default function AssignDiscountCodesDialog({ event, onSaved }: Props) {
                                                 key={c.id}
                                                 checked={checked}
                                                 onCheckedChange={() => toggle(c.id)}
-                                                onSelect={(e) => e.preventDefault()}
                                             >
                                                 {displayFor(c)}
                                             </DropdownMenuCheckboxItem>
