@@ -67,6 +67,17 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
 
   const handleHtmlChange = (value: string) => {
     setLocalHtml(value);
+    // Live apply to builder without pushing to history (history pushed on blur)
+    const useLocale = activeLocale && defaultLocale && activeLocale !== defaultLocale ? activeLocale : null;
+    onUpdate((n) => {
+      if (n.type !== 'text') return n;
+      if (useLocale) {
+        const prevI18n = ((n as any).i18n || {}) as Record<string, Record<string, any>>;
+        const prevFor = prevI18n[useLocale] || {};
+        return { ...(n as any), i18n: { ...prevI18n, [useLocale]: { ...prevFor, html: value } } } as Node;
+      }
+      return ({ ...n, props: { ...(n.props || {}), html: value } } as Node);
+    });
   };
 
   const handleHtmlBlur = () => {
