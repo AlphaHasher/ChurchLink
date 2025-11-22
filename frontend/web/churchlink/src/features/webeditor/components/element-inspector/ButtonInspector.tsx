@@ -4,6 +4,9 @@ import React from 'react';
 import { NumericDragInput } from '@/shared/components/NumericDragInput';
 import { Input } from '@/shared/components/ui/input';
 import { Label } from '@/shared/components/ui/label';
+import { Button } from '@/shared/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
+import { ColorPicker, ColorPickerAlpha, ColorPickerHue, ColorPickerOutput, ColorPickerSelection } from '@/shared/components/ui/shadcn-io/color-picker';
 import { Node } from '@/shared/types/pageV2';
 import { BuilderState } from '@/features/webeditor/state/BuilderState';
 import { roundToTwoOrFiveThousandths } from '@/shared/utils/rounding';
@@ -25,6 +28,14 @@ function resolveLocalized(node: Node, key: string, activeLocale?: string, defaul
 export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate, activeLocale, defaultLocale }) => {
   const prevRef = React.useRef<Node | null>(null);
   const fontSize = typeof (node.style as any)?.fontSize === 'number' ? (node.style as any).fontSize : 1;
+  const [colorOpen, setColorOpen] = React.useState(false);
+  const [hexInput, setHexInput] = React.useState<string>((node.style as any)?.color || '#ffffff');
+
+  React.useEffect(() => {
+    const currentColor = (node.style as any)?.color || '#ffffff';
+    setHexInput(currentColor);
+  }, [(node.style as any)?.color]);
+
   const commitChanges = React.useCallback(() => {
     const sectionId = BuilderState.selection?.sectionId;
     const nodeId = BuilderState.selection?.nodeId;
@@ -104,6 +115,94 @@ export const ButtonInspector: React.FC<ButtonInspectorProps> = ({ node, onUpdate
           onBlur={() => commitChanges()}
           onChangeEnd={commitChanges}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Text Color</Label>
+        <Popover
+          open={colorOpen}
+          onOpenChange={(open) => {
+            if (open) {
+              prevRef.current = { ...node };
+            } else {
+              commitChanges();
+            }
+            setColorOpen(open);
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-start gap-2 h-10">
+              <div
+                className="h-6 w-6 rounded border border-gray-300"
+                style={{ backgroundColor: (node.style as any)?.color || '#ffffff' }}
+              />
+              <span className="text-sm truncate">{(node.style as any)?.color || '#ffffff'}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3" align="start">
+            <ColorPicker
+              value={(node.style as any)?.color || '#ffffff'}
+              onChange={(c) => {
+                const css = typeof c === 'string' ? c : (typeof (c as any)?.string === 'function' ? (c as any).string() : String(c));
+                if ((node.style as any)?.color === css) return;
+                onUpdate((n) =>
+                  n.type === 'button'
+                    ? ({
+                        ...n,
+                        style: {
+                          ...(n.style || {}),
+                          color: css,
+                        },
+                      } as Node)
+                    : n
+                );
+              }}
+              className="flex flex-col gap-2"
+            >
+              <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
+                <ColorPickerSelection />
+                <ColorPickerHue />
+                <ColorPickerAlpha 
+                  style={{
+                    background: 'linear-gradient(to right, transparent, currentColor)',
+                    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                  }}
+                />
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <Label htmlFor="btn-hex-input" className="text-xs whitespace-nowrap">Hex:</Label>
+                <Input
+                  id="btn-hex-input"
+                  type="text"
+                  value={hexInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setHexInput(val);
+                    // Only apply if valid hex format
+                    if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^#([0-9A-Fa-f]{8})$/.test(val)) {
+                      onUpdate((n) =>
+                        n.type === 'button'
+                          ? ({
+                              ...n,
+                              style: {
+                                ...(n.style || {}),
+                                color: val,
+                              },
+                            } as Node)
+                          : n
+                      );
+                    }
+                  }}
+                  className="h-8 text-xs font-mono"
+                  placeholder="#ffffff"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <ColorPickerOutput />
+              </div>
+            </ColorPicker>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Background is now handled by the global Background control above. */}

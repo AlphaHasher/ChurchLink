@@ -381,6 +381,7 @@ const renderNode = (
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        ...(nodeStyleRaw?.color ? { color: nodeStyleRaw.color } : {}),
         fontSize: `${fontSizeRemBtn * 16 * gridScaleBtn}px`,
         display: 'flex',
         alignItems: 'center',

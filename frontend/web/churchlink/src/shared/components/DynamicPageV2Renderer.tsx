@@ -267,6 +267,7 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         fontSize: `${fontSizeRem * 16 * gridScale}px`,
+        ...(nodeStyleRaw?.color ? { color: nodeStyleRaw.color } : {}),
         ...(typeof paddingTop === "number" && transform ? { paddingTop: paddingTop * transform.cellPx } : {}),
         ...(typeof paddingBottom === "number" && transform ? { paddingBottom: paddingBottom * transform.cellPx } : {}),
         ...(typeof paddingLeft === "number" && transform ? { paddingLeft: paddingLeft * transform.cellPx } : {}),
