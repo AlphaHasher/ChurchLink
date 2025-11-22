@@ -25,9 +25,14 @@ export const DEFAULT_BULLETIN_FILTERS: BulletinFilters = {
     headline: '',
 };
 
+interface MinistryOption {
+    id: string;
+    name: string;
+}
+
 interface BulletinsFilterDialogProps {
     filters: BulletinFilters;
-    availableMinistries: string[];
+    availableMinistries: MinistryOption[];
     onApply: (next: BulletinFilters) => void;
     onReset: () => void;
 }
@@ -86,13 +91,13 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
                     size="sm"
                     className="flex items-center gap-2"
                 >
-                <Filter className="h-4 w-4" />
-                Filters
-                {activeFilterCount > 0 && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                        {activeFilterCount}
-                    </span>
-                )}
+                    <Filter className="h-4 w-4" />
+                    Filters
+                    {activeFilterCount > 0 && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                            {activeFilterCount}
+                        </span>
+                    )}
                 </Button>
             </DialogTrigger>
             <DialogContent className="w-full max-w-2xl">
@@ -117,8 +122,8 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
                                 <SelectContent>
                                     <SelectItem value="all">All ministries</SelectItem>
                                     {availableMinistries.map((ministry) => (
-                                        <SelectItem key={ministry} value={ministry}>
-                                            {ministry}
+                                        <SelectItem key={ministry.id} value={ministry.id}>
+                                            {ministry.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

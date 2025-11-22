@@ -84,10 +84,6 @@ def _nonempty(field: str, value: Any) -> Tuple[bool, str]:
     return False, f"{field} is required."
 
 def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], str]:
-    ok, msg = _nonempty("title", link.get("title"))
-    if not ok:
-        return False, {}, msg
-
     titles = link.get("titles")
     if not isinstance(titles, dict):
         return False, {}, "titles must be an object with at least an 'en' label"
@@ -109,7 +105,6 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
             return False, {}, corrected_url  # corrected_url contains error message when ok=False
         
         cleaned = {
-            "title": _clean(link["title"]),
             "titles": {k: _clean(v) for k, v in titles.items()},
             "url": corrected_url,  # Use the corrected URL with https:// added if needed
             "is_hardcoded_url": True,
@@ -122,7 +117,6 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
             return False, {}, msg
         
         cleaned = {
-            "title": _clean(link["title"]),
             "titles": {k: _clean(v) for k, v in titles.items()},
             "slug": _clean(link["slug"]),
             "is_hardcoded_url": False,
@@ -134,9 +128,6 @@ def validate_header_link(link: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], st
 
 
 def validate_header_dropdown(dd: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], str]:
-    ok, msg = _nonempty("title", dd.get("title"))
-    if not ok:
-        return False, {}, msg
     titles = dd.get("titles")
     if not isinstance(titles, dict):
         return False, {}, "titles must be an object with at least an 'en' label"
@@ -156,7 +147,6 @@ def validate_header_dropdown(dd: Dict[str, Any]) -> Tuple[bool, Dict[str, Any], 
         cleaned_items.append(cl)
 
     cleaned = {
-        "title": _clean(dd["title"]),
         "titles": {k: _clean(v) for k, v in titles.items()},
         "items": cleaned_items,
         "visible": bool(dd.get("visible", True)),

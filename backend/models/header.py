@@ -5,7 +5,6 @@ from mongo.database import DB
 from typing import ClassVar
 
 class HeaderLink(BaseModel):
-    title: str
     titles: Dict[str, str]
     url: Optional[str] = None  # For backward compatibility and hardcoded URLs
     slug: Optional[str] = None  # For linking to pages by slug
@@ -14,7 +13,6 @@ class HeaderLink(BaseModel):
     visible: Optional[bool] = True
 
 class HeaderDropdown(BaseModel):
-    title: str
     titles: Dict[str, str]
     items: List[HeaderLink]
     type: ClassVar[str] = "dropdown"
@@ -46,14 +44,12 @@ async def get_header() -> Optional[Header]:
             if type(item) != "int" and item.get("visible", True):
                 if item["type"] == "dropdown":
                     header_items[item["index"]] = HeaderDropdown(
-                        title=item["title"],
                         titles=item.get("titles") or {},
                         items=item["items"],
                         visible=item["visible"]
                     )
                 elif item["type"] == "link":
                     header_items[item["index"]] = HeaderLink(
-                        title=item["title"],
                         titles=item.get("titles") or {},
                         url=item.get("url"),
                         slug=item.get("slug"),
@@ -84,14 +80,12 @@ async def get_header_items() -> Optional[Header]:
             item = items_data[i]
             if item["type"] == "dropdown":
                 header_items[item["index"]] = HeaderDropdown(
-                    title=item["title"],
                     titles=item.get("titles") or {},
                     items=item["items"],
                     visible=item["visible"]
                 )
             elif item["type"] == "link":
                 header_items[item["index"]] = HeaderLink(
-                    title=item["title"],
                     titles=item.get("titles") or {},
                     url=item.get("url"),
                     slug=item.get("slug"),
@@ -112,7 +106,7 @@ async def get_item_by_title(title: str) -> Optional[Union[HeaderLink, HeaderDrop
     Returns the item as either HeaderLink or HeaderDropdown based on its type.
     """
     try:
-        items = await DB.find_documents(db_path, {"title": title})
+        items = await DB.find_documents(db_path, {"titles.en": title})
         item = items[0] if items else None
 
         if not item:
@@ -120,9 +114,9 @@ async def get_item_by_title(title: str) -> Optional[Union[HeaderLink, HeaderDrop
 
         # Convert the MongoDB document into the appropriate HeaderItem type
         if item["type"] == "dropdown":
-            return HeaderDropdown(title=item["title"], titles=item.get("titles") or {}, items=item["items"])
+            return HeaderDropdown(titles=item.get("titles") or {}, items=item["items"])
         elif item["type"] == "link":
-            return HeaderLink(title=item["title"], titles=item.get("titles") or {}, url=item.get("url"), slug=item.get("slug"), is_hardcoded_url=item.get("is_hardcoded_url", False))
+            return HeaderLink(titles=item.get("titles") or {}, url=item.get("url"), slug=item.get("slug"), is_hardcoded_url=item.get("is_hardcoded_url", False))
 
         return None
     except Exception as e:
@@ -141,9 +135,9 @@ async def get_item_by_index(index: int) -> Optional[Union[HeaderLink, HeaderDrop
 
         # Convert the MongoDB document into the appropriate HeaderItem type
         if item["type"] == "dropdown":
-            return HeaderDropdown(title=item["title"], titles=item.get("titles") or {}, items=item["items"], visible=item.get("visible", True))
+            return HeaderDropdown(titles=item.get("titles") or {}, items=item["items"], visible=item.get("visible", True))
         elif item["type"] == "link":
-            return HeaderLink(title=item["title"], titles=item.get("titles") or {}, url=item.get("url"), slug=item.get("slug"), is_hardcoded_url=item.get("is_hardcoded_url", False), visible=item.get("visible", True))
+            return HeaderLink(titles=item.get("titles") or {}, url=item.get("url"), slug=item.get("slug"), is_hardcoded_url=item.get("is_hardcoded_url", False), visible=item.get("visible", True))
         return None
     except Exception as e:
         print(f"Error getting header item by index: {e}")
@@ -155,7 +149,6 @@ async def add_link(item: dict) -> bool:
     """
     try:
         item_input = {
-            "title": item["title"],
             "titles": item.get("titles") or {},
             "type": "link",
             "index": len(await DB.find_documents(db_path, {})),
@@ -186,7 +179,6 @@ async def add_dropdown(item: dict) -> bool:
         processed_items = []
         for subitem in item["items"]:
             processed_item = {
-                "title": subitem.get("title"),
                 "titles": subitem.get("titles") or {},
                 "visible": bool(subitem.get("visible", True))
             }
@@ -202,7 +194,6 @@ async def add_dropdown(item: dict) -> bool:
             processed_items.append(processed_item)
 
         res = await DB.insert_document(db_path, {
-            "title": item["title"],
             "titles": item.get("titles") or {},
             "items": processed_items,
             "visible": item.get("visible", True),
@@ -220,7 +211,7 @@ async def remove_item_by_name(title: str) -> bool:
     Removes a header item by its title.
     """
     try:
-        result = await DB.delete_documents(db_path, {"title": title})
+        result = await DB.delete_documents(db_path, {"titles.en": title})
         return result > 0  # Return True if at least one document was deleted
     except Exception as e:
         print(f"Error removing header item: {e}")
@@ -237,7 +228,7 @@ async def reorder_items(titles: List[str]) -> bool:
         for index, title in enumerate(titles):
             # Update the document where title matches
             result = await DB.db[db_path].update_one(
-                {"title": title},
+                {"titles.en": title},
                 {"$set": {"index": index, "updated_at": datetime.utcnow()}}
             )
 
@@ -257,7 +248,7 @@ async def change_visibility(title: str, visible: bool) -> bool:
     """
     try:
         result = await DB.db[db_path].update_one(
-            {"title": title},
+            {"titles.en": title},
             {"$set": {"visible": visible, "updated_at": datetime.utcnow()}}
         )
         return result.modified_count > 0
@@ -268,7 +259,7 @@ async def change_visibility(title: str, visible: bool) -> bool:
 async def update_item(title: str, updated_item: dict) -> bool:
     try:
         # Check if the item exists
-        item = (await DB.find_documents(db_path, {"title": title}))[0]
+        item = (await DB.find_documents(db_path, {"titles.en": title}))[0]
         if not item:
             return False
 
@@ -277,7 +268,7 @@ async def update_item(title: str, updated_item: dict) -> bool:
 
         # Update the document
         result = await DB.db[db_path].update_one(
-            {"title": title},
+            {"titles.en": title},
             {"$set": updated_item}
         )
 

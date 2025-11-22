@@ -15,6 +15,7 @@ export default defineConfig({
       ADMIN_EMAIL: process.env.CYPRESS_ADMIN_EMAIL,
       AUTH_PASSWORD: process.env.CYPRESS_AUTH_PASSWORD,
     },
+    testIsolation: true
   },
 });
 
