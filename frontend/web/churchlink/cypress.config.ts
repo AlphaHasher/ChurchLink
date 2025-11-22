@@ -10,7 +10,6 @@ export default defineConfig({
     screenshotOnRunFailure: true,
     viewportWidth: 1280, // Set viewport to "lg" breakpoint for Tailwind (1024px+)
     viewportHeight: 720,
-    testIsolation: true,
     env: {
       USER_EMAIL: process.env.CYPRESS_USER_EMAIL,
       ADMIN_EMAIL: process.env.CYPRESS_ADMIN_EMAIL,

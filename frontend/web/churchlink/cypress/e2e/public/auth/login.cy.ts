@@ -12,8 +12,12 @@ if (!AUTH_PASSWORD) {
     );
 }
 
+
 describe('Login page', () => {
     beforeEach(() => {
+        cy.session('user-logout', () => {
+            cy.logout(); // your custom command from commands.js
+        });
         // Hit login with a redirectTo so we can assert redirect behavior later
         cy.visit(`${LOGIN_PATH}?redirectTo=${encodeURIComponent(REDIRECT_AFTER_LOGIN)}`);
     });
