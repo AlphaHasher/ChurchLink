@@ -124,7 +124,7 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
 
     const sendDisabled = cooldown > 0;
     const sendLabel = sendDisabled
-        ? `${localize('Seconds left until you may re-send:')} ${cooldown}`
+        ? `${localize("Seconds left until you may re-send:")} ${cooldown}`
         : hasSent
             ? localize("Re-send verification email")
             : localize("Send verification email");
@@ -133,7 +133,10 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
         <Dialog open onOpenChange={() => { }}>
             <DialogContent
                 className={[
-                    "sm:max-w-sm",
+                    "w-full",
+                    "max-w-[100vw]",
+                    "sm:max-w-3xl",
+                    "overflow-x-auto",
                     "py-8",
                     "text-center",
                     className || "",
@@ -143,10 +146,15 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
                 onInteractOutside={(e) => e.preventDefault()}
             >
                 <DialogHeader className="text-center">
-                    <DialogTitle className="text-xl">{localize("Verify your email")}</DialogTitle>
+                    <DialogTitle className="text-xl">
+                        {localize("Verify your email")}
+                    </DialogTitle>
                     <DialogDescription className="mt-1 leading-relaxed">
                         {localize("Please verify your email:")}{" "}
-                        <span className="font-medium">{email || "(unknown)"}</span> {localize("to continue. You may need to check your spam folder if you cannot find the verification email.")}
+                        <span className="font-medium">{email || "(unknown)"}</span>{" "}
+                        {localize(
+                            "to continue. You may need to check your spam folder if you cannot find the verification email."
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -159,7 +167,16 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
                         type="button"
                         onClick={handleSend}
                         disabled={sendDisabled}
-                        className="w-64 bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                        className={[
+                            "max-w-full",
+                            "whitespace-normal",
+                            "break-words",
+                            "text-center",
+                            "bg-green-600",
+                            "text-white",
+                            "hover:bg-green-700",
+                            "disabled:opacity-50",
+                        ].join(" ")}
                     >
                         {localize(sendLabel)}
                     </Button>
@@ -168,7 +185,12 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
                         type="button"
                         variant="secondary"
                         onClick={handleLogout}
-                        className="w-64"
+                        className={[
+                            "max-w-full",
+                            "whitespace-normal",
+                            "break-words",
+                            "text-center",
+                        ].join(" ")}
                     >
                         {localize("Logout")}
                     </Button>
