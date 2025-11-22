@@ -4,7 +4,6 @@
 // Constants / env helpers
 // -----------------------------------------------------------------------------
 
-const LOGIN_PATH = '/auth/login';
 const DEFAULT_REDIRECT_AFTER_LOGIN = '/';
 
 function getCreds(envKey) {
