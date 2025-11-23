@@ -16,25 +16,3 @@
 // Import commands.js using ES2015 syntax:
 import './commands'
 import '@testing-library/cypress/add-commands';
-
-beforeEach(() => {
-  cy.clearCookies();
-  cy.clearLocalStorage();
-
-  cy.window({ log: false }).then((win) => {
-    try {
-      win.sessionStorage.clear();
-    } catch {}
-
-    // Brute-force: delete all IndexedDB databases for this origin
-    if (win.indexedDB && "databases" in win.indexedDB) {
-      return (win.indexedDB as any).databases().then((dbs: any[]) => {
-        dbs.forEach((db) => {
-          if (db.name) {
-            win.indexedDB.deleteDatabase(db.name);
-          }
-        });
-      });
-    }
-  });
-});
