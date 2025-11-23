@@ -1,3 +1,5 @@
+#tested 1 error on nov 22
+
 import os
 import httpx
 import pytest

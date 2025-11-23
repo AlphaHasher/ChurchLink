@@ -1,3 +1,6 @@
+# The sermon creation fallback feature seems to fail, and the
+# test just skips over test_get_sermon_detail and test_favorite_endpoints. 
+
 import os
 import httpx
 import pytest

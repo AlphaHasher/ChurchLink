@@ -1,3 +1,5 @@
+#tested 10 warnings, 9 errors on nov 22
+
 """
 Test cases for Website Configuration API endpoints
 """
