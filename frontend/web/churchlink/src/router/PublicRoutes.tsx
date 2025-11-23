@@ -2,6 +2,7 @@ import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import Layout from "../shared/layouts/Layout";
 import DynamicPage from "../shared/components/DynamicPage";
+import LegalPage from "@/helpers/LegalPageHelper";
 
 const Streams = lazy(() => import("../features/misc/pages/Streams"));
 const PaypalThankYouPage = lazy(() => import("../features/paypal/pages/thank-you"));
@@ -13,7 +14,6 @@ const FormPaymentCancelPage = lazy(() => import("../features/forms/pages/FormPay
 const SharableEvent = lazy(() => import("../features/eventsV2/pages/SharableEvent"));
 const EventPaymentSuccessPageV2 = lazy(() => import("../features/eventsV2/pages/PaymentSuccessPageV2"));
 const EventPaymentCancelPageV2 = lazy(() => import("../features/eventsV2/pages/PaymentCancelPageV2"));
-
 const Events = lazy(() => import("../features/admin/components/WebBuilder/sections/EventSection"));
 
 const OnetimeDonationSuccess = lazy(() => import("../features/donations/OneTimeDonationSuccess"));
@@ -48,6 +48,10 @@ export const PublicRoutes = () => {
         <Route path="donations/subscription/success" element={<DonationSubscriptionSuccess />} />
         <Route path="donations/one-time/cancel" element={<OneTimeDonationCancel />} />
         <Route path="donations/subscription/cancel" element={<DonationSubscriptionCancel />} />
+
+        <Route path="/legal/terms" element={<LegalPage slug="terms" />} />
+        <Route path="/legal/privacy" element={<LegalPage slug="privacy" />} />
+        <Route path="/legal/refunds" element={<LegalPage slug="refunds" />} />
 
         <Route path="sermons" element={<SermonsPage />} />
         <Route path="weekly-bulletin" element={<BulletinsPage />} />
