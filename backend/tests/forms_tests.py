@@ -392,7 +392,7 @@ async def test_submit_response_form_not_found_with_auth(async_client, admin_head
         json={"email": "missing@example.com"},
         headers=admin_headers,
     )
-    assert response.status_code in {400, 404}
+    assert response.status_code == 404
     assert response.json().get("detail") == "Form not found"
 
 
