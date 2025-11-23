@@ -167,24 +167,9 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
               getAllReq.onsuccess = () => {
                 const records = getAllReq.result || [];
 
-                for (const rec of records) {
-                  // Typical shape: { fbase_key: "firebase:authUser:...", value: "{\"uid\":...,\"email\":...}" }
-                  let raw =
-                    (rec && typeof rec.value === 'string' && rec.value) ||
-                    (typeof rec === 'string' ? rec : null);
-
-                  if (!raw) continue;
-
-                  try {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && parsed.email) {
-                      resolved = true;
-                      resolve(parsed.email);
-                      return;
-                    }
-                  } catch {
-                    // ignore bad JSON
-                  }
+                const emailToCheck = records[0].value['email'];
+                if (emailToCheck === email) {
+                  resolve(emailToCheck);
                 }
 
                 if (!resolved) resolve(null);
@@ -199,8 +184,11 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
       });
     })
     .then((currentEmail) => {
+      console.log("CURRENT EMAIL IS");
+      console.log(currentEmail);
       // If we're already logged in as the correct user, skip logout + login
       if (currentEmail === email) {
+        console.log("SKIPPING!");
         cy.log(`Already logged in as ${email}, skipping login flow`);
 
         // Just make sure we're on the right page
@@ -213,14 +201,18 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
         return;
       }
 
-      return;
-
       // Not logged in, or wrong user: do the full logout + login
 
       // Make sure we start from a logged-out Firebase state
-      cy.logout();
+      if (currentEmail !== null) {
+        cy.logout();
+      }
 
-      // Navigate the same way your login spec does
+      if (cy.url() !== LOGIN_PATH) {
+        return;
+      }
+
+      // Navigate the same way login spec does
       cy.visit(`${LOGIN_PATH}?redirectTo=${encodeURIComponent(redirectTo)}`);
 
       cy.get('input[placeholder="Enter email address"]').clear().type(email);

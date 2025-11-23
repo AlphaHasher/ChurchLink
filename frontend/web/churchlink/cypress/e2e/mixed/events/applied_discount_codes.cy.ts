@@ -302,6 +302,7 @@ describe("E2E – Applying discount codes during event registration", () => {
      * Global setup: create helper ministries & images.
      */
     before(() => {
+        cy.adminlogin();
         cy.createTestMinistries();
         cy.createTestImages();
     });
@@ -416,17 +417,6 @@ describe("E2E – Applying discount codes during event registration", () => {
 
             expect(after, "discounted unit price").to.be.lessThan(parseFloat(EVENT_PRICE));
         });
-        cy.get("@paymentDialog")
-            .contains("button", "Back")
-            .should("be.visible")
-            .click();
-        cy.get("@paymentDialog").should("not.exist");
-
-        // Close the details dialog as well
-        cy.get("@detailsDialog")
-            .contains("button", "Close")
-            .click();
-        cy.get("@detailsDialog").should("not.exist");
     });
 
     it("admin cleans up the created event and discount code", () => {

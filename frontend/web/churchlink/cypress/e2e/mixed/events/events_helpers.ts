@@ -419,3 +419,102 @@ export const openDeleteDialogForEvent = (title: string) => {
         .parent() // DialogContent
         .as("deleteDialog");
 };
+
+export const USER_EVENTS_URL = "/events";
+
+/**
+ * Navigate to the public /events page while logged in as an admin.
+ */
+export const visitUserEventsAsAdmin = () => {
+    cy.adminlogin();
+    cy.visit(USER_EVENTS_URL);
+
+    cy.contains("h2", "Upcoming Events", { timeout: 30000 }).should("be.visible");
+};
+
+/**
+ * On the /events page, find the card for a given event title and
+ * return a chainable subject scoped to that card.
+ *
+ * Uses the same structure as the EventListTile card: full-height flex column.
+ */
+export const getUserEventCard = (title: string) => {
+    return cy
+        .contains(title, { timeout: 30000 })
+        .parents()
+        .filter("div.h-full.flex.flex-col")
+        .first();
+};
+
+/**
+ * From the admin Events V2 grid, click the "View event instances" action
+ * for the event row with the given title, and wait for the instances page.
+ */
+export const openInstancesPageForEvent = (title: string) => {
+    searchEventByTitle(title);
+
+    getEventRowIdByTitle(title).then((rowId) => {
+        const id = (rowId || "").toString();
+        if (!id) {
+            throw new Error(
+                "Could not determine row-id for event when opening instances: " + title,
+            );
+        }
+
+        cy.get(`.ag-pinned-right-cols-container .ag-row[row-id="${id}"]`)
+            .should("exist")
+            .within(() => {
+                cy.get(
+                    'button[aria-label="View event instances"][title="View event instances"]',
+                ).click();
+            });
+    });
+
+    // EventInstances.tsx title is "Event Instances for Event – <title>"
+    cy.contains("h1", "Event Instances for Event", { timeout: 15000 }).should(
+        "be.visible",
+    );
+};
+
+/**
+ * Given a series index, find the AG Grid row-id for that instance.
+ */
+export const getInstanceRowIdBySeriesIndex = (
+    seriesIndex: number | string,
+) => {
+    const value = String(seriesIndex);
+
+    return cy
+        .contains('.ag-center-cols-container .ag-cell[col-id="series_index"]', value, {
+            timeout: 20000,
+        })
+        .closest(".ag-row")
+        .invoke("attr", "row-id");
+};
+
+/**
+ * Open the Edit Event Instance dialog for a given 0-based row index
+ * in the EventInstancesTable. Assumes the grid is sorted by series index asc.
+ */
+export const openEditInstanceDialogForRowIndex = (rowIndex: number) => {
+    cy.get(".ag-pinned-right-cols-container .ag-row", { timeout: 15000 })
+        .eq(rowIndex)
+        .within(() => {
+            cy.get('button[title="Edit instance"]').click();
+        });
+};
+
+/**
+ * From the Event Instances page, click the first "View Instance Details"
+ * action button in the grid and wait for the Instance Details view.
+ */
+export const openFirstInstanceDetails = () => {
+    cy.get('button[aria-label="View Instance Details"]', { timeout: 15000 })
+        .first()
+        .click();
+
+    // Breadcrumb crumb in EventInstanceDetails
+    cy.contains("span", "Instance Details", { timeout: 15000 }).should(
+        "be.visible",
+    );
+};

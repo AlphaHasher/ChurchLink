@@ -9,6 +9,7 @@ describe("Admin / Events V2", () => {
      * that the tests will reference.
      */
     before(() => {
+        cy.adminlogin();
         cy.createTestMinistries();
         cy.createTestImages();
     });
