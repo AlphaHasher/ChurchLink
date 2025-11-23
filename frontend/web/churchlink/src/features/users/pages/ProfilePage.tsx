@@ -29,6 +29,8 @@ import MyEventsPageV2 from "@/features/eventsV2/pages/MyEventsPageV2";
 
 import ChangeEmailDialog from "@/features/users/components/Profile/ChangeEmailDialog";
 import ChangePasswordDialog from "@/features/users/components/Profile/ChangePasswordDialog";
+import { Button } from "@/shared/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter} from "@/shared/components/ui/Dialog";
 
 const toGender = (g?: string | null): Gender => (g === "M" || g === "F" ? g : "");
 
@@ -71,7 +73,7 @@ const ProfilePage: React.FC = () => {
     const [dialogOpen, setDialogOpen] = React.useState(false);
     const [dialogResubmission, setDialogResubmission] = React.useState(false);
     const [dialogDetails, setDialogDetails] = React.useState<MembershipDetails | null>(null);
-
+    const [legalDialogOpen, setLegalDialogOpen] = React.useState(false);
     const [refreshKey, setRefreshKey] = React.useState(0);
     const refreshCard = () => setRefreshKey((k) => k + 1);
 
@@ -212,6 +214,70 @@ const ProfilePage: React.FC = () => {
                             />
                             <PersonRail className="lg:ml-6" people={members} />
                         </motion.div>
+                        <motion.div
+                            className="mt-4 flex w-full justify-center"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                            >
+                            <Button
+                                variant="outline"
+                                className="rounded-full"
+                                onClick={() => setLegalDialogOpen(true)}
+                            >
+                                Terms & Conditions
+                            </Button>
+                            </motion.div>
+
+                            {/* Legal document picker */}
+                            <Dialog open={legalDialogOpen} onOpenChange={setLegalDialogOpen}>
+                            <DialogContent>
+                                <DialogHeader>
+                                <DialogTitle>Select a document to view</DialogTitle>
+                                </DialogHeader>
+
+                                <div className="grid gap-2">
+                                <Button
+                                    variant="ghost"
+                                    className="justify-start"
+                                    onClick={() => {
+                                    setLegalDialogOpen(false);
+                                    navigate("/legal/terms");
+                                    }}
+                                >
+                                    Terms &amp; Conditions
+                                </Button>
+
+                                <Button
+                                    variant="ghost"
+                                    className="justify-start"
+                                    onClick={() => {
+                                    setLegalDialogOpen(false);
+                                    navigate("/legal/privacy");
+                                    }}
+                                >
+                                    Privacy Policy
+                                </Button>
+
+                                <Button
+                                    variant="ghost"
+                                    className="justify-start"
+                                    onClick={() => {
+                                    setLegalDialogOpen(false);
+                                    navigate("/legal/refunds");
+                                    }}
+                                >
+                                    Refund Policy
+                                </Button>
+                                </div>
+
+                                <DialogFooter>
+                                <Button variant="secondary" onClick={() => setLegalDialogOpen(false)}>
+                                    Close
+                                </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                            </Dialog>
                         <motion.div
                             className="mt-6 w-full"
                             initial={{ opacity: 0, y: 20 }}
