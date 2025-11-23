@@ -269,6 +269,7 @@ const renderNode = (
         ...(elementFontFamily ? { fontFamily: elementFontFamily } : {}),
         ...(isUnderline && underlineThickness ? { textDecorationThickness: `${underlineThickness * gridScale}px` } : {}),
         ...(color ? { color } : {}),
+        whiteSpace: 'pre-line',
       };
 
       const nodeClassName = nodeStyleRaw?.className;
@@ -319,6 +320,7 @@ const renderNode = (
           ? localizeFn(String(baseAlt))
           : String(baseAlt));
       const objectFit = (node as any).props?.objectFit || 'cover';
+      const styleFilter = (nodeStyleRaw as any)?.filter as string | undefined;
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
@@ -348,7 +350,7 @@ const renderNode = (
               src={getPublicUrl(src)}
               alt={alt}
               draggable={false}
-              style={{ width: '100%', height: '100%', objectFit }}
+              style={{ width: '100%', height: '100%', objectFit, filter: styleFilter }}
               onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
             />
           </div>
@@ -379,6 +381,7 @@ const renderNode = (
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+        ...(nodeStyleRaw?.color ? { color: nodeStyleRaw.color } : {}),
         fontSize: `${fontSizeRemBtn * 16 * gridScaleBtn}px`,
         display: 'flex',
         alignItems: 'center',
@@ -914,6 +917,16 @@ const SectionWithVirtualGrid: React.FC<{
     const locked = section.lockLayout === true;
     const rootContainerNode = (section.children || []).find((n) => n.type === 'container') || null;
     const rootContainerId = rootContainerNode?.id;
+    const baseBgStyle = (section.background?.style as React.CSSProperties) || {};
+    const brightnessVar = (baseBgStyle as any)['--bg-brightness'];
+    const bgImage = (baseBgStyle as any).backgroundImage as string | undefined;
+    // Build style for section WITHOUT brightness filter so children unaffected
+    const sectionStyle: React.CSSProperties = { ...baseBgStyle };
+    delete (sectionStyle as any)['--bg-brightness'];
+    if (bgImage && brightnessVar && String(brightnessVar) !== '100') {
+      // Remove image from base so we can render it in overlay with brightness filter
+      delete (sectionStyle as any).backgroundImage;
+    }
 
     return (
       <section
@@ -923,13 +936,27 @@ const SectionWithVirtualGrid: React.FC<{
           sectionFontFamily && '[&>*]:font-[inherit] [&>*_*]:font-[inherit]'
         )}
         style={{
-          ...(section.background?.style as React.CSSProperties),
+          ...sectionStyle,
           ...(sectionFontFamily ? { fontFamily: sectionFontFamily } : {}),
           ...(locked
             ? {}
             : { height: transform ? (transform.rows * transform.cellPx) : `${(section.heightPercent ?? 100)}vh` }),
         }}
       >
+        {bgImage && brightnessVar && String(brightnessVar) !== '100' && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: bgImage,
+              backgroundSize: (baseBgStyle as any).backgroundSize,
+              backgroundPosition: (baseBgStyle as any).backgroundPosition,
+              backgroundRepeat: (baseBgStyle as any).backgroundRepeat,
+              filter: `brightness(${brightnessVar}%)`,
+              zIndex: 0,
+            }}
+          />
+        )}
         {gridEnabled && transform && (
           <div className="pointer-events-none absolute inset-0">
             <GridOverlay

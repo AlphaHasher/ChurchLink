@@ -637,6 +637,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                                         .slice(0, 5)
                                                                     : "09:00"
                                                             }
+                                                            onClick={(e) => {
+                                                                e.currentTarget.focus();
+                                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                                            }}
                                                             onChange={(e) => {
                                                                 const [hh, mm] = e.target.value
                                                                     .split(":")
@@ -699,6 +703,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                                     ? new Date(draft.end_date).toTimeString().slice(0, 5)
                                                                     : "17:00"
                                                             }
+                                                            onClick={(e) => {
+                                                                e.currentTarget.focus();
+                                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                                            }}
                                                             onChange={(e) => {
                                                                 const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
                                                                 const base = draft.end_date
@@ -878,6 +886,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                                         .slice(0, 5)
                                                                     : "09:00"
                                                             }
+                                                            onClick={(e) => {
+                                                                e.currentTarget.focus();
+                                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                                            }}
                                                             onChange={(e) => {
                                                                 const [hh, mm] = e.target.value
                                                                     .split(":")
@@ -957,6 +969,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                                         .slice(0, 5)
                                                                     : "17:00"
                                                             }
+                                                            onClick={(e) => {
+                                                                e.currentTarget.focus();
+                                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                                            }}
                                                             onChange={(e) => {
                                                                 const [hh, mm] = e.target.value
                                                                     .split(":")
@@ -1038,6 +1054,10 @@ export default function EditEventInstanceDialog({ instance, onSaved }: Props) {
                                                                         .slice(0, 5)
                                                                     : "17:00"
                                                             }
+                                                            onClick={(e) => {
+                                                                e.currentTarget.focus();
+                                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                                            }}
                                                             onChange={(e) => {
                                                                 const [hh, mm] = e.target.value
                                                                     .split(":")

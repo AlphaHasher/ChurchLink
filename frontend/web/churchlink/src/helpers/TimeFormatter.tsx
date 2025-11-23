@@ -386,6 +386,19 @@ export function convertTransactionSummaryToUserTime<T extends {
 }
 export { convertTransactionSummaryToUserTime as convertMinistryToUserTime };
 
+export function convertMembershipRequestToUserTime<T extends {
+    created_on?: MaybeISO;
+    responded_to?: MaybeISO
+}>(sums: T[]): T[] {
+    return sums.map((e) => {
+        return {
+            ...e,
+            created_on: toZonedISOString(e.created_on) as string,
+            responded_to: toZonedISOString(e.responded_to) as string,
+        };
+    });
+}
+
 
 export function convertFormResponsesToUserTime<T extends {
     submitted_at?: MaybeISO;
