@@ -225,7 +225,7 @@ const ProfilePage: React.FC = () => {
                                 className="rounded-full"
                                 onClick={() => setLegalDialogOpen(true)}
                             >
-                                Terms & Conditions
+                                {localize("Terms & Conditions")}
                             </Button>
                             </motion.div>
 
@@ -233,7 +233,7 @@ const ProfilePage: React.FC = () => {
                             <Dialog open={legalDialogOpen} onOpenChange={setLegalDialogOpen}>
                             <DialogContent>
                                 <DialogHeader>
-                                <DialogTitle>Select a document to view</DialogTitle>
+                                <DialogTitle>{localize("Select a document to view")}</DialogTitle>
                                 </DialogHeader>
 
                                 <div className="grid gap-2">
@@ -245,7 +245,7 @@ const ProfilePage: React.FC = () => {
                                     navigate("/legal/terms");
                                     }}
                                 >
-                                    Terms &amp; Conditions
+                                    {localize("Terms")} &amp; {localize("Conditions")}
                                 </Button>
 
                                 <Button
@@ -256,7 +256,7 @@ const ProfilePage: React.FC = () => {
                                     navigate("/legal/privacy");
                                     }}
                                 >
-                                    Privacy Policy
+                                    {localize("Privacy Policy")}
                                 </Button>
 
                                 <Button
@@ -267,13 +267,13 @@ const ProfilePage: React.FC = () => {
                                     navigate("/legal/refunds");
                                     }}
                                 >
-                                    Refund Policy
+                                    {localize("Refund Policy")}
                                 </Button>
                                 </div>
 
                                 <DialogFooter>
                                 <Button variant="secondary" onClick={() => setLegalDialogOpen(false)}>
-                                    Close
+                                    {localize("Close")}
                                 </Button>
                                 </DialogFooter>
                             </DialogContent>
