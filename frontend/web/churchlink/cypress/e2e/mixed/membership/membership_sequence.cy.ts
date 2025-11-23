@@ -6,7 +6,7 @@ const MEMBERSHIP_USER_URL = "/profile/membership";
 const MEMBERSHIP_ADMIN_URL = "/admin/users/membership-requests";
 
 // This should match the normal (non-admin) user's email the tests log in as.
-const MEMBER_EMAIL = "noadmin@testing.com";
+const MEMBER_EMAIL = "admin@testing.com";
 
 const MEMBERSHIP_CARD_BUTTON_LABELS = [
     "Request Membership",
