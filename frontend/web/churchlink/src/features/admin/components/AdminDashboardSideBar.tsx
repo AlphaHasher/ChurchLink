@@ -203,8 +203,14 @@ const AdminDashboardSideBar = () => {
     }));
 
   return (
-    <Sidebar collapsible="icon" autoCollapse={false} hoverable={false} className="border-r">
-      <SidebarContent>
+    <Sidebar 
+      collapsible="icon" 
+      autoCollapse={false} 
+      hoverable={false} 
+      className="border-r"
+      data-testid="admin-dashboard-sidebar"
+    >
+      <SidebarContent data-testid="admin-dashboard-sidebar-content">
         <SidebarGroup>
           <SidebarGroupLabel>Admin</SidebarGroupLabel>
           <SidebarGroupContent>

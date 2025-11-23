@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------------
 
 const DEFAULT_REDIRECT_AFTER_LOGIN = '/';
+const LOGIN_PATH = '/auth/login';
 
 function getCreds(envKey) {
   const email =
@@ -164,3 +165,126 @@ Cypress.Commands.add('adminlogin', () => {
   // admin user login using ADMIN_EMAIL
   doLogin({ envKey: 'ADMIN_EMAIL', redirectTo: DEFAULT_REDIRECT_AFTER_LOGIN });
 });
+
+// -----------------------------------------------------------------------------
+// Test data helpers: ministries
+// -----------------------------------------------------------------------------
+
+const TEST_MINISTRIES = ['Youth Ministry', 'Bible Studies', 'Community Outreach'];
+
+Cypress.Commands.add('createTestMinistries', () => {
+  cy.adminlogin();
+  cy.visit('/admin/ministries');
+
+  TEST_MINISTRIES.forEach((name) => {
+    cy.contains('button', 'Add ministry').click();
+
+    cy.get('[role="dialog"]')
+      .should('be.visible')
+      .within(() => {
+        cy.contains('Create ministry').should('be.visible');
+        cy.get('input[placeholder="Ministry name"]').clear().type(name);
+        cy.contains('button', 'Create').click();
+      });
+
+    cy.get('[role="dialog"]').should('not.exist');
+
+    // Expect the success status + the row to appear
+    cy.contains('Success').should('be.visible');
+    cy.contains('.ag-cell[col-id="name"]', name, { timeout: 10000 }).should(
+      'be.visible',
+    );
+  });
+});
+
+Cypress.Commands.add('deleteTestMinistries', () => {
+  cy.adminlogin();
+  cy.visit('/admin/ministries');
+
+  TEST_MINISTRIES.forEach((name) => {
+    // Filter by ministry name (debounced search)
+    cy.get('input[placeholder="Search ministries..."]').clear().type(name);
+    cy.wait(1000);
+
+    // If no row with that exact name exists, skip
+    cy.get('body').then(($body) => {
+      const cell = $body
+        .find('.ag-cell[col-id="name"]')
+        .filter((_, el) => {
+          const text = (el.textContent || '').trim();
+          return text === name;
+        })
+        .first();
+
+      if (!cell.length) {
+        return;
+      }
+
+      // Delete via the pinned-right actions column
+      cy.get('.ag-pinned-right-cols-container .ag-row')
+        .first()
+        .within(() => {
+          cy.get('button[aria-label="Delete Ministry"]').click();
+        });
+
+      cy.contains('Delete ministry')
+        .should('be.visible')
+        .parent()
+        .parent()
+        .within(() => {
+          cy.contains('button', 'Delete').click();
+        });
+
+      cy.contains('Delete ministry').should('not.exist');
+      cy.contains('.ag-cell[col-id="name"]', name).should('not.exist');
+    });
+
+    // Clear the search box before the next name
+    cy.get('input[placeholder="Search ministries..."]').clear();
+  });
+});
+
+// -----------------------------------------------------------------------------
+// Test data helpers: media images
+// -----------------------------------------------------------------------------
+
+const TEST_IMAGES = ['wolf.jpg', 'octopus.avif', 'orangutan.jpg'];
+
+Cypress.Commands.add('createTestImages', () => {
+  cy.adminlogin();
+  cy.visit('/admin/media-library');
+
+  TEST_IMAGES.forEach((filename) => {
+    cy.get('input[type="file"][multiple][accept="image/*"]')
+      .should('exist')
+      .selectFile(`cypress/fixtures/media/${filename}`, { force: true });
+
+    cy.contains('div', filename, { timeout: 15000 }).should('be.visible');
+  });
+});
+
+Cypress.Commands.add('deleteTestImages', () => {
+  cy.adminlogin();
+  cy.visit('/admin/media-library');
+
+  TEST_IMAGES.forEach((filename) => {
+    // Tile must exist; if you want this to be fully idempotent, you can wrap
+    // this in a body-check similar to deleteTestMinistries.
+    cy.contains('div', filename, { timeout: 10000 }).rightclick();
+
+    cy.contains('button', 'Delete Image').click();
+
+    cy.contains('Delete image')
+      .should('be.visible')
+      .parent()
+      .parent()
+      .within(() => {
+        cy.contains('Are you sure you want to delete').should('be.visible');
+        cy.contains('button', 'Delete').click();
+      });
+
+    cy.contains('Delete image').should('not.exist');
+    cy.contains('div', filename).should('not.exist');
+  });
+});
+
