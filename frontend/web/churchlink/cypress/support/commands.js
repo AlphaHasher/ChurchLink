@@ -167,7 +167,6 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
               getAllReq.onsuccess = () => {
                 const records = getAllReq.result || [];
 
-                console.log("BEEP");
                 if (records.length > 0) {
                   const emailToCheck = records[0].value['email'];
                   resolve(emailToCheck);
