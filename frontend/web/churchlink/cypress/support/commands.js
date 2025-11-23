@@ -167,11 +167,13 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
               getAllReq.onsuccess = () => {
                 const records = getAllReq.result || [];
 
-                const emailToCheck = records[0].value['email'];
-                if (emailToCheck === email) {
-                  resolve(emailToCheck);
-                }
 
+                if (records.length > 0) {
+                  const emailToCheck = records[0].value['email'];
+                  if (emailToCheck === email) {
+                    resolve(emailToCheck);
+                  }
+                }
                 if (!resolved) resolve(null);
               };
             } catch {
