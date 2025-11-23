@@ -16,6 +16,7 @@ import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/events/myevents.dart';
 import 'package:app/theme/theme_controller.dart';
+import 'package:app/pages/user/legal_terms.dart';
 
 import 'package:app/widgets/change_email_sheet.dart';
 import 'package:app/helpers/localization_helper.dart';
@@ -680,7 +681,52 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Show Terms and Policies popup
   void _showTermsAndPolicies(BuildContext context) {
-    showDialog(context: context, builder: (context) => const _TermsDialog());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('View Legal Documents'),
+        content: const Text('Select which document you’d like to view:'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalPageScreen(slug: 'terms'),
+                ),
+              );
+            },
+            child: const Text('Terms & Conditions'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalPageScreen(slug: 'privacy'),
+                ),
+              );
+            },
+            child: const Text('Privacy Policy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalPageScreen(slug: 'refunds'),
+                ),
+              );
+            },
+            child: const Text('Refund Policy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
