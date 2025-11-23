@@ -1,15 +1,12 @@
 import 'package:app/models/sermon_filter.dart';
+import 'package:app/models/ministry.dart';
+import 'package:app/services/ministry_service.dart';
 import 'package:flutter/material.dart';
 
 class SermonFilterSheet extends StatefulWidget {
-  const SermonFilterSheet({
-    super.key,
-    required this.initialFilter,
-    this.availableMinistries = const [],
-  });
+  const SermonFilterSheet({super.key, required this.initialFilter});
 
   final SermonFilter initialFilter;
-  final List<String> availableMinistries;
 
   @override
   State<SermonFilterSheet> createState() => _SermonFilterSheetState();
@@ -22,6 +19,8 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
   bool _favoritesOnly = false;
   DateTime? _dateAfter;
   DateTime? _dateBefore;
+  List<Ministry> _ministries = [];
+  bool _isLoadingMinistries = false;
 
   @override
   void initState() {
@@ -29,10 +28,29 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
     final filter = widget.initialFilter;
     _searchController = TextEditingController(text: filter.query ?? '');
     _speakerController = TextEditingController(text: filter.speaker ?? '');
-    _ministry = filter.ministry;
+    _ministry = filter.ministry_id;
     _favoritesOnly = filter.favoritesOnly;
     _dateAfter = filter.dateAfter;
     _dateBefore = filter.dateBefore;
+    _loadMinistries();
+  }
+
+  Future<void> _loadMinistries() async {
+    setState(() => _isLoadingMinistries = true);
+    try {
+      final ministries = await MinistryService.getAllMinistries();
+      if (mounted) {
+        setState(() {
+          _ministries = ministries;
+        });
+      }
+    } catch (e) {
+      print('Error loading ministries: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMinistries = false);
+      }
+    }
   }
 
   @override
@@ -88,19 +106,30 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
               initialValue: _ministry?.isNotEmpty == true ? _ministry : null,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Ministry',
-                prefixIcon: Icon(Icons.church),
+                prefixIcon: const Icon(Icons.church),
+                suffixIcon:
+                    _isLoadingMinistries
+                        ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                        : null,
               ),
               items: <DropdownMenuItem<String?>>[
                 const DropdownMenuItem<String?>(
                   value: null,
                   child: Text('All ministries'),
                 ),
-                ...widget.availableMinistries.map(
+                ..._ministries.map(
                   (ministry) => DropdownMenuItem<String?>(
-                    value: ministry,
-                    child: Text(ministry),
+                    value: ministry.id, // Use ministry ID instead of name
+                    child: Text(ministry.name), // Display ministry name
                   ),
                 ),
               ],
@@ -159,9 +188,14 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.of(
-                        context,
-                      ).pop(const SermonFilter(limit: 50, skip: 0));
+                      // Reset filter to default and close sheet - this triggers immediate refresh
+                      Navigator.of(context).pop(
+                        const SermonFilter(
+                          limit: 50,
+                          skip: 0,
+                          // All other fields default to null/empty
+                        ),
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -208,7 +242,7 @@ class _SermonFilterSheetState extends State<SermonFilterSheet> {
           _speakerController.text.trim().isNotEmpty
               ? _speakerController.text.trim()
               : null,
-      ministry: _ministry?.isNotEmpty == true ? _ministry : null,
+      ministry_id: _ministry?.isNotEmpty == true ? _ministry : null,
       dateAfter: _dateAfter,
       dateBefore: _dateBefore,
       favoritesOnly: _favoritesOnly,

@@ -15,7 +15,8 @@ export type ChurchBulletin = {
     published: boolean;
     order: number;  // Display order for drag-and-drop reordering
     roles?: string[];
-    ministries: string[];
+    ministries: string[];  // Array of ObjectId strings
+    ministry_refs?: Array<{id: string; name: string}>;  // Hydrated ministry objects from backend
     attachments: AttachmentItem[];
     // Image fields for media library integration
     image_id?: string | null;        // 24-char MongoDB ObjectId from media library
@@ -52,7 +53,7 @@ export type BulletinFeedOut = {
 export type BulletinFilter = {
     skip?: number;
     limit?: number;
-    ministry?: string;
+    ministry_id?: string;  // ObjectId string for filtering
     week_start?: string; // Used for services filtering only (services use week-based display_week)
     week_end?: string; // Used for services filtering only (services use week-based display_week)
     published?: boolean;

@@ -3,7 +3,8 @@ export type ChurchSermon = {
     title: string;
     description: string;
     speaker: string;
-    ministry: string[];
+    ministry: string[];  // Array of ObjectId strings
+    ministry_refs?: Array<{id: string; name: string}>;  // Hydrated ministry objects from backend
     youtube_url: string;
     date_posted: Date;
     published: boolean;
@@ -20,7 +21,7 @@ export type ChurchSermon = {
 export type SermonFilter = {
     skip?: number;
     limit?: number;
-    ministry?: string;
+    ministry_id?: string;  // ObjectId string for filtering
     speaker?: string;
     tags?: string[];
     date_after?: string;

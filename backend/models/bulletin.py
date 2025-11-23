@@ -12,7 +12,7 @@ from helpers.timezone_utils import (
     normalize_to_local_midnight,
     strip_timezone_for_mongo,
 )
-from models.ministry import validate_ministry_ids
+from models.ministry import validate_ministry_ids, get_ministry_refs_from_ids
 from mongo.database import DB
 from pydantic import BaseModel, Field, HttpUrl
 from pymongo.errors import DuplicateKeyError
@@ -33,7 +33,7 @@ class BulletinBase(BaseModel):
     published: bool
     order: int = 0  # Display order for drag-and-drop reordering
     roles: List[str] = Field(default_factory=list)
-    ministries: List[str] = Field(default_factory=list)
+    ministries: List[str] = Field(default_factory=list)  # Stores ObjectId strings
     attachments: List[AttachmentItem] = Field(default_factory=list)
 
     # Media library integration
@@ -54,7 +54,7 @@ class BulletinUpdate(BaseModel):
     published: Optional[bool] = None
     order: Optional[int] = None
     roles: Optional[List[str]] = None
-    ministries: Optional[List[str]] = None
+    ministries: Optional[List[str]] = None  # Stores ObjectId strings
     attachments: Optional[List[AttachmentItem]] = None
     image_id: Optional[str] = None
 
@@ -66,6 +66,7 @@ class BulletinOut(BulletinBase):
     # Computed fields for image URLs
     image_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
+    ministry_refs: Optional[List[dict]] = Field(default=None)
 
 
 class BulletinFeedOut(BaseModel):
@@ -132,6 +133,11 @@ async def _fetch_bulletin_document(filter_query: dict) -> Optional[BulletinOut]:
     image_url, thumbnail_url = _build_image_urls(serialized.get("image_id"))
     serialized["image_url"] = image_url
     serialized["thumbnail_url"] = thumbnail_url
+    
+    # Hydrate ministry_refs from ministry IDs
+    ministry_ids = serialized.get("ministries", [])
+    ministry_refs = await get_ministry_refs_from_ids(ministry_ids)
+    serialized["ministry_refs"] = ministry_refs
 
     return BulletinOut(**serialized)
 
@@ -375,7 +381,7 @@ async def list_bulletins(
     *,
     skip: int = 0,
     limit: int = 100,
-    ministry: Optional[str] = None,
+    ministry_id: Optional[str] = None,
     query_text: Optional[str] = None,
     week_start: Optional[datetime] = None,
     week_end: Optional[datetime] = None,
@@ -394,13 +400,17 @@ async def list_bulletins(
     """
     query: dict = {}
 
-    # Add text search if query_text is provided
+    # Add regex-based partial search if query_text is provided (allows "a" to match "abc")
     if query_text:
-        query["$text"] = {"$search": query_text}
+        import re
+        escaped_query = re.escape(query_text)
+        query["$or"] = [
+            {"headline": {"$regex": escaped_query, "$options": "i"}},
+            {"body": {"$regex": escaped_query, "$options": "i"}},
+        ]
 
-    # Ministry filtering: ministries are stored as ObjectId strings
-    if ministry:
-        query["ministries"] = {"$in": [ministry]}
+    if ministry_id:
+        query["ministries"] = {"$in": [ministry_id]}
     if published is not None:
         query["published"] = published
     if upcoming_only:
@@ -443,11 +453,9 @@ async def list_bulletins(
     if DB.db is None:
         return []
 
-    # Sort by text score if searching, otherwise by order ascending (drag-and-drop order)
+    # Sort by publish_date descending if searching, otherwise by order ascending (drag-and-drop order)
     if query_text:
-        cursor = (
-            DB.db["bulletins"].find(query).sort([("score", {"$meta": "textScore"})])
-        )
+        cursor = DB.db["bulletins"].find(query).sort([("publish_date", -1)])
     else:
         cursor = DB.db["bulletins"].find(query).sort([("order", 1)])
 
@@ -457,6 +465,20 @@ async def list_bulletins(
         cursor = cursor.limit(limit)
 
     documents = await cursor.to_list(length=limit or None)
+    
+    # Collect all unique ministry IDs from all documents
+    all_ministry_ids = set()
+    for document in documents:
+        ministry_ids = document.get("ministries", [])
+        all_ministry_ids.update(ministry_ids)
+    
+    # Bulk fetch all ministries in ONE query
+    ministry_map = {}
+    if all_ministry_ids:
+        ministry_list = await get_ministry_refs_from_ids(list(all_ministry_ids))
+        ministry_map = {m["id"]: m for m in ministry_list}
+    
+    # Hydrate each document from the cached map
     bulletins: List[BulletinOut] = []
     for document in documents:
         document["id"] = str(document.pop("_id"))
@@ -466,6 +488,12 @@ async def list_bulletins(
         image_url, thumbnail_url = _build_image_urls(serialized.get("image_id"))
         serialized["image_url"] = image_url
         serialized["thumbnail_url"] = thumbnail_url
+        
+        # Hydrate ministry_refs from pre-fetched map (O(1) lookup)
+        ministry_ids = serialized.get("ministries", [])
+        serialized["ministry_refs"] = [
+            ministry_map[mid] for mid in ministry_ids if mid in ministry_map
+        ]
 
         bulletin = BulletinOut(**serialized)
         bulletins.append(bulletin)
@@ -477,22 +505,31 @@ async def search_bulletins(
     *,
     skip: int = 0,
     limit: int = 100,
-    ministry: Optional[str] = None,
+    ministry_id: Optional[str] = None,
     published: Optional[bool] = None,
 ) -> List[BulletinOut]:
-    """Text search across bulletin headlines and summaries"""
-    query: dict = {"$text": {"$search": query_text}}
+    """Text search across bulletin headlines and body using regex for partial matching"""
+    # Use regex for partial matching across headline and body
+    # This allows "a" to match "abc" (case-insensitive substring search)
+    import re
+    escaped_query = re.escape(query_text)
+    search_conditions = [
+        {"headline": {"$regex": escaped_query, "$options": "i"}},
+        {"body": {"$regex": escaped_query, "$options": "i"}},
+    ]
 
-    if ministry:
-        query["ministries"] = {"$in": [ministry]}
+    # Build query combining search with filters
+    query_parts = [{"$or": search_conditions}]
+    
+    if ministry_id:
+        query_parts.append({"ministries": {"$in": [ministry_id]}})
     if published is not None:
-        query["published"] = published
+        query_parts.append({"published": published})
 
     # Filter out expired bulletins (expire_at in the past)
     # Use local timezone to avoid timezone mismatch issues
     local_now = get_local_now()
     now_mongo = strip_timezone_for_mongo(local_now)
-    # Use $and to properly combine with existing query conditions
     expiration_filter = {
         "$or": [
             {"expire_at": {"$exists": False}},  # No expiration date set
@@ -502,22 +539,35 @@ async def search_bulletins(
             },  # Expiration date is in the future (local time)
         ]
     }
-    # If query already has conditions, wrap in $and
-    if query:
-        query = {"$and": [query, expiration_filter]}
-    else:
-        query = expiration_filter
+    query_parts.append(expiration_filter)
+    
+    query = {"$and": query_parts} if len(query_parts) > 1 else query_parts[0]
 
     if DB.db is None:
         return []
 
-    cursor = DB.db["bulletins"].find(query).sort([("score", {"$meta": "textScore"})])
+    # Sort by publish_date descending (most recent first) instead of text score
+    cursor = DB.db["bulletins"].find(query).sort([("publish_date", -1)])
     if skip:
         cursor = cursor.skip(skip)
     if limit:
         cursor = cursor.limit(limit)
 
     documents = await cursor.to_list(length=limit or None)
+    
+    # Collect all unique ministry IDs from all documents
+    all_ministry_ids = set()
+    for document in documents:
+        ministry_ids = document.get("ministries", [])
+        all_ministry_ids.update(ministry_ids)
+    
+    # Bulk fetch all ministries in ONE query
+    ministry_map = {}
+    if all_ministry_ids:
+        ministry_list = await get_ministry_refs_from_ids(list(all_ministry_ids))
+        ministry_map = {m["id"]: m for m in ministry_list}
+    
+    # Hydrate each document from the cached map
     bulletins: List[BulletinOut] = []
     for document in documents:
         document["id"] = str(document.pop("_id"))
@@ -527,6 +577,12 @@ async def search_bulletins(
         image_url, thumbnail_url = _build_image_urls(serialized.get("image_id"))
         serialized["image_url"] = image_url
         serialized["thumbnail_url"] = thumbnail_url
+        
+        # Hydrate ministry_refs from pre-fetched map (O(1) lookup)
+        ministry_ids = serialized.get("ministries", [])
+        serialized["ministry_refs"] = [
+            ministry_map[mid] for mid in ministry_ids if mid in ministry_map
+        ]
 
         bulletin = BulletinOut(**serialized)
         bulletins.append(bulletin)
