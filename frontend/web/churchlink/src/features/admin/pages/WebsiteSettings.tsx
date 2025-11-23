@@ -7,6 +7,9 @@ import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { Save, Globe, Image, Church, MapPin } from 'lucide-react';
 import { websiteConfigApi } from '@/api/api';
 import FaviconSelector from '@/features/admin/components/Website/FaviconSelector';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,} from "@/shared/components/ui/Dialog";
+import LegalPageEditor from './AdminLegalPageEditor';
+
 
 interface WebsiteConfig {
   title: string;
@@ -41,6 +44,10 @@ const WebsiteSettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [churchLoading, setChurchLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  type LegalSlug = "terms" | "privacy" | "refunds";
+  const [legalDialogOpen, setLegalDialogOpen] = useState(false);
+  const [selectedLegalSlug, setSelectedLegalSlug] = useState<LegalSlug>("terms");
 
   useEffect(() => {
     loadConfig();
@@ -176,6 +183,37 @@ const WebsiteSettingsPage: React.FC = () => {
         <Globe className="h-6 w-6 mr-2" />
         <h2 className="text-2xl font-bold">Website Settings</h2>
       </div>
+
+      <Dialog open={legalDialogOpen} onOpenChange={setLegalDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Edit Legal Pages</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex items-center gap-2 mb-4">
+            <Label htmlFor="legal-select">Document</Label>
+            <select
+              id="legal-select"
+              className="border rounded-md p-2"
+              value={selectedLegalSlug}
+              onChange={(e) => setSelectedLegalSlug(e.target.value as LegalSlug)}
+            >
+              <option value="terms">Terms &amp; Conditions</option>
+              <option value="privacy">Privacy Policy</option>
+              <option value="refunds">Refund Policy</option>
+            </select>
+          </div>
+
+          {/* The editor you requested */}
+          <LegalPageEditor slug={selectedLegalSlug} />
+
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setLegalDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {message && (
         <Alert className={message.type === 'error' ? 'border-red-500 bg-red-50 dark:bg-red-950 dark:border-red-400' : 'border-green-500 bg-green-50 dark:bg-green-950 dark:border-green-400'}>
@@ -357,6 +395,17 @@ const WebsiteSettingsPage: React.FC = () => {
                   <strong>Last Updated:</strong> {new Date(config.updated_at).toLocaleString()}
                 </div>
               )}
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedLegalSlug("terms"); // default when opening
+                    setLegalDialogOpen(true);
+                  }}
+                >
+                  Edit Terms & Conditions
+                </Button>
+              </div>
             </div>
             
             <div className="space-y-2">
