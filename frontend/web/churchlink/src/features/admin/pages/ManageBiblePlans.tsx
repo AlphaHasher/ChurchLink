@@ -7,14 +7,20 @@ import {
   ModuleRegistry,
   ClientSideRowModelModule,
   PaginationModule,
-  RowSelectionModule
+  RowSelectionModule,
+  TextFilterModule,
+  NumberFilterModule,
+  CellStyleModule
 } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 
 ModuleRegistry.registerModules([
   ClientSideRowModelModule,
   PaginationModule,
-  RowSelectionModule
+  RowSelectionModule,
+  TextFilterModule,
+  NumberFilterModule,
+  CellStyleModule
 ]);
 
 import BiblePlansTabs from '@/features/admin/components/BiblePlanManager/BiblePlansTabs';
