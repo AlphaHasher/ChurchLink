@@ -213,7 +213,10 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
       // Navigate the same way login spec does
       cy.visit(`${LOGIN_PATH}?redirectTo=${encodeURIComponent(redirectTo)}`);
 
-      if (cy.url() !== LOGIN_PATH) {
+      try {
+        cy.get('input[placeholder="Enter email address"]').should('be.visible');
+      }
+      catch {
         return;
       }
 
@@ -251,7 +254,6 @@ Cypress.Commands.add('adminlogin', () => {
 const TEST_MINISTRIES = ['Cy Ministry 1', 'Cy Ministry 2', 'Cy Ministry 3'];
 
 Cypress.Commands.add('createTestMinistries', () => {
-  cy.adminlogin();
   cy.visit('/admin/ministries');
 
   TEST_MINISTRIES.forEach((name) => {
@@ -276,7 +278,6 @@ Cypress.Commands.add('createTestMinistries', () => {
 });
 
 Cypress.Commands.add('deleteTestMinistries', () => {
-  cy.adminlogin();
   cy.visit('/admin/ministries');
 
   TEST_MINISTRIES.forEach((name) => {
@@ -329,7 +330,6 @@ Cypress.Commands.add('deleteTestMinistries', () => {
 const TEST_IMAGES = ['wolf.jpg', 'octopus.avif', 'orangutan.jpg'];
 
 Cypress.Commands.add('createTestImages', () => {
-  cy.adminlogin();
   cy.visit('/admin/media-library');
 
   TEST_IMAGES.forEach((filename) => {
@@ -342,7 +342,6 @@ Cypress.Commands.add('createTestImages', () => {
 });
 
 Cypress.Commands.add('deleteTestImages', () => {
-  cy.adminlogin();
   cy.visit('/admin/media-library');
 
   TEST_IMAGES.forEach((filename) => {
