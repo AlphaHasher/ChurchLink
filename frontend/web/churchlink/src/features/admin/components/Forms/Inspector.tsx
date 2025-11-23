@@ -45,6 +45,7 @@ export function Inspector() {
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={!!(priceField.paymentMethods?.allowPayPal ?? true)}
+                  data-testid="payment-method-allow-paypal-checkbox"
                   onCheckedChange={(v) => {
                     const current = priceField.paymentMethods || {};
                     const newAllowPayPal = !!v;
@@ -176,6 +177,7 @@ export function Inspector() {
             size="sm"
             variant="secondary"
             onClick={() => updateOptions(field.id, [...(sel.options || []), { label: `Option ${(sel.options?.length || 0) + 1}`, value: `option${(sel.options?.length || 0) + 1}` }])}
+            data-testid="add-option-button"
           >
             Add option
           </Button>
@@ -190,7 +192,7 @@ export function Inspector() {
         <div className="space-y-2">
           <div className="space-y-1">
             <Label>Text content</Label>
-            <Textarea value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} placeholder="Enter static text content" className="resize-none" rows={4} />
+            <Textarea value={(field as any).content || ""} onChange={(e) => onChange({ content: e.target.value } as any)} placeholder="Enter static text content" className="resize-none" rows={4} data-testid="static-text-content-input" />
           </div>
           <div className="grid grid-cols-3 gap-2 items-end">
             <div className="space-y-1 min-w-0">
@@ -215,6 +217,7 @@ export function Inspector() {
                 value={(field as any).color || "#000000"}
                 onChange={(e) => onChange({ color: e.target.value } as any)}
                 className="w-full min-w-0"
+                data-testid="static-text-color-input"
               />
             </div>
 
@@ -228,10 +231,10 @@ export function Inspector() {
                 }
                 className="w-full justify-start"
               >
-                <ToggleGroupItem value="bold" aria-label="Bold" size="sm">
+                <ToggleGroupItem value="bold" aria-label="Bold" size="sm" data-testid="static-text-bold-button">
                   <span className="font-bold">B</span>
                 </ToggleGroupItem>
-                <ToggleGroupItem value="underline" aria-label="Underline" size="sm">
+                <ToggleGroupItem value="underline" aria-label="Underline" size="sm" data-testid="static-text-underline-button">
                   <span className="underline">U</span>
                 </ToggleGroupItem>
               </ToggleGroup>
@@ -243,7 +246,7 @@ export function Inspector() {
       {field.type !== 'static' && (
         <div className="space-y-1">
           <Label>Label (English)</Label>
-          <Input value={field.label || ""} onChange={(e) => onChange({ label: e.target.value })} placeholder="Enter field label" />
+          <Input value={field.label || ""} onChange={(e) => onChange({ label: e.target.value })} placeholder="Enter field label" data-testid="field-label-input" />
         </div>
       )}
 
@@ -256,7 +259,7 @@ export function Inspector() {
         field.type === "number") && (
           <div className="space-y-1">
             <Label>Placeholder (English)</Label>
-            <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} placeholder="Enter placeholder text" />
+            <Input value={field.placeholder || ""} onChange={(e) => onChange({ placeholder: e.target.value })} placeholder="Enter placeholder text" data-testid="field-placeholder-input" />
           </div>
         )}
       {field.type !== 'pricelabel' && (
@@ -271,7 +274,7 @@ export function Inspector() {
           <div className="space-y-1">
             <Label>Amount</Label>
             <Input type="number" value={(field as any).amount ?? 0}
-              onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} />
+              onChange={(e) => onChange({ amount: e.target.value === "" ? 0 : Number(e.target.value) } as any)} data-testid="field-pricelabel-amount-input" />
             <p className="text-xs text-muted-foreground">This is a display field that shows an individual price component.</p>
           </div>
 
@@ -313,7 +316,7 @@ export function Inspector() {
           {(field.type === "checkbox" || field.type === "switch") && (
             <div className="space-y-1">
               <Label>Price when selected</Label>
-              <Input type="number" value={(field as any).price ?? ""} onChange={(e) => onChange({ price: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+              <Input type="number" value={(field as any).price ?? ""} onChange={(e) => onChange({ price: e.target.value === "" ? undefined : Number(e.target.value) } as any)} data-testid="field-price-when-selected-input" />
             </div>
           )}
           {field.type === "switch" && (
@@ -322,11 +325,11 @@ export function Inspector() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">On Text</Label>
-                  <Input value={(field as any).onText || ""} onChange={(e) => onChange({ onText: e.target.value } as any)} placeholder="e.g., Yes" />
+                  <Input value={(field as any).onText || ""} onChange={(e) => onChange({ onText: e.target.value } as any)} placeholder="e.g., Yes" data-testid="field-switch-on-text-input" />
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Off Text</Label>
-                  <Input value={(field as any).offText || ""} onChange={(e) => onChange({ offText: e.target.value } as any)} placeholder="e.g., No" />
+                  <Input value={(field as any).offText || ""} onChange={(e) => onChange({ offText: e.target.value } as any)} placeholder="e.g., No" data-testid="field-switch-off-text-input" />
                 </div>
               </div>
             </div>
@@ -335,15 +338,15 @@ export function Inspector() {
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label>Min</Label>
-                <Input type="number" value={(field as any).min ?? ""} onChange={(e) => onChange({ min: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+                <Input type="number" value={(field as any).min ?? ""} onChange={(e) => onChange({ min: e.target.value === "" ? undefined : Number(e.target.value) } as any)} data-testid="field-number-min-input" />
               </div>
               <div>
                 <Label>Max</Label>
-                <Input type="number" value={(field as any).max ?? ""} onChange={(e) => onChange({ max: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+                <Input type="number" value={(field as any).max ?? ""} onChange={(e) => onChange({ max: e.target.value === "" ? undefined : Number(e.target.value) } as any)} data-testid="field-number-max-input" />
               </div>
               <div>
                 <Label>Step</Label>
-                <Input type="number" value={(field as any).step ?? ""} onChange={(e) => onChange({ step: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+                <Input type="number" value={(field as any).step ?? ""} onChange={(e) => onChange({ step: e.target.value === "" ? undefined : Number(e.target.value) } as any)} data-testid="field-number-step-input" />
               </div>
               <div className="col-span-3">
                 <Label>Allowed values (comma-separated)</Label>
@@ -355,16 +358,16 @@ export function Inspector() {
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label>Min length</Label>
-                <Input type="number" value={(field as any).minLength ?? ""} onChange={(e) => onChange({ minLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+                <Input type="number" value={(field as any).minLength ?? ""} onChange={(e) => onChange({ minLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} data-testid="field-min-length-input" />
               </div>
               <div>
                 <Label>Max length</Label>
-                <Input type="number" value={(field as any).maxLength ?? ""} onChange={(e) => onChange({ maxLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} />
+                <Input type="number" value={(field as any).maxLength ?? ""} onChange={(e) => onChange({ maxLength: e.target.value === "" ? undefined : Number(e.target.value) } as any)} data-testid="field-max-length-input" />
               </div>
               {(field.type === "text" || field.type === "textarea") && (
                 <div className="col-span-3">
                   <Label>Pattern (regex)</Label>
-                  <Input value={(field as any).pattern ?? ""} onChange={(e) => onChange({ pattern: e.target.value } as any)} />
+                  <Input value={(field as any).pattern ?? ""} onChange={(e) => onChange({ pattern: e.target.value } as any)} data-testid="field-pattern-input" />
                 </div>
               )}
             </div>
@@ -373,11 +376,11 @@ export function Inspector() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <Label>Min time</Label>
-                <Input type="time" value={(field as any).minTime ?? ""} onChange={(e) => onChange({ minTime: e.target.value || undefined } as any)} />
+                <Input type="time" value={(field as any).minTime ?? ""} onChange={(e) => onChange({ minTime: e.target.value || undefined } as any)} data-testid="field-time-min-input" />
               </div>
               <div>
                 <Label>Max time</Label>
-                <Input type="time" value={(field as any).maxTime ?? ""} onChange={(e) => onChange({ maxTime: e.target.value || undefined } as any)} />
+                <Input type="time" value={(field as any).maxTime ?? ""} onChange={(e) => onChange({ maxTime: e.target.value || undefined } as any)} data-testid="field-time-max-input" />
               </div>
             </div>
           )}
@@ -390,6 +393,7 @@ export function Inspector() {
                     type="date"
                     value={(field as any).minDate || ""}
                     onChange={(e) => onChange({ minDate: e.target.value || undefined } as any)}
+                    data-testid="field-date-min-input"
                   />
                 </div>
                 <div>
@@ -397,7 +401,8 @@ export function Inspector() {
                   <Input
                     type="date"
                     value={(field as any).maxDate || ""}
-                    onChange={(e) => onChange({ maxDate: e.target.value || undefined } as any)} />
+                    onChange={(e) => onChange({ maxDate: e.target.value || undefined } as any)}
+                    data-testid="field-date-max-input" />
                 </div>
               </div>
               <div className="space-y-1">

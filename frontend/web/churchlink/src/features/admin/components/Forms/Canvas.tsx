@@ -47,7 +47,7 @@ export function Canvas() {
   };
 
   return (
-    <Card className="h-full">
+    <Card className="h-full" data-testid="form-canvas">
       <CardHeader>
         <CardTitle>Canvas</CardTitle>
       </CardHeader>
@@ -66,6 +66,9 @@ export function Canvas() {
                         className={`flex items-center justify-between rounded border p-3 ${selectedId === f.id ? "border-ring" : "border-border"} ${isPriceField ? "bg-muted/50" : ""}`}
                         onClick={() => select(f.id)}
                         {...(isPriceField ? {} : attributes)}
+                        data-testid={`field-item-${f.type}-${idx}`}
+                        data-field-type={f.type}
+                        data-field-id={f.id}
                       >
                         <div className="text-sm flex items-center gap-2 min-w-0">
                           <span
@@ -102,11 +105,11 @@ export function Canvas() {
                         <div className="flex items-center gap-1">
                           <Sheet>
                             <SheetTrigger asChild>
-                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); select(f.id); }} title="Edit" className="ml-2">
+                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); select(f.id); }} title="Edit" className="ml-2" data-testid={`edit-field-${f.type}-${idx}`}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             </SheetTrigger>
-                            <SheetContent side="left" className="sm:max-w-md w-[90vw] p-0 flex flex-col">
+                            <SheetContent side="left" className="sm:max-w-md w-[90vw] p-0 flex flex-col" data-testid="edit-field-sheet">
                               <SheetHeader className="p-4 pb-2 flex-shrink-0">
                                 <SheetTitle>Edit Field</SheetTitle>
                               </SheetHeader>
