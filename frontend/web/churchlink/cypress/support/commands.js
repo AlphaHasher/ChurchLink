@@ -130,28 +130,112 @@ Cypress.Commands.add('logout', () => {
   });
 });
 
-// Core login function that mirrors your login test behavior
 function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
   const { email, password } = getCreds(envKey);
 
-  // Make sure we start from a logged-out Firebase state
-  cy.logout();
+  // First: see if we're already effectively logged in as this email
+  cy.window({ log: false })
+    .then((win) => {
+      return new Cypress.Promise((resolve) => {
+        let currentEmail = null;
 
-  // Navigate the same way your login spec does
-  cy.visit(`${LOGIN_PATH}?redirectTo=${encodeURIComponent(redirectTo)}`);
+        // look at IndexedDB firebaseLocalStorageDb
+        try {
+          const idb = win.indexedDB;
+          if (!idb || typeof idb.open !== 'function') {
+            resolve(null);
+            return;
+          }
 
-  cy.get('input[placeholder="Enter email address"]').clear().type(email);
-  cy.get('input[placeholder="Enter password"]').clear().type(password, {
-    log: false,
-  });
 
-  cy.contains('button', 'Sign In').click();
+          const req = idb.open('firebaseLocalStorageDb');
+          req.onerror = () => resolve(null);
+          req.onsuccess = () => {
+            const db = req.result;
 
-  // Should land on the page requested in ?redirectTo=
-  cy.url().should('include', redirectTo);
+            let resolved = false;
 
-  // Login form should be gone
-  cy.contains('Sign In').should('not.exist');
+            try {
+              const tx = db.transaction('firebaseLocalStorage', 'readonly');
+              const store = tx.objectStore('firebaseLocalStorage');
+              const getAllReq = store.getAll();
+
+              getAllReq.onerror = () => {
+                if (!resolved) resolve(null);
+              };
+
+              getAllReq.onsuccess = () => {
+                const records = getAllReq.result || [];
+
+                for (const rec of records) {
+                  // Typical shape: { fbase_key: "firebase:authUser:...", value: "{\"uid\":...,\"email\":...}" }
+                  let raw =
+                    (rec && typeof rec.value === 'string' && rec.value) ||
+                    (typeof rec === 'string' ? rec : null);
+
+                  if (!raw) continue;
+
+                  try {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && parsed.email) {
+                      resolved = true;
+                      resolve(parsed.email);
+                      return;
+                    }
+                  } catch {
+                    // ignore bad JSON
+                  }
+                }
+
+                if (!resolved) resolve(null);
+              };
+            } catch {
+              if (!resolved) resolve(null);
+            }
+          };
+        } catch {
+          resolve(null);
+        }
+      });
+    })
+    .then((currentEmail) => {
+      // If we're already logged in as the correct user, skip logout + login
+      if (currentEmail === email) {
+        cy.log(`Already logged in as ${email}, skipping login flow`);
+
+        // Just make sure we're on the right page
+        cy.url().then((url) => {
+          if (!url.includes(redirectTo)) {
+            cy.visit(redirectTo);
+          }
+        });
+
+        return;
+      }
+
+      return;
+
+      // Not logged in, or wrong user: do the full logout + login
+
+      // Make sure we start from a logged-out Firebase state
+      cy.logout();
+
+      // Navigate the same way your login spec does
+      cy.visit(`${LOGIN_PATH}?redirectTo=${encodeURIComponent(redirectTo)}`);
+
+      cy.get('input[placeholder="Enter email address"]').clear().type(email);
+      cy.get('input[placeholder="Enter password"]').clear().type(password, {
+        log: false,
+      });
+
+      cy.contains('button', 'Sign In').click();
+
+      // Should land on the page requested in ?redirectTo=
+      cy.url().should('include', redirectTo);
+
+      // Login form should be gone
+      cy.contains('Sign In').should('not.exist');
+    });
 }
 
 // Public commands
@@ -170,7 +254,7 @@ Cypress.Commands.add('adminlogin', () => {
 // Test data helpers: ministries
 // -----------------------------------------------------------------------------
 
-const TEST_MINISTRIES = ['Youth Ministry', 'Bible Studies', 'Community Outreach'];
+const TEST_MINISTRIES = ['Cy Ministry 1', 'Cy Ministry 2', 'Cy Ministry 3'];
 
 Cypress.Commands.add('createTestMinistries', () => {
   cy.adminlogin();

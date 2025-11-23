@@ -26,7 +26,7 @@ const MUTED_MESSAGE_SNIPPET = /You have been prohibited from making future membe
  * Helper: visit the membership card as the regular user.
  */
 const visitMembershipCardAsUser = () => {
-    cy.login();
+    cy.adminlogin();
     cy.visit(MEMBERSHIP_USER_URL);
 
     cy.contains(/Lower members-only event prices/i).should("be.visible");
