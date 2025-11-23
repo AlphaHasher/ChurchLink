@@ -155,13 +155,18 @@ function Login() {
         };
         localStorage.setItem("TESTING_AUTH_USER", JSON.stringify(testingUser));
 
+        window.dispatchEvent(new Event("testingAuthChanged"));
+
         const verified = await verifyAndSyncUser(setError);
         if (!verified) {
           localStorage.removeItem("TESTING_AUTH_TOKEN");
           localStorage.removeItem("TESTING_AUTH_EMAIL");
           localStorage.removeItem("TESTING_AUTH_USER");
+          window.dispatchEvent(new Event("testingAuthChanged"));
           return;
         }
+        
+        window.dispatchEvent(new Event("testingAuthChanged"));
         navigate(getRedirectTo(), { replace: true });
         return;
       }

@@ -31,8 +31,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isWhitelisted, setIsWhitelisted] = useState(false);
   const [role, setRole] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check for testing auth first
+  const checkTestingAuth = () => {
     const testingUserStr = localStorage.getItem("TESTING_AUTH_USER");
     const testingToken = localStorage.getItem("TESTING_AUTH_TOKEN");
     
@@ -48,10 +47,7 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRole("admin");
         setIsWhitelisted(true);
         setLoading(false);
-        
-        // Don't set up Firebase listener if we're using testing tokens
-        // Return early to prevent Firebase from clearing our testing state
-        return;
+        return true;
       } catch (error) {
         console.error("Error parsing testing user:", error);
         localStorage.removeItem("TESTING_AUTH_USER");
@@ -59,43 +55,73 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem("TESTING_AUTH_EMAIL");
       }
     }
+    return false; 
+  };
 
-    // Only set up Firebase listener if NOT using testing tokens
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // Only clear testing tokens if Firebase user is null AND we're not currently using testing tokens
-      if (!user && !localStorage.getItem("TESTING_AUTH_TOKEN")) {
-        localStorage.removeItem("TESTING_AUTH_USER");
-        localStorage.removeItem("TESTING_AUTH_TOKEN");
-        localStorage.removeItem("TESTING_AUTH_EMAIL");
+  useEffect(() => {
+    const hasTestingAuth = checkTestingAuth();
+    
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "TESTING_AUTH_TOKEN" || e.key === "TESTING_AUTH_USER") {
+        checkTestingAuth();
       }
-      
-      // If we have testing tokens, don't let Firebase override the state
-      if (localStorage.getItem("TESTING_AUTH_TOKEN")) {
-        return;
-      }
-      
-      if (user) {
-        try {
-          const idTokenResult = await getIdTokenResult(user);
-          const userRole = (idTokenResult.claims.role as string) || "user";
-          setRole(userRole);
-          setIsWhitelisted(!!idTokenResult.claims.whitelisted);
-          setUser({ ...user, role: userRole });
-        } catch (error) {
-          console.error("Error fetching user claims:", error);
+    };
+    
+    const handleCustomStorageChange = () => {
+      checkTestingAuth();
+    };
+    
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("testingAuthChanged", handleCustomStorageChange);
+    
+    let unsubscribe: (() => void) | undefined;
+    
+    if (!hasTestingAuth) {
+      unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (checkTestingAuth()) {
+          return;
+        }
+        
+        if (!user && !localStorage.getItem("TESTING_AUTH_TOKEN")) {
+          localStorage.removeItem("TESTING_AUTH_USER");
+          localStorage.removeItem("TESTING_AUTH_TOKEN");
+          localStorage.removeItem("TESTING_AUTH_EMAIL");
+        }
+
+        if (localStorage.getItem("TESTING_AUTH_TOKEN")) {
+          checkTestingAuth();
+          return;
+        }
+        
+        if (user) {
+          try {
+            const idTokenResult = await getIdTokenResult(user);
+            const userRole = (idTokenResult.claims.role as string) || "user";
+            setRole(userRole);
+            setIsWhitelisted(!!idTokenResult.claims.whitelisted);
+            setUser({ ...user, role: userRole });
+          } catch (error) {
+            console.error("Error fetching user claims:", error);
+            setIsWhitelisted(false);
+            setRole(null);
+            setUser(null);
+          }
+        } else {
           setIsWhitelisted(false);
           setRole(null);
           setUser(null);
         }
-      } else {
-        setIsWhitelisted(false);
-        setRole(null);
-        setUser(null);
+        setLoading(false);
+      });
+    }
+    
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("testingAuthChanged", handleCustomStorageChange);
+      if (unsubscribe) {
+        unsubscribe();
       }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+    };
   }, []);
 
   const value = {
@@ -108,5 +134,4 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 };
 
-// ✅ Export as named exports (Fixes HMR issue)
 export { AuthProvider, useAuth };
