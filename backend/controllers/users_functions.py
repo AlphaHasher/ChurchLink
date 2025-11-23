@@ -28,8 +28,8 @@ class PersonalInfo(BaseModel):
     last_name: str
     email: str
     membership: bool
-    birthday: Optional[datetime]
-    gender: Optional[str]
+    birthday: Optional[datetime] = None
+    gender: Optional[str] = None
 
     @field_validator('membership', mode='before')
     @classmethod
@@ -402,8 +402,8 @@ async def update_profile(uid:str, profile_info: PersonalInfo):
     update_data = {
         "first_name": (profile_info.first_name or "").strip(),
         "last_name": (profile_info.last_name or "").strip(),
-        "birthday": profile_info.birthday,
-        "gender": profile_info.gender,
+        "birthday": profile_info.birthday or None,
+        "gender": profile_info.gender or None,
     }
 
     # Ensure name inputs are valid and sane

@@ -486,8 +486,11 @@ export default function EventUpdateInputsV2({
                                         <Input
                                             id="eventTime"
                                             type="time"
-                                            disabled={disabled}
                                             value={new Date(draft.date).toTimeString().slice(0, 5)}
+                                            onClick={(e) => {
+                                                e.currentTarget.focus();
+                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                            }}
                                             onChange={(e) => {
                                                 const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
                                                 const next = new Date(draft.date);
@@ -545,6 +548,10 @@ export default function EventUpdateInputsV2({
                                             type="time"
                                             disabled={disabled}
                                             value={draft.end_date ? new Date(draft.end_date).toTimeString().slice(0, 5) : "17:00"}
+                                            onClick={(e) => {
+                                                e.currentTarget.focus();
+                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                            }}
                                             onChange={(e) => {
                                                 const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
                                                 const base = draft.end_date ? new Date(draft.end_date) : new Date(draft.date);
@@ -710,6 +717,10 @@ export default function EventUpdateInputsV2({
                                             type="time"
                                             disabled={disabled}
                                             value={draft.registration_opens ? new Date(draft.registration_opens).toTimeString().slice(0, 5) : "09:00"}
+                                            onClick={(e) => {
+                                                e.currentTarget.focus();
+                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                            }}
                                             onChange={(e) => {
                                                 const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
                                                 const base = draft.registration_opens ? new Date(draft.registration_opens) : new Date();
@@ -756,6 +767,10 @@ export default function EventUpdateInputsV2({
                                             type="time"
                                             disabled={disabled}
                                             value={draft.registration_deadline ? new Date(draft.registration_deadline).toTimeString().slice(0, 5) : "17:00"}
+                                            onClick={(e) => {
+                                                e.currentTarget.focus();
+                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                            }}
                                             onChange={(e) => {
                                                 const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
                                                 const base = draft.registration_deadline ? new Date(draft.registration_deadline) : new Date();
@@ -808,6 +823,10 @@ export default function EventUpdateInputsV2({
                                                     ? new Date(draft.automatic_refund_deadline).toTimeString().slice(0, 5)
                                                     : "17:00"
                                             }
+                                            onClick={(e) => {
+                                                e.currentTarget.focus();
+                                                (e.currentTarget as HTMLInputElement).showPicker?.();
+                                            }}
                                             onChange={(e) => {
                                                 const [hh, mm] = e.target.value.split(":").map((n) => parseInt(n, 10));
                                                 const base = draft.automatic_refund_deadline

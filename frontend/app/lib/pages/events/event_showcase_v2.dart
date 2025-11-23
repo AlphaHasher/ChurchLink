@@ -1440,73 +1440,78 @@ END:VCALENDAR
     final user = FirebaseAuth.instance.currentUser;
     final showTicketCard = user != null && event.hasRegistrations;
 
-    return Column(
-      children: [
-        // HERO IMAGE with layered effect: sharp foreground + blurred background
-        Container(
-          color: Colors.black,
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child:
-                heroUrl.isNotEmpty
-                    ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Blurred background image layer (zoomed in)
-                        ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-                          child: Transform.scale(
-                            scale: 1.0, // Adjustable: 1.0 = 100% zoom (default)
-                            child: Image.network(
-                              heroUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder:
-                                  (_, _, _) => Container(color: Colors.black),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // HERO IMAGE with layered effect: sharp foreground + blurred background
+          Container(
+            color: Colors.black,
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child:
+                  heroUrl.isNotEmpty
+                      ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Blurred background image layer (zoomed in)
+                          ImageFiltered(
+                            imageFilter: ImageFilter.blur(
+                              sigmaX: 25,
+                              sigmaY: 25,
+                            ),
+                            child: Transform.scale(
+                              scale:
+                                  1.0, // Adjustable: 1.0 = 100% zoom (default)
+                              child: Image.network(
+                                heroUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, _, _) => Container(color: Colors.black),
+                              ),
                             ),
                           ),
-                        ),
-                        // Sharp foreground image layer
-                        Image.network(
-                          heroUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder:
-                              (_, _, _) => Container(
-                                color: Colors.black,
-                                alignment: Alignment.center,
-                                child: const Icon(
-                                  Icons.event,
-                                  size: 48,
-                                  color: Colors.white70,
+                          // Sharp foreground image layer
+                          Image.network(
+                            heroUrl,
+                            fit: BoxFit.contain,
+                            errorBuilder:
+                                (_, _, _) => Container(
+                                  color: Colors.black,
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.event,
+                                    size: 48,
+                                    color: Colors.white70,
+                                  ),
                                 ),
-                              ),
+                          ),
+                        ],
+                      )
+                      : Container(
+                        color: Colors.black,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.event,
+                          size: 48,
+                          color: Colors.white70,
                         ),
-                      ],
-                    )
-                    : Container(
-                      color: Colors.black,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.event,
-                        size: 48,
-                        color: Colors.white70,
                       ),
-                    ),
-          ),
-        ),
-
-        if (_shareMsg != null)
-          Container(
-            width: double.infinity,
-            color: const Color(0xFFECFDF5),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              _shareMsg!,
-              style: const TextStyle(color: Color(0xFF047857), fontSize: 12),
             ),
           ),
 
-        Expanded(
-          child: SingleChildScrollView(
+          if (_shareMsg != null)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFFECFDF5),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                _shareMsg!,
+                style: const TextStyle(color: Color(0xFF047857), fontSize: 12),
+              ),
+            ),
+
+          Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1617,8 +1622,8 @@ END:VCALENDAR
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

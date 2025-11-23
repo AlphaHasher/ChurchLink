@@ -1,9 +1,9 @@
 /// <reference types="cypress" />
 
-// cypress/e2e/auth/signup.cy.ts
 describe("Signup page", () => {
     const visitSignup = () => {
-        // Assumes baseUrl is set in cypress.config.{ts,js}
+
+        cy.logout();
         cy.visit("/auth/signup");
     };
 

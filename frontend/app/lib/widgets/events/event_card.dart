@@ -163,12 +163,15 @@ class EventCard extends StatelessWidget {
             Icon(icon, size: 14, color: fillHeart ? Colors.white : textColor),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              softWrap: true,
             ),
           ),
         ],
@@ -197,12 +200,15 @@ class EventCard extends StatelessWidget {
             Icon(icon, size: 14, color: textColor),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+              softWrap: true,
             ),
           ),
         ],

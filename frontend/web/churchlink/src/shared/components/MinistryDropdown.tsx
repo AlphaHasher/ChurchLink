@@ -60,7 +60,7 @@ export function MinistryDropdown({
                     side="bottom"
                     sideOffset={4}
                     className={cn(
-                        "max-h-64 overflow-y-auto w-[300px]",
+                        "max-h-64 overflow-y-auto w-[300px] z-[800]",
                         "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600",
                         "text-black dark:text-white"
                     )}

@@ -1,5 +1,6 @@
 import api from "../api/api";
 import { MembershipDetails, MembershipRequest, ReadMembershipRequest } from "@/shared/types/MembershipRequests";
+import { convertMembershipRequestToUserTime } from "./TimeFormatter";
 
 export type MembershipSearchParams = {
     page: number;
@@ -29,6 +30,7 @@ export async function fetchMembershipRequestsPaged(
         params,
         signal,
     });
+    res.data.items = convertMembershipRequestToUserTime(res.data.items);
     return res.data;
 }
 
