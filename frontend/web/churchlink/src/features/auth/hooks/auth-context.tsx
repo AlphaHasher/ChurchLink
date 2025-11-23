@@ -32,7 +32,37 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check for testing auth first
+    const testingUserStr = localStorage.getItem("TESTING_AUTH_USER");
+    if (testingUserStr) {
+      try {
+        const testingUser = JSON.parse(testingUserStr);
+        // Create a minimal AuthUser-like object
+        const fakeUser = {
+          ...testingUser,
+          role: "admin", // Admin user for testing
+        } as AuthUser;
+        setUser(fakeUser);
+        setRole("admin");
+        setIsWhitelisted(true);
+        setLoading(false);
+        return;
+      } catch (error) {
+        console.error("Error parsing testing user:", error);
+        localStorage.removeItem("TESTING_AUTH_USER");
+        localStorage.removeItem("TESTING_AUTH_TOKEN");
+        localStorage.removeItem("TESTING_AUTH_EMAIL");
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      // If Firebase user is null, also clear testing tokens
+      if (!user) {
+        localStorage.removeItem("TESTING_AUTH_USER");
+        localStorage.removeItem("TESTING_AUTH_TOKEN");
+        localStorage.removeItem("TESTING_AUTH_EMAIL");
+      }
+      
       if (user) {
         try {
           const idTokenResult = await getIdTokenResult(user);

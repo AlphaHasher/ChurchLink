@@ -73,6 +73,14 @@ export const pageApi = {
 
 // Add Firebase auth token interceptor
 api.interceptors.request.use(async (config) => {
+  // Check for testing token first (for admin@testing.com bypass)
+  const testingToken = localStorage.getItem("TESTING_AUTH_TOKEN");
+  if (testingToken) {
+    config.headers.Authorization = `Bearer ${testingToken}`;
+    return config;
+  }
+
+  // Normal Firebase authentication flow
   const user = auth.currentUser;
 
   if (user) {
@@ -96,6 +104,18 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const originalConfig = error.config || {};
     if (status === 401) {
+      // Check for testing token first
+      const testingToken = localStorage.getItem("TESTING_AUTH_TOKEN");
+      if (testingToken && !(originalConfig as any)._retryOnce) {
+        (originalConfig as any)._retryOnce = true;
+        originalConfig.headers = {
+          ...(originalConfig.headers || {}),
+          Authorization: `Bearer ${testingToken}`,
+        };
+        return api.request(originalConfig);
+      }
+
+      // Normal Firebase token refresh
       const user = auth.currentUser;
       // Avoid infinite retry loops: retry at most once per request
       if (user && !(originalConfig as any)._retryOnce) {

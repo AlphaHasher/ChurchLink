@@ -4,15 +4,20 @@ from firebase_admin import auth
 from pydantic import BaseModel
 from fastapi.security import HTTPBearer
 from typing import List, Callable
-from fastapi import Depends, Request
 import os
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 # Allow requests without Authorization header to reach our handler so we can bypass in E2E mode
 security = HTTPBearer(auto_error=False)
 
 # Check if E2E test mode is enabled (for Cypress tests)
 E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
+
+# Check if testing tokens are accepted (for development admin bypass)
+ACCEPT_TESTING_TOKENS = os.getenv("ACCEPT_TESTING_TOKENS", "").lower() == "true"
 
 class FirebaseUser:
     def __init__(self, uid: str, email: str, roles: List[str]):
@@ -37,6 +42,18 @@ async def authenticate_uid(credentials: HTTPAuthorizationCredentials = Security(
     if not token:
         raise HTTPException(status_code=401, detail="Missing Authorization: Bearer token")
 
+    # Check for testing token format: TESTING_TOKEN:email:uid
+    if ACCEPT_TESTING_TOKENS and token.startswith("TESTING_TOKEN:"):
+        try:
+            parts = token.split(":", 2)
+            if len(parts) == 3 and parts[1] == "admin@testing.com":
+                # Extract real UID from the token
+                # Format: TESTING_TOKEN:admin@testing.com:VMjpZUqtBlS9RA01Flwk2Dmm7kH2
+                uid = parts[2]
+                return uid
+        except Exception:
+            pass  # Fall through to normal Firebase verification
+
     try:
         decoded_token = auth.verify_id_token(token)
         return decoded_token['uid']
@@ -56,6 +73,19 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
     token = credentials.credentials if credentials else None
     if not token:
         raise HTTPException(status_code=401, detail="Missing Authorization: Bearer token")
+
+    # Check for testing token format: TESTING_TOKEN:email:uid
+    if ACCEPT_TESTING_TOKENS and token.startswith("TESTING_TOKEN:"):
+        try:
+            parts = token.split(":", 2)
+            if len(parts) == 3 and parts[1] == "admin@testing.com":
+                # Extract real UID from token
+                # Format: TESTING_TOKEN:admin@testing.com:VMjpZUqtBlS9RA01Flwk2Dmm7kH2
+                uid = parts[2]
+                # Return admin user for testing (using real UID)
+                return FirebaseUser(uid=uid, email="admin@testing.com", roles=["admin"])
+        except Exception:
+            pass  # Fall through to normal Firebase verification
 
     try:
         decoded_token = auth.verify_id_token(token)

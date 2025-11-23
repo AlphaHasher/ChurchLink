@@ -81,6 +81,27 @@ def is_over_13(bday: datetime) -> bool:
 
 async def process_sync_by_uid(request:Request):
     uid = request.state.uid
+    
+    # Check if this is the real admin@testing.com UID
+    # Real UID: VMjpZUqtBlS9RA01Flwk2Dmm7kH2
+    if uid == "VMjpZUqtBlS9RA01Flwk2Dmm7kH2":
+        # For testing tokens, verify user exists and ensure admin role
+        from helpers.Firebase_helpers import ACCEPT_TESTING_TOKENS
+        if ACCEPT_TESTING_TOKENS:
+            checkUser = await UserHandler.find_by_uid(uid)
+            if checkUser:
+                # User exists, ensure they have admin role
+                await FirebaseSyncer.assign_admin_role(uid)
+                return {"verified": True}
+            else:
+                # User doesn't exist in MongoDB yet, sync from Firebase
+                # This should normally not happen, but handle it gracefully
+                syncRequest = await FirebaseSyncer.syncUserByUID(uid)
+                if syncRequest:
+                    return {"verified": True}
+                return {'verified': False}
+    
+    # Normal Firebase sync flow
     syncRequest = await FirebaseSyncer.syncUserByUID(uid)
     if syncRequest:
         return { "verified": True }

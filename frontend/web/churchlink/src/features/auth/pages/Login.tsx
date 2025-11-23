@@ -134,6 +134,39 @@ function Login() {
     e.preventDefault();
     setError(""); // Clear any existing errors
     try {
+      // Check if we should use testing bypass for admin@testing.com
+      const isDevelopment = import.meta.env.VITE_DEVELOPMENT === "true";
+      const allowTestingLogin = import.meta.env.VITE_ALLOW_TESTING_ADMING_TOKENLESS_LOGIN === "true";
+      const isAdminTesting = email === "admin@testing.com";
+
+      if (isAdminTesting && isDevelopment && allowTestingLogin) {
+        // Use testing bypass - create testing token with real UID
+        // Real UID for admin@testing.com: VMjpZUqtBlS9RA01Flwk2Dmm7kH2
+        const realUid = "VMjpZUqtBlS9RA01Flwk2Dmm7kH2";
+        const testingToken = `TESTING_TOKEN:admin@testing.com:${realUid}`;
+        localStorage.setItem("TESTING_AUTH_TOKEN", testingToken);
+        localStorage.setItem("TESTING_AUTH_EMAIL", email);
+        
+        // Create a minimal user-like object for auth context compatibility
+        const testingUser = {
+          uid: realUid,
+          email: email,
+          emailVerified: true,
+        };
+        localStorage.setItem("TESTING_AUTH_USER", JSON.stringify(testingUser));
+
+        const verified = await verifyAndSyncUser(setError);
+        if (!verified) {
+          localStorage.removeItem("TESTING_AUTH_TOKEN");
+          localStorage.removeItem("TESTING_AUTH_EMAIL");
+          localStorage.removeItem("TESTING_AUTH_USER");
+          return;
+        }
+        navigate(getRedirectTo(), { replace: true });
+        return;
+      }
+
+      // Normal Firebase authentication flow
       await signInWithEmailAndPassword(auth, email, password);
 
       const verified = await verifyAndSyncUser(setError);
