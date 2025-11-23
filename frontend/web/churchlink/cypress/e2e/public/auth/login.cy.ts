@@ -44,7 +44,6 @@ describe('Login page', () => {
     });
 
     it('allows the user to request a password reset via the "Forgot your password?" flow', () => {
-        cy.logout();
 
         // Stub timers so we can test the 2s auto-close behavior of the reset modal
         cy.clock();
