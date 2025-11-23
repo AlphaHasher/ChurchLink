@@ -19,10 +19,10 @@ export const AdminRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const [initLoading, setInitLoading] = useState(true);
     const [isInit, setIsInit] = useState<boolean | null>(null);
 
-    // Check for E2E test mode (Cypress sets this flag)
+    // Check for E2E test mode (Cypress environment)
     const [isE2EMode] = useState(() => {
         try {
-            return typeof window !== 'undefined' && window.localStorage.getItem('CL_E2E_TEST') === '1';
+            return typeof window !== 'undefined' && !!window.Cypress;
         } catch {
             return false;
         }

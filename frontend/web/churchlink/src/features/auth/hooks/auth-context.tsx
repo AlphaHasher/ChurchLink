@@ -32,6 +32,54 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check for E2E test mode
+    const isE2EMode = (() => {
+      try {
+        return typeof window !== 'undefined' && !!window.Cypress;
+      } catch {
+        return false;
+      }
+    })();
+
+    // In E2E mode, provide mock authenticated admin user
+    if (isE2EMode) {
+      const mockUser: AuthUser = {
+        uid: 'e2e-test-admin-uid',
+        email: 'admin@e2etest.com',
+        displayName: 'E2E Test Admin',
+        role: 'admin',
+        emailVerified: true,
+        isAnonymous: false,
+        metadata: {
+          creationTime: new Date().toISOString(),
+          lastSignInTime: new Date().toISOString(),
+        },
+        providerData: [],
+        refreshToken: 'mock-refresh-token',
+        tenantId: null,
+        delete: async () => {},
+        getIdToken: async () => 'mock-e2e-token',
+        getIdTokenResult: async () => ({
+          token: 'mock-e2e-token',
+          expirationTime: new Date(Date.now() + 3600000).toISOString(),
+          authTime: new Date().toISOString(),
+          issuedAtTime: new Date().toISOString(),
+          signInProvider: 'password',
+          claims: { role: 'admin', whitelisted: true },
+          signInSecondFactor: null,
+        }),
+        reload: async () => {},
+        toJSON: () => ({}),
+      };
+
+      setRole('admin');
+      setIsWhitelisted(true);
+      setUser(mockUser);
+      setLoading(false);
+      return () => {}; // No cleanup needed for mock
+    }
+
+    // Normal Firebase auth flow
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {

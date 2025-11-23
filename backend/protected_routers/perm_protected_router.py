@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from typing import Callable, List, Optional, Sequence, Union
+import os
 
 from helpers.Firebase_helpers import authenticate_uid
 from mongo.churchuser import UserHandler
 from mongo.roles import RoleHandler
+
+# Check if E2E test mode is enabled
+E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
 
 def _normalize_required_perms(required_perms: Optional[Union[str, Sequence[str]]]) -> List[str]:
     if required_perms is None:
@@ -23,6 +27,32 @@ def _normalize_required_perms(required_perms: Optional[Union[str, Sequence[str]]
 
 def _make_perm_dependency(required_perms: List[str]) -> Callable:
     async def _dep(request: Request, uid: str = Depends(authenticate_uid)) -> str:
+        # Bypass MongoDB user check and permission validation in E2E test mode
+        if E2E_TEST_MODE and uid == "e2e-test-user-id":
+            # Create a fake user with all permissions for E2E testing
+            fake_user = {
+                "uid": uid,
+                "email": "e2e-test@example.com",
+                "roles": ["admin"]
+            }
+            # Grant all permissions for testing
+            fake_perms = {perm: True for perm in required_perms}
+            # Also add common permissions
+            fake_perms.update({
+                "sermon_editing": True,
+                "bulletin_editing": True,
+                "event_editing": True,
+                "user_management": True,
+                "admin": True
+            })
+            
+            request.state.uid = uid
+            request.state.user = fake_user
+            request.state.roles = ["admin"]
+            request.state.perms = fake_perms
+            request.state.required_perms = required_perms
+            return uid
+
         user = await UserHandler.find_by_uid(uid)
         if user is None:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User not found in MongoDB")

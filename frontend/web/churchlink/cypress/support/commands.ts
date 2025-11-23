@@ -2,10 +2,10 @@
 
 declare global {
   namespace Cypress {
-    interface Chainable {
-      prepareConsoleErrorSpy(): Chainable<void>
-      loginWithBearer(): Chainable<void>
-      assertNoClientErrors(): Chainable<void>
+    interface Chainable<Subject = any> {
+      prepareConsoleErrorSpy(): Chainable<Subject>
+      loginWithBearer(): Chainable<Subject>
+      assertNoClientErrors(): Chainable<Subject>
     }
   }
 }
@@ -16,12 +16,13 @@ Cypress.Commands.add('prepareConsoleErrorSpy', () => {
   });
 });
 
-// In E2E test mode we do NOT need a real bearer token. This command now only enables test mode.
+// Use E2E test mode bypass - no authentication required
 Cypress.Commands.add('loginWithBearer', () => {
   cy.prepareConsoleErrorSpy();
-  cy.on('window:before:load', (win) => {
-    try { win.localStorage.setItem('CL_E2E_TEST', '1'); } catch {}
-  });
+  
+  // In E2E test mode, we don't need to authenticate
+  // Just set a dummy token for API consistency
+  cy.wrap('e2e-test-token').as('authToken');
 });
 
 Cypress.Commands.add('assertNoClientErrors', () => {

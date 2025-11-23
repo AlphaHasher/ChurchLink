@@ -58,14 +58,6 @@ export const AppRouter = () => {
         />
 
         <Route
-          path="/*"
-          element={
-            <PublicRoute>
-              <PublicRoutes />
-            </PublicRoute>
-          }
-        />
-        <Route
           path="/thank-you"
           element={
             <PublicRoute>
@@ -107,6 +99,16 @@ export const AppRouter = () => {
             <AdminRoute>
               <WebEditor />
             </AdminRoute>
+          }
+        />
+
+        {/* Catch-all route for public pages - MUST be last */}
+        <Route
+          path="/*"
+          element={
+            <PublicRoute>
+              <PublicRoutes />
+            </PublicRoute>
           }
         />
       </Routes>
