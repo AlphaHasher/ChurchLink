@@ -5,10 +5,14 @@ from pydantic import BaseModel
 from fastapi.security import HTTPBearer
 from typing import List, Callable
 import os
+import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
-
-load_dotenv()
+# Load .env file from backend directory (parent of helpers directory)
+backend_dir = Path(__file__).parent.parent
+env_path = backend_dir / ".env"
+load_dotenv(dotenv_path=env_path)
 
 # Allow requests without Authorization header to reach our handler so we can bypass in E2E mode
 security = HTTPBearer(auto_error=False)
@@ -18,6 +22,17 @@ E2E_TEST_MODE = os.getenv("E2E_TEST_MODE", "").lower() == "true"
 
 # Check if testing tokens are accepted (for development admin bypass)
 ACCEPT_TESTING_TOKENS = os.getenv("ACCEPT_TESTING_TOKENS", "").lower() == "true"
+
+# Debug logging for testing token acceptance
+logger = logging.getLogger(__name__)
+# Log the actual value to debug
+raw_value = os.getenv("ACCEPT_TESTING_TOKENS", "NOT_SET")
+logger.info(f"ACCEPT_TESTING_TOKENS raw value: '{raw_value}'")
+logger.info(f"ACCEPT_TESTING_TOKENS enabled: {ACCEPT_TESTING_TOKENS}")
+if ACCEPT_TESTING_TOKENS:
+    logger.info("ACCEPT_TESTING_TOKENS is enabled - testing tokens will be accepted")
+else:
+    logger.warning(f"ACCEPT_TESTING_TOKENS is disabled. Check .env file at: {env_path}")
 
 class FirebaseUser:
     def __init__(self, uid: str, email: str, roles: List[str]):
@@ -42,17 +57,31 @@ async def authenticate_uid(credentials: HTTPAuthorizationCredentials = Security(
     if not token:
         raise HTTPException(status_code=401, detail="Missing Authorization: Bearer token")
 
+    # Log the token for debugging (first 50 chars only for security)
+    logger.info(f"Received token (first 50 chars): {token[:50]}...")
+    logger.info(f"ACCEPT_TESTING_TOKENS enabled: {ACCEPT_TESTING_TOKENS}")
+
     # Check for testing token format: TESTING_TOKEN:email:uid
-    if ACCEPT_TESTING_TOKENS and token.startswith("TESTING_TOKEN:"):
-        try:
-            parts = token.split(":", 2)
-            if len(parts) == 3 and parts[1] == "admin@testing.com":
-                # Extract real UID from the token
-                # Format: TESTING_TOKEN:admin@testing.com:VMjpZUqtBlS9RA01Flwk2Dmm7kH2
-                uid = parts[2]
-                return uid
-        except Exception:
-            pass  # Fall through to normal Firebase verification
+    if ACCEPT_TESTING_TOKENS:
+        if token.startswith("TESTING_TOKEN:"):
+            try:
+                parts = token.split(":", 2)
+                logger.info(f"Token parts count: {len(parts)}, parts: {parts}")
+                if len(parts) == 3 and parts[1] == "admin@testing.com":
+                    # Extract real UID from the token
+                    # Format: TESTING_TOKEN:admin@testing.com:VMjpZUqtBlS9RA01Flwk2Dmm7kH2
+                    uid = parts[2]
+                    logger.info(f"Testing token accepted for UID: {uid}")
+                    return uid
+                else:
+                    logger.warning(f"Testing token format invalid: expected admin@testing.com, got {parts[1] if len(parts) > 1 else 'N/A'}")
+            except Exception as e:
+                # Log error but fall through to normal Firebase verification
+                logger.warning(f"Error parsing testing token: {e}", exc_info=True)
+                pass  # Fall through to normal Firebase verification
+        else:
+            logger.warning(f"Token does not start with TESTING_TOKEN:. Token starts with: {token[:30] if len(token) > 30 else token}")
+            logger.warning(f"Full token length: {len(token)}")
 
     try:
         decoded_token = auth.verify_id_token(token)

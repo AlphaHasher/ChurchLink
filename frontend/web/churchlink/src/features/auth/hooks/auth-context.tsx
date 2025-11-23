@@ -34,7 +34,9 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Check for testing auth first
     const testingUserStr = localStorage.getItem("TESTING_AUTH_USER");
-    if (testingUserStr) {
+    const testingToken = localStorage.getItem("TESTING_AUTH_TOKEN");
+    
+    if (testingUserStr && testingToken) {
       try {
         const testingUser = JSON.parse(testingUserStr);
         // Create a minimal AuthUser-like object
@@ -46,6 +48,9 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
         setRole("admin");
         setIsWhitelisted(true);
         setLoading(false);
+        
+        // Don't set up Firebase listener if we're using testing tokens
+        // Return early to prevent Firebase from clearing our testing state
         return;
       } catch (error) {
         console.error("Error parsing testing user:", error);
@@ -55,12 +60,18 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
+    // Only set up Firebase listener if NOT using testing tokens
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // If Firebase user is null, also clear testing tokens
-      if (!user) {
+      // Only clear testing tokens if Firebase user is null AND we're not currently using testing tokens
+      if (!user && !localStorage.getItem("TESTING_AUTH_TOKEN")) {
         localStorage.removeItem("TESTING_AUTH_USER");
         localStorage.removeItem("TESTING_AUTH_TOKEN");
         localStorage.removeItem("TESTING_AUTH_EMAIL");
+      }
+      
+      // If we have testing tokens, don't let Firebase override the state
+      if (localStorage.getItem("TESTING_AUTH_TOKEN")) {
+        return;
       }
       
       if (user) {
