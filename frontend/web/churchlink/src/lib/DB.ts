@@ -83,9 +83,15 @@ export class DB {
     const store = this.ensureStore(storeName);
 
     return new Promise((resolve, reject) => {
-      const request = store.get(key);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
+      try {
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+      }
+      catch (error) {
+        console.log("error caught in DB.ts get method: ", error);
+      }
+
     });
   }
 
