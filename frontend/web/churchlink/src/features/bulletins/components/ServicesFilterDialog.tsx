@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RotateCcw, Search } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
@@ -15,46 +15,47 @@ import { Input } from '@/shared/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Label } from '@/shared/components/ui/label';
 
-export interface BulletinFilters {
-    ministry: string;
-    headline: string;
+export interface ServiceFilters {
+    dayOfWeek: string;
+    timeRange: string;
+    title: string;
 }
 
-export const DEFAULT_BULLETIN_FILTERS: BulletinFilters = {
-    ministry: 'all',
-    headline: '',
-};
+const DAYS_OF_WEEK = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+];
 
-interface MinistryOption {
-    id: string;
-    name: string;
-}
+const TIME_RANGES = [
+    { value: 'morning', label: 'Morning (6AM - 12PM)' },
+    { value: 'afternoon', label: 'Afternoon (12PM - 6PM)' },
+    { value: 'evening', label: 'Evening (6PM - 12AM)' },
+];
 
-interface BulletinsFilterDialogProps {
-    filters: BulletinFilters;
-    availableMinistries: MinistryOption[];
-    onApply: (next: BulletinFilters) => void;
+interface ServicesFilterDialogProps {
+    filters: ServiceFilters;
+    onApply: (next: ServiceFilters) => void;
     onReset: () => void;
 }
 
-export function BulletinsFilterDialog({ filters, availableMinistries, onApply, onReset }: BulletinsFilterDialogProps) {
+export function ServicesFilterDialog({ filters, onApply, onReset }: ServicesFilterDialogProps) {
     const [open, setOpen] = useState(false);
-    const [draft, setDraft] = useState<BulletinFilters>(filters);
+    const [draft, setDraft] = useState<ServiceFilters>(filters);
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
-        if (filters.ministry !== 'all') count += 1;
-        if (filters.headline.trim()) count += 1;
+        if (filters.dayOfWeek !== 'all') count += 1;
+        if (filters.timeRange !== 'all') count += 1;
+        if (filters.title.trim()) count += 1;
         return count;
     }, [filters]);
 
-    useEffect(() => {
-        if (open) {
-            setDraft(filters);
-        }
-    }, [filters, open]);
-
-    const updateDraft = <K extends keyof BulletinFilters>(key: K, value: BulletinFilters[K]) => {
+    const updateDraft = <K extends keyof ServiceFilters>(key: K, value: ServiceFilters[K]) => {
         setDraft((prev) => ({ ...prev, [key]: value }));
     };
 
@@ -67,22 +68,32 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
         // Reset filters to default which triggers immediate data reload
         onReset();
         // Update draft state to reflect the reset
-        setDraft({ ...DEFAULT_BULLETIN_FILTERS });
+        const defaultFilters: ServiceFilters = {
+            dayOfWeek: 'all',
+            timeRange: 'all',
+            title: '',
+        };
+        setDraft(defaultFilters);
         // Close dialog immediately after reset
         setOpen(false);
     };
 
     const handleOpenChange = (next: boolean) => {
         if (!next) {
-            setDraft(filters);
+            // Reset draft to current filters when closing without applying
+            setDraft({ ...filters });
+        } else {
+            // Sync draft with current filters when opening
+            setDraft({ ...filters });
         }
         setOpen(next);
     };
 
     const isDirty = useMemo(() => {
         return (
-            draft.ministry !== filters.ministry ||
-            draft.headline !== filters.headline
+            draft.dayOfWeek !== filters.dayOfWeek ||
+            draft.timeRange !== filters.timeRange ||
+            draft.title !== filters.title
         );
     }, [draft, filters]);
 
@@ -105,43 +116,62 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
             </DialogTrigger>
             <DialogContent className="w-full max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Filter bulletins</DialogTitle>
+                    <DialogTitle>Filter services</DialogTitle>
                     <DialogDescription>
-                        Refine the bulletin list by combining ministry, title, and date range.
+                        Refine the service list by day of week, time of day, and title.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="grid gap-6">
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-4 sm:grid-cols-3">
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="bulletin-filter-ministry">Ministry</Label>
+                            <Label htmlFor="service-filter-day">Day of Week</Label>
                             <Select
-                                value={draft.ministry}
-                                onValueChange={(value) => updateDraft('ministry', value)}
+                                value={draft.dayOfWeek}
+                                onValueChange={(value) => updateDraft('dayOfWeek', value)}
                             >
-                                <SelectTrigger id="bulletin-filter-ministry" className="w-full">
-                                    <SelectValue placeholder="All ministries" />
+                                <SelectTrigger id="service-filter-day" className="w-full">
+                                    <SelectValue placeholder="All days" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All ministries</SelectItem>
-                                    {availableMinistries.map((ministry) => (
-                                        <SelectItem key={ministry.id} value={ministry.id}>
-                                            {ministry.name}
+                                    <SelectItem value="all">All days</SelectItem>
+                                    {DAYS_OF_WEEK.map((day) => (
+                                        <SelectItem key={day} value={day}>
+                                            {day}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="bulletin-filter-title">Title</Label>
+                            <Label htmlFor="service-filter-time">Time of Day</Label>
+                            <Select
+                                value={draft.timeRange}
+                                onValueChange={(value) => updateDraft('timeRange', value)}
+                            >
+                                <SelectTrigger id="service-filter-time" className="w-full">
+                                    <SelectValue placeholder="All times" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All times</SelectItem>
+                                    {TIME_RANGES.map((range) => (
+                                        <SelectItem key={range.value} value={range.value}>
+                                            {range.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="service-filter-title">Title</Label>
                             <div className="relative">
                                 <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    id="bulletin-filter-title"
+                                    id="service-filter-title"
                                     placeholder="Search by title"
                                     className="pl-9"
-                                    value={draft.headline}
-                                    onChange={(event) => updateDraft('headline', event.target.value)}
+                                    value={draft.title}
+                                    onChange={(event) => updateDraft('title', event.target.value)}
                                 />
                             </div>
                         </div>

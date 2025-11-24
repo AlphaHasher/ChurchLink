@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/bulletin.dart';
+import 'package:app/models/ministry.dart';
 import 'package:app/widgets/bulletin_media_image.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class BulletinCard extends StatelessWidget {
-  const BulletinCard({super.key, required this.bulletin, required this.onTap});
+  const BulletinCard({
+    super.key,
+    required this.bulletin,
+    required this.onTap,
+    this.ministriesById,
+  });
 
   final Bulletin bulletin;
   final VoidCallback onTap;
+  final Map<String, Ministry>? ministriesById;
 
   @override
   Widget build(BuildContext context) {
@@ -40,24 +48,21 @@ class BulletinCard extends StatelessWidget {
                       Icon(
                         Icons.calendar_today,
                         size: 16,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withAlpha(60),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withAlpha(60),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           bulletin.formattedWeek,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withAlpha(70),
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withAlpha(70),
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -70,33 +75,31 @@ class BulletinCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        ...bulletin.ministries.take(3).map(
-                              (ministry) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withAlpha(16),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  ministry,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
+                        ...bulletin.ministries.take(3).map((ministryId) {
+                          final ministry = ministriesById?[ministryId];
+                          final name = ministry?.name ?? ministryId;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withAlpha(16),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              LocalizationHelper.localize(name),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                          );
+                        }),
                         if (bulletin.ministries.length > 3)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -104,23 +107,19 @@ class BulletinCard extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withAlpha(16),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withAlpha(16),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               '+${bulletin.ministries.length - 3}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                       ],
@@ -130,11 +129,10 @@ class BulletinCard extends StatelessWidget {
                   Text(
                     bulletin.body,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withAlpha(80),
-                        ),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withAlpha(80),
+                    ),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),

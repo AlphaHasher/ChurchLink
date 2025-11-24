@@ -1,20 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:app/models/bulletin.dart';
+import 'package:app/models/ministry.dart';
+import 'package:app/services/ministry_service.dart';
 
 class BulletinFilterSheet extends StatefulWidget {
   const BulletinFilterSheet({super.key, required this.initialFilter});
 
   final BulletinFilter initialFilter;
-
-  static const List<String> ministryOptions = <String>[
-    'Adults',
-    'Youth',
-    'Kids',
-    'Worship',
-    'Family',
-    'Education',
-    'Outreach',
-  ];
 
   @override
   State<BulletinFilterSheet> createState() => _BulletinFilterSheetState();
@@ -23,13 +15,34 @@ class BulletinFilterSheet extends StatefulWidget {
 class _BulletinFilterSheetState extends State<BulletinFilterSheet> {
   late TextEditingController _searchController;
   String? _ministry;
+  List<Ministry> _ministries = [];
+  bool _isLoadingMinistries = false;
 
   @override
   void initState() {
     super.initState();
     final filter = widget.initialFilter;
     _searchController = TextEditingController(text: '');
-    _ministry = filter.ministry;
+    _ministry = filter.ministry_id;
+    _loadMinistries();
+  }
+
+  Future<void> _loadMinistries() async {
+    setState(() => _isLoadingMinistries = true);
+    try {
+      final ministries = await MinistryService.getAllMinistries();
+      if (mounted) {
+        setState(() {
+          _ministries = ministries;
+        });
+      }
+    } catch (e) {
+      print('Error loading ministries: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMinistries = false);
+      }
+    }
   }
 
   @override
@@ -69,26 +82,37 @@ class _BulletinFilterSheetState extends State<BulletinFilterSheet> {
               controller: _searchController,
               decoration: const InputDecoration(
                 labelText: 'Search',
-                hintText: 'Headline',
+                hintText: 'Title',
                 prefixIcon: Icon(Icons.search),
               ),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
               initialValue: _ministry?.isNotEmpty == true ? _ministry : null,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Ministry',
-                prefixIcon: Icon(Icons.church),
+                prefixIcon: const Icon(Icons.church),
+                suffixIcon:
+                    _isLoadingMinistries
+                        ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                        : null,
               ),
               items: <DropdownMenuItem<String?>>[
                 const DropdownMenuItem<String?>(
                   value: null,
                   child: Text('All ministries'),
                 ),
-                ...BulletinFilterSheet.ministryOptions.map(
+                ..._ministries.map(
                   (ministry) => DropdownMenuItem<String?>(
-                    value: ministry,
-                    child: Text(ministry),
+                    value: ministry.id, // Use ministry ID instead of name
+                    child: Text(ministry.name), // Display ministry name
                   ),
                 ),
               ],
@@ -102,21 +126,48 @@ class _BulletinFilterSheetState extends State<BulletinFilterSheet> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: OutlinedButton.icon(
                     onPressed: () {
-                      setState(() {
-                        _searchController.clear();
-                        _ministry = null;
-                      });
+                      // Reset filter to default and close sheet - this triggers immediate refresh
+                      Navigator.of(context).pop(
+                        BulletinFilter(
+                          skip: 0,
+                          limit: widget.initialFilter.limit,
+                          published: widget.initialFilter.published,
+                          weekStart: widget.initialFilter.weekStart,
+                          weekEnd: widget.initialFilter.weekEnd,
+                          upcomingOnly: widget.initialFilter.upcomingOnly,
+                          // Clear user-controlled filters
+                          query: null,
+                          ministry_id: null,
+                        ),
+                      );
                     },
-                    child: const Text('Clear'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.clear_all),
+                    label: const Text('Clear All'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: ElevatedButton.icon(
                     onPressed: _apply,
-                    child: const Text('Apply'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 2,
+                    ),
+                    icon: const Icon(Icons.check),
+                    label: const Text(
+                      'Apply Filters',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -135,7 +186,7 @@ class _BulletinFilterSheetState extends State<BulletinFilterSheet> {
       skip: 0, // Reset pagination when applying new filters
       limit: widget.initialFilter.limit,
       query: searchText.isNotEmpty ? searchText : null,
-      ministry: _ministry?.isNotEmpty == true ? _ministry : null,
+      ministry_id: _ministry?.isNotEmpty == true ? _ministry : null,
       published: widget.initialFilter.published,
       weekStart: widget.initialFilter.weekStart,
       weekEnd: widget.initialFilter.weekEnd,
