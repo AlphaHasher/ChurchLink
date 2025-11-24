@@ -83,6 +83,41 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState<boolean>(false);
 
+  // Update document title when page loads
+  useEffect(() => {
+    if (pageData?.title) {
+      document.title = pageData.title;
+      // Store the page title and slug in localStorage for instant loading on next visit
+      try {
+        localStorage.setItem('last_page_title', pageData.title);
+        localStorage.setItem('last_page_slug', slug);
+      } catch (e) {
+        // Ignore storage errors
+      }
+    } else {
+      // No page title, clear stored page info and fallback to website config
+      try {
+        localStorage.removeItem('last_page_title');
+        localStorage.removeItem('last_page_slug');
+      } catch (e) {
+        // Ignore storage errors
+      }
+
+      // Fallback to cached website config title
+      try {
+        const cached = localStorage.getItem('website_config');
+        if (cached) {
+          const config = JSON.parse(cached);
+          if (config.title) {
+            document.title = config.title;
+          }
+        }
+      } catch (e) {
+        // Ignore errors, keep default title
+      }
+    }
+  }, [pageData?.title, slug]);
+
   useEffect(() => {
     const ctrl = new AbortController();
     setLoading(true);

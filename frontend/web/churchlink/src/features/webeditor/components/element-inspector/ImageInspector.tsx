@@ -69,7 +69,8 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({
   // Sync state when node changes
   React.useEffect(() => {
     setBrightness(initialBrightness);
-  }, [node.id]);
+    setImageError(false); // Reset error state when node or src changes
+  }, [node.id, currentId]);
 
   const commitHistoryIfNeeded = React.useCallback(
     (nextNodeSnapshot?: Node) => {
@@ -141,6 +142,7 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({
                 alt="Preview"
                 className="h-16 w-24 object-cover rounded border"
                 onError={() => setImageError(true)}
+                onLoad={() => setImageError(false)}
               />
               {imageError && (
                 <div className="absolute inset-0 flex items-center justify-center text-[11px] text-muted-foreground bg-muted/60 rounded">

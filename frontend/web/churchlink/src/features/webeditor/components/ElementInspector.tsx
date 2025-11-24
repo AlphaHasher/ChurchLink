@@ -1,8 +1,7 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import { Button } from "@/shared/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { ColorPicker, ColorPickerAlpha, ColorPickerHue, ColorPickerOutput, ColorPickerSelection } from "@/shared/components/ui/shadcn-io/color-picker";
 import { Label } from "@/shared/components/ui/label";
 import { NumericDragInput } from "@/shared/components/NumericDragInput";
@@ -48,30 +47,6 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
   section,
   onRequestDeleteNode,
 }) => {
-  const [bgOpen, setBgOpen] = React.useState(false);
-  const bgPrevRef = React.useRef<Node | null>(null);
-  const lastNodeIdRef = React.useRef<string | null>(null);
-  const skipBgCommitRef = React.useRef(false);
-
-  // Close background popover without committing if selection changes while open
-  useEffect(() => {
-    const currentId = selectedNode?.id ?? null;
-    const lastId = lastNodeIdRef.current;
-    if (bgOpen && lastId && currentId && lastId !== currentId) {
-      skipBgCommitRef.current = true;
-      setBgOpen(false);
-    }
-    lastNodeIdRef.current = currentId;
-  }, [selectedNode?.id, bgOpen]);
-
-  // If the entire inspector closes while the background popover is open,
-  // force-close the popover and skip committing any pending change to avoid loops.
-  useEffect(() => {
-    if (!open && bgOpen) {
-      skipBgCommitRef.current = true;
-      setBgOpen(false);
-    }
-  }, [open, bgOpen]);
 
   // Local child responsible purely for background editing to keep Hook order stable in parent
   const BackgroundEditor: React.FC<{ node: Node; open: boolean; onUpdateNode: (updater: (node: Node) => Node) => void }> = React.useCallback(({ node, open, onUpdateNode }) => {
@@ -179,6 +154,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
     const [bgRepeat, setBgRepeat] = React.useState<string>((style.backgroundRepeat as string) || 'no-repeat');
     const [brightness, setBrightness] = React.useState<number>(100);
     const [hexInput, setHexInput] = React.useState<string>(style.backgroundColor?.trim()?.length && style.backgroundColor !== 'transparent' ? style.backgroundColor : '#ffffff');
+    const [bgImageError, setBgImageError] = React.useState(false);
     const userInitiatedModeChangeRef = React.useRef(false);
 
     const scheduleRef = React.useRef<number | null>(null);
@@ -252,7 +228,16 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
       const gradient = `linear-gradient(${Math.round(nextAngle)}deg, ${nextC1}, ${nextC2})`;
       scheduleUpdate((n) => ({
         ...n,
-        style: { ...(n as any).style, background: gradient, backgroundColor: undefined },
+        style: {
+          ...(n as any).style,
+          background: gradient,
+          backgroundColor: undefined,
+          backgroundImage: undefined,
+          backgroundSize: undefined,
+          backgroundPosition: undefined,
+          backgroundRepeat: undefined,
+          '--bg-brightness': undefined,
+        },
       }));
     }, [scheduleUpdate, node.id]);
 
@@ -265,6 +250,11 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             className: stripBgUtilityClasses((n as any).style?.className),
             backgroundColor: css,
             background: undefined,
+            backgroundImage: undefined,
+            backgroundSize: undefined,
+            backgroundPosition: undefined,
+            backgroundRepeat: undefined,
+            '--bg-brightness': undefined,
           },
         } as Node;
         return next;
@@ -280,6 +270,11 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             className: stripBgUtilityClasses((n as any).style?.className),
             backgroundColor: 'transparent',
             background: undefined,
+            backgroundImage: undefined,
+            backgroundSize: undefined,
+            backgroundPosition: undefined,
+            backgroundRepeat: undefined,
+            '--bg-brightness': undefined,
           },
         } as Node;
         return next;
@@ -289,7 +284,16 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
     const applyCustom = React.useCallback((css: string) => {
       onUpdateNode((n) => ({
         ...n,
-        style: { ...(n as any).style, background: css, backgroundColor: undefined },
+        style: {
+          ...(n as any).style,
+          background: css,
+          backgroundColor: undefined,
+          backgroundImage: undefined,
+          backgroundSize: undefined,
+          backgroundPosition: undefined,
+          backgroundRepeat: undefined,
+          '--bg-brightness': undefined,
+        },
       }));
     }, [onUpdateNode, node.id]);
 
@@ -476,11 +480,19 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
             <Label>Background Image</Label>
             {imageId && (
               <div className="relative w-full h-32 rounded border overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={getThumbnailUrl(imageId)}
                   alt="Background preview"
                   className="w-full h-full object-cover"
+                  onError={() => setBgImageError(true)}
+                  onLoad={() => setBgImageError(false)}
                 />
+                {bgImageError && (
+                  <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground bg-muted/60 rounded">
+                    Couldn't load preview
+                  </div>
+                )}
               </div>
             )}
             <div className="flex gap-2">
@@ -614,6 +626,7 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
                 selectionMode
                 onSelect={(asset: ImageResponse) => {
                   setImageId(asset.id);
+                  setBgImageError(false);
                   applyImage(asset.id, bgSize, bgPosition, bgRepeat);
                   setMediaModalOpen(false);
                 }}
@@ -704,43 +717,12 @@ export const ElementInspector: React.FC<ElementInspectorProps> = ({
 
           <Separator />
 
-          {/* Unified Background editor: Solid, Gradient, Custom CSS */}
+          {/* Unified Background editor: Solid, Gradient, Custom CSS - now inline */}
           <div className="space-y-2">
             <Label>Background</Label>
-            <Popover
-              open={bgOpen}
-              onOpenChange={(open) => {
-                if (open) {
-                  bgPrevRef.current = selectedNode ? { ...selectedNode } : null;
-                } else {
-                  const sectionId = BuilderState.selection?.sectionId;
-                  const nodeId = BuilderState.selection?.nodeId;
-                  if (!skipBgCommitRef.current) {
-                    if (sectionId && nodeId && bgPrevRef.current && selectedNode) {
-                      BuilderState.pushNode(sectionId, nodeId, bgPrevRef.current, { ...selectedNode });
-                    }
-                  }
-                  skipBgCommitRef.current = false;
-                  bgPrevRef.current = null;
-                }
-                setBgOpen(open);
-              }}
-            >
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start gap-2 h-10">
-                  <div
-                    className="h-6 w-6 rounded border border-gray-300"
-                    style={{ background: (selectedNode as any)?.style?.background || (selectedNode as any)?.style?.backgroundColor || 'transparent' }}
-                  />
-                  <span className="text-sm truncate">{(selectedNode as any)?.style?.background || (selectedNode as any)?.style?.backgroundColor || 'transparent'}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[360px] p-3 space-y-3" align="start">
-                {selectedNode && (
-                  <BackgroundEditor node={selectedNode} open={bgOpen} onUpdateNode={onUpdateNode} />
-                )}
-              </PopoverContent>
-            </Popover>
+            {selectedNode && (
+              <BackgroundEditor node={selectedNode} open={true} onUpdateNode={onUpdateNode} />
+            )}
           </div>
 
           {/* Global corner radius control for all element types */}
