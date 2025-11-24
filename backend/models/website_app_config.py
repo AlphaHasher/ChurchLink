@@ -111,7 +111,12 @@ class WebsiteAppConfig(BaseModel):
         max_length=160,
         description="Meta description for SEO (optional, max 160 characters)"
     )
-    
+
+    og_image: Optional[str] = Field(
+        default=None,
+        description="URL to Open Graph image for social media previews (recommended: 1200x630px)"
+    )
+
     # Metadata fields
     updated_by: str = Field(
         default="system",
@@ -259,6 +264,11 @@ class WebsiteConfigUpdate(BaseModel):
         None,
         max_length=160,
         description="Meta description to update"
+    )
+
+    og_image: Optional[str] = Field(
+        None,
+        description="URL to Open Graph image for social media previews"
     )
 
     @field_validator('title')
