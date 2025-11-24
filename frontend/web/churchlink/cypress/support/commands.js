@@ -210,13 +210,6 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
       // Navigate the same way login spec does
       cy.visit(`${LOGIN_PATH}?redirectTo=${encodeURIComponent(redirectTo)}`);
 
-      try {
-        cy.get('input[placeholder="Enter email address"]').should('be.visible');
-      }
-      catch {
-        return;
-      }
-
       cy.get('input[placeholder="Enter email address"]').clear().type(email);
       cy.get('input[placeholder="Enter password"]').clear().type(password, {
         log: false,
