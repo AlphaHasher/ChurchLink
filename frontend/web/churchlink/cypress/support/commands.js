@@ -167,11 +167,10 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
               getAllReq.onsuccess = () => {
                 const records = getAllReq.result || [];
 
-                const emailToCheck = records[0].value['email'];
-                if (emailToCheck === email) {
+                if (records.length > 0) {
+                  const emailToCheck = records[0].value['email'];
                   resolve(emailToCheck);
                 }
-
                 if (!resolved) resolve(null);
               };
             } catch {
@@ -206,10 +205,6 @@ function doLogin({ envKey, redirectTo = DEFAULT_REDIRECT_AFTER_LOGIN }) {
       // Make sure we start from a logged-out Firebase state
       if (currentEmail !== null) {
         cy.logout();
-      }
-
-      if (cy.url() !== LOGIN_PATH) {
-        return;
       }
 
       // Navigate the same way login spec does
@@ -249,7 +244,6 @@ Cypress.Commands.add('adminlogin', () => {
 const TEST_MINISTRIES = ['Cy Ministry 1', 'Cy Ministry 2', 'Cy Ministry 3'];
 
 Cypress.Commands.add('createTestMinistries', () => {
-  cy.adminlogin();
   cy.visit('/admin/ministries');
 
   TEST_MINISTRIES.forEach((name) => {
@@ -274,7 +268,6 @@ Cypress.Commands.add('createTestMinistries', () => {
 });
 
 Cypress.Commands.add('deleteTestMinistries', () => {
-  cy.adminlogin();
   cy.visit('/admin/ministries');
 
   TEST_MINISTRIES.forEach((name) => {
@@ -327,7 +320,6 @@ Cypress.Commands.add('deleteTestMinistries', () => {
 const TEST_IMAGES = ['wolf.jpg', 'octopus.avif', 'orangutan.jpg'];
 
 Cypress.Commands.add('createTestImages', () => {
-  cy.adminlogin();
   cy.visit('/admin/media-library');
 
   TEST_IMAGES.forEach((filename) => {
@@ -340,7 +332,6 @@ Cypress.Commands.add('createTestImages', () => {
 });
 
 Cypress.Commands.add('deleteTestImages', () => {
-  cy.adminlogin();
   cy.visit('/admin/media-library');
 
   TEST_IMAGES.forEach((filename) => {
@@ -363,4 +354,3 @@ Cypress.Commands.add('deleteTestImages', () => {
     cy.contains('div', filename).should('not.exist');
   });
 });
-
