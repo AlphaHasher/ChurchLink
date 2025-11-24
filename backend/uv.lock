@@ -57,25 +57,25 @@ wheels = [
 
 [[package]]
 name = "apimatic-core-interfaces"
-version = "0.1.7"
+version = "0.1.8"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4f/bd/42f4a24861ce9e254570fbcfcfe5cf6e5cfa62d63656bde5ae2fbd429b36/apimatic_core_interfaces-0.1.7.tar.gz", hash = "sha256:34ae8aa76747f1c222812d13e52c8ed12f8cbabebfe296996011ebde2891959e", size = 7462, upload-time = "2025-10-03T12:50:32.784Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/0a/88f7d746eca4ae987d2f9a11235dbff41e5abfe901da2f3b07e463394e10/apimatic_core_interfaces-0.1.8.tar.gz", hash = "sha256:67c4ddbd5d9df92f5d8241cf4258762422d4b3f204b8d353fc25b4a95cb66ac0", size = 7868, upload-time = "2025-10-29T09:19:52.393Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7c/76/1449f0edca9276887cc9310bea6838bcf01a8eb992571da6afefdb3f643e/apimatic_core_interfaces-0.1.7-py3-none-any.whl", hash = "sha256:e8c98a87a6ce531e62d9fd154f1d76153c52b764c245c78307a744008de18156", size = 10253, upload-time = "2025-10-03T12:50:31.686Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/53/de725c86ff3b642b07ae6afb487e98215bf6a9eb1cb786f4b99a4b385945/apimatic_core_interfaces-0.1.8-py3-none-any.whl", hash = "sha256:d8d42ab60f3bc5840c9fd414af8ddfd9bee3e5ab7a73d4340a814ea92a5c1dd1", size = 10980, upload-time = "2025-10-29T09:19:51.689Z" },
 ]
 
 [[package]]
 name = "apimatic-requests-client-adapter"
-version = "0.1.8"
+version = "0.1.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apimatic-core-interfaces" },
     { name = "cachecontrol" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ce/97/54d69840fc563b0c22c84584cc7c6005ae079b3b3dfc0fe89f68c651c664/apimatic_requests_client_adapter-0.1.8.tar.gz", hash = "sha256:99b028f98e9deebba16b604fddb329106b4c9b6cf32345ce9646faadb92c8e43", size = 7982, upload-time = "2025-09-01T09:22:23.926Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/97/fe/17088523eb36596c6a0979a39aea9ef3304f38f71cb98de68d35cf92a106/apimatic_requests_client_adapter-0.1.9.tar.gz", hash = "sha256:40f132f97bd84a6e4c9efb4f549c328d0434c9e6d23fb74f539a8b632d97fe43", size = 9006, upload-time = "2025-10-29T09:29:52.481Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/76/d2b4416ad038a66377f0fcf24e3acc8217c2537588535fdda40e4ceccc0d/apimatic_requests_client_adapter-0.1.8-py3-none-any.whl", hash = "sha256:6a7a85d5b0f84ce87b3b9826fa2567b63d8ddca051d17508d0c4177c302474ce", size = 11826, upload-time = "2025-09-01T09:22:23.133Z" },
+    { url = "https://files.pythonhosted.org/packages/42/13/6f0939c27c9cce81a2669b75d51c44ad795deb62cdf40016f0ed2995cb09/apimatic_requests_client_adapter-0.1.9-py3-none-any.whl", hash = "sha256:0080d9a351586a69dbdf4c6f73ff097e8bc929fe1edd3cd91bde1f6119e5ac5b", size = 13369, upload-time = "2025-10-29T09:29:51.573Z" },
 ]
 
 [[package]]
@@ -364,14 +364,14 @@ wheels = [
 
 [[package]]
 name = "faker"
-version = "37.12.0"
+version = "38.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "tzdata" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/84/e95acaa848b855e15c83331d0401ee5f84b2f60889255c2e055cb4fb6bdf/faker-37.12.0.tar.gz", hash = "sha256:7505e59a7e02fa9010f06c3e1e92f8250d4cfbb30632296140c2d6dbef09b0fa", size = 1935741, upload-time = "2025-10-24T15:19:58.764Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/27/022d4dbd4c20567b4c294f79a133cc2f05240ea61e0d515ead18c995c249/faker-38.2.0.tar.gz", hash = "sha256:20672803db9c7cb97f9b56c18c54b915b6f1d8991f63d1d673642dc43f5ce7ab", size = 1941469, upload-time = "2025-11-19T16:37:31.892Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/98/2c050dec90e295a524c9b65c4cb9e7c302386a296b2938710448cbd267d5/faker-37.12.0-py3-none-any.whl", hash = "sha256:afe7ccc038da92f2fbae30d8e16d19d91e92e242f8401ce9caf44de892bab4c4", size = 1975461, upload-time = "2025-10-24T15:19:55.739Z" },
+    { url = "https://files.pythonhosted.org/packages/17/93/00c94d45f55c336434a15f98d906387e87ce28f9918e4444829a8fda432d/faker-38.2.0-py3-none-any.whl", hash = "sha256:35fe4a0a79dee0dc4103a6083ee9224941e7d3594811a50e3969e547b0d2ee65", size = 1980505, upload-time = "2025-11-19T16:37:30.208Z" },
 ]
 
 [[package]]
@@ -781,16 +781,16 @@ wheels = [
 
 [[package]]
 name = "paypal-server-sdk"
-version = "1.1.0"
+version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "apimatic-core" },
     { name = "apimatic-core-interfaces" },
     { name = "apimatic-requests-client-adapter" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/7a/334c19e1ef87bdf1b393ca8222a9c40575e6176f3acb5d16cbb749d6e110/paypal_server_sdk-1.1.0.tar.gz", hash = "sha256:cbc9173ee521f3a7f0b783afcbc4101e1528076242511fda64217f5da1b9db4e", size = 212102, upload-time = "2025-05-27T17:47:20.659Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/35/f9e9800563e895df7201e498ef2a73de09a4f7c2c37b3152d08a3de9f010/paypal_server_sdk-2.0.0.tar.gz", hash = "sha256:a3dfe472554fe6bb410f1574112bbe189576de5a4081de16a74e1678df883246", size = 265980, upload-time = "2025-11-10T18:16:57.547Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/b9/3ca5a0f3a70ca63ffbffcef54f21bd406ea71ba650cf59bdba069152764a/paypal_server_sdk-1.1.0-py3-none-any.whl", hash = "sha256:3b4a9d02f301f38c926c796846df5b0b090f889cf7fed7456fefb949aad3c688", size = 456551, upload-time = "2025-05-27T17:47:19.055Z" },
+    { url = "https://files.pythonhosted.org/packages/16/97/6e8a1779fce6bf180f9a5efb74c732a97706c8871c0a40fb6b8b2ee39ce1/paypal_server_sdk-2.0.0-py3-none-any.whl", hash = "sha256:96d94f241efd4b9fdc365d690492c6c6012500487307e8f4a7ee90e20b551b1b", size = 584963, upload-time = "2025-11-10T18:16:56.403Z" },
 ]
 
 [[package]]
