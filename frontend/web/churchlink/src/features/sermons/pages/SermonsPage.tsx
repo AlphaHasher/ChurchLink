@@ -165,7 +165,7 @@ const SermonsPage = () => {
                 <div>
                     <div className="mb-4 flex items-center justify-between">
                         <div>
-                            <h2 className="text-xl font-bold">All Sermons</h2>
+                            <h2 className="text-xl font-bold">Handpicked Youtube Videos</h2>
                             {activeFilterLabels.length > 0 && (
                                 <div className="mt-2 flex flex-wrap gap-2">
                                     {activeFilterLabels.map((label, index) => (
