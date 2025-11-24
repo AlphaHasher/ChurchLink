@@ -93,7 +93,7 @@ const MediaLibrary: React.FC<{
   const [scope, setScope] = useState<'current' | 'all'>('current');
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(60);
+  const [pageSize, setPageSize] = useState(24);
   const [total, setTotal] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);

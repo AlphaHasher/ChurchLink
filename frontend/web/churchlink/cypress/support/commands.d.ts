@@ -33,5 +33,29 @@ declare namespace Cypress {
      * ADMIN_EMAIL + AUTH_PASSWORD from Cypress.env.
      */
     adminlogin(): Chainable<any>;
+
+    /**
+     * Creates three test ministries:
+     * "Youth Ministry", "Bible Studies", and "Community Outreach".
+     */
+    createTestMinistries(): Chainable<any>;
+
+    /**
+     * Deletes the test ministries created by createTestMinistries(),
+     * if they exist.
+     */
+    deleteTestMinistries(): Chainable<any>;
+
+    /**
+     * Uploads test images (wolf.jpg, octopus.avif, orangutan.jpg)
+     * into the root of the media library.
+     */
+    createTestImages(): Chainable<any>;
+
+    /**
+     * Deletes the test images created by createTestImages(),
+     * if they exist.
+     */
+    deleteTestImages(): Chainable<any>;
   }
 }

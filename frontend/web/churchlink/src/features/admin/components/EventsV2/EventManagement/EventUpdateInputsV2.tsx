@@ -610,6 +610,8 @@ export default function EventUpdateInputsV2({
                             checked={!!draft.rsvp_required}
                             onCheckedChange={(v) => updateDraft({ ...draft, rsvp_required: !!v })}
                             disabled={disabled}
+                            aria-label="RSVP required"
+                            title="RSVP required switch"
                         />
                         <Label htmlFor="rsvpRequired">RSVP required</Label>
                     </div>

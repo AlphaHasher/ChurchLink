@@ -38,7 +38,7 @@ describe('Profile / Contact Info', () => {
             cy.login();
         });
 
-        cy.visit(PROFILE_PATH);
+        cy.visit('/profile');
 
         // Make sure the Contact Information card is present
         cy.contains('h2', CONTACT_CARD_HEADING).should('be.visible');
