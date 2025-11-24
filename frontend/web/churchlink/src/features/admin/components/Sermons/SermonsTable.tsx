@@ -34,7 +34,7 @@ export function SermonsTable({ data, permData: _permData, onSave }: SermonsTable
                 <Input placeholder="Search Title..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
                 <div className="ml-auto flex items-center space-x-2">
                     <Button onClick={() => onSave()}>Refresh</Button>
-                    <CreateSermonDialog onSave={onSave} />
+                    <CreateSermonDialog onSave={onSave} availableMinistries={[]} />
                 </div>
             </div>
 
@@ -72,7 +72,7 @@ export function SermonsTable({ data, permData: _permData, onSave }: SermonsTable
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex space-x-2">
-                                            <EditSermonDialog sermon={s} onSave={onSave} />
+                                            <EditSermonDialog sermon={s} onSave={onSave} availableMinistries={[]} />
                                         </div>
                                     </TableCell>
                                 </TableRow>

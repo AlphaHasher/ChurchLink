@@ -405,10 +405,9 @@ const Sermons = () => {
             onSave={async () => {
               setEditTarget(null);
               await loadData();
-            }}
+            } }
             open={!!editTarget}
-            onOpenChange={(open) => !open && setEditTarget(null)}
-          />
+            onOpenChange={(open) => !open && setEditTarget(null)} availableMinistries={[]}          />
         )}
 
         {/* Ministry Assignment Dialog */}
