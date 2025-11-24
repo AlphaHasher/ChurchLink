@@ -8,7 +8,7 @@ class Sermon {
   final String title;
   final String description;
   final String speaker;
-  final List<String> ministry;
+  final List<String> ministry; // Stores ObjectId strings
   final String youtubeUrl;
   final String? videoId;
   final DateTime datePosted;
@@ -70,7 +70,8 @@ class Sermon {
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       speaker: json['speaker']?.toString() ?? '',
-      ministry: _coerceStringList(json['ministry']),
+      // Accept both ministry and ministry_ids from API, prefer ministry_ids
+      ministry: _coerceStringList(json['ministry_ids'] ?? json['ministry']),
       youtubeUrl: json['youtube_url']?.toString() ?? '',
       videoId: json['video_id']?.toString(),
       datePosted: parseDate(datePostedRaw?.toString()) ?? DateTime.now(),

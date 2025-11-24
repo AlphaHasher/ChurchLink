@@ -7,13 +7,38 @@ import { DEFAULT_SERMON_FILTERS } from '@/features/sermons/constants';
 import { SermonFilters } from '@/features/sermons/types';
 import { ChurchSermon } from '@/shared/types/ChurchSermon';
 import { useAuth } from '@/features/auth/hooks/auth-context';
+import { fetchMinistries } from '@/helpers/MinistriesHelper';
+import type { Ministry } from '@/shared/types/Ministry';
 
 const SermonsPage = () => {
     const [items, setItems] = useState<ChurchSermon[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedSermon, setSelectedSermon] = useState<ChurchSermon | null>(null);
     const [filters, setFilters] = useState<SermonFilters>({ ...DEFAULT_SERMON_FILTERS });
+    const [ministries, setMinistries] = useState<Ministry[]>([]);
     const { user, loading: authLoading } = useAuth();
+
+    // Load ministries dynamically from API
+    useEffect(() => {
+        const loadMinistries = async () => {
+            try {
+                const data = await fetchMinistries();
+                setMinistries(data || []);
+            } catch (error) {
+                console.error('Failed to load ministries', error);
+                setMinistries([]);
+            }
+        };
+        loadMinistries();
+    }, []);
+
+    const ministryNameMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        for (const m of ministries) {
+            if (m?.id && m?.name) map[m.id] = m.name;
+        }
+        return map;
+    }, [ministries]);
 
     useEffect(() => {
         let isMounted = true;
@@ -45,17 +70,10 @@ const SermonsPage = () => {
         };
     }, [authLoading, user?.uid]);
 
-    const availableMinistries = useMemo(() => {
-        const ministrySet = new Set<string>();
-        items.forEach((sermon) => {
-            sermon.ministry?.forEach((min) => ministrySet.add(min));
-        });
-        return Array.from(ministrySet).sort((a, b) => a.localeCompare(b));
-    }, [items]);
-
     const filteredItems = useMemo(() => {
         return items.filter((sermon) => {
-            if (filters.ministry !== 'all' && !sermon.ministry?.includes(filters.ministry)) {
+            const sermonMinistries = sermon.ministry || [];
+            if (filters.ministry !== 'all' && !sermonMinistries.includes(filters.ministry)) {
                 return false;
             }
 
@@ -134,40 +152,58 @@ const SermonsPage = () => {
         return labels;
     }, [dateFormatter, filters]);
 
-    if (loading) return <p>Loading sermons...</p>;
+    if (loading) return <p>Loading...</p>;
 
     return (
-        <div className="p-6">
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
+        <div className="flex justify-center bg-gray-50 py-8">
+            <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+                <div className="mb-6">
                     <h1 className="text-2xl font-semibold">Sermons</h1>
-                    {activeFilterLabels.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {activeFilterLabels.map((label, index) => (
-                                <span
-                                    key={`${label}-${index}`}
-                                    className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                                >
-                                    {label}
-                                </span>
-                            ))}
+                </div>
+
+                {/* Sermons Section */}
+                <div>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold">Handpicked Youtube Videos</h2>
+                            {activeFilterLabels.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {activeFilterLabels.map((label, index) => (
+                                        <span
+                                            key={`sermon-filter-${index}`}
+                                            className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                                        >
+                                            {label}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <SermonsFilterDialog
+                            filters={filters}
+                            availableMinistries={ministries}
+                            onApply={applyFilters}
+                            onReset={resetFilters}
+                        />
+                    </div>
+                    {filteredItems.length > 0 ? (
+                        <SermonList items={filteredItems} onItemClick={setSelectedSermon} ministryNameMap={ministryNameMap} />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <p className="text-gray-600 font-medium mb-1">No sermons found</p>
+                            <p className="text-gray-500 text-sm">Try adjusting your filters</p>
                         </div>
                     )}
                 </div>
-                <SermonsFilterDialog
-                    filters={filters}
-                    availableMinistries={availableMinistries}
-                    onApply={applyFilters}
-                    onReset={resetFilters}
+
+                <SermonDetailsModal
+                    sermon={selectedSermon}
+                    isOpen={Boolean(selectedSermon)}
+                    onClose={() => setSelectedSermon(null)}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    ministryNameMap={ministryNameMap}
                 />
             </div>
-            <SermonList items={filteredItems} onItemClick={setSelectedSermon} />
-            <SermonDetailsModal
-                sermon={selectedSermon}
-                isOpen={Boolean(selectedSermon)}
-                onClose={() => setSelectedSermon(null)}
-                onFavoriteToggle={handleFavoriteToggle}
-            />
         </div>
     )
 }

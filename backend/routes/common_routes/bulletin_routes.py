@@ -124,7 +124,7 @@ async def get_current_week(request: Request):
 async def get_bulletins(
 	skip: int = Query(0, ge=0, description="Number of records to skip"),
 	limit: int = Query(100, ge=1, le=500, description="Max number of records to return"),
-	ministry: Optional[str] = None,
+	ministry_id: Optional[str] = None,
 	query: Optional[str] = None,
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
@@ -154,7 +154,7 @@ async def get_bulletins(
 	bulletins = await list_bulletins(
 		skip=skip,
 		limit=limit,
-		ministry=ministry,
+		ministry_id=ministry_id,
 		query_text=query,
 		week_start=_combine_date_and_time(bulletin_week_start),
 		week_end=_combine_date_and_time(bulletin_week_end, end_of_day=True),
@@ -182,7 +182,7 @@ async def search_bulletins_route(
 	query: str,
 	skip: int = 0,
 	limit: int = 100,
-	ministry: Optional[str] = None,
+	ministry_id: Optional[str] = None,
 	published: Optional[bool] = True,
 ):
 	"""Search bulletins by text"""
@@ -190,7 +190,7 @@ async def search_bulletins_route(
 		query,
 		skip=skip,
 		limit=limit,
-		ministry=ministry,
+		ministry_id=ministry_id,
 		published=published,
 	)
 
@@ -215,7 +215,7 @@ async def list_all_bulletins_for_editing(
 	request: Request,
 	skip: int = Query(0, ge=0, description="Number of records to skip"),
 	limit: int = Query(100, ge=1, le=500, description="Max number of records to return"),
-	ministry: Optional[str] = None,
+	ministry_id: Optional[str] = None,
 	week_start: Optional[date] = None,
 	week_end: Optional[date] = None,
 	published: Optional[bool] = None,
@@ -233,7 +233,7 @@ async def list_all_bulletins_for_editing(
 	return await list_bulletins(
 		skip=skip,
 		limit=limit,
-		ministry=ministry,
+		ministry_id=ministry_id,
 		week_start=_combine_date_and_time(week_start),
 		week_end=_combine_date_and_time(week_end, end_of_day=True),
 		published=published,  # None allows both published and unpublished

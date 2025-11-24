@@ -32,7 +32,7 @@ describe('Public – Weekly Bulletin Page', () => {
       const hasWeekLabel = !!(bodyText.match(/week of|for the week/i));
       const hasServices = $body.find('[data-testid*="service"], [class*="service"]').length > 0 ||
                          bodyText.includes('Services');
-      const hasAnnouncements = bodyText.includes('Announcements') || bodyText.includes('📢');
+      const hasAnnouncements = bodyText.includes('Announcements');
       const hasEmptyState = bodyText.includes('No announcements') || bodyText.includes('No bulletins');
       
       const result = hasWeekLabel || hasServices || hasAnnouncements || hasEmptyState;

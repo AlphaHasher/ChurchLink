@@ -1,4 +1,5 @@
 import 'package:app/models/sermon.dart';
+import 'package:app/models/ministry.dart';
 import 'package:flutter/material.dart';
 
 class SermonCard extends StatelessWidget {
@@ -7,11 +8,13 @@ class SermonCard extends StatelessWidget {
     required this.sermon,
     required this.onTap,
     required this.onToggleFavorite,
+    this.ministriesById,
   });
 
   final Sermon sermon;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
+  final Map<String, Ministry>? ministriesById;
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +119,62 @@ class SermonCard extends StatelessWidget {
                       ),
                     ],
                   ),
+                  if (sermon.ministry.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ...sermon.ministry.take(2).map((ministryId) {
+                          final ministry = ministriesById?[ministryId];
+                          final name = ministry?.name ?? ministryId;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withAlpha(16),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              name,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        }),
+                        if (sermon.ministry.length > 2)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withAlpha(16),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '+${sermon.ministry.length - 2}',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   if (sermon.summary != null && sermon.summary!.isNotEmpty)
                     Text(

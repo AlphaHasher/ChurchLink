@@ -6,16 +6,16 @@ from urllib.parse import parse_qs, urlparse
 
 from bson import ObjectId
 from helpers.MongoHelper import serialize_objectid_deep
-from models.ministry import validate_ministry_ids
+from models.ministry import validate_ministry_ids, get_ministry_refs_from_ids
 from mongo.database import DB
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, computed_field
 
 
 class SermonBase(BaseModel):
     title: str
     description: str
     speaker: str
-    ministry: List[str]
+    ministry: List[str]  # Stores ObjectId strings
     youtube_url: HttpUrl
     date_posted: datetime
     published: bool
@@ -34,7 +34,7 @@ class SermonUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     speaker: Optional[str] = None
-    ministry: Optional[List[str]] = None
+    ministry: Optional[List[str]] = None  # Stores ObjectId strings
     youtube_url: Optional[HttpUrl] = None
     video_id: Optional[str] = None
     date_posted: Optional[datetime] = None
@@ -52,6 +52,7 @@ class SermonOut(SermonBase):
     created_at: datetime
     updated_at: datetime
     is_favorited: Optional[bool] = None
+    ministry_refs: Optional[List[dict]] = Field(default=None)
 
 
 def normalize_youtube_video_id(url_or_id: str) -> str:
@@ -96,6 +97,12 @@ async def _fetch_sermon_document(filter_query: dict) -> Optional[SermonOut]:
         return None
     document["id"] = str(document.pop("_id"))
     serialized = serialize_objectid_deep(document)
+    
+    # Hydrate ministry_refs from ministry IDs
+    ministry_ids = serialized.get("ministry", [])
+    ministry_refs = await get_ministry_refs_from_ids(ministry_ids)
+    serialized["ministry_refs"] = ministry_refs
+    
     return SermonOut(**serialized)
 
 
@@ -236,7 +243,7 @@ async def list_sermons(
     *,
     skip: int = 0,
     limit: int = 100,
-    ministry: Optional[str] = None,
+    ministry_id: Optional[str] = None,
     speaker: Optional[str] = None,
     tags: Optional[List[str]] = None,
     date_after: Optional[datetime] = None,
@@ -247,8 +254,8 @@ async def list_sermons(
 ) -> List[SermonOut]:
     query: dict = {}
 
-    if ministry:
-        query["ministry"] = {"$in": [ministry]}
+    if ministry_id:
+        query["ministry"] = {"$in": [ministry_id]}
     if speaker:
         query["speaker"] = {"$regex": speaker, "$options": "i"}
     if tags:
@@ -274,12 +281,33 @@ async def list_sermons(
         cursor = cursor.limit(limit)
 
     documents = await cursor.to_list(length=limit or None)
+    
+    # Collect all unique ministry IDs from all documents
+    all_ministry_ids = set()
+    for document in documents:
+        ministry_ids = document.get("ministry", [])
+        all_ministry_ids.update(ministry_ids)
+    
+    # Bulk fetch all ministries in ONE query
+    ministry_map = {}
+    if all_ministry_ids:
+        ministry_list = await get_ministry_refs_from_ids(list(all_ministry_ids))
+        ministry_map = {m["id"]: m for m in ministry_list}
+    
+    # Hydrate each document from the cached map
     sermons: List[SermonOut] = []
     for document in documents:
         document["id"] = str(document.pop("_id"))
         serialized = serialize_objectid_deep(document)
         if favorite_ids is not None:
             serialized["is_favorited"] = serialized.get("id") in favorite_ids
+        
+        # Hydrate ministry_refs from pre-fetched map (O(1) lookup)
+        ministry_ids = serialized.get("ministry", [])
+        serialized["ministry_refs"] = [
+            ministry_map[mid] for mid in ministry_ids if mid in ministry_map
+        ]
+        
         sermons.append(SermonOut(**serialized))
     return sermons
 
@@ -289,17 +317,27 @@ async def search_sermons(
     *,
     skip: int = 0,
     limit: int = 100,
-    ministry: Optional[str] = None,
+    ministry_id: Optional[str] = None,
     speaker: Optional[str] = None,
     tags: Optional[List[str]] = None,
     published: Optional[bool] = None,
     favorite_ids: Optional[Set[str]] = None,
     favorites_only: Optional[bool] = None,
 ) -> List[SermonOut]:
-    query: dict = {"$text": {"$search": query_text}}
+    # Use regex for partial matching across title, description, and summary
+    # This allows "a" to match "abc" (case-insensitive substring search)
+    import re
+    escaped_query = re.escape(query_text)
+    query: dict = {
+        "$or": [
+            {"title": {"$regex": escaped_query, "$options": "i"}},
+            {"description": {"$regex": escaped_query, "$options": "i"}},
+            {"summary": {"$regex": escaped_query, "$options": "i"}},
+        ]
+    }
 
-    if ministry:
-        query["ministry"] = {"$in": [ministry]}
+    if ministry_id:
+        query["ministry"] = {"$in": [ministry_id]}
     if speaker:
         query["speaker"] = {"$regex": speaker, "$options": "i"}
     if tags:
@@ -313,18 +351,40 @@ async def search_sermons(
     if DB.db is None:
         return []
 
-    cursor = DB.db["sermons"].find(query).sort([("score", {"$meta": "textScore"})])
+    # Sort by date_posted descending (most recent first) instead of text score
+    cursor = DB.db["sermons"].find(query).sort([("date_posted", -1)])
     if skip:
         cursor = cursor.skip(skip)
     if limit:
         cursor = cursor.limit(limit)
 
     documents = await cursor.to_list(length=limit or None)
+    
+    # Collect all unique ministry IDs from all documents
+    all_ministry_ids = set()
+    for document in documents:
+        ministry_ids = document.get("ministry", [])
+        all_ministry_ids.update(ministry_ids)
+    
+    # Bulk fetch all ministries in ONE query
+    ministry_map = {}
+    if all_ministry_ids:
+        ministry_list = await get_ministry_refs_from_ids(list(all_ministry_ids))
+        ministry_map = {m["id"]: m for m in ministry_list}
+    
+    # Hydrate each document from the cached map
     sermons: List[SermonOut] = []
     for document in documents:
         document["id"] = str(document.pop("_id"))
         serialized = serialize_objectid_deep(document)
         if favorite_ids is not None:
             serialized["is_favorited"] = serialized.get("id") in favorite_ids
+        
+        # Hydrate ministry_refs from pre-fetched map (O(1) lookup)
+        ministry_ids = serialized.get("ministry", [])
+        serialized["ministry_refs"] = [
+            ministry_map[mid] for mid in ministry_ids if mid in ministry_map
+        ]
+        
         sermons.append(SermonOut(**serialized))
     return sermons

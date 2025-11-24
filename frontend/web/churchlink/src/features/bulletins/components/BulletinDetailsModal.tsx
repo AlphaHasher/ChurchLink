@@ -9,18 +9,22 @@ import {
 import { ChurchBulletin } from '@/shared/types/ChurchBulletin';
 import { getLocalizedBulletinFields } from '@/shared/utils/localeUtils';
 import { BulletinMediaImage } from '@/features/bulletins/components/BulletinMediaImage';
+import { useLocalize } from '@/shared/utils/localizationUtils';
 
 interface BulletinDetailsModalProps {
     bulletin: ChurchBulletin | null;
     isOpen: boolean;
     onClose: () => void;
+    ministryNameMap?: Record<string, string>;
 }
 
 export function BulletinDetailsModal({ 
     bulletin, 
     isOpen, 
-    onClose
+    onClose,
+    ministryNameMap = {}
 }: BulletinDetailsModalProps) {
+    const localize = useLocalize();
     const publishDate = bulletin?.publish_date ? new Date(bulletin.publish_date) : null;
     const updatedAtSource = bulletin ? bulletin.updated_at ?? bulletin.created_at ?? null : null;
     const updatedAt = updatedAtSource ? new Date(updatedAtSource) : null;
@@ -117,12 +121,12 @@ export function BulletinDetailsModal({
                                         <div>
                                             <p className="font-medium">Ministries</p>
                                             <div className="flex flex-wrap gap-1 mt-1">
-                                                {bulletin.ministries.map((ministry, idx) => (
+                                                {bulletin.ministries.map((id) => (
                                                     <span
-                                                        key={idx}
+                                                        key={id}
                                                         className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800"
                                                     >
-                                                        {ministry}
+                                                        {localize(ministryNameMap[id]) || id}
                                                     </span>
                                                 ))}
                                             </div>

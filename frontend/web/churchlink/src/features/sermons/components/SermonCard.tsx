@@ -3,13 +3,16 @@ import { Star } from 'lucide-react';
 import { Card } from '@/shared/components/ui/card';
 import { ChurchSermon } from '@/shared/types/ChurchSermon';
 import { buildThumbnailUrl, formatDurationLabel, resolveDurationSeconds } from '@/features/sermons/utils/media';
+import { useLocalize } from '@/shared/utils/localizationUtils';
 
 interface SermonCardProps {
     sermon: ChurchSermon;
     onClick?: () => void;
+    ministryNameMap?: Record<string, string>;
 }
 
-export function SermonCard({ sermon, onClick }: SermonCardProps) {
+export function SermonCard({ sermon, onClick, ministryNameMap = {} }: SermonCardProps) {
+    const localize = useLocalize();
     const posted = sermon.date_posted ? new Date(sermon.date_posted) : undefined;
     const thumbnail = buildThumbnailUrl(sermon);
     const durationLabel = formatDurationLabel(resolveDurationSeconds(sermon));
@@ -54,6 +57,25 @@ export function SermonCard({ sermon, onClick }: SermonCardProps) {
                 {posted && (
                     <div className="text-xs text-gray-500">
                         {format(posted, 'MMM dd, yyyy')}
+                    </div>
+                )}
+                
+                {/* Ministry badges */}
+                {sermon.ministry && sermon.ministry.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                        {sermon.ministry.slice(0, 2).map((id) => (
+                            <span
+                                key={id}
+                                className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+                            >
+                                {localize(ministryNameMap[id]) || id}
+                            </span>
+                        ))}
+                        {sermon.ministry.length > 2 && (
+                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                                +{sermon.ministry.length - 2}
+                            </span>
+                        )}
                     </div>
                 )}
             </div>

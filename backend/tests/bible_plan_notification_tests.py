@@ -1,3 +1,5 @@
+#tested 1 failed, 5 passed, 4 errors on Nov 22
+
 import os
 import httpx
 import pytest

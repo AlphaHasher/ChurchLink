@@ -4,13 +4,16 @@ import { cn } from '@/lib/utils';
 import { ChurchBulletin } from '@/shared/types/ChurchBulletin';
 import { getLocalizedBulletinFields } from '@/shared/utils/localeUtils';
 import { BulletinMediaImage } from '@/features/bulletins/components/BulletinMediaImage';
+import { useLocalize } from '@/shared/utils/localizationUtils';
 
 interface BulletinCardProps {
     bulletin: ChurchBulletin;
     onClick?: () => void;
+    ministryNameMap?: Record<string, string>;
 }
 
-export function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
+export function BulletinCard({ bulletin, onClick, ministryNameMap = {} }: BulletinCardProps) {
+    const localize = useLocalize();
     const publishDate = bulletin.publish_date ? new Date(bulletin.publish_date) : undefined;
     const weekLabel = publishDate ? format(publishDate, 'MMM dd, yyyy') : '';
     const hasImage = Boolean(bulletin.image_id || bulletin.image_url || bulletin.thumbnail_url);
@@ -69,12 +72,12 @@ export function BulletinCard({ bulletin, onClick }: BulletinCardProps) {
 					!hasImage && "justify-center"
 				)}
 			>
-                        {bulletin.ministries.slice(0, 3).map((ministry, idx) => (
+                        {bulletin.ministries.slice(0, 3).map((id) => (
                             <span
-                                key={idx}
+                                key={id}
                                 className="inline-flex items-center rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-800"
                             >
-                                {ministry}
+                                {localize(ministryNameMap[id]) || id}
                             </span>
                         ))}
 					{bulletin.ministries.length > 3 && (

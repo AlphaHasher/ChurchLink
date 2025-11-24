@@ -487,20 +487,41 @@ class DB:
                     await DB.db[collection_name].create_indexes([index_model])
 
             if collection_name == "sermons":
-                await DB.db[collection_name].create_index([("ministry", pymongo.ASCENDING)])
-                await DB.db[collection_name].create_index([("speaker", pymongo.ASCENDING)])
-                await DB.db[collection_name].create_index([("date_posted", pymongo.DESCENDING)])
-                await DB.db[collection_name].create_index(
-                    [("title", "text"), ("description", "text")],
-                    name="sermons_text_index"
-                )
+                # Check and create indexes only if they don't exist
+                if not has_index_with_keys([("speaker", pymongo.ASCENDING)]):
+                    await DB.db[collection_name].create_index([("speaker", pymongo.ASCENDING)])
+                
+                if not has_index_with_keys([("date_posted", pymongo.DESCENDING)]):
+                    await DB.db[collection_name].create_index([("date_posted", pymongo.DESCENDING)])
+                
+                # Text index - check by name since text indexes are special
+                if "sermons_text_index" not in existing_indexes:
+                    await DB.db[collection_name].create_index(
+                        [("title", "text"), ("description", "text")],
+                        name="sermons_text_index"
+                    )
+                
+                # Multikey index for ministry array filtering
+                if not has_index_with_keys([("ministry", pymongo.ASCENDING)]):
+                    await DB.db[collection_name].create_index(
+                        [("ministry", pymongo.ASCENDING)],
+                        name="sermons_ministry_array_index"
+                    )
 
             if collection_name == "bulletins":
                 # Text index for search_bulletins and list_bulletins(query_text=...)
-                await DB.db[collection_name].create_index(
-                    [("headline", "text"), ("body", "text")],
-                    name="bulletins_text_index",
-                )
+                if "bulletins_text_index" not in existing_indexes:
+                    await DB.db[collection_name].create_index(
+                        [("headline", "text"), ("body", "text")],
+                        name="bulletins_text_index",
+                    )
+                
+                # Multikey index for ministry array filtering
+                if not has_index_with_keys([("ministries", pymongo.ASCENDING)]):
+                    await DB.db[collection_name].create_index(
+                        [("ministries", pymongo.ASCENDING)],
+                        name="bulletins_ministries_array_index"
+                    )
 
             # Import migration data if collection is empty
             await DB.import_migration_data(collection_name)

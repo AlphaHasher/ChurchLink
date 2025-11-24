@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Filter, RotateCcw, Search } from 'lucide-react';
+import { RotateCcw, Search } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -64,8 +64,11 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
     };
 
     const handleReset = () => {
+        // Reset filters to default which triggers immediate data reload
         onReset();
+        // Update draft state to reflect the reset
         setDraft({ ...DEFAULT_BULLETIN_FILTERS });
+        // Close dialog immediately after reset
         setOpen(false);
     };
 
@@ -91,7 +94,7 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
                     size="sm"
                     className="flex items-center gap-2"
                 >
-                    <Filter className="h-4 w-4" />
+                    <Search className="h-4 w-4" />
                     Filters
                     {activeFilterCount > 0 && (
                         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
@@ -104,7 +107,7 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
                 <DialogHeader>
                     <DialogTitle>Filter bulletins</DialogTitle>
                     <DialogDescription>
-                        Refine the bulletin list by combining ministry, headline, and date range.
+                        Refine the bulletin list by combining ministry, title, and date range.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -130,12 +133,12 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
                             </Select>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="bulletin-filter-headline">Headline</Label>
+                            <Label htmlFor="bulletin-filter-title">Title</Label>
                             <div className="relative">
                                 <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    id="bulletin-filter-headline"
-                                    placeholder="Search by headline"
+                                    id="bulletin-filter-title"
+                                    placeholder="Search by title"
                                     className="pl-9"
                                     value={draft.headline}
                                     onChange={(event) => updateDraft('headline', event.target.value)}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import {
     Dialog,
@@ -9,21 +9,28 @@ import {
     DialogTitle,
 } from "@/shared/components/ui/Dialog";
 import { Loader2 } from "lucide-react";
+import { Label } from "@/shared/components/ui/label";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import {
+    Popover, PopoverTrigger, PopoverContent,
+} from "@/shared/components/ui/popover";
+import {
+    Command, CommandInput, CommandEmpty, CommandList, CommandGroup, CommandItem,
+} from "@/shared/components/ui/command";
 
 import { ChurchSermon } from "@/shared/types/ChurchSermon";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
-import { MinistryDropdown } from '@/shared/components/MinistryDropdown';
-import { fetchMinistries } from "@/helpers/MinistriesHelper";
 import { Ministry } from "@/shared/types/Ministry";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface CreateSermonProps {
     onSave: () => Promise<void>;
+    availableMinistries: Ministry[];
 }
 
-export function CreateSermonDialog({ onSave }: CreateSermonProps) {
+export function CreateSermonDialog({ onSave, availableMinistries }: CreateSermonProps) {
     const initial: ChurchSermon = {
         id: "",
         title: "",
@@ -40,13 +47,17 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
-    const [ministries, setMinistries] = useState<Ministry[]>([]);
 
-    useEffect(() => {
-        if (isOpen) {
-            fetchMinistries().then(setMinistries)
-        }
-    }, [isOpen])
+    // Ministry data assembly (same pattern as EventUpdateInputsV2)
+    const ministryNameById = useMemo<Record<string, string>>(
+        () => Object.fromEntries(availableMinistries.map((m) => [m.id, m.name])),
+        [availableMinistries],
+    );
+    const selectedMinistryNames = useMemo(() => {
+        if (!sermon.ministry?.length) return "";
+        const names = (sermon.ministry || []).map((id) => ministryNameById[id]).filter(Boolean);
+        return names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+    }, [sermon.ministry, ministryNameById]);
 
     const handleDialogClose = () => {
         setSermon(initial);
@@ -128,12 +139,58 @@ export function CreateSermonDialog({ onSave }: CreateSermonProps) {
                             <input className="border p-2 rounded" value={sermon.speaker} onChange={(e) => setSermon({ ...sermon, speaker: e.target.value })} />
                         </label>
 
-                        <div>
-                            <MinistryDropdown
-                                selected={sermon.ministry ?? []}
-                                onChange={(next: string[]) => setSermon({ ...sermon, ministry: next })}
-                                ministries={ministries}
-                            />
+                        {/* Ministries - same pattern as EventUpdateInputsV2 */}
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="ministries-trigger">Ministries</Label>
+
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="ministries-trigger"
+                                        type="button"
+                                        variant="outline"
+                                        className="justify-between w-full"
+                                    >
+                                        {sermon.ministry?.length ? (
+                                            <span className="truncate">{selectedMinistryNames}</span>
+                                        ) : (
+                                            <span>Choose ministries</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+
+                                <PopoverContent className="p-0 w-[300px]" align="start" onWheel={(e) => e.stopPropagation()}>
+                                    <Command>
+                                        <CommandInput placeholder="Search ministries…" />
+                                        <CommandEmpty>No results.</CommandEmpty>
+                                        <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
+                                            <CommandGroup>
+                                                {availableMinistries.map((m) => {
+                                                    const checked = sermon.ministry?.includes(m.id);
+                                                    return (
+                                                        <CommandItem
+                                                            key={m.id}
+                                                            onSelect={() => {
+                                                                const next = new Set(sermon.ministry ?? []);
+                                                                if (checked) next.delete(m.id);
+                                                                else next.add(m.id);
+                                                                setSermon({ ...sermon, ministry: Array.from(next) });
+                                                            }}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <Checkbox checked={!!checked} />
+                                                                <span>{m.name}</span>
+                                                            </div>
+                                                        </CommandItem>
+                                                    );
+                                                })}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+
+                            <p className="text-xs text-muted-foreground">Tags used for categorization and discovery.</p>
                         </div>
 
                         <label className="flex flex-col">
