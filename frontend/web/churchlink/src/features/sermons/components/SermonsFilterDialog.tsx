@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Filter, RotateCcw, Search, Users } from 'lucide-react';
+import { RotateCcw, Search, Users } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -15,13 +15,14 @@ import { Input } from '@/shared/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 import { Label } from '@/shared/components/ui/label';
 import { Checkbox } from '@/shared/components/ui/checkbox';
+import type { Ministry } from '@/shared/types/Ministry';
 
 import { SermonFilters } from '../types';
 import { DEFAULT_SERMON_FILTERS } from '../constants';
 
 interface SermonsFilterDialogProps {
     filters: SermonFilters;
-    availableMinistries: string[];
+    availableMinistries: Ministry[];
     onApply: (next: SermonFilters) => void;
     onReset: () => void;
 }
@@ -57,8 +58,11 @@ export function SermonsFilterDialog({ filters, availableMinistries, onApply, onR
     };
 
     const handleReset = () => {
+        // Reset filters to default which triggers immediate data reload
         onReset();
+        // Update draft state to reflect the reset
         setDraft({ ...DEFAULT_SERMON_FILTERS });
+        // Close dialog immediately after reset
         setOpen(false);
     };
 
@@ -88,7 +92,7 @@ export function SermonsFilterDialog({ filters, availableMinistries, onApply, onR
                     size="sm"
                     className="flex items-center gap-2"
                 >
-                <Filter className="h-4 w-4" />
+                <Search className="h-4 w-4" />
                 Filters
                 {activeFilterCount > 0 && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
@@ -119,8 +123,8 @@ export function SermonsFilterDialog({ filters, availableMinistries, onApply, onR
                                 <SelectContent>
                                     <SelectItem value="all">All ministries</SelectItem>
                                     {availableMinistries.map((ministry) => (
-                                        <SelectItem key={ministry} value={ministry}>
-                                            {ministry}
+                                        <SelectItem key={ministry.id} value={ministry.id}>
+                                            {ministry.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

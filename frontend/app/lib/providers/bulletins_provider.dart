@@ -4,35 +4,40 @@ import 'package:app/models/bulletin.dart';
 import 'package:app/models/service_bulletin.dart';
 import 'package:app/models/server_week.dart';
 import 'package:app/services/bulletins_service.dart';
+import 'package:app/widgets/service_filter_sheet.dart';
 
 class BulletinsProvider extends ChangeNotifier {
-  BulletinsProvider({
-    BulletinsService? bulletinsService,
-  }) : _bulletinsService = bulletinsService ?? BulletinsService() {
-    // Initialize filter with empty week boundaries - will be fetched from server
-    _activeFilter = BulletinFilter(
+  BulletinsProvider({BulletinsService? bulletinsService})
+    : _bulletinsService = bulletinsService ?? BulletinsService() {
+    // Initialize announcement filter with empty week boundaries - will be fetched from server
+    _activeAnnouncementFilter = BulletinFilter(
       limit: 50,
       published: true,
       upcomingOnly: true, // Show bulletins where publish_date <= now
     );
+    // Service filter starts empty (no filters applied)
+    _activeServiceFilter = const ServiceFilterOptions();
   }
 
   final BulletinsService _bulletinsService;
 
   List<Bulletin> _items = <Bulletin>[];
   List<ServiceBulletin> _services = <ServiceBulletin>[];
+  List<ServiceBulletin> _filteredServices = <ServiceBulletin>[];
   ServerWeekInfo? _serverWeek;
   bool _loading = false;
   String? _error;
-  late BulletinFilter _activeFilter;
+  late BulletinFilter _activeAnnouncementFilter;
+  ServiceFilterOptions _activeServiceFilter = const ServiceFilterOptions();
   Bulletin? _selected;
 
   List<Bulletin> get items => List.unmodifiable(_items);
-  List<ServiceBulletin> get services => List.unmodifiable(_services);
+  List<ServiceBulletin> get services => List.unmodifiable(_filteredServices);
   ServerWeekInfo? get serverWeek => _serverWeek;
   bool get isLoading => _loading;
   String? get error => _error;
-  BulletinFilter get activeFilter => _activeFilter;
+  BulletinFilter get activeAnnouncementFilter => _activeAnnouncementFilter;
+  ServiceFilterOptions get activeServiceFilter => _activeServiceFilter;
   Bulletin? get selected => _selected;
 
   /// Get upcoming bulletins (publish date in the future)
@@ -44,16 +49,22 @@ class BulletinsProvider extends ChangeNotifier {
       _services.where((service) => service.isUpcoming).toList();
 
   Future<void> loadInitial() async {
-    await _loadWithFilter(_activeFilter, resetPagination: true);
+    await _loadWithFilter(_activeAnnouncementFilter, resetPagination: true);
   }
 
-  Future<void> applyFilter(BulletinFilter filter) async {
-    _activeFilter = filter;
+  Future<void> applyAnnouncementFilter(BulletinFilter filter) async {
+    _activeAnnouncementFilter = filter;
     await _loadWithFilter(filter, resetPagination: true);
   }
 
+  Future<void> applyServiceFilter(ServiceFilterOptions filter) async {
+    _activeServiceFilter = filter;
+    _applyClientSideServiceFilter();
+    notifyListeners();
+  }
+
   Future<void> refresh() async {
-    await _loadWithFilter(_activeFilter, resetPagination: true);
+    await _loadWithFilter(_activeAnnouncementFilter, resetPagination: true);
   }
 
   void selectBulletin(Bulletin? bulletin) {
@@ -64,11 +75,56 @@ class BulletinsProvider extends ChangeNotifier {
   Future<void> loadMore() async {
     if (_loading) return;
 
-    final nextFilter = _activeFilter.copyWith(
-      skip: _activeFilter.skip + _activeFilter.limit,
+    final nextFilter = _activeAnnouncementFilter.copyWith(
+      skip: _activeAnnouncementFilter.skip + _activeAnnouncementFilter.limit,
     );
 
     await _loadWithFilter(nextFilter, resetPagination: false);
+  }
+
+  void _applyClientSideServiceFilter() {
+    // Start with all services
+    var filtered = _services.toList();
+
+    // Filter by day of week
+    if (_activeServiceFilter.dayOfWeek != null) {
+      filtered =
+          filtered.where((service) {
+            return service.dayOfWeek == _activeServiceFilter.dayOfWeek;
+          }).toList();
+    }
+
+    // Filter by time range
+    if (_activeServiceFilter.timeRange != null) {
+      filtered =
+          filtered.where((service) {
+            final parts = service.timeOfDay.split(':');
+            final hour = int.tryParse(parts[0]) ?? 0;
+
+            switch (_activeServiceFilter.timeRange) {
+              case 'morning':
+                return hour >= 6 && hour < 12;
+              case 'afternoon':
+                return hour >= 12 && hour < 18;
+              case 'evening':
+                return hour >= 18 || hour < 6;
+              default:
+                return true;
+            }
+          }).toList();
+    }
+
+    // Filter by title search
+    if (_activeServiceFilter.titleQuery != null &&
+        _activeServiceFilter.titleQuery!.isNotEmpty) {
+      final query = _activeServiceFilter.titleQuery!.toLowerCase();
+      filtered =
+          filtered.where((service) {
+            return service.title.toLowerCase().contains(query);
+          }).toList();
+    }
+
+    _filteredServices = filtered;
   }
 
   Future<void> _loadWithFilter(
@@ -91,14 +147,14 @@ class BulletinsProvider extends ChangeNotifier {
           '[Bulletins Provider] Server week: ${_serverWeek!.weekLabel} '
           '(${_serverWeek!.timezone})',
         );
-        
+
         // Update filter with server week boundaries
         filter = filter.copyWith(
           weekStart: _serverWeek!.weekStart,
           weekEnd: _serverWeek!.weekEnd,
         );
       }
-      
+
       // Log week filtering for services (not bulletins)
       if (filter.weekStart != null && filter.weekEnd != null) {
         debugPrint(
@@ -130,8 +186,11 @@ class BulletinsProvider extends ChangeNotifier {
       }
 
       if (!resetPagination) {
-        _activeFilter = filter;
+        _activeAnnouncementFilter = filter;
       }
+
+      // Apply client-side service filtering
+      _applyClientSideServiceFilter();
     } catch (e) {
       _error = e.toString();
     } finally {

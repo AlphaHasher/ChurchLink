@@ -1,14 +1,21 @@
 import 'package:app/models/sermon.dart';
+import 'package:app/models/ministry.dart';
 import 'package:app/providers/sermons_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class SermonDetailSheet extends StatelessWidget {
-  const SermonDetailSheet({super.key, required this.sermonId});
+  const SermonDetailSheet({
+    super.key,
+    required this.sermonId,
+    this.ministriesById,
+  });
 
   final String sermonId;
+  final Map<String, Ministry>? ministriesById;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +42,10 @@ class SermonDetailSheet extends StatelessWidget {
               initialChildSize: 0.9,
               minChildSize: 0.5,
               maxChildSize: 0.95,
-              builder: (BuildContext context, ScrollController scrollController) {
+              builder: (
+                BuildContext context,
+                ScrollController scrollController,
+              ) {
                 return Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
@@ -47,208 +57,203 @@ class SermonDetailSheet extends StatelessWidget {
                     controller: scrollController,
                     padding: EdgeInsets.fromLTRB(20, 12, 20, bottomPadding),
                     children: [
-                          // Drag handle - visible affordance for closing
-                          Center(
-                            child: GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: Container(
-                                width: 60,
-                                height: 6,
-                                margin: const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                              ),
+                      // Drag handle - visible affordance for closing
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 60,
+                            height: 6,
+                            margin: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(3),
                             ),
                           ),
-                          if (current.resolvedThumbnailUrl != null)
-                            AspectRatio(
-                              aspectRatio: 16 / 9,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  current.resolvedThumbnailUrl!,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder:
-                                      (context, error, stackTrace) => Container(
-                                        decoration: BoxDecoration(
-                                            color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.play_circle_outline,
-                                            size: 56,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.4),
-                                          ),
-                                        ),
+                        ),
+                      ),
+                      if (current.resolvedThumbnailUrl != null)
+                        AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.network(
+                              current.resolvedThumbnailUrl!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder:
+                                  (context, error, stackTrace) => Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Center(
+                                      child: Icon(
+                                        Icons.play_circle_outline,
+                                        size: 56,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.4),
                                       ),
-                                ),
-                              ),
-                            ),
-                          if (current.resolvedThumbnailUrl != null)
-                            const SizedBox(height: 16),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  current.title,
-                                  style: Theme.of(context).textTheme.titleLarge
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  current.isFavorited
-                                      ? Icons.star
-                                      : Icons.star_border,
-                                  color:
-                                      current.isFavorited
-                                          ? Colors.amber
-                                          : Colors.grey,
-                                ),
-                                tooltip:
-                                    current.isFavorited
-                                        ? 'Remove from favorites'
-                                        : 'Add to favorites',
-                                onPressed: () async {
-                                  try {
-                                    final knownInList = provider.items.any(
-                                      (item) => item.id == current.id,
-                                    );
-
-                                    if (!current.isFavorited && !knownInList) {
-                                      await provider.toggleFavorite(current);
-                                    } else if (current.isFavorited &&
-                                        !knownInList) {
-                                      await provider.removeFavorite(current.id);
-                                    } else {
-                                      await provider.toggleFavorite(current);
-                                    }
-                                  } catch (error) {
-                                    if (context.mounted) {
-                                      _showError(
-                                        context,
-                                        message:
-                                            'Could not update favorite: $error',
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'with ${current.speaker}',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleMedium?.copyWith(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              Chip(
-                                label: Text(current.formattedDate),
-                                avatar: const Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                ),
-                                backgroundColor: Theme.of(
-                                  context,
-                                ).colorScheme.primary.withValues(alpha: 0.12),
-                                side: BorderSide.none,
-                              ),
-                              if (current.duration != null)
-                                Chip(
-                                  label: Text(
-                                    '${current.duration!.inMinutes} min',
+                                    ),
                                   ),
-                                  avatar: const Icon(Icons.schedule, size: 16),
-                                  backgroundColor: Theme.of(
+                            ),
+                          ),
+                        ),
+                      if (current.resolvedThumbnailUrl != null)
+                        const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              current.title,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              current.isFavorited
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color:
+                                  current.isFavorited
+                                      ? Colors.amber
+                                      : Colors.grey,
+                            ),
+                            tooltip:
+                                current.isFavorited
+                                    ? 'Remove from favorites'
+                                    : 'Add to favorites',
+                            onPressed: () async {
+                              try {
+                                final knownInList = provider.items.any(
+                                  (item) => item.id == current.id,
+                                );
+
+                                if (!current.isFavorited && !knownInList) {
+                                  await provider.toggleFavorite(current);
+                                } else if (current.isFavorited &&
+                                    !knownInList) {
+                                  await provider.removeFavorite(current.id);
+                                } else {
+                                  await provider.toggleFavorite(current);
+                                }
+                              } catch (error) {
+                                if (context.mounted) {
+                                  _showError(
                                     context,
-                                  ).colorScheme.primary.withValues(alpha: 0.12),
-                                  side: BorderSide.none,
-                                ),
-                              ...current.ministry.map(
-                                (ministry) => Chip(
-                                  label: Text(ministry),
-                                  backgroundColor: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: 0.15),
-                                  side: BorderSide.none,
-                                ),
-                              ),
-                            ],
+                                    message:
+                                        'Could not update favorite: $error',
+                                  );
+                                }
+                              }
+                            },
                           ),
-                          const SizedBox(height: 20),
-                          if (current.summary != null &&
-                              current.summary!.isNotEmpty)
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Summary',
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 8),
-                                SelectableText(
-                                  current.summary!,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                                const SizedBox(height: 20),
-                              ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'with ${current.speaker}',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Chip(
+                            label: Text(current.formattedDate),
+                            avatar: const Icon(Icons.calendar_today, size: 16),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
+                            side: BorderSide.none,
+                          ),
+                          if (current.duration != null)
+                            Chip(
+                              label: Text('${current.duration!.inMinutes} min'),
+                              avatar: const Icon(Icons.schedule, size: 16),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.12),
+                              side: BorderSide.none,
                             ),
-                          SelectableText(
-                            current.description,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed:
-                                () => _openYoutube(context, current.youtubeUrl),
-                            icon: const Icon(Icons.play_circle_fill),
-                            label: const Text('Watch on YouTube'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.onPrimary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                          ...current.ministry.map((ministryId) {
+                            final ministry = ministriesById?[ministryId];
+                            final name = ministry?.name ?? ministryId;
+                            return Chip(
+                              label: Text(LocalizationHelper.localize(name)),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary.withValues(alpha: 0.15),
+                              side: BorderSide.none,
+                            );
+                          }),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      if (current.summary != null &&
+                          current.summary!.isNotEmpty)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Summary',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: () => _shareLink(context, current),
-                            icon: const Icon(Icons.content_copy),
-                            label: const Text('Copy Link'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            const SizedBox(height: 8),
+                            SelectableText(
+                              current.summary!,
+                              style: Theme.of(context).textTheme.bodyLarge,
                             ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      SelectableText(
+                        current.description,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed:
+                            () => _openYoutube(context, current.youtubeUrl),
+                        icon: const Icon(Icons.play_circle_fill),
+                        label: const Text('Watch on YouTube'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => _shareLink(context, current),
+                        icon: const Icon(Icons.content_copy),
+                        label: const Text('Copy Link'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
                           ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
                     ],
                   ),
                 );

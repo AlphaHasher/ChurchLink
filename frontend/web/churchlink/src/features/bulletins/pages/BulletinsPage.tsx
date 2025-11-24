@@ -4,6 +4,7 @@ import BulletinList from '@/features/bulletins/components/BulletinList';
 import { ServiceCard } from '@/features/bulletins/components/ServiceCard';
 import { BulletinDetailsModal } from '@/features/bulletins/components/BulletinDetailsModal';
 import { BulletinsFilterDialog, DEFAULT_BULLETIN_FILTERS, BulletinFilters } from '@/features/bulletins/components/BulletinsFilterDialog';
+import { ServicesFilterDialog, ServiceFilters } from '@/features/bulletins/components/ServicesFilterDialog';
 import { ChurchBulletin, ServiceBulletin, BulletinFilter, DEFAULT_BULLETIN_LIMIT } from '@/shared/types/ChurchBulletin';
 import { useAuth } from '@/features/auth/hooks/auth-context';
 import { fetchMinistries } from '@/helpers/MinistriesHelper';
@@ -15,7 +16,8 @@ const BulletinsPage = () => {
     const [loading, setLoading] = useState(true);
     const [selectedBulletin, setSelectedBulletin] = useState<ChurchBulletin | null>(null);
     const [selectedService, setSelectedService] = useState<ServiceBulletin | null>(null);
-    const [filters, setFilters] = useState<BulletinFilters>({ ...DEFAULT_BULLETIN_FILTERS });
+    const [announcementFilters, setAnnouncementFilters] = useState<BulletinFilters>({ ...DEFAULT_BULLETIN_FILTERS });
+    const [serviceFilters, setServiceFilters] = useState<ServiceFilters>({ dayOfWeek: 'all', timeRange: 'all', title: '' });
     const [serverWeek, setServerWeek] = useState<ServerWeekInfo | null>(null);
     const { user, loading: authLoading } = useAuth();
     const [allMinistries, setAllMinistries] = useState<Ministry[]>([]);
@@ -40,13 +42,13 @@ const BulletinsPage = () => {
         return map;
     }, [allMinistries]);
 
-    // Load data whenever filters change
+    // Load data whenever announcement filters change
     useEffect(() => {
         let isMounted = true;
         const load = async () => {
             setLoading(true);
             try {
-                console.log(`[Bulletins Page] Loading feed with filters at ${new Date().toISOString()}`, filters);
+                console.log(`[Bulletins Page] Loading feed with filters at ${new Date().toISOString()}`, announcementFilters);
 
                 // Fetch server-localized week info
                 const weekInfo = await fetchCurrentWeek();
@@ -73,12 +75,12 @@ const BulletinsPage = () => {
                     week_end: weekEnd.toISOString().split('T')[0],
                 };
 
-                if (filters.ministry && filters.ministry !== 'all') {
-                    apiFilters.ministry = filters.ministry;
+                if (announcementFilters.ministry && announcementFilters.ministry !== 'all') {
+                    apiFilters.ministry_id = announcementFilters.ministry;
                 }
 
-                if (filters.headline.trim()) {
-                    apiFilters.query = filters.headline.trim();
+                if (announcementFilters.headline.trim()) {
+                    apiFilters.query = announcementFilters.headline.trim();
                 }
 
                 const feed = await fetchCombinedFeed(apiFilters);
@@ -107,78 +109,136 @@ const BulletinsPage = () => {
         return () => {
             isMounted = false;
         };
-    }, [authLoading, user?.uid, filters]);
+    }, [authLoading, user?.uid, announcementFilters]);
 
     const availableMinistries = useMemo(() => {
         return allMinistries.map((m) => ({ id: m.id, name: m.name }));
     }, [allMinistries]);
 
-    // No client-side filtering needed - filtering is done server-side
+    // Client-side filtering for services
+    const filteredServices = useMemo(() => {
+        let filtered = serviceItems;
+
+        // Filter by day of week
+        if (serviceFilters.dayOfWeek !== 'all') {
+            filtered = filtered.filter((service) => service.day_of_week === serviceFilters.dayOfWeek);
+        }
+
+        // Filter by time range
+        if (serviceFilters.timeRange !== 'all') {
+            filtered = filtered.filter((service) => {
+                const [hours] = service.time_of_day.split(':').map(Number);
+                switch (serviceFilters.timeRange) {
+                    case 'morning':
+                        return hours >= 6 && hours < 12;
+                    case 'afternoon':
+                        return hours >= 12 && hours < 18;
+                    case 'evening':
+                        return hours >= 18 || hours < 6;
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        // Filter by title search
+        if (serviceFilters.title.trim()) {
+            const query = serviceFilters.title.toLowerCase();
+            filtered = filtered.filter((service) => service.title.toLowerCase().includes(query));
+        }
+
+        return filtered;
+    }, [serviceItems, serviceFilters]);
+
+    // No client-side filtering needed for bulletins - filtering is done server-side
     const filteredBulletins = bulletinItems;
 
-    const applyFilters = useCallback((next: BulletinFilters) => {
-        setFilters({ ...next });
+    const applyAnnouncementFilters = useCallback((next: BulletinFilters) => {
+        setAnnouncementFilters({ ...next });
     }, []);
 
-    const resetFilters = useCallback(() => {
-        setFilters({ ...DEFAULT_BULLETIN_FILTERS });
+    const resetAnnouncementFilters = useCallback(() => {
+        setAnnouncementFilters({ ...DEFAULT_BULLETIN_FILTERS });
     }, []);
 
-    const activeFilterLabels = useMemo(() => {
+    const applyServiceFilters = useCallback((next: ServiceFilters) => {
+        setServiceFilters({ ...next });
+    }, []);
+
+    const resetServiceFilters = useCallback(() => {
+        setServiceFilters({ dayOfWeek: 'all', timeRange: 'all', title: '' });
+    }, []);
+
+    const activeAnnouncementFilterLabels = useMemo(() => {
         const labels: string[] = [];
-        if (filters.ministry && filters.ministry !== 'all') {
-            const ministryName = ministryNameMap[filters.ministry] || filters.ministry;
+        if (announcementFilters.ministry && announcementFilters.ministry !== 'all') {
+            const ministryName = ministryNameMap[announcementFilters.ministry] || announcementFilters.ministry;
             labels.push(`Ministry: ${ministryName}`);
         }
-        if (filters.headline.trim()) {
-            labels.push(`Headline: "${filters.headline.trim()}"`);
+        if (announcementFilters.headline.trim()) {
+            labels.push(`Title: "${announcementFilters.headline.trim()}"`);
         }
 
         return labels;
-    }, [filters, ministryNameMap]);
+    }, [announcementFilters, ministryNameMap]);
+
+    const activeServiceFilterLabels = useMemo(() => {
+        const labels: string[] = [];
+        if (serviceFilters.dayOfWeek !== 'all') {
+            labels.push(`Day: ${serviceFilters.dayOfWeek}`);
+        }
+        if (serviceFilters.timeRange !== 'all') {
+            const timeRangeLabel = serviceFilters.timeRange.charAt(0).toUpperCase() + serviceFilters.timeRange.slice(1);
+            labels.push(`Time: ${timeRangeLabel}`);
+        }
+        if (serviceFilters.title.trim()) {
+            labels.push(`Title: "${serviceFilters.title.trim()}"`);
+        }
+
+        return labels;
+    }, [serviceFilters]);
 
     if (loading) return <p>Loading...</p>;
 
     return (
         <div className="flex justify-center bg-gray-50 py-8">
             <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-                <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold">Weekly Bulletin</h1>
-                        {activeFilterLabels.length > 0 && (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                {activeFilterLabels.map((label, index) => (
-                                    <span
-                                        key={`${label}-${index}`}
-                                        className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                                    >
-                                        {label}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <BulletinsFilterDialog
-                        filters={filters}
-                        availableMinistries={availableMinistries}
-                        onApply={applyFilters}
-                        onReset={resetFilters}
-                    />
+                <div className="mb-6">
+                    <h1 className="text-2xl font-semibold">Weekly Bulletin</h1>
                 </div>
 
-                {/* Services Section */}
-                {serviceItems.length > 0 && (
-                    <div className="mb-12">
-                        <div className="mb-4">
+                {/* Services Section - Always show header and filter */}
+                <div className="mb-12">
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
                             <h2 className="text-xl font-bold">
                                 {serverWeek ? serverWeek.week_label : 'Services'}
                             </h2>
+                            {activeServiceFilterLabels.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {activeServiceFilterLabels.map((label, index) => (
+                                        <span
+                                            key={`service-filter-${index}`}
+                                            className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                                        >
+                                            {label}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                            {serviceItems.map((service) => (
+                        <ServicesFilterDialog
+                            filters={serviceFilters}
+                            onApply={applyServiceFilters}
+                            onReset={resetServiceFilters}
+                        />
+                    </div>
+                    {filteredServices.length > 0 ? (
+                        <div className="flex flex-wrap justify-center gap-6">
+                            {filteredServices.map((service) => (
                                 <div
                                     key={service.id}
-                                    className="flex w-full"
+                                    className="flex w-full sm:w-[320px] md:w-[360px] lg:w-[380px]"
                                 >
                                     <ServiceCard
                                         service={service}
@@ -190,31 +250,54 @@ const BulletinsPage = () => {
                                 </div>
                             ))}
                         </div>
-                    </div>
-                )}
-
-                {/* Bulletins Section */}
-                <div>
-                    {serviceItems.length > 0 && (
-                        <div className="mb-4 flex items-center gap-2">
-                            <span
-                                className="text-2xl text-black/60"
-                                style={{ fontVariantEmoji: 'text', fontFamily: '"Segoe UI Symbol","Noto Sans Symbols","Noto Sans",sans-serif' }}
-                                role="img"
-                                aria-hidden="true"
-                            >
-                                {'\u{1F4E2}\uFE0E'}
-                            </span>
-                            <h2 className="text-xl font-bold">Announcements</h2>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <p className="text-gray-600 font-medium mb-1">No services found</p>
+                            <p className="text-gray-500 text-sm">Try adjusting your filters</p>
                         </div>
                     )}
-                    <BulletinList items={filteredBulletins} onItemClick={setSelectedBulletin} />
+                </div>
+
+                {/* Bulletins Section - Always show header and filter */}
+                <div>
+                    <div className="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold">Announcements</h2>
+                            {activeAnnouncementFilterLabels.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    {activeAnnouncementFilterLabels.map((label, index) => (
+                                        <span
+                                            key={`announcement-filter-${index}`}
+                                            className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+                                        >
+                                            {label}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <BulletinsFilterDialog
+                            filters={announcementFilters}
+                            availableMinistries={availableMinistries}
+                            onApply={applyAnnouncementFilters}
+                            onReset={resetAnnouncementFilters}
+                        />
+                    </div>
+                    {filteredBulletins.length > 0 ? (
+                        <BulletinList items={filteredBulletins} onItemClick={setSelectedBulletin} ministryNameMap={ministryNameMap} />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <p className="text-gray-600 font-medium mb-1">No announcements found</p>
+                            <p className="text-gray-500 text-sm">Try adjusting your filters</p>
+                        </div>
+                    )}
                 </div>
 
                 <BulletinDetailsModal
                     bulletin={selectedBulletin}
                     isOpen={Boolean(selectedBulletin)}
                     onClose={() => setSelectedBulletin(null)}
+                    ministryNameMap={ministryNameMap}
                 />
 
                 {/* Service Detail Modal */}

@@ -359,7 +359,7 @@ const Sermons = () => {
               </Button>
             )}
             <Button onClick={loadData}>Refresh</Button>
-            <CreateSermonDialog onSave={loadData} />
+            <CreateSermonDialog onSave={loadData} availableMinistries={availableMinistries} />
           </div>
         </div>
 

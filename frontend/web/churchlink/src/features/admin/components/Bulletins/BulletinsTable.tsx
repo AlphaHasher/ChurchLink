@@ -141,6 +141,7 @@ function SortableRow({ bulletin, permissions, onRefresh, availableMinistries }: 
                     bulletin={bulletin}
                     onSave={onRefresh}
                     permissions={permissions}
+                    availableMinistries={availableMinistries}
                 />
             </TableCell>
         </TableRow>
@@ -240,7 +241,7 @@ export function BulletinsTable({
                     <Button onClick={handleRefresh} disabled={isReordering}>
                         Refresh
                     </Button>
-                    <CreateBulletinDialog onSave={handleRefresh} permissions={permissions} />
+                    <CreateBulletinDialog onSave={handleRefresh} permissions={permissions} availableMinistries={availableMinistries} />
                 </div>
             </div>
 
