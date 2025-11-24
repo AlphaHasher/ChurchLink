@@ -3,7 +3,7 @@ const _undefined = Object();
 class SermonFilter {
   final int skip;
   final int limit;
-  final String? ministry;
+  final String? ministry_id;
   final String? speaker;
   final List<String> tags;
   final DateTime? dateAfter;
@@ -14,7 +14,7 @@ class SermonFilter {
   const SermonFilter({
     this.skip = 0,
     this.limit = 50,
-    this.ministry,
+    this.ministry_id,
     this.speaker,
     this.tags = const <String>[],
     this.dateAfter,
@@ -26,7 +26,7 @@ class SermonFilter {
   SermonFilter copyWith({
     int? skip,
     int? limit,
-    Object? ministry = _undefined,
+    Object? ministry_id = _undefined,
     Object? speaker = _undefined,
     Object? tags = _undefined,
     Object? dateAfter = _undefined,
@@ -37,7 +37,8 @@ class SermonFilter {
     return SermonFilter(
       skip: skip ?? this.skip,
       limit: limit ?? this.limit,
-      ministry: ministry == _undefined ? this.ministry : ministry as String?,
+      ministry_id:
+          ministry_id == _undefined ? this.ministry_id : ministry_id as String?,
       speaker: speaker == _undefined ? this.speaker : speaker as String?,
       tags:
           tags == _undefined
@@ -61,7 +62,8 @@ class SermonFilter {
     final Map<String, String> params = {
       'skip': skip.toString(),
       'limit': limit.toString(),
-      if (ministry != null && ministry!.isNotEmpty) 'ministry': ministry!,
+      if (ministry_id != null && ministry_id!.isNotEmpty)
+        'ministry_id': ministry_id!,
       if (speaker != null && speaker!.isNotEmpty) 'speaker': speaker!,
       if (tags.isNotEmpty) 'tags': tags.join(','),
       if (query != null && query!.isNotEmpty) 'query': query!,

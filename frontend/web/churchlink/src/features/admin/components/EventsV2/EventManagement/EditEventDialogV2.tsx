@@ -87,7 +87,7 @@ export default function EditEventDialogV2({
 
     return (
         <>
-            <Button variant="ghost" size="icon" onClick={() => setOpen(true)} title="Edit">
+            <Button variant="ghost" size="icon" aria-label="Edit Event" title="Edit Event" onClick={() => setOpen(true)}>
                 <Pencil className="h-4 w-4" />
             </Button>
 

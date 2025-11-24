@@ -3,6 +3,7 @@
 describe('Public – Forms Pages', () => {
   beforeEach(() => {
     // SPY on API calls - E2E_TEST_MODE allows access without auth
+    cy.login();
     cy.intercept('GET', '**/api/v1/forms/slug/*').as('getForm');
   });
 

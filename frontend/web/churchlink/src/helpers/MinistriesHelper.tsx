@@ -7,6 +7,7 @@ export const fetchMinistries = async (): Promise<Ministry[]> => {
     try {
         const res = await api.get("/v1/ministries");
         const data = convertMinistryToUserTime(res.data);
+        console.log("Fetched ministries:", data);
         return data.map((m: any) => m) || [];
     } catch (err) {
         console.error("Failed to fetch ministries:", err);

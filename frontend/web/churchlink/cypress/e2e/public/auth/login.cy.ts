@@ -1,5 +1,7 @@
 const REDIRECT_AFTER_LOGIN = '/';
 
+const LOGIN_PATH2 = '/auth/login';
+
 // Pull from Cypress env (CYPRESS_USER_EMAIL, etc)
 const USER_EMAIL: string = Cypress.env('USER_EMAIL') || 'noadmin@testing.com';
 const AUTH_PASSWORD: string | undefined = Cypress.env('AUTH_PASSWORD');
@@ -18,7 +20,7 @@ describe('Login page', () => {
             cy.logout(); // your custom command from commands.js
         });
         // Hit login with a redirectTo so we can assert redirect behavior later
-        cy.visit(`${LOGIN_PATH}?redirectTo=${encodeURIComponent(REDIRECT_AFTER_LOGIN)}`);
+        cy.visit(`${LOGIN_PATH2}?redirectTo=${encodeURIComponent(REDIRECT_AFTER_LOGIN)}`);
     });
 
     it('shows an error when logging in with bad credentials', () => {
@@ -38,10 +40,11 @@ describe('Login page', () => {
             .should('be.visible');
 
         // Should still be on the login page (no redirect)
-        cy.url().should('include', LOGIN_PATH);
+        cy.url().should('include', LOGIN_PATH2);
     });
 
     it('allows the user to request a password reset via the "Forgot your password?" flow', () => {
+
         // Stub timers so we can test the 2s auto-close behavior of the reset modal
         cy.clock();
 

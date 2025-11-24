@@ -65,21 +65,27 @@ export function MinistryDropdown({
                         "text-black dark:text-white"
                     )}
                 >
-                    {ministries.map((ministry) => (
-                        <DropdownMenuCheckboxItem
-                            key={ministry.id}
-                            checked={selected.includes(ministry.id)}
-                            onCheckedChange={() => toggle(ministry.id)}
-                            onSelect={(e) => e.preventDefault()}
-                            className={cn(
-                                "capitalize",
-                                "focus:bg-gray-100 dark:focus:bg-gray-700",
-                                "text-black dark:text-white"
-                            )}
-                        >
-                            {ministry.name}
-                        </DropdownMenuCheckboxItem>
-                    ))}
+                    {ministries.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-muted-foreground">
+                            No ministries available.
+                        </div>
+                    ) : (
+                        ministries.map((ministry) => (
+                            <DropdownMenuCheckboxItem
+                                key={ministry.id}
+                                checked={selected.includes(ministry.id)}
+                                onCheckedChange={() => toggle(ministry.id)}
+                                onSelect={(e) => e.preventDefault()}
+                                className={cn(
+                                    "capitalize",
+                                    "focus:bg-gray-100 dark:focus:bg-gray-700",
+                                    "text-black dark:text-white"
+                                )}
+                            >
+                                {ministry.name}
+                            </DropdownMenuCheckboxItem>
+                        ))
+                    )}
                 </DropdownMenuContent>
             </DropdownMenu>
         </div>

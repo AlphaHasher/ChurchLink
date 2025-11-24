@@ -5,8 +5,7 @@ type AdminDecision = "approve" | "deny";
 const MEMBERSHIP_USER_URL = "/profile/membership";
 const MEMBERSHIP_ADMIN_URL = "/admin/users/membership-requests";
 
-// This should match the normal (non-admin) user's email the tests log in as.
-const MEMBER_EMAIL = "noadmin@testing.com";
+const MEMBER_EMAIL = Cypress.env("ADMIN_EMAIL") as string | undefined;
 
 const MEMBERSHIP_CARD_BUTTON_LABELS = [
     "Request Membership",
@@ -26,7 +25,7 @@ const MUTED_MESSAGE_SNIPPET = /You have been prohibited from making future membe
  * Helper: visit the membership card as the regular user.
  */
 const visitMembershipCardAsUser = () => {
-    cy.login();
+    cy.adminlogin();
     cy.visit(MEMBERSHIP_USER_URL);
 
     cy.contains(/Lower members-only event prices/i).should("be.visible");
