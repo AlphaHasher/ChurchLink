@@ -20,7 +20,7 @@ from urllib.parse import unquote
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from mongo.database import DB
 
 logger = logging.getLogger(__name__)
@@ -31,8 +31,14 @@ BACKEND_DIR = Path(__file__).parent.parent
 TEMPLATES_DIR = BACKEND_DIR / "templates"
 FRONTEND_DIST_DIR = BACKEND_DIR.parent / "frontend" / "web" / "churchlink" / "dist"
 
-# Initialize Jinja2
-jinja_env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
+# Initialize Jinja2 with autoescaping for HTML/XML templates
+jinja_env = Environment(
+    loader=FileSystemLoader(str(TEMPLATES_DIR)),
+    autoescape=select_autoescape(
+        enabled_extensions=("html", "htm", "xml"),
+        default=True,
+    )
+)
 
 
 def _normalize_slug(raw_slug: str) -> str:
