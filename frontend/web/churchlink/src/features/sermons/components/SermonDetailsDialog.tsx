@@ -46,7 +46,7 @@ export function SermonDetailsDialog({ sermon, open, onClose, isLoading = false }
 
     const posted = sermon.date_posted ? new Date(sermon.date_posted) : null;
     const sermonRoles = sermon.roles && sermon.roles.length > 0 ? sermon.roles : null;
-    const ministries = sermon.ministry && sermon.ministry.length > 0 ? sermon.ministry : null;
+    const ministries = sermon.ministry_refs && sermon.ministry_refs.length > 0 ? sermon.ministry_refs : null;
     const tags = sermon.tags && sermon.tags.length > 0 ? sermon.tags : null;
 
     return (
@@ -130,24 +130,22 @@ export function SermonDetailsDialog({ sermon, open, onClose, isLoading = false }
                         )}
                     </div>
 
-                    {ministries && (
-                        <div>
-                            <h3 className="font-medium mb-2">Ministries</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {ministries.map((ministry) => (
-                                    <span
-                                        key={ministry}
-                                        className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700"
-                                    >
-                                        <Tag className="mr-1 h-4 w-4" />
-                                        {ministry}
-                                    </span>
-                                ))}
-                            </div>
+                {ministries && (
+                    <div>
+                        <h3 className="font-medium mb-2">Ministries</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {ministries.map((ministry) => (
+                                <span
+                                    key={ministry.id}
+                                    className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700"
+                                >
+                                    <Tag className="mr-1 h-4 w-4" />
+                                    {ministry.name}
+                                </span>
+                            ))}
                         </div>
-                    )}
-
-                    {sermonRoles && (
+                    </div>
+                )}                    {sermonRoles && (
                         <div>
                             <h3 className="font-medium mb-2">Target Roles</h3>
                             <div className="flex flex-wrap gap-2">

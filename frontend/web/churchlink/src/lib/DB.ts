@@ -82,12 +82,32 @@ export class DB {
     await this.init();
     const store = this.ensureStore(storeName);
 
+    // If we don't have a real IDBObjectStore (or it doesn't support get),
+    // bail out gracefully instead of throwing.
+    if (!store || typeof (store as any).get !== 'function') {
+      // optionally log here if you want to see when this happens
+      // console.warn('IndexedDB store not ready, returning null');
+      return null;
+    }
+
     return new Promise((resolve, reject) => {
-      const request = store.get(key);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
+      try {
+        const request = (store as any).get(key);
+
+        request.onsuccess = () => {
+          resolve(request.result ?? null);
+        };
+
+        request.onerror = () => {
+          reject(request.error);
+        };
+      } catch (err) {
+        // Handles things like "store.get is not a function" or any other sync error
+        resolve(null);
+      }
     });
   }
+
 
   /**
    * Put item in store

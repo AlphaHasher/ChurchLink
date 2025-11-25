@@ -13,23 +13,48 @@ export const useWebsiteConfig = () => {
         // Use direct axios call to avoid authentication requirements
         const response = await axios.get('/api/v1/website/config');
         const config = response.data;
-        
+
         console.log('Loaded website config:', config);
-        
+
+        // Save config to localStorage for future page loads
+        try {
+          localStorage.setItem('website_config', JSON.stringify(config));
+        } catch (storageError) {
+          console.warn('Failed to cache website config:', storageError);
+        }
+
         // Update document title
         if (config.title) {
           document.title = config.title;
           console.log('Updated document title to:', config.title);
         }
-        
+
         // Update favicon
         if (config.favicon_url) {
           updateDocumentFavicon(config.favicon_url);
           console.log('Updated favicon to:', config.favicon_url);
         }
       } catch (error) {
-        console.warn('Failed to load website configuration, using defaults:', error);
-        // Fallback to defaults if API fails
+        console.warn('Failed to load website configuration, using cached or defaults:', error);
+
+        // Try to use cached config
+        try {
+          const cached = localStorage.getItem('website_config');
+          if (cached) {
+            const config = JSON.parse(cached);
+            if (config.title) {
+              document.title = config.title;
+            }
+            if (config.favicon_url) {
+              updateDocumentFavicon(config.favicon_url);
+            }
+            return;
+          }
+        } catch (cacheError) {
+          // Ignore cache errors
+        }
+
+        // Fallback to defaults if no cache available
         document.title = 'Your Church Website';
         updateDocumentFavicon('/dove-favicon.svg');
       }

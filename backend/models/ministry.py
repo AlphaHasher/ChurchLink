@@ -383,6 +383,113 @@ async def _replace_ministry_name_in_references(
     pass
 
 
+async def resolve_ministry_ids(inputs: Optional[List[str]]) -> List[str]:
+    """
+    Smart resolver: accepts ministry names OR ObjectId strings, returns valid ObjectId strings.
+    Validates all IDs exist in database.
+    
+    Args:
+        inputs: List of ministry names or ObjectId hex strings
+        
+    Returns:
+        List of valid ObjectId hex strings
+        
+    Raises:
+        MinistryNotFoundError: If any input cannot be resolved to a valid ministry
+    """
+    await _ensure_connection()
+    if not inputs:
+        return []
+    
+    object_ids = []
+    names_to_resolve = []
+    
+    for inp in inputs:
+        if inp is None:
+            continue
+        inp_str = str(inp).strip()
+        if not inp_str:
+            continue
+            
+        # Check if it's a valid 24-char ObjectId format
+        if len(inp_str) == 24:
+            try:
+                ObjectId(inp_str)
+                object_ids.append(inp_str)
+                continue
+            except Exception:
+                pass
+        
+        # Treat as ministry name
+        names_to_resolve.append(inp_str)
+    
+    # Resolve names to IDs
+    if names_to_resolve:
+        try:
+            resolved_ids = await canonicalize_ministry_ids(names_to_resolve)
+            object_ids.extend(resolved_ids)
+        except MinistryNotFoundError:
+            raise
+    
+    # Validate all IDs exist in database
+    if object_ids:
+        return await validate_ministry_ids(object_ids)
+    
+    return []
+
+
+async def get_ministry_refs_from_ids(ministry_ids: Optional[List[str]]) -> List[dict]:
+    """
+    Convert ministry ObjectId hex strings to hydrated reference objects with {id, name}.
+    Used for API responses to provide both ID and display name.
+    
+    Args:
+        ministry_ids: List of ObjectId hex strings
+        
+    Returns:
+        List of dicts with format [{"id": "...", "name": "..."}, ...]
+        Returns "Unknown Ministry" for IDs that don't exist in database
+    """
+    await _ensure_connection()
+    if not ministry_ids:
+        return []
+    
+    # Filter valid ObjectIds
+    valid_ids = []
+    for mid in ministry_ids:
+        if mid is None:
+            continue
+        mid_str = str(mid).strip()
+        if not mid_str:
+            continue
+        try:
+            ObjectId(mid_str)
+            valid_ids.append(mid_str)
+        except Exception:
+            continue
+    
+    if not valid_ids:
+        return []
+    
+    # Convert to ObjectId objects for query
+    oid_list = [ObjectId(mid) for mid in valid_ids]
+    
+    # Query database
+    cursor = DB.db["ministries"].find({"_id": {"$in": oid_list}})
+    docs = await cursor.to_list(length=None)
+    
+    # Build ID to name mapping
+    id_to_name = {str(doc.get("_id")): doc.get("name") for doc in docs}
+    
+    # Build result preserving order, using "Unknown Ministry" for missing IDs
+    result = []
+    for mid in valid_ids:
+        name = id_to_name.get(mid, "Unknown Ministry")
+        result.append({"id": mid, "name": name})
+    
+    return result
+
+
 async def _remove_ministry_from_references(ministry_id: str) -> None:
     """Remove ministry ObjectId from all references (used when ministry is deleted without cascade)."""
     if not ministry_id or DB.db is None:
