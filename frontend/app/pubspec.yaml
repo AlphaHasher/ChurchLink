@@ -58,7 +58,7 @@ dependencies:
   flutter_svg: ^2.2.2
   dio: ^5.9.0
   shared_preferences: ^2.5.3
-  
+  sign_in_with_apple: ^7.0.1
 
   logger: ^2.0.2+1
   webview_flutter_android: 4.10.5
