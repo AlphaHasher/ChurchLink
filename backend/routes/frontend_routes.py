@@ -37,7 +37,7 @@ jinja_env = Environment(
     autoescape=select_autoescape(
         enabled_extensions=("html", "htm", "xml"),
         default=True,
-    )
+    ),
 )
 
 
@@ -57,7 +57,9 @@ async def get_website_config() -> dict:
             return {
                 "title": config.get("title", "ChurchLink"),
                 "favicon_url": config.get("favicon_url", "/dove-favicon.svg"),
-                "meta_description": config.get("meta_description", "Welcome to our church"),
+                "meta_description": config.get(
+                    "meta_description", "Welcome to our church"
+                ),
                 "og_image": config.get("og_image"),
             }
     except Exception as e:
@@ -129,17 +131,35 @@ async def serve_frontend(request: Request, full_path: str = ""):
 
     # CRITICAL: Never intercept API routes - they should be handled by FastAPI routers
     if full_path.startswith("api/"):
-        logger.error(f"⚠️  ROUTING ERROR: Frontend router received API path: /{full_path}")
+        logger.error(
+            f"⚠️  ROUTING ERROR: Frontend router received API path: /{full_path}"
+        )
         logger.error("This means API routers are not matching correctly!")
-        logger.error("Check that API routers are included BEFORE frontend_router in main.py")
+        logger.error(
+            "Check that API routers are included BEFORE frontend_router in main.py"
+        )
         from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="API route not found - check server logs")
+
+        raise HTTPException(
+            status_code=404, detail="API route not found - check server logs"
+        )
 
     # Static assets - serve directly
-    if full_path.startswith("assets/") or full_path in ["dove-favicon.svg", "vite.svg", "manifest.json", "robots.txt"]:
-        file_path = FRONTEND_DIST_DIR / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
+    if full_path.startswith("assets/") or full_path in [
+        "dove-favicon.svg",
+        "vite.svg",
+        "manifest.json",
+        "robots.txt",
+    ]:
+        # Prevent directory traversal: constrain to FRONTEND_DIST_DIR
+        dist_root = FRONTEND_DIST_DIR.resolve()
+        candidate_path = (FRONTEND_DIST_DIR / full_path).resolve()
+
+        if (
+            os.path.commonpath([str(dist_root), str(candidate_path)]) == str(dist_root)
+            and candidate_path.is_file()
+        ):
+            return FileResponse(candidate_path)
 
     # Get base URL for absolute URLs
     base_url = str(request.base_url).rstrip("/")
@@ -150,12 +170,20 @@ async def serve_frontend(request: Request, full_path: str = ""):
     # List of app routes that should NOT check MongoDB for page data
     # These are React app routes, not web-builder pages
     app_routes = [
-        "auth/", "admin/", "profile/", "my-transactions/",
-        "thank-you", "pages/", "web-editor"
+        "auth/",
+        "admin/",
+        "profile/",
+        "my-transactions/",
+        "thank-you",
+        "pages/",
+        "web-editor",
     ]
 
     # Check if this is an app route (not a web-builder page)
-    is_app_route = any(full_path.startswith(route) or full_path == route.rstrip("/") for route in app_routes)
+    is_app_route = any(
+        full_path.startswith(route) or full_path == route.rstrip("/")
+        for route in app_routes
+    )
 
     # Log route handling for debugging
     if is_app_route:
@@ -170,7 +198,9 @@ async def serve_frontend(request: Request, full_path: str = ""):
     if page_data:
         # Page-specific meta tags
         title = page_data.get("title", website_config["title"])
-        meta_description = page_data.get("meta_description") or website_config["meta_description"]
+        meta_description = (
+            page_data.get("meta_description") or website_config["meta_description"]
+        )
 
         # Get page-specific OG image if available
         og_image = None
@@ -185,8 +215,7 @@ async def serve_frontend(request: Request, full_path: str = ""):
         title = website_config["title"]
         meta_description = website_config["meta_description"]
         og_image = make_absolute_url(
-            website_config.get("og_image") or "/dove-favicon.svg",
-            base_url
+            website_config.get("og_image") or "/dove-favicon.svg", base_url
         )
 
     # Favicon
@@ -227,6 +256,10 @@ def mount_static_files(app):
     Call this from main.py after including the router.
     """
     if FRONTEND_DIST_DIR.exists():
-        app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST_DIR / "assets")), name="assets")
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(FRONTEND_DIST_DIR / "assets")),
+            name="assets",
+        )
         # Mount other static files at root
         app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR)), name="static")
