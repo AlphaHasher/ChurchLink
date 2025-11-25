@@ -1,54 +1,14 @@
 describe('Admin – Dashboard', () => {
   beforeEach(() => {
-    // Enable E2E test mode and prepare console error spy
-    cy.loginWithBearer();
-
-    // Mock permissions API to allow admin routes to render
-    cy.intercept('GET', '**/api/v1/users/permissions', {
-      statusCode: 200,
-      body: {
-        success: true,
-        permissions: {
-          admin: true,
-          permissions_management: true,
-          web_builder_management: true,
-          mobile_ui_management: true,
-          event_editing: true,
-          event_management: true,
-          media_management: true,
-          sermon_editing: true,
-          bulletin_editing: true,
-          finance: true,
-          ministries_management: true,
-          forms_management: true,
-          bible_plan_management: true,
-          notification_management: true,
-        },
-      },
-    }).as('getPermissions');
-
-    // Mock user mod check
-    cy.intercept('GET', '**/api/v1/users/check-mod', {
-      statusCode: 200,
-      body: { success: true },
-    }).as('checkMod');
-
-    // Mock language preference API to prevent console errors
-    cy.intercept('GET', '**/api/v1/users/language', {
-      statusCode: 200,
-      body: { language: 'en' },
-    }).as('getUserLanguage');
-
-    // Mock additional permissions fetch to prevent console errors
-    cy.intercept('GET', '**/api/v1/users/permissions/all', {
-      statusCode: 200,
-      body: [],
-    }).as('getAllPermissions');
+    // E2E mode handles authentication automatically
+    cy.prepareConsoleErrorSpy();
   });
 
   it('loads, renders, and has no compile/runtime errors', () => {
     cy.visit('/admin');
-    cy.wait('@getPermissions');
+    cy.wait(3000); // Wait for page to load
+    
+    cy.get('body').should('be.visible');
     
     // Check for Vite compile errors but be more tolerant of API errors in E2E mode
     cy.get('body').should(($body) => {
@@ -65,7 +25,7 @@ describe('Admin – Dashboard', () => {
 
   it('cards are clickable and navigate when available', () => {
     cy.visit('/admin');
-    cy.wait('@getPermissions');
+    cy.wait(3000); // Wait for page to load
     cy.contains('Welcome to the Admin Panel', { timeout: 10000 }).should('be.visible');
 
     // Try to click the Users card if it is visible (permission-dependent)
