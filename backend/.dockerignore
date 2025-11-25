@@ -1,0 +1,39 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checking and linting
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Environment files
+.env
+.env.*
+
+# Development files
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Keep required directories
+!templates/
+!firebase/
+!routes/
+!services/
