@@ -407,7 +407,9 @@ const Sermons = () => {
               await loadData();
             } }
             open={!!editTarget}
-            onOpenChange={(open) => !open && setEditTarget(null)} availableMinistries={[]}          />
+            onOpenChange={(open) => !open && setEditTarget(null)}
+            availableMinistries={availableMinistries}
+          />
         )}
 
         {/* Ministry Assignment Dialog */}
