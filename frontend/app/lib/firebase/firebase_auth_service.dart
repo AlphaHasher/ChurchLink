@@ -115,6 +115,11 @@ class FirebaseAuthService {
           AppleIDAuthorizationScopes.email,
           AppleIDAuthorizationScopes.fullName,
         ],
+        // Required for Android - using churchlink.ssbc
+        webAuthenticationOptions: WebAuthenticationOptions(
+          clientId: 'churchlink.ssbc',
+          redirectUri: Uri.parse('https://ssbc-9ef2d.firebaseapp.com/__/auth/handler'),
+        ),
       );
 
       debugPrint("✅ Apple authentication successful");
