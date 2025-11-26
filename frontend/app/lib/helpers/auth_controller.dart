@@ -27,7 +27,16 @@ class AuthController {
 
   Future<bool> loginWithAppleAndSync(Function(String) onError) async {
     final token = await authService.signInWithApple();
-    if (token == null) return false;
+    if (token == null) {
+      onError("Apple Sign-In failed. Please try again.");
+      return false;
+    }
+    
+    // If token is a string error message, show it to user
+    if (token.contains('failed') || token.contains('error') || token.contains('Error')) {
+      onError(token);
+      return false;
+    }
 
     final verified = await backendHelper.verifyAndSyncUser(onError);
     return verified;
