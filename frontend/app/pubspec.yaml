@@ -123,9 +123,9 @@ flutter:
 
 patrol:
   app_name: app
-  andriod:
-     package_name: com.example.app
-     
+  android:
+     package_name: churchlink.ssbc
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 
