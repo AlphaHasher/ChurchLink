@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/models/donations.dart';
 
 class DonationSuccessPage extends StatelessWidget {
@@ -60,8 +61,8 @@ class DonationSuccessPage extends StatelessWidget {
 
     final heading =
         isRecurring
-            ? localize('Thank you for your ongoing support!', capitalize: true)
-            : localize('Thank you for your generosity!', capitalize: true);
+            ? 'Thank you for your ongoing support!'
+            : 'Thank you for your generosity!';
 
     final description = () {
       if (isRecurring && prettyAmount != null && prettyInterval != null) {
@@ -81,7 +82,7 @@ class DonationSuccessPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localize('Thank You', capitalize: true)),
+        title: Text('Thank You').localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -101,7 +102,7 @@ class DonationSuccessPage extends StatelessWidget {
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
-                ),
+                ).localized(),
                 const SizedBox(height: 12),
                 Text(
                   description,
@@ -127,7 +128,7 @@ class DonationSuccessPage extends StatelessWidget {
                       Navigator.of(context).pop();
                     },
                     icon: const Icon(Icons.arrow_back),
-                    label: Text(localize('Back to Giving', capitalize: true)),
+                    label: Text('Back to Giving').localized(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,

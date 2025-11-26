@@ -85,14 +85,13 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
 
-    final msg =
-        (res.msg.isNotEmpty)
-            ? res.msg
-            : (res.success
-                ? 'Contact info updated.'
-                : 'Failed to update contact info.');
+    final msg = (res.msg != null && res.msg.isNotEmpty)
+        ? res.msg
+        : (res.success
+            ? localize('Contact info updated.')
+            : localize('Failed to update contact info.'));
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg).localized()));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
     if (res.success) {
       Navigator.of(context).pop(res.contact);
@@ -135,7 +134,7 @@ class _EditContactInfoScreenState extends State<EditContactInfoScreen> {
                     ).localizedLabels(),
                     validator: (v) {
                       final s = (v ?? '').trim();
-                      if (s.isEmpty) return 'Address is required';
+                      if (s.isEmpty) return localize('Address is required');
                       return null;
                     },
                   ),

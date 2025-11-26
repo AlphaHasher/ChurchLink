@@ -56,7 +56,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
-            onPressed: _openFilters,
+            onPressed: _openServicesFilter,
           ),
         ],
       ),
@@ -147,22 +147,16 @@ class _BulletinsPageState extends State<BulletinsPage> {
             child: Column(
               children: [
                 Text(
-                  LocalizationHelper.localize(
-                    'No services found',
-                    capitalize: true,
-                  ),
+                  'No services found',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
                 const SizedBox(height: 8),
                 Text(
-                  LocalizationHelper.localize(
-                    'Try adjusting your filters',
-                    capitalize: true,
-                  ),
+                  'Try adjusting your filters',
                   style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
               ],
             ),
           ),
@@ -205,22 +199,16 @@ class _BulletinsPageState extends State<BulletinsPage> {
             child: Column(
               children: [
                 Text(
-                  LocalizationHelper.localize(
-                    'No announcements found',
-                    capitalize: true,
-                  ),
+                  'No announcements found',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
                 const SizedBox(height: 8),
                 Text(
-                  LocalizationHelper.localize(
-                    'Try adjusting your filters',
-                    capitalize: true,
-                  ),
+                  'Try adjusting your filters',
                   style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
               ],
             ),
           ),

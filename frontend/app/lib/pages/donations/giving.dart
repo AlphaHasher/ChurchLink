@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/donation_helper.dart';
 import 'package:app/models/donations.dart';
 import 'package:app/pages/donations/donation_paypal_page.dart';
@@ -345,11 +346,11 @@ class _GivingState extends State<Giving> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              localize('Give Online', capitalize: true),
+              'Give Online',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
-            ),
+            ).localized(),
             const SizedBox(height: 4),
             Text(
               localize(
@@ -448,11 +449,11 @@ class _GivingState extends State<Giving> {
 
             if (_isRecurring) ...[
               Text(
-                localize('How often?', capitalize: true),
+                'How often?',
                 style: theme.textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
-              ),
+              ).localized(),
               const SizedBox(height: 6),
               DropdownButtonFormField<DonationInterval>(
                 initialValue: _interval,

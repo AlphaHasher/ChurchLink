@@ -141,7 +141,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                       ).localizedLabels(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a first name';
+                          return localize('Please enter a first name');
                         }
                         return null;
                       },
@@ -155,7 +155,7 @@ class _FamilyMemberFormState extends State<FamilyMemberForm> {
                       ).localizedLabels(),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a last name';
+                          return localize('Please enter a last name');
                         }
                         return null;
                       },

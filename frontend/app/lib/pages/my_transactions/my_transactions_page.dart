@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/my_transactions_formatting.dart';
 import 'package:app/helpers/transactions_helper.dart';
 import 'package:app/models/transactions.dart';
@@ -341,11 +342,11 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          localize('My Transactions', capitalize: true),
+          'My Transactions',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
-        ),
+        ).localized(),
         const SizedBox(height: 4),
         Text(
           localize(
@@ -367,7 +368,7 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localize('My Transactions', capitalize: true)),
+        title: Text('My Transactions').localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),

@@ -42,8 +42,9 @@ class _MySermonsPageState extends State<MySermonsPage> {
     try {
       await provider.removeFavorite(sermon.id);
       if (!mounted) return;
+      final title = sermon.title.trim();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Removed "${sermon.title}" from favorites.').localized()),
+        SnackBar(content: Text(localize('Removed "{title}" from favorites.').replaceFirst('{title}', title)).localized()),
       );
     } catch (error) {
       if (!mounted) return;
@@ -108,7 +109,7 @@ class _MySermonsPageState extends State<MySermonsPage> {
                         if (sermon == null) {
                           return ListTile(
                             leading: const Icon(Icons.menu_book_outlined),
-                            title: Text('Sermon ${favorite.sermonId}').localized(),
+                            title: Text(localize('Sermon {id}').replaceFirst('{id}', favorite.sermonId.toString())),
                             subtitle: Text(
                               'Details unavailable. Tap to refresh.',
                             ).localized(),
@@ -139,6 +140,7 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final errorLabel = localize('Error:');
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -148,10 +150,10 @@ class _ErrorState extends StatelessWidget {
             const Icon(Icons.error_outline, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              'Error: $message',
+              '$errorLabel $message',
               style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
-            ).localized(),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(onPressed: onRetry, child: Text('Try again').localized()),
           ],

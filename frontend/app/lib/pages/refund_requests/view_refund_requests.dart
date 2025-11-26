@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/refund_request_helper.dart';
 import 'package:app/models/refund_request.dart';
 import 'package:app/widgets/refund_request_card.dart';
@@ -269,11 +270,11 @@ class _ViewRefundRequestsPageState extends State<ViewRefundRequestsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          localize('My refund requests', capitalize: true),
+          'My refund requests',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
-        ),
+        ).localized(),
         const SizedBox(height: 4),
         Text(
           localize(
@@ -326,7 +327,7 @@ class _ViewRefundRequestsPageState extends State<ViewRefundRequestsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localize('My refund requests', capitalize: true)),
+        title: Text('My refund requests').localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
