@@ -162,6 +162,11 @@ class DB:
         }
         ,
         {
+            "name": "legal_pages",
+            # We want a unique slug per document (terms, privacy, refunds, etc.)
+            "indexes": ["slug"],
+        },
+        {
             "name": "bible_plans",
             "compound_indexes": [
                 # User’s own plans, newest first:
@@ -424,6 +429,7 @@ class DB:
 
     @staticmethod
     async def init_collections():
+        await DB.run_post_init_hooks()
         for collection in DB.collections:
             collection_name = collection["name"]
             collection_names = await DB.db.list_collection_names()
@@ -770,3 +776,26 @@ class DB:
         # Combine both settings into one dictionary
         combined_settings = {**paypal_settings, **church_settings}
         return combined_settings
+    
+    @staticmethod
+    async def run_post_init_hooks():
+        """
+        Run any application-specific initialization that depends on:
+          - a live DB connection, and
+          - collections + indexes already existing.
+
+        Currently:
+          - Seed legal_pages with default Terms/Privacy/Refunds (idempotent).
+        """
+        # Legal pages seeding (local import to avoid circular dependency)
+        try:
+            from models.legal_pages import seed_initial_pages
+        except ImportError:
+            print("legal_pages module not available; skipping legal page seeding")
+            return
+
+        try:
+            await seed_initial_pages()
+            print("legal pages seeded")
+        except Exception as e:
+            print(f"Warning: legal pages seeding failed: {e}")

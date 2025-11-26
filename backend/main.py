@@ -18,7 +18,6 @@ from mongo.database import DB as DatabaseManager
 from mongo.firebase_sync import FirebaseSyncer
 from mongo.roles import RoleHandler
 from mongo.scheduled_notifications import scheduled_notification_loop
-from models.legal_pages import ensure_indexes, seed_initial_pages
 from protected_routers.auth_protected_router import AuthProtectedRouter
 from protected_routers.mod_protected_router import ModProtectedRouter
 from protected_routers.perm_protected_router import PermProtectedRouter
@@ -235,14 +234,6 @@ async def lifespan(app: FastAPI):
         await paypal.start()
         app.state.paypal = paypal
         logger.info(f"PayPal helper initialized: {paypal.base_url}")
-
-        try:
-            logger.info("Ensuring legal_pages collection and seeding defaults")
-            await ensure_indexes()
-            await seed_initial_pages()
-            logger.info("Legal pages ensured and seeded (if missing)")
-        except Exception as e:
-            logger.error(f"Legal pages setup failed: {e}")
 
         # Run one-time migration to update header/footer items titles
         try:
