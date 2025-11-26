@@ -15,15 +15,12 @@ function stripLeadingTitle(md: string, title: string): string {
   // If that line is a markdown heading and matches the title, remove it
   const first = lines[i].trim();
 
-  // Matches "# Title", "## Title", up to "###### Title"
   const m = first.match(/^#{1,6}\s+(.+)$/);
   if (!m) return md;
 
   const headingText = m[1].trim();
 
-  // Compare case-insensitively
   if (headingText.toLowerCase() === title.trim().toLowerCase()) {
-    // Drop that line (and an immediate blank line after it if present)
     const next = i + 1;
     if (next < lines.length && lines[next].trim() === "") {
       lines.splice(i, 2);
@@ -52,7 +49,6 @@ export default function LegalPage({ slug }: { slug: string }) {
 
   return (
     <div className="p-8 prose max-w-3xl mx-auto">
-      {/* Keep one page title */}
       <h1>{data.title}</h1>
       <ReactMarkdown>{cleaned}</ReactMarkdown>
     </div>

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, Dict, List
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, ConfigDict
-from mongo.database import DB  # assumes you have DB.db available
+from mongo.database import DB 
 
 
 # ---------------------------
@@ -104,7 +104,7 @@ async def seed_initial_pages():
 
 
 # ---------------------------
-# Admin operations (for your React admin)
+# Admin operations
 # ---------------------------
 
 async def admin_get_page(slug: str) -> Optional[LegalPageAdminOut]:
@@ -180,7 +180,7 @@ async def admin_delete_page(slug: str) -> bool:
 
 
 # ---------------------------
-# Public read (used by React & Flutter)
+# Public read
 # ---------------------------
 
 async def public_get_page(slug: str, locale: Optional[str] = None) -> Optional[LegalPagePublicOut]:

@@ -204,7 +204,6 @@ const WebsiteSettingsPage: React.FC = () => {
             </select>
           </div>
 
-          {/* The editor you requested */}
           <LegalPageEditor slug={selectedLegalSlug} />
 
           <DialogFooter>

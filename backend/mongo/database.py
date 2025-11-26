@@ -779,14 +779,6 @@ class DB:
     
     @staticmethod
     async def run_post_init_hooks():
-        """
-        Run any application-specific initialization that depends on:
-          - a live DB connection, and
-          - collections + indexes already existing.
-
-        Currently:
-          - Seed legal_pages with default Terms/Privacy/Refunds (idempotent).
-        """
         # Legal pages seeding (local import to avoid circular dependency)
         try:
             from models.legal_pages import seed_initial_pages

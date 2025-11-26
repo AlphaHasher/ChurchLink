@@ -1,10 +1,8 @@
-// src/features/legal/LegalPageEditor.tsx
 import React from "react";
 import axios, { AxiosRequestConfig } from "axios";
 import { getAuth } from "firebase/auth";
 import ReactMarkdown from "react-markdown";
 
-// If you have your own UI kit, swap these out:
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Input } from "@/shared/components/ui/input";
@@ -16,14 +14,13 @@ type AdminLegalResponse = {
   id: string;
   slug: LegalSlug | string;
   title: string;
-  content_by_locale: Record<string, string>; // e.g., { en: "...md..." }
+  content_by_locale: Record<string, string>;
   updated_at: string;
   updated_by?: string | null;
 };
 
 type Props = {
   slug: LegalSlug;
-  // Optional locale. If omitted, we’ll use "en".
   locale?: string;
 };
 
@@ -33,7 +30,7 @@ async function authedRequest<T = any>(config: AxiosRequestConfig): Promise<T> {
   if (!user) {
     throw new Error("Not signed in");
   }
-  const token = await user.getIdToken(); // fresh ID token
+  const token = await user.getIdToken();
   const res = await axios({
     ...config,
     headers: {
