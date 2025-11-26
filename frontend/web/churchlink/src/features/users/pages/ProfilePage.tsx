@@ -225,7 +225,7 @@ const ProfilePage: React.FC = () => {
                                 className="rounded-full"
                                 onClick={() => setLegalDialogOpen(true)}
                             >
-                                {localize("Terms & Conditions")}
+                                {localize("Terms and Conditions")}
                             </Button>
                             </motion.div>
 
@@ -245,7 +245,7 @@ const ProfilePage: React.FC = () => {
                                     navigate("/legal/terms");
                                     }}
                                 >
-                                    {localize("Terms")} &amp; {localize("Conditions")}
+                                    {localize("Terms and Conditions")}
                                 </Button>
 
                                 <Button
