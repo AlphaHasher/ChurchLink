@@ -10,7 +10,7 @@ import 'package:app/pages/user/family_members_page.dart';
 import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:app/pages/dashboard.dart';
 import 'package:app/components/auth_popup.dart';
 import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
@@ -75,6 +75,91 @@ class _TermsDialogState extends State<_TermsDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(LocalizationHelper.localize('Close')),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeleteConfirmationDialog extends StatefulWidget {
+  final String confirmedEmail;
+
+  const _DeleteConfirmationDialog({required this.confirmedEmail});
+
+  @override
+  State<_DeleteConfirmationDialog> createState() => _DeleteConfirmationDialogState();
+}
+
+class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
+  late final TextEditingController _controller;
+  bool _isValid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(LocalizationHelper.localize('Final Confirmation', capitalize: true)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LocalizationHelper.localize(
+              'Type your email address to confirm account deletion:',
+              capitalize: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.confirmedEmail,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              hintText: LocalizationHelper.localize('Enter your email', capitalize: true),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _isValid = value.trim().toLowerCase() == 
+                          widget.confirmedEmail.trim().toLowerCase();
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(LocalizationHelper.localize('Cancel', capitalize: true)),
+        ),
+        TextButton(
+          onPressed: _isValid
+              ? () => Navigator.of(context).pop(true)
+              : null,
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+            disabledForegroundColor: Colors.grey,
+          ),
+          child: Text(LocalizationHelper.localize('Delete Account', capitalize: true)),
         ),
       ],
     );
@@ -240,37 +325,6 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
-  // Show the theme selection bottom sheet
-  void _showManageAccount() {
-    final current = ThemeController.instance.mode;
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.delete_forever, color: Colors.red),
-                title: Text(
-                  LocalizationHelper.localize('Delete Account', capitalize: true),
-                  style: const TextStyle(color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showDeleteAccountWarning();
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   void _showDeleteAccountWarning() {
     showDialog(
       context: context,
@@ -295,7 +349,6 @@ class _UserSettingsState extends State<UserSettings> {
               const SizedBox(height: 12),
               _buildWarningItem('All your personal data'),
               _buildWarningItem('Your saved preferences'),
-              _buildWarningItem('Purchase history and subscriptions'),
               _buildWarningItem('Access to this account'),
             ],
           ),
@@ -318,70 +371,49 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
-  void _showDeleteAccountConfirmation() {
-    final TextEditingController confirmationController = TextEditingController();
-    const String confirmationText = 'DELETE';
-    bool isConfirmationValid = false;
+void _showDeleteAccountConfirmation() async {
+    // Fetch user's email from cache or API
+    String? userEmail;
+    final cachedProfile = await UserHelper.readCachedProfile();
+    if (cachedProfile != null) {
+      userEmail = cachedProfile.email;
+    } else {
+      final profileData = await UserHelper.getMyProfile();
+      userEmail = profileData?.profile?.email;
+    }
+    
+    if (!mounted) return;
+    
+    if (userEmail == null || userEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LocalizationHelper.localize(
+              'Unable to verify account information. Please try again.',
+              capitalize: true,
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    showDialog(
+    final String confirmedEmail = userEmail;
+
+    final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(LocalizationHelper.localize('Final Confirmation', capitalize: true)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    LocalizationHelper.localize('Type DELETE to confirm account deletion:', capitalize: true),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: confirmationController,
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      hintText: confirmationText,
-                    ),
-                    onChanged: (value) {
-                      setDialogState(() {
-                        isConfirmationValid = value == confirmationText;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    confirmationController.dispose();
-                    Navigator.pop(context);
-                  },
-                  child: Text(LocalizationHelper.localize('Cancel', capitalize: true)),
-                ),
-                TextButton(
-                  onPressed: isConfirmationValid
-                      ? () {
-                          confirmationController.dispose();
-                          Navigator.pop(context);
-                          _performAccountDeletion();
-                        }
-                      : null,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    disabledForegroundColor: Colors.grey,
-                  ),
-                  child: Text(LocalizationHelper.localize('Delete Account', capitalize: true)),
-                ),
-              ],
-            );
-          },
-        );
+      builder: (BuildContext confirmContext) {
+        return _DeleteConfirmationDialog(confirmedEmail: confirmedEmail);
       },
     );
+
+    if (result == true && mounted) {
+      await _performAccountDeletion();
+    }
   }
+
 
   Widget _buildWarningItem(String text) {
     return Padding(
@@ -399,71 +431,137 @@ class _UserSettingsState extends State<UserSettings> {
   }
 
   Future<void> _performAccountDeletion() async {
-  // Show loading indicator
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    },
-  );
-
+  logger.i('_performAccountDeletion: Starting');
+  
   try {
-    final result = await UserHelper.deleteAccount();
+    logger.i('_performAccountDeletion: Calling UserHelper.deleteAccount()');
     
-    if (mounted) {
-      Navigator.pop(context); // Close loading dialog
-      
-      if (result.success) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              LocalizationHelper.localize(
-                result.msg.isNotEmpty ? result.msg : 'Account deleted successfully',
-                capitalize: true,
-              ),
-            ),
-            backgroundColor: Colors.green,
-          ),
+    final result = await UserHelper.deleteAccount().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        logger.e('_performAccountDeletion: Timed out after 30 seconds');
+        return const DeleteAccountResult(
+          success: false,
+          msg: 'Request timed out. Please check your connection and try again.',
         );
-        
-      } else {
-        // Show error message from server
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              LocalizationHelper.localize(
-                result.msg.isNotEmpty 
-                    ? result.msg 
-                    : 'Failed to delete account. Please try again.',
-                capitalize: true,
-              ),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      },
+    );
+    
+    logger.i('_performAccountDeletion: Got result - success: ${result.success}, msg: ${result.msg}');
+    
+    if (!mounted) {
+      logger.w('_performAccountDeletion: Widget not mounted, returning');
+      return;
     }
-  } catch (e) {
-    if (mounted) {
-      Navigator.pop(context); // Close loading dialog
+    
+    if (result.success) {
+      logger.i('_performAccountDeletion: Success - showing success message');
       
-      // Show generic error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             LocalizationHelper.localize(
-              'An unexpected error occurred. Please try again.',
+              result.msg.isNotEmpty ? result.msg : 'Account deleted successfully',
+              capitalize: true,
+            ),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
+      // Small delay before navigation
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
+      
+      logger.i('_performAccountDeletion: Navigating to success screen');
+      
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 80,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    LocalizationHelper.localize(
+                      'Account deleted successfully',
+                      capitalize: true,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    LocalizationHelper.localize(
+                      'You have been signed out',
+                      capitalize: true,
+                    ),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const UserSettings()),
+                        (route) => false,
+                      );
+                    },
+                    child: Text(
+                      LocalizationHelper.localize('Return to Settings', capitalize: true),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        (route) => false,
+      );
+    } else {
+      logger.w('_performAccountDeletion: Failed - ${result.msg}');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LocalizationHelper.localize(
+              result.msg.isNotEmpty 
+                  ? result.msg 
+                  : 'Failed to delete account. Please try again.',
               capitalize: true,
             ),
           ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
+  } catch (e, stackTrace) {
+    logger.e('_performAccountDeletion: Exception caught', error: e, stackTrace: stackTrace);
+    
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          LocalizationHelper.localize(
+            'An unexpected error occurred: $e',
+            capitalize: true,
+          ),
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 }
 
@@ -901,7 +999,7 @@ class _UserSettingsState extends State<UserSettings> {
             'title': LocalizationHelper.localize('Manage Account Status'),
             'subtitle': LocalizationHelper.localize('Delete Account'),
             'ontap': () {
-              _showManageAccount();
+              _showDeleteAccountWarning();
             },
           },
         ],

@@ -390,7 +390,7 @@ class UserHelper {
           : const <String, dynamic>{};
 
       final success = data['success'] == true;
-      final msg = (data['msg'] is String) ? data['msg'] as String : '';
+      final msg = (data['message'] is String) ? data['message'] as String : '';
 
       // If successful, clear all cached data
       if (success) {
