@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/models/profile_info.dart';
 import 'package:app/widgets/user/profile_form.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final User user;
@@ -87,12 +87,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       Navigator.of(context).pop<ProfileInfo>(result.profile);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(LocalizationHelper.localize('Profile updated'))));
+      ).showSnackBar(SnackBar(content: Text('Profile updated').localized()));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            result.msg.isNotEmpty ? result.msg : LocalizationHelper.localize('Failed to update profile.'),
+            result.msg.isNotEmpty ? result.msg : 'Failed to update profile.',
           ),
         ),
       );
@@ -102,7 +102,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(LocalizationHelper.localize('Edit Profile'))),
+      appBar: AppBar(title: Text('Edit Profile').localized()),
       body:
           _loading
               ? const Center(child: CircularProgressIndicator())

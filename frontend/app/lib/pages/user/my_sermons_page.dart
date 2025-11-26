@@ -4,7 +4,7 @@ import 'package:app/widgets/sermon_card.dart';
 import 'package:app/widgets/sermon_detail_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class MySermonsPage extends StatefulWidget {
   const MySermonsPage({super.key});
@@ -42,13 +42,14 @@ class _MySermonsPageState extends State<MySermonsPage> {
     try {
       await provider.removeFavorite(sermon.id);
       if (!mounted) return;
+      final title = sermon.title.trim();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(LocalizationHelper.localize('Removed "${sermon.title}" from favorites.'))),
+        SnackBar(content: Text(localize('Removed "{title}" from favorites.').replaceFirst('{title}', title)).localized()),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(LocalizationHelper.localize('Unable to update favorites: $error'))),
+        SnackBar(content: Text('Unable to update favorites: $error').localized()),
       );
     }
   }
@@ -61,8 +62,8 @@ class _MySermonsPageState extends State<MySermonsPage> {
         backgroundColor: ssbcGray,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          LocalizationHelper.localize('My Sermons', capitalize: true),
-        ),
+          'My Sermons',
+        ).localized(),
         centerTitle: true,
       ),
       backgroundColor: const Color.fromARGB(255, 245, 245, 245),
@@ -92,9 +93,9 @@ class _MySermonsPageState extends State<MySermonsPage> {
                         SizedBox(height: 12),
                         Center(
                           child: Text(
-                            LocalizationHelper.localize('You have no favorite sermons yet.'),
+                            'You have no favorite sermons yet.',
                             style: TextStyle(color: Colors.grey),
-                          ),
+                          ).localized(),
                         ),
                       ],
                     )
@@ -108,10 +109,10 @@ class _MySermonsPageState extends State<MySermonsPage> {
                         if (sermon == null) {
                           return ListTile(
                             leading: const Icon(Icons.menu_book_outlined),
-                            title: Text(LocalizationHelper.localize('Sermon ${favorite.sermonId}')),
+                            title: Text(localize('Sermon {id}').replaceFirst('{id}', favorite.sermonId.toString())),
                             subtitle: Text(
-                              LocalizationHelper.localize('Details unavailable. Tap to refresh.'),
-                            ),
+                              'Details unavailable. Tap to refresh.',
+                            ).localized(),
                             onTap: () => provider.refreshFavorites(),
                           );
                         }
@@ -139,6 +140,7 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final errorLabel = localize('Error:');
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -148,12 +150,12 @@ class _ErrorState extends StatelessWidget {
             const Icon(Icons.error_outline, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              LocalizationHelper.localize('Error: $message'),
+              '$errorLabel $message',
               style: const TextStyle(fontSize: 16),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: Text(LocalizationHelper.localize('Try again', capitalize: true))),
+            ElevatedButton(onPressed: onRetry, child: Text('Try again').localized()),
           ],
         ),
       ),

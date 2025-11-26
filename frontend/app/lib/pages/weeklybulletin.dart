@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class WeeklyBulletin extends StatefulWidget {
   const WeeklyBulletin({super.key});
@@ -17,8 +17,8 @@ class _WeeklyBulletinState extends State<WeeklyBulletin> {
               title: Padding(
                  padding: const EdgeInsets.only(left: 60),
                  child: Text(
-                   LocalizationHelper.localize('Weekly Bulletin', capitalize: true),
-                ),
+                   'Weekly Bulletin',
+                ).localized(),
               ),
               leading: IconButton(
               icon: const Icon(Icons.arrow_back),

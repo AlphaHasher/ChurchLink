@@ -1,5 +1,4 @@
 import 'package:app/helpers/api_client.dart';
-import 'package:app/helpers/form_localization_helper.dart';
 import 'package:app/pages/forms/checkbox_form_component.dart';
 import 'package:app/pages/forms/date_form_component.dart';
 import 'package:app/pages/forms/email_form_component.dart';
@@ -20,6 +19,7 @@ import 'package:app/pages/forms/price_label_form_component.dart';
 import 'package:app/models/form.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:app/helpers/form_localization_helper.dart';
 
 class FormSubmitPage extends StatefulWidget {
   final Map<String, dynamic> form;

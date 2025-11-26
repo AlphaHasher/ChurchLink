@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app/pages/user/submit_membership_request.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class ReadMembershipDenialScreen extends StatefulWidget {
   final bool muted;
@@ -53,7 +53,7 @@ class _ReadMembershipDenialScreenState
     final borderColor = theme.colorScheme.outlineVariant.withValues(alpha: 0.6);
 
     return Scaffold(
-      appBar: AppBar(title: Text(LocalizationHelper.localize('Membership Request'))),
+      appBar: AppBar(title: Text('Membership Request').localized()),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 50, 16, 24),
         children: [
@@ -70,23 +70,23 @@ class _ReadMembershipDenialScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    LocalizationHelper.localize('Request Denied'),
+                    'Request Denied',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
-                  ),
+                  ).localized(),
                   const SizedBox(height: 8),
                   Text(
-                    LocalizationHelper.localize('Your previous membership request was denied.'),
+                    'Your previous membership request was denied.',
                     style: theme.textTheme.bodyMedium,
-                  ),
+                  ).localized(),
                   if (widget.reason != null &&
                       widget.reason!.trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
-                      LocalizationHelper.localize('Reason provided by reviewer:'),
+                      'Reason provided by reviewer:',
                       style: theme.textTheme.bodySmall,
-                    ),
+                    ).localized(),
                     Text(
                       widget.reason!,
                       style: theme.textTheme.bodyMedium?.copyWith(
@@ -112,12 +112,12 @@ class _ReadMembershipDenialScreenState
                   ),
                 ),
                 child: Text(
-                  _navigating ? LocalizationHelper.localize('Opening…') : LocalizationHelper.localize('Re-Submit Request'),
+                  _navigating ? 'Opening…' : 'Re-Submit Request',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
-                ),
+                ).localized(),
               ),
             ),
           ],

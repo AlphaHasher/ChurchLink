@@ -24,7 +24,7 @@ import 'package:app/services/fcm_token_service.dart';
 import 'package:app/gates/auth_gate.dart';
 import 'package:app/theme/app_theme.dart';
 import 'package:app/theme/theme_controller.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -77,7 +77,7 @@ Future<void> main() async {
   }
 
   // Initialize localization
-  await LocalizationHelper.init();
+  await initLocalization();
 
   runApp(
     MultiProvider(
@@ -110,72 +110,31 @@ class MyApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: c,
       builder: (_, child) {
-        return _LocalizationRebuilder(
-          child: MaterialApp(
-            title: appName,
-            navigatorKey: navigatorKey,
-            theme: AppTheme.light, // Colors are defined in app_theme.dart
-            darkTheme: AppTheme.dark,
-            themeMode: c.mode,
-            home:
-                kTestMode
-                    ? MyHomePage(
-                      key: ValueKey(
-                        'home-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
-                      ),
-                    )
-                    : AuthGate(
-                      child: MyHomePage(
-                        key: ValueKey(
-                          'home-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
-                        ),
-                      ),
-                    ),
-            routes: {
-              '/home': (context) => const DashboardPage(),
-              '/bible': (context) => const BiblePage(),
-              '/sermons': (context) => const SermonsPage(),
-              '/events': (context) => const EventsPage(),
-              '/profile': (context) => const UserSettings(),
-              '/live': (context) => const JoinLive(),
-              '/bulletin': (context) => const WeeklyBulletin(),
-              '/giving': (context) => const Giving(),
-            },
-          ),
+        return MaterialApp(
+          title: appName,
+          navigatorKey: navigatorKey,
+          theme: AppTheme.light, // Colors are defined in app_theme.dart
+          darkTheme: AppTheme.dark,
+          themeMode: c.mode,
+          home: kTestMode
+                ? const MyHomePage()
+                : AuthGate(child: const MyHomePage()),
+          routes: {
+            '/home': (context) => const DashboardPage(),
+            '/bible': (context) => const BiblePage(),
+            '/sermons': (context) => const SermonsPage(),
+            '/events': (context) => const EventsPage(),
+            '/profile': (context) => const UserSettings(),
+            '/live': (context) => const JoinLive(),
+            '/bulletin': (context) => const WeeklyBulletin(),
+            '/giving': (context) => const Giving(),
+          },
         );
       },
     );
   }
 }
 
-class _LocalizationRebuilder extends StatefulWidget {
-  final Widget child;
-  const _LocalizationRebuilder({required this.child});
-
-  @override
-  State<_LocalizationRebuilder> createState() => _LocalizationRebuilderState();
-}
-
-class _LocalizationRebuilderState extends State<_LocalizationRebuilder> {
-  void _onLocaleChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    LocalizationHelper.addListener(_onLocaleChanged);
-  }
-
-  @override
-  void dispose() {
-    LocalizationHelper.removeListener(_onLocaleChanged);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
-}
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -191,16 +150,11 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isLoggedIn = false;
   final Map<String, int> _tabReloadVersion = {};
 
-  void _onLocaleChanged() {
-    if (mounted) setState(() {});
-  }
-
   @override
   void initState() {
     super.initState();
     user = authService.getCurrentUser();
     isLoggedIn = user != null;
-    LocalizationHelper.addListener(_onLocaleChanged);
 
     // Register FCM token for every device (no consent logic)
     FCMTokenService.registerDeviceToken(consent: {}, userId: user?.uid);
@@ -216,7 +170,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    LocalizationHelper.removeListener(_onLocaleChanged);
     super.dispose();
   }
 
@@ -233,15 +186,12 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Offstage(
         offstage: !isActive,
         child: Navigator(
-          key: ValueKey(
-            'nav-$tabName-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}-${_tabReloadVersion[tabName] ?? 0}',
+          key: navKey,
+          onGenerateRoute: (settings) => MaterialPageRoute(
+            builder: (_) => root,
+            settings: const RouteSettings(name: 'root'),
+            maintainState: true,
           ),
-          onGenerateRoute:
-              (settings) => MaterialPageRoute(
-                builder: (_) => root,
-                settings: const RouteSettings(name: 'root'),
-                maintainState: true,
-              ),
         ),
       ),
     );
@@ -328,40 +278,39 @@ class _MyHomePageState extends State<MyHomePage> {
             );
           }),
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          key: ValueKey(
-            'nav-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
+        bottomNavigationBar: LocalizedBuilder(
+          builder: (_) => BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: tabProvider.currentIndex,
+            onTap: (value) {
+              // If selecting the current tab, pop to the base page
+              if (value == tabProvider.currentIndex) {
+                final name = (tabs[value]['name'] as String).toLowerCase();
+                final key = _navKeyForTab[name];
+                key?.currentState?.popUntil((route) => route.isFirst);
+              } else {
+                // Switch tabs and pop to the base of the new tab
+                final targetName = (tabs[value]['name'] as String).toLowerCase();
+                final targetKey = _navKeyForTab[targetName];
+                targetKey?.currentState?.popUntil((route) => route.isFirst);
+                _tabReloadVersion[targetName] =
+                    (_tabReloadVersion[targetName] ?? 0) + 1;
+                setState(() {});
+                tabProvider.setTab(value);
+              }
+            },
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            selectedFontSize: 11,
+            unselectedFontSize: 9,
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
+            // Use Theme Colors
+            backgroundColor: theme.colorScheme.surface,
+            selectedItemColor: theme.colorScheme.primary,
+            unselectedItemColor: theme.colorScheme.onSurfaceVariant,
+            items: _buildNavItems(tabs).map((i) => i.localized()).toList(),
           ),
-          type: BottomNavigationBarType.fixed,
-          currentIndex: tabProvider.currentIndex,
-          onTap: (value) {
-            // If selecting the current tab, pop to the base page
-            if (value == tabProvider.currentIndex) {
-              final name = (tabs[value]['name'] as String).toLowerCase();
-              final key = _navKeyForTab[name];
-              key?.currentState?.popUntil((route) => route.isFirst);
-            } else {
-              // Switch tabs and pop to the base of the new tab
-              final targetName = (tabs[value]['name'] as String).toLowerCase();
-              final targetKey = _navKeyForTab[targetName];
-              targetKey?.currentState?.popUntil((route) => route.isFirst);
-              _tabReloadVersion[targetName] =
-                  (_tabReloadVersion[targetName] ?? 0) + 1;
-              setState(() {});
-              tabProvider.setTab(value);
-            }
-          },
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          selectedFontSize: 11,
-          unselectedFontSize: 9,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
-          // Use Theme Colors
-          backgroundColor: theme.colorScheme.surface,
-          selectedItemColor: theme.colorScheme.primary,
-          unselectedItemColor: theme.colorScheme.onSurfaceVariant,
-          items: _buildNavItems(tabs),
         ),
       ),
     );
@@ -409,7 +358,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       return BottomNavigationBarItem(
-        label: LocalizationHelper.localize(labelBase),
+        label: labelBase,
         icon: Semantics(
           label: 'tab-$name',
           child: _getTabIcon(name, iconName, false),
