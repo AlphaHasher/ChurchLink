@@ -31,12 +31,6 @@ class AuthController {
       onError("Apple Sign-In failed. Please try again.");
       return false;
     }
-    
-    // If token is a string error message, show it to user
-    if (token.contains('failed') || token.contains('error') || token.contains('Error')) {
-      onError(token);
-      return false;
-    }
 
     final verified = await backendHelper.verifyAndSyncUser(onError);
     return verified;
