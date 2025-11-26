@@ -4,7 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/helpers/api_client.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({super.key});
@@ -98,7 +98,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize('Notification Preferences')),
+        title: Text('Notification Preferences').localized(),
         centerTitle: true,
       ),
       body: _loading
@@ -108,12 +108,12 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                  Padding(
                   padding: EdgeInsets.all(16.0),
                   child: Text(
-                    LocalizationHelper.localize('Choose which notifications you want to receive:'),
+                    'Choose which notifications you want to receive:',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  ).localized(),
                 ),
                 ..._notificationPrefs.entries.map((entry) => SwitchListTile(
-                      title: Text(LocalizationHelper.localize(entry.key)),
+                      title: Text(entry.key).localized(),
                       value: entry.value,
                       onChanged: (val) {
                         setState(() {

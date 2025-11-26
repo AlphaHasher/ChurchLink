@@ -11,7 +11,7 @@ import 'package:app/widgets/bulletin_filter_sheet.dart';
 import 'package:app/widgets/service_filter_sheet.dart';
 import 'package:app/widgets/service_card.dart';
 import 'package:app/pages/service_detail.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/ministries_helper.dart';
 
 class BulletinsPage extends StatefulWidget {
@@ -52,9 +52,13 @@ class _BulletinsPageState extends State<BulletinsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          LocalizationHelper.localize('Weekly Bulletin', capitalize: true),
-        ),
+        title: Text('Weekly Bulletin').localized(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _openServicesFilter,
+          ),
+        ],
       ),
       body: SafeArea(
         child: Consumer<BulletinsProvider>(
@@ -97,38 +101,39 @@ class _BulletinsPageState extends State<BulletinsPage> {
     final hasServices = provider.services.isNotEmpty;
     final hasBulletins = provider.items.isNotEmpty;
 
+    if (!hasServices && !hasBulletins) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: 120),
+          Icon(Icons.article_outlined, size: 72, color: Colors.grey),
+          SizedBox(height: 12),
+          Center(
+            child: Text(
+              'No content available yet. Pull to refresh.',
+              style: TextStyle(color: Colors.grey),
+            ).localized(),
+          ),
+        ],
+      );
+    }
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        // Services section - Always show header and filter
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  provider.serverWeek != null
-                      ? provider.serverWeek!.weekLabel
-                      : LocalizationHelper.localize(
-                        'Upcoming Services',
-                        capitalize: true,
-                      ),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.search),
-                onPressed: _openServicesFilter,
-                tooltip: 'Filter Services',
-              ),
-            ],
-          ),
-        ),
-        // Show services or empty state message
+        // Services section
         if (hasServices) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              provider.serverWeek != null
+                  ? provider.serverWeek!.weekLabel
+                  : 'Upcoming Services',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ).localized(),
+          ),
           ...provider.services.map(
             (service) => ServiceCard(
               service: service,
@@ -142,22 +147,16 @@ class _BulletinsPageState extends State<BulletinsPage> {
             child: Column(
               children: [
                 Text(
-                  LocalizationHelper.localize(
-                    'No services found',
-                    capitalize: true,
-                  ),
+                  'No services found',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
                 const SizedBox(height: 8),
                 Text(
-                  LocalizationHelper.localize(
-                    'Try adjusting your filters',
-                    capitalize: true,
-                  ),
+                  'Try adjusting your filters',
                   style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
               ],
             ),
           ),
@@ -171,11 +170,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                LocalizationHelper.localize('Announcements', capitalize: true),
+                'Announcements',
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              ).localized(),
               IconButton(
                 icon: const Icon(Icons.search),
                 onPressed: _openAnnouncementsFilter,
@@ -200,22 +199,16 @@ class _BulletinsPageState extends State<BulletinsPage> {
             child: Column(
               children: [
                 Text(
-                  LocalizationHelper.localize(
-                    'No announcements found',
-                    capitalize: true,
-                  ),
+                  'No announcements found',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
                 const SizedBox(height: 8),
                 Text(
-                  LocalizationHelper.localize(
-                    'Try adjusting your filters',
-                    capitalize: true,
-                  ),
+                  'Try adjusting your filters',
                   style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   textAlign: TextAlign.center,
-                ),
+                ).localized(),
               ],
             ),
           ),
@@ -301,7 +294,9 @@ class _ErrorBanner extends StatelessWidget {
       color: theme.colorScheme.error.withValues(alpha: 0.1),
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
-        title: Text(LocalizationHelper.localize(message, capitalize: true)),
+        title: Text(
+          message,
+        ).localized(),
         trailing: IconButton(
           icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,
@@ -336,8 +331,8 @@ class _ErrorState extends StatelessWidget {
             ElevatedButton(
               onPressed: onRetry,
               child: Text(
-                LocalizationHelper.localize('Try again', capitalize: true),
-              ),
+                'Try again',
+              ).localized(),
             ),
           ],
         ),
