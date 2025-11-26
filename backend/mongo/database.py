@@ -429,7 +429,6 @@ class DB:
 
     @staticmethod
     async def init_collections():
-        await DB.run_post_init_hooks()
         for collection in DB.collections:
             collection_name = collection["name"]
             collection_names = await DB.db.list_collection_names()
@@ -531,6 +530,7 @@ class DB:
 
             # Import migration data if collection is empty
             await DB.import_migration_data(collection_name)
+        await DB.run_post_init_hooks()
 
     @staticmethod
     def convert_mongodb_extended_json(data):
