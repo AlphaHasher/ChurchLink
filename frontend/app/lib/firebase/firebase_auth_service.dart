@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -99,9 +101,16 @@ class FirebaseAuthService {
     }
   }
 
-  Future<String?> signInWithApple() async {
+  Future<String?> signInWithApple({BuildContext? context}) async {
     try {
       debugPrint("🍎 Attempting Apple Sign-In...");
+      
+      // Disable Apple Sign-In on Android due to session storage issues
+      if (!kIsWeb && Platform.isAndroid) {
+        debugPrint("❌ Apple Sign-In is disabled on Android");
+        debugPrint("ℹ️  Please use Google Sign-In or Email/Password on Android");
+        return null;
+      }
       
       // Check if Apple Sign In is available
       if (!await SignInWithApple.isAvailable()) {
@@ -109,17 +118,12 @@ class FirebaseAuthService {
         return null;
       }
 
-      // Request credential from Apple
+      // Request credential from Apple (iOS only)
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
           AppleIDAuthorizationScopes.fullName,
         ],
-        // Required for Android - using churchlink.ssbc
-        webAuthenticationOptions: WebAuthenticationOptions(
-          clientId: 'churchlink.ssbc',
-          redirectUri: Uri.parse('https://ssbc-9ef2d.firebaseapp.com/__/auth/handler'),
-        ),
       );
 
       debugPrint("✅ Apple authentication successful");

@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:app/helpers/auth_controller.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:app/pages/user/use_email.dart';
@@ -44,13 +46,15 @@ class AuthPopup extends StatelessWidget {
         'backgroundColor': buttonBackgroundColor,
         'foregroundColor': buttonTextColor,
       },
-      {
-        'title': 'Continue with Apple',
-        'icon': Icons.apple,
-        'ontap': _continueWithApple,
-        'backgroundColor': buttonBackgroundColor,
-        'foregroundColor': buttonTextColor,
-      },
+      // Only show Apple Sign-In on iOS
+      if (!kIsWeb && Platform.isIOS)
+        {
+          'title': 'Continue with Apple',
+          'icon': Icons.apple,
+          'ontap': _continueWithApple,
+          'backgroundColor': buttonBackgroundColor,
+          'foregroundColor': buttonTextColor,
+        },
     ];
 
     return Container(
