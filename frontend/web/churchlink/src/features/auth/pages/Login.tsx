@@ -4,6 +4,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  OAuthProvider,
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -32,6 +33,7 @@ function Login() {
   const [resetError, setResetError] = useState<string>("");
   const [resetLoading, setResetLoading] = useState<boolean>(false);
   const [churchName, setChurchName] = useState("Your Church Name");
+  const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(true);
   const localize = useLocalize();
 
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,6 +73,26 @@ function Login() {
     };
 
     fetchChurchName();
+  }, []);
+
+  // Check Apple Sign-In availability
+  useEffect(() => {
+    const checkAppleSignInAvailability = () => {
+      // Apple Sign-In is available in modern browsers
+      // But may not work in all environments or if not properly configured
+      const userAgent = navigator.userAgent;
+      const isSupported = 
+        // Check if we're in a supported browser (most modern browsers support it)
+        'fetch' in window && 
+        'crypto' in window && 
+        !userAgent.includes('MSIE') && 
+        !userAgent.includes('Trident');
+        
+      console.log("Apple Sign-In availability check:", isSupported);
+      setIsAppleSignInAvailable(isSupported);
+    };
+
+    checkAppleSignInAvailability();
   }, []);
 
   // Cleanup timeout on component unmount to prevent stale state updates
@@ -166,6 +188,76 @@ function Login() {
     }
   };
 
+  const handleAppleLogin = async () => {
+    setError(""); // Clear any existing errors
+    console.log("🍎 Starting Apple Sign-In process...");
+    
+    try {
+      const provider = new OAuthProvider('apple.com');
+      provider.addScope('email');
+      provider.addScope('name');
+      
+      // Set custom parameters for Apple Sign-In
+      provider.setCustomParameters({
+        // Locale for the sign-in flow
+        locale: 'en'
+      });
+      
+      console.log("🍎 Attempting Apple Sign-In popup...");
+      const result = await signInWithPopup(auth, provider);
+      console.log("🍎 Apple Sign-In successful:", result.user?.email);
+
+      console.log("🍎 Verifying and syncing user...");
+      const verified = await verifyAndSyncUser(setError);
+      if (!verified) {
+        console.log("❌ User verification failed");
+        return;
+      }
+      
+      console.log("✅ Apple Sign-In complete, redirecting...");
+      navigate(getRedirectTo(), { replace: true });
+    } catch (err: unknown) {
+      console.error("❌ Apple Sign-In error:", err);
+      
+      if (err instanceof Error) {
+        console.error("Error message:", err.message);
+        console.error("Error code:", (err as any).code);
+        console.error("Full error object:", JSON.stringify(err, null, 2));
+        
+        const errorCode = (err as any).code;
+        const errorMessage = err.message;
+        
+        // Handle specific Firebase Auth error codes for Apple Sign-In
+        if (errorCode === 'auth/operation-not-allowed') {
+          setError('Apple Sign-In is not enabled in Firebase. Please contact support.');
+        } else if (errorCode === 'auth/popup-closed-by-user') {
+          setError('Sign-in was cancelled.');
+        } else if (errorCode === 'auth/popup-blocked') {
+          setError('Popup was blocked. Please allow popups and try again.');
+        } else if (errorCode === 'auth/unauthorized-domain') {
+          setError('This domain is not authorized for Apple Sign-In.');
+        } else if (errorCode === 'auth/cancelled-popup-request') {
+          setError('Sign-in was cancelled or interrupted.');
+        } else if (errorCode === 'auth/account-exists-with-different-credential') {
+          setError('An account already exists with the same email but different sign-in method.');
+        } else if (errorMessage.includes('operation-not-allowed')) {
+          setError('Apple Sign-In is not enabled in Firebase. Please contact support.');
+        } else if (errorMessage.includes('popup-closed-by-user')) {
+          setError('Sign-in was cancelled.');
+        } else if (errorMessage.includes('popup-blocked')) {
+          setError('Popup was blocked. Please allow popups and try again.');
+        } else if (errorMessage.includes('unauthorized-domain')) {
+          setError('This domain is not authorized for Apple Sign-In.');
+        } else {
+          // Don't use getAuthErrorMessage for Apple Sign-In as it might not handle Apple-specific errors
+          setError(`Apple Sign-In failed: ${errorMessage}`);
+        }
+      } else {
+        setError("An unexpected error occurred during Apple Sign-In. Please try again.");
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
@@ -247,7 +339,7 @@ function Login() {
         <button
           onClick={handleGoogleLogin}
           type="button"
-          className="w-full bg-white border-2 border-gray-400 hover:bg-gray-50 !text-gray-800 font-semibold py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2"
+          className="w-full bg-white border-2 border-gray-400 hover:bg-gray-50 !text-gray-800 font-semibold py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2 mb-3"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -269,6 +361,19 @@ function Login() {
           </svg>
           {localize("Sign in with Google")}
         </button>
+
+        {isAppleSignInAvailable && (
+          <button
+            onClick={handleAppleLogin}
+            type="button"
+            className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-2 px-4 rounded-lg transition-all transform hover:-translate-y-0.5 hover:shadow-lg flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            {localize("Sign in with Apple")}
+          </button>
+        )}
 
         <div className="mt-6 text-center text-sm text-gray-600">
           {localize("Don't have an account?")}{" "}
