@@ -49,8 +49,7 @@ import LocaleSelect from "@/shared/components/LocaleSelect";
 
 
 interface HeaderLink {
-    title: string;
-    titles?: Record<string, string>;
+    titles: Record<string, string>;
     url?: string;
     slug?: string;
     is_hardcoded_url?: boolean;
@@ -58,8 +57,7 @@ interface HeaderLink {
 }
 
 interface HeaderDropdown {
-    title: string;
-    titles?: Record<string, string>;
+    titles: Record<string, string>;
     items: HeaderLink[];
     visible?: boolean;
 }
@@ -81,10 +79,10 @@ const VisibilityToggle: React.FC<{ item: HeaderItem; onToggle: (title: string, c
         setBadgeState("processing");
 
         try {
-            await api.put(`/v1/header/${item.title}/visibility`, { visible: newVisibility });
+            await api.put(`/v1/header/${item.titles.en}/visibility`, { visible: newVisibility });
             setBadgeState("success");
             setTimeout(() => {
-                onToggle(item.title, currentVisibility);
+                onToggle(item.titles.en, currentVisibility);
                 setBadgeState("custom");
             }, 900);
         } catch (error) {
@@ -101,11 +99,10 @@ const VisibilityToggle: React.FC<{ item: HeaderItem; onToggle: (title: string, c
                 onClick={handleToggleVisibility}
                 customComponent={
                     <span
-                        className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${
-                            item.visible
-                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
-                        }`}
+                        className={`inline-block px-2 py-1 text-xs rounded-full font-medium cursor-pointer ${item.visible
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+                            }`}
                     >
                         {item.visible ? "Visible" : "Hidden"}
                     </span>
@@ -205,9 +202,9 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const [pages, setPages] = useState<Page[]>([]);
 
     // Locales management for header labels
-    const { languages, setLocale } = useLanguage();
+    const { languages, setLocale, locale: globalLocale } = useLanguage();
     const [addLocaleOpen, setAddLocaleOpen] = useState(false);
-    const [headerLocale, setHeaderLocale] = useState<string>('en');
+    const [headerLocale, setHeaderLocale] = useState<string>(globalLocale || 'en');
     const [availableLocales, setAvailableLocales] = useState<string[]>(['en']);
     const [translationCache, setTranslationCache] = useState<Record<string, Record<string, string>>>({});
 
@@ -237,7 +234,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     const defaultPublicRoutes = useMemo(
         () => [
             { slug: "live", title: "Live" },
-            { slug: "thank-you", title: "Thank You" },
+            { slug: "events", title: "Events" },
             { slug: "sermons", title: "Sermons" },
             { slug: "weekly-bulletin", title: "Weekly Bulletin" },
         ],
@@ -276,6 +273,13 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         void fetchPages();
     }, []);
 
+    // Sync headerLocale with global locale from LanguageProvider
+    useEffect(() => {
+        if (globalLocale && globalLocale !== headerLocale) {
+            setHeaderLocale(globalLocale);
+        }
+    }, [globalLocale]);
+
     const fetchLocales = async () => {
         try {
             const response = await api.get("/v1/header/locales");
@@ -312,11 +316,11 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     }, [headerLocale, header?.items, ensureLocaleTranslations]);
 
     const getDisplayTitle = useCallback((item: HeaderItem): string => {
-        const english = item.titles?.en || item.title;
-        if (headerLocale === 'en') return english || item.title;
+        const english = item.titles?.en || '';
+        if (headerLocale === 'en') return english;
         const saved = item.titles?.[headerLocale];
         if (saved) return saved;
-        if (!english) return item.title;
+        if (!english) return '';
         return translationCache[headerLocale]?.[english] || english;
     }, [headerLocale, translationCache]);
 
@@ -358,8 +362,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
         const { active, over } = event;
         if (active.id !== over?.id) {
-            const oldIndex = header.items.findIndex(item => item.title === active.id);
-            const newIndex = header.items.findIndex(item => item.title === over?.id);
+            const oldIndex = header.items.findIndex(item => item.titles.en === active.id);
+            const newIndex = header.items.findIndex(item => item.titles.en === over?.id);
 
             if (oldIndex !== -1 && newIndex !== -1) {
                 const newItems = arrayMove(header.items, oldIndex, newIndex);
@@ -383,7 +387,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
             if (header) {
                 // Update UI after successful deletion
-                const newItems = header.items.filter(item => item.title !== itemToDelete);
+                const newItems = header.items.filter(item => item.titles.en !== itemToDelete);
                 setHeader({ ...header, items: newItems });
             }
 
@@ -404,7 +408,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         // Update local state after successful API call from VisibilityToggle
         if (header) {
             const newItems = header.items.map(item =>
-                item.title === title ? { ...item, visible: !currentVisibility } : item
+                item.titles.en === title ? { ...item, visible: !currentVisibility } : item
             );
             setHeader({ ...header, items: newItems });
         }
@@ -422,7 +426,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
 
             // 2. Save reordering
-            const currentTitles = header.items.map(item => item.title);
+            const currentTitles = header.items.map(item => item.titles.en);
             await api.put("/v1/header/reorder", { titles: currentTitles });
             toast.success("Navigation changes saved successfully");
 
@@ -476,7 +480,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
 
             const res = await api.post("/v1/header/items/links", linkData);
-            
+
             // Check if the response indicates success
             if (res?.data?.success) {
                 toast.success("Link added successfully!");
@@ -495,12 +499,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
         } catch (err: any) {
             console.error("Failed to add link:", err);
-            
+
             // Try to extract error message from response
-            const errorMsg = err?.response?.data?.msg || 
-                           err?.response?.data?.message || 
-                           err?.message || 
-                           "Failed to add link";
+            const errorMsg = err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to add link";
             toast.error(errorMsg);
         }
     };
@@ -514,8 +518,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
         try {
             const processedLinks = dropdownLinks.map((l) => ({
-                title: l.title,
-                titles: l.titles && l.titles.en ? l.titles : { en: l.title },
+                titles: l.titles || { en: '' },
                 is_hardcoded_url: !!l.is_hardcoded_url,
                 url: l.is_hardcoded_url ? l.url : undefined,
                 slug: l.is_hardcoded_url ? undefined : l.slug,
@@ -527,7 +530,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 "items": processedLinks,
                 "visible": false,
             });
-            
+
             // Check if the response indicates success
             if (res?.data?.success) {
                 toast.success("Dropdown added successfully!");
@@ -544,12 +547,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
         } catch (err: any) {
             console.error("Failed to add dropdown:", err);
-            
+
             // Try to extract error message from response
-            const errorMsg = err?.response?.data?.msg || 
-                           err?.response?.data?.message || 
-                           err?.message || 
-                           "Failed to add dropdown";
+            const errorMsg = err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to add dropdown";
             toast.error(errorMsg);
         }
     };
@@ -572,7 +575,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         }
 
         const linkData: HeaderLink = {
-            title: tempLinkTitle,
+
             titles: { en: tempLinkTitle },
             is_hardcoded_url: tempLinkIsHardcoded,
             visible: true,
@@ -598,17 +601,18 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
     // Edit functions
     const handleEditItem = (item: HeaderItem) => {
         setEditingItem(item);
-        const english = (item as any)?.titles?.en || item.title;
+        const english = (item as any)?.titles?.en || '';
         const savedLocaleValue = (item as any)?.titles?.[headerLocale];
         if (headerLocale === 'en') {
-            setEditTitle(english || item.title);
-            setEditPlaceholder(english || item.title);
+            setEditTitle(english);
+            setEditPlaceholder(english);
         } else if (savedLocaleValue && String(savedLocaleValue).trim()) {
             setEditTitle(savedLocaleValue);
             setEditPlaceholder(savedLocaleValue);
         } else {
-            setEditTitle("");
-            setEditPlaceholder(translationCache[headerLocale]?.[english] || english || item.title);
+            const autoTranslation = translationCache[headerLocale]?.[english] || english;
+            setEditTitle(autoTranslation);
+            setEditPlaceholder(autoTranslation);
         }
 
         if ('url' in item) {
@@ -620,7 +624,24 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             setEditSlug("");
             setEditUrl("");
             setEditIsHardcoded(false);
-            setEditDropdownItems(item.items);
+            // Map dropdown items to show the current locale's title
+            const mappedItems = item.items.map((subItem: any) => {
+                const subEnglish = subItem.titles?.en || '';
+                const subSavedLocale = subItem.titles?.[headerLocale];
+                let displayTitle = '';
+                if (headerLocale === 'en') {
+                    displayTitle = subEnglish;
+                } else if (subSavedLocale && String(subSavedLocale).trim()) {
+                    displayTitle = subSavedLocale;
+                } else {
+                    displayTitle = translationCache[headerLocale]?.[subEnglish] || subEnglish;
+                }
+                return {
+                    ...subItem,
+                    displayTitle,
+                };
+            });
+            setEditDropdownItems(mappedItems);
         }
 
         setIsEditModalOpen(true);
@@ -643,7 +664,6 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             nextTitles[localeKey] = editTitle;
 
             const updatedItem: any = {
-                title: headerLocale === 'en' ? editTitle : editingItem.title,
                 titles: nextTitles,
             };
 
@@ -668,9 +688,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                     const baseTitles = ((original?.titles || (sub as any).titles) || {}) as Record<string, string>;
                     const newTitles: Record<string, string> = { ...baseTitles };
                     const subLocaleKey = headerLocale === 'en' ? 'en' : headerLocale;
-                    newTitles[subLocaleKey] = sub.title;
+                    newTitles[subLocaleKey] = (sub as any).displayTitle;
                     return {
-                        title: headerLocale === 'en' ? sub.title : (original?.title ?? sub.title),
                         titles: newTitles,
                         is_hardcoded_url: !!(sub as any).is_hardcoded_url,
                         url: (sub as any).is_hardcoded_url ? (sub as any).url : undefined,
@@ -681,7 +700,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                 });
             }
 
-            const response = await api.put(`/v1/header/items/edit/${editingItem.title}`, updatedItem);
+            const response = await api.put(`/v1/header/items/edit/${editingItem.titles.en}`, updatedItem);
 
             // Check if the response indicates success
             if (response?.data?.success) {
@@ -696,12 +715,12 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
             }
         } catch (err: any) {
             console.error("Failed to update navigation item:", err);
-            
+
             // Try to extract error message from response
-            const errorMsg = err?.response?.data?.msg || 
-                           err?.response?.data?.message || 
-                           err?.message || 
-                           "Failed to update navigation item";
+            const errorMsg = err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to update navigation item";
             toast.error(errorMsg);
         }
     };
@@ -725,8 +744,8 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
         }
 
         const linkData: any = {
-            title: editTempLinkTitle,
             titles: { en: editTempLinkTitle },
+            displayTitle: editTempLinkTitle,
             is_hardcoded_url: editTempLinkIsHardcoded,
             visible: true,
             type: "link"
@@ -758,7 +777,7 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
     const handleEditDropdownItem = (index: number) => {
         const item = editDropdownItems[index];
-        setEditTempLinkTitle(item.title);
+        setEditTempLinkTitle((item as any).displayTitle);
         setEditTempLinkSlug(item.slug || "");
         setEditTempLinkUrl(item.url || "");
         setEditTempLinkIsHardcoded(item.is_hardcoded_url || false);
@@ -848,11 +867,10 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "link" ? "default" : "outline"}
-                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
-                                        itemType !== "link"
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${itemType !== "link"
                                             ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
                                             : ""
-                                        }`}
+                                            }`}
                                         onClick={() => setItemType("link")}
                                     >
                                         Link
@@ -860,11 +878,10 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                     <Button
                                         type="button"
                                         variant={itemType === "dropdown" ? "default" : "outline"}
-                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${
-                                        itemType !== "dropdown"
+                                        className={`flex items-center gap-2 focus-visible:ring-1 focus-visible:ring-border ${itemType !== "dropdown"
                                             ? "bg-card text-foreground border-border hover:bg-muted hover:text-foreground dark:hover:bg-muted dark:hover:text-foreground"
                                             : ""
-                                        }`}
+                                            }`}
                                         onClick={() => setItemType("dropdown")}
                                     >
                                         Dropdown
@@ -945,15 +962,15 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                     onDragEnd={handleDragEnd}
                                                 >
                                                     <SortableContext
-                                                        items={dropdownLinks.map((link) => `${link.title}-${link.url}`)}
+                                                        items={dropdownLinks.map((link) => `${link.titles.en}-${link.url}`)}
                                                         strategy={verticalListSortingStrategy}
                                                     >
                                                         <ul className="mb-4">
                                                             {dropdownLinks.map((link, index) => (
-                                                                <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
+                                                                <SortableItem key={`${link.titles.en}-${link.url}`} id={`${link.titles.en}-${link.url}`}>
                                                                     <li className="flex justify-between items-center p-2 bg-card border rounded shadow-sm">
                                                                         <div>
-                                                                            <div className="font-medium">{link.title}</div>
+                                                                            <div className="font-medium">{getDisplayTitle(link)}</div>
                                                                             <div className="text-sm text-primary">{link.url}</div>
                                                                         </div>
                                                                         <Button
@@ -1116,15 +1133,15 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
                                                 onDragEnd={handleDragEnd}
                                             >
                                                 <SortableContext
-                                                    items={editDropdownItems.map((link) => `${link.title}-${link.url}`)}
+                                                    items={editDropdownItems.map((link) => `${(link as any).displayTitle}-${link.url}`)}
                                                     strategy={verticalListSortingStrategy}
                                                 >
                                                     <ul className="mb-4">
                                                         {editDropdownItems.map((link, index) => (
-                                                            <SortableItem key={`${link.title}-${link.url}`} id={`${link.title}-${link.url}`}>
+                                                            <SortableItem key={`${(link as any).displayTitle}-${link.url}`} id={`${(link as any).displayTitle}-${link.url}`}>
                                                                 <li className="flex justify-between items-center p-2 bg-card border rounded">
                                                                     <div>
-                                                                        <div className="font-medium">{link.title}</div>
+                                                                        <div className="font-medium">{(link as any).displayTitle}</div>
                                                                         <div className="text-sm text-primary">{link.url}</div>
                                                                     </div>
                                                                     <div className="flex gap-2">
@@ -1260,111 +1277,111 @@ const EditHeader = ({ onHeaderDataChange }: EditHeaderProps = {}) => {
 
             <CardContent>
 
-            {/* Current header items */}
-            <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Current Navigation Items</h3>
-                {header && header.items.length > 0 ? (
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                    >
-                        <SortableContext
-                            items={header.items.map(item => item.title)}
-                            strategy={verticalListSortingStrategy}
+                {/* Current header items */}
+                <div className="mb-6">
+                    <h3 className="text-lg font-medium mb-2">Current Navigation Items</h3>
+                    {header && header.items.length > 0 ? (
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={handleDragEnd}
                         >
-                            <ul className="border rounded divide-y">
-                                {header.items.map((item) => (
-                                    <SortableItem key={item.title} id={item.title}>
-                                        <li className="flex justify-between items-center p-2">
-                                            <div className="flex flex-1">
-                                                <div>
-                                                    <span className="font-medium">
-                                                        {getDisplayTitle(item as HeaderItem)}
-                                                    </span>
-                                                    {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                            <SortableContext
+                                items={header.items.map(item => item.titles.en)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <ul className="border rounded divide-y">
+                                    {header.items.map((item) => (
+                                        <SortableItem key={item.titles.en} id={item.titles.en}>
+                                            <li className="flex justify-between items-center p-2">
+                                                <div className="flex flex-1">
+                                                    <div>
+                                                        <span className="font-medium">
+                                                            {getDisplayTitle(item as HeaderItem)}
+                                                        </span>
+                                                        {('items' in item) && <span className="ml-2 text-sm text-muted-foreground">{item.items.length} link{item.items.length == 1 ? "" : "s"}</span>}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {/* Navigate (open page in new tab) */}
-                                                {(() => {
-                                                    // Determine a sensible href: prefer slug when present and not hardcoded url
-                                                    let href: string | null = null;
-                                                    if ('items' in item) {
-                                                        href = null; // dropdowns don't have direct destination
-                                                    } else if ('url' in item) {
-                                                        const link = item as any;
-                                                        if (link.is_hardcoded_url && link.url) {
-                                                            href = link.url as string;
-                                                        } else if (link.slug) {
-                                                            let p = link.slug as string;
-                                                            if (p === "Home" || p === "") p = "/";
-                                                            if (!p.startsWith("/")) p = `/${p}`;
-                                                            p = p.replace(/^\/+/, "/");
-                                                            href = p;
+                                                <div className="flex gap-2">
+                                                    {/* Navigate (open page in new tab) */}
+                                                    {(() => {
+                                                        // Determine a sensible href: prefer slug when present and not hardcoded url
+                                                        let href: string | null = null;
+                                                        if ('items' in item) {
+                                                            href = null; // dropdowns don't have direct destination
+                                                        } else if ('url' in item) {
+                                                            const link = item as any;
+                                                            if (link.is_hardcoded_url && link.url) {
+                                                                href = link.url as string;
+                                                            } else if (link.slug) {
+                                                                let p = link.slug as string;
+                                                                if (p === "Home" || p === "") p = "/";
+                                                                if (!p.startsWith("/")) p = `/${p}`;
+                                                                p = p.replace(/^\/+/, "/");
+                                                                href = p;
+                                                            }
                                                         }
-                                                    }
-                                                    return href ? (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => window.open(href as string, "_blank")}
-                                                            title="Open in new tab"
-                                                            className="text-muted-foreground hover:text-foreground"
-                                                        >
-                                                            <ExternalLink className="h-4 w-4" />
-                                                        </Button>
-                                                    ) : null;
-                                                })()}
-                                                <VisibilityToggle item={item} onToggle={handleChangeVisibility} />
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleEditItem(item)}
-                                                    className="text-primary hover:text-primary/80"
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleRemoveItem(item.title)}
-                                                    className="text-destructive hover:text-destructive/80"
-                                                >
-                                                    Remove
-                                                </Button>
-                                            </div>
-                                        </li>
-                                    </SortableItem>
-                                ))}
-                            </ul>
-                        </SortableContext>
-                    </DndContext>
-                ) : (
-                    <p className="text-muted-foreground">No navigation items yet. Click "Add Navigation Item" to create one.</p>
-                )}
-            </div>
-
-            {header && header.items.length > 0 && (
-                <div className="flex gap-4 justify-start mt-6">
-                    <Button
-                        onClick={handleSaveChanges}
-                        disabled={!hasUnsavedChanges}
-                    >
-                        Save Changes
-                    </Button>
-                    {hasUnsavedChanges && (
-                        <Button
-                            variant="outline"
-                            onClick={handleCancelChanges}
-                        >
-                            Cancel
-                        </Button>
+                                                        return href ? (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => window.open(href as string, "_blank")}
+                                                                title="Open in new tab"
+                                                                className="text-muted-foreground hover:text-foreground"
+                                                            >
+                                                                <ExternalLink className="h-4 w-4" />
+                                                            </Button>
+                                                        ) : null;
+                                                    })()}
+                                                    <VisibilityToggle item={item} onToggle={handleChangeVisibility} />
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleEditItem(item)}
+                                                        className="text-primary hover:text-primary/80"
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveItem(item.titles.en)}
+                                                        className="text-destructive hover:text-destructive/80"
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        </SortableItem>
+                                    ))}
+                                </ul>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <p className="text-muted-foreground">No navigation items yet. Click "Add Navigation Item" to create one.</p>
                     )}
                 </div>
-            )}
-        </CardContent>
-    </Card>
+
+                {header && header.items.length > 0 && (
+                    <div className="flex gap-4 justify-start mt-6">
+                        <Button
+                            onClick={handleSaveChanges}
+                            disabled={!hasUnsavedChanges}
+                        >
+                            Save Changes
+                        </Button>
+                        {hasUnsavedChanges && (
+                            <Button
+                                variant="outline"
+                                onClick={handleCancelChanges}
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 };
 

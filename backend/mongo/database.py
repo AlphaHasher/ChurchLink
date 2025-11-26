@@ -16,17 +16,113 @@ class DB:
     db = None
     collections = [
         {
-            "name": "users", # name of collection,
-            "indexes": ["email"] # array of property names to index as unique
+            "name": "users",  # name of collection
+            # Unique indexes
+            # - email: primary login / identity
+            # - uid: Firebase / auth identity, should be globally unique
+            "indexes": ["email", "uid"],
+            # Non-unique indexes for searches, filters, and pagination
+            "compound_indexes": [
+                # Role-based filters and permission resolution
+                ["roles"],
+
+                # Default admin pagination sort
+                ["createdOn", "uid"],
+
+                # Name sorting + exact first/last lookups
+                ["last_name", "first_name", "email"],
+
+                # Membership-based sorting / filtering
+                ["membership"],
+
+                # Direct lookups by phone
+                ["phone"],
+
+                # Age-range queries via birthday
+                ["birthday"],
+            ],
         },
         {
             "name": "roles",
-            "indexes": ["name"]
+            # Unique role names
+            "indexes": ["name"],
+            # Permission-based role discovery
+            "compound_indexes": [
+                ["permissions.admin"],
+                ["permissions.permissions_management"],
+                ["permissions.web_builder_management"],
+                ["permissions.mobile_ui_management"],
+                ["permissions.event_editing"],
+                ["permissions.media_management"],
+                ["permissions.sermon_editing"],
+                ["permissions.bulletin_editing"],
+                ["permissions.finance"],
+                ["permissions.ministries_management"],
+            ],
         },
         {
             "name": "events",
-            # Reverting indexes back to original based on user feedback
-            "indexes": ["name"]
+            "compound_indexes": [
+                # For get_publishing_events(), push_all_event_instances(), etc.
+                ["currently_publishing"],
+
+                # For get_events_with_discount_code() + remove_discount_code_from_all_events()
+                ["discount_codes"],
+
+                # For heavy admin-panel search with filters + sort on updated_on
+                # (registration_allowed / hidden / members_only / rsvp_required / gender are small-cardinality filters)
+                ["registration_allowed", "hidden", "members_only", "rsvp_required", "gender", "updated_on"],
+            ],
+        },
+        {
+            "name": "event_instances",
+            "compound_indexes": [
+                # Primary workhorse: “all instances for this event” and “upcoming for this event”
+                #   - get_instances_from_event_id
+                #   - get_upcoming_instances_from_event_id (with sort on scheduled_date)
+                #   - search_assembled_event_instances (filters by event_id + status/time)
+                ["event_id", "scheduled_date"],
+
+                # Fast lookup by (event_id, series_index) for per-instance editing/overrides
+                ["event_id", "series_index"],
+
+                # Global upcoming/history pagination & instance search:
+                #   - search_upcoming_event_instances_for_read
+                #   - search_my_event_instances_for_read
+                #   both sort by (scheduled_date, _id) and paginate by the same tuple
+                ["scheduled_date", "_id"],
+            ],
+        },
+        {
+            "name": "event_transactions",
+            "indexes": [
+                # Enforce unique PayPal order id / idempotency
+                "order_id",
+            ],
+            "compound_indexes": [
+                # List by payer, newest first
+                ["payer_uid", "created_at"],
+
+                # List by instance, newest first
+                ["event_instance_id", "created_at"],
+
+                # List by event, newest first
+                ["event_id", "created_at"],
+
+                # Admin / reconciliation views by status
+                ["status", "created_at"],
+
+                # Idempotency / lookup helpers for capture & refunds
+                ["items.capture_id"],
+                ["items.refunds.refund_id"],
+            ],
+        },
+        {
+            "name": "discount_codes",
+            "indexes": [
+                # Uniqueness on normalized code (strip+upper)
+                "code",
+            ],
         },
         {
             "name": "ministries",
@@ -35,7 +131,10 @@ class DB:
         {
             "name": "sermons",
             "indexes": ["title", "video_id"],
-            "compound_indexes": [["published", "date_posted"]],
+            "compound_indexes": [
+                ["published", "date_posted"],
+                ["tags"],
+            ],
         },
         {
             "name": "pages",
@@ -43,11 +142,11 @@ class DB:
         },
         {
             "name": "header-items",
-            "indexes": ["title"]
+            "indexes": ["titles.en"]
         },
         {
             "name": "footer-items",
-            "indexes": ["title"]
+            "indexes": ["titles.en"]
         },
         {
             "name": "localization-info",
@@ -58,25 +157,32 @@ class DB:
             "compound_indexes": [["user_id", "book", "chapter", "verse_start"]]
         },
         {
-            "name": "donations_subscriptions",
-            "indexes": ["subscription_id"]
-        },
-        {
-            "name": "transactions",
-            "indexes": ["transaction_id"]
-        },
-        {
             "name": "settings",
             "indexes": ["key"]
         }
         ,
         {
             "name": "bible_plans",
-            "compound_indexes": [["user_id", "created_at"]],
+            "compound_indexes": [
+                # User’s own plans, newest first:
+                ["user_id", "created_at"],
+
+                # Public / discoverable plans:
+                #   - get_published_reading_plans (visible=True).sort(name)
+                ["visible", "name"],
+            ],
         },
         {
             "name": "bible_plan_tracker",
-            "compound_indexes": [["uid", "plan_id"], ["uid", "subscribed_at"]],
+            "compound_indexes": [
+                ["uid", "plan_id"],
+                ["uid", "subscribed_at"],
+
+                # Bible plan notification pipeline:
+                # find({"notification_enabled": True,
+                #       "notification_time": {"$exists": True, "$ne": None}})
+                ["notification_enabled", "notification_time"],
+            ],
         },
         {
             "name": "bible_plan_templates",
@@ -88,8 +194,199 @@ class DB:
         },
         {
             "name": "deviceTokens",
-            "compound_indexes": [["userId", "token"]]
+            "compound_indexes": [
+                # Existing one – keep it:
+                ["userId", "token"],
+
+                # Bible plan reminders – quickly find “devices for user that want reminders”
+                ["userId", "notification_preferences.Bible Plan Reminders"],
+            ],
         },
+        {
+            "name": "image_data",
+            "compound_indexes": [
+                # Folder + bulk operations use prefix regex on path
+                ["path"],
+
+                # Listing & pagination sort by created_at
+                ["created_at"],
+
+                # Name substring search; this index may or may not be fully used
+                # due to non-prefix regex, but it's cheap and future-proofs a bit
+                ["name"],
+            ],
+        },
+        {
+            "name": "bulletins",
+            "indexes": [
+                # Enforce global uniqueness for headlines
+                "headline",
+            ],
+            "compound_indexes": [
+                # Drag-and-drop ordering and admin/public lists
+                ["order"],
+
+                # Date-based filtering: upcoming_only and explicit ranges
+                ["publish_date"],
+
+                # Ministry filter ("ministries": {"$in": [ministry]})
+                ["ministries"],
+            ],
+        },
+        {
+            "name": "service_bulletins",
+            "indexes": [
+                # Enforce global uniqueness for service titles
+                "title",
+            ],
+            "compound_indexes": [
+                # Core visibility logic:
+                # (visibility_mode, display_week) drives "always" vs "specific_weeks" for a given Monday
+                ["visibility_mode", "display_week"],
+
+                # Optional helper for queries that filter by published first
+                ["published"],
+
+                # Keep this if you want index support for the "max order" query and potential future uses
+                ["order"],
+            ],
+        },
+        {
+            "name": "donation_transactions",
+            "indexes": [
+                # One ledger row per PayPal order id.
+                # Used by:
+                #   - get_donation_transaction_by_order_id
+                #   - capture webhooks (find_one_and_update by paypal_order_id)
+                "paypal_order_id",
+            ],
+            "compound_indexes": [
+                # Lookup for admin/webhook refunds keyed by capture id
+                ["paypal_capture_id"],
+            ],
+        },
+        {
+            "name": "donation_transactions",
+            # No unique single-field index here to avoid surprises with legacy data;
+            # order_id semantics live in the application.
+            "compound_indexes": [
+                ["donor_uid", "created_at"],        # donor history, sorted by time
+                ["status", "created_at"],           # admin filters by status + date
+                ["created_at"],                     # raw time-based scans
+                ["paypal_order_id"],                # lookups by PayPal order id
+                ["paypal_capture_id"],              # lookups by capture id (refunds)
+            ],
+        },
+        {
+            "name": "donation_subscriptions",
+            "indexes": [
+                "paypal_subscription_id",           # one row per subscription id
+            ],
+            "compound_indexes": [
+                ["donor_uid", "created_at"],        # donor subscription history
+                ["status", "created_at"],           # active/cancelled, sorted
+                ["created_at"],                     # generic time-based scans
+            ],
+        },
+        {
+            "name": "donation_subscription_plans",
+            "indexes": [
+                "plan_id",                          # external plan id should be unique
+            ],
+            "compound_indexes": [
+                ["currency", "interval", "amount"], # plan catalog browsing/search
+            ],
+        },
+        {
+            "name": "donation_subscription_payments",
+            "indexes": [
+                "paypal_txn_id",                    # idempotent per PayPal txn
+            ],
+            "compound_indexes": [
+                ["donor_uid", "created_at"],        # donor renewal history
+                ["paypal_subscription_id", "created_at"],  # per-subscription ledger
+                ["created_at"],                     # reporting by time
+            ],
+        },
+        {
+            "name": "form_transactions",
+            "compound_indexes": [
+                ["user_id", "created_at"],          # per-user form payment history
+                ["status", "created_at"],           # admin listing by status
+                ["created_at"],                     # generic time-based scans
+                ["paypal_order_id"],                # mark captured / lookup by order id
+                ["paypal_capture_id"],              # refunds via capture id
+                ["form_id"],                        # per-form reporting / drill-down
+            ],
+        },
+        {
+            "name": "refund_requests",
+            "compound_indexes": [
+                # One logical row per (uid, txn_kind, txn_id) – this helps the
+                # upsert-like "create_or_update_refund_request_doc" path.
+                ["uid", "txn_kind", "txn_id"],
+
+                # "My refund requests" – filter by uid + status, sort by created_on desc
+                ["uid", "responded", "resolved", "created_on"],
+
+                # Admin browse by txn_kind + status, sorted by created_on desc
+                ["txn_kind", "responded", "resolved", "created_on"],
+
+                # Fallback for generic time-based explorations
+                ["created_on"],
+            ],
+        },
+        {
+            "name": "financial_reports",
+            "compound_indexes": [
+                ["created_by_uid", "created_at"],   # "reports I created", by time
+                ["created_at"],                     # global report listing / pruning
+                ["config.name"],                    # name search (regex, prefix-friendly)
+            ],
+        },
+        {
+            "name": "notifications",
+            "compound_indexes": [
+                # Global scheduler usage:
+                #   - scan unsent notifications due to fire, ordered/filtered by scheduled_time
+                ["sent", "scheduled_time"],
+
+                # Bible plan and analytics usage:
+                #   - count_documents({
+                #         "data.actionType": "bible_plan",
+                #         "sent": False/True,
+                #         "created_at": {"$gte": ...},
+                #     })
+                ["sent", "data.actionType", "created_at"],
+            ],
+        },
+        {
+            "name": "forms",
+            "compound_indexes": [
+                # Owner lists & search, sorted by created_at
+                ["user_id", "created_at"],
+
+                # Fast duplicate-name checks per user
+                ["user_id", "title"],
+
+                # Public/visible lists + expiry logic + created_at sort
+                ["visible", "expires_at", "created_at"],
+
+                # Slug lookups (get_form_by_slug, check_form_slug_status, slug uniqueness checks)
+                ["slug"],
+
+                # Ministry filters + created_at sort (search_all_forms/search_visible_forms)
+                ["ministries", "created_at"],
+            ],
+        },
+        {
+            "name": "form_responses",
+            "compound_indexes": [
+                # One aggregated document per form; all reads/writes use form_id
+                ["form_id"],
+            ],
+        },
+
     ]
 
     ###########
@@ -133,38 +430,98 @@ class DB:
             if collection_name not in collection_names:
                 await DB.db.create_collection(collection_name)
 
-            # Create unique indexer from schema property name
+            # Get existing indexes once per collection
+            existing_indexes = await DB.db[collection_name].index_information()
+
+            # Helper to check if an index with this key pattern already exists
+            def has_index_with_keys(index_fields, unique=None):
+                for info in existing_indexes.values():
+                    # info["key"] is a list of (field, direction) tuples
+                    if info.get("key") == index_fields:
+                        if unique is None:
+                            return True
+                        # If we care about uniqueness, match that too
+                        if bool(info.get("unique", False)) == bool(unique):
+                            return True
+                return False
+
+            # Create unique indexes from "indexes"
             if "indexes" in collection:
                 for index in collection["indexes"]:
-                    # Ensure unique field
+                    key_fields = [(index, pymongo.ASCENDING)]
+
+                    # If a matching unique index already exists, skip
+                    if has_index_with_keys(key_fields, unique=True):
+                        continue
+
                     await DB.db[collection_name].create_indexes([
                         pymongo.IndexModel(
-                            [(index, pymongo.ASCENDING)],
+                            key_fields,
                             unique=True,
                             name="unique_" + index + "_index"
                         )
                     ])
 
-            # Create compound indexes (non-unique)
+            # Create compound (non-unique) indexes
             if "compound_indexes" in collection:
                 for compound_index in collection["compound_indexes"]:
                     index_fields = [(field, pymongo.ASCENDING) for field in compound_index]
-                    await DB.db[collection_name].create_indexes([
-                        pymongo.IndexModel(
+
+                    # If any index already exists with the same key pattern, skip
+                    if has_index_with_keys(index_fields):
+                        continue
+
+                    # Single-field "compound" indexes: let Mongo pick the name
+                    if len(compound_index) == 1:
+                        index_model = pymongo.IndexModel(
                             index_fields,
                             unique=False,
-                            name="_".join(compound_index) + "_compound_index"
                         )
-                    ])
+                    else:
+                        index_model = pymongo.IndexModel(
+                            index_fields,
+                            unique=False,
+                            name="_".join(compound_index) + "_compound_index",
+                        )
+
+                    await DB.db[collection_name].create_indexes([index_model])
 
             if collection_name == "sermons":
-                await DB.db[collection_name].create_index([("ministry", pymongo.ASCENDING)])
-                await DB.db[collection_name].create_index([("speaker", pymongo.ASCENDING)])
-                await DB.db[collection_name].create_index([("date_posted", pymongo.DESCENDING)])
-                await DB.db[collection_name].create_index(
-                    [("title", "text"), ("description", "text")],
-                    name="sermons_text_index"
-                )
+                # Check and create indexes only if they don't exist
+                if not has_index_with_keys([("speaker", pymongo.ASCENDING)]):
+                    await DB.db[collection_name].create_index([("speaker", pymongo.ASCENDING)])
+                
+                if not has_index_with_keys([("date_posted", pymongo.DESCENDING)]):
+                    await DB.db[collection_name].create_index([("date_posted", pymongo.DESCENDING)])
+                
+                # Text index - check by name since text indexes are special
+                if "sermons_text_index" not in existing_indexes:
+                    await DB.db[collection_name].create_index(
+                        [("title", "text"), ("description", "text")],
+                        name="sermons_text_index"
+                    )
+                
+                # Multikey index for ministry array filtering
+                if not has_index_with_keys([("ministry", pymongo.ASCENDING)]):
+                    await DB.db[collection_name].create_index(
+                        [("ministry", pymongo.ASCENDING)],
+                        name="sermons_ministry_array_index"
+                    )
+
+            if collection_name == "bulletins":
+                # Text index for search_bulletins and list_bulletins(query_text=...)
+                if "bulletins_text_index" not in existing_indexes:
+                    await DB.db[collection_name].create_index(
+                        [("headline", "text"), ("body", "text")],
+                        name="bulletins_text_index",
+                    )
+                
+                # Multikey index for ministry array filtering
+                if not has_index_with_keys([("ministries", pymongo.ASCENDING)]):
+                    await DB.db[collection_name].create_index(
+                        [("ministries", pymongo.ASCENDING)],
+                        name="bulletins_ministries_array_index"
+                    )
 
             # Import migration data if collection is empty
             await DB.import_migration_data(collection_name)

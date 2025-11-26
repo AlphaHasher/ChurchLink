@@ -17,6 +17,7 @@ import { updateProfileInfo, getIsInit } from "@/helpers/UserHelper";
 import { ProfileInfo as ApiPersonalInfo } from "@/shared/types/ProfileInfo";
 import { useNavigate } from "react-router-dom";
 import { auth, signOut } from "@/lib/firebase";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 type InitProfileDialogProps = {
     email: string;
@@ -57,6 +58,7 @@ export const InitProfileDialog: React.FC<InitProfileDialogProps> = ({
     const [saving, setSaving] = React.useState(false);
     const [person, setPerson] = React.useState<PersonInfo>(EMPTY_PERSON);
     const navigate = useNavigate();
+    const localize = useLocalize();
 
     const handleSave = async () => {
         try {
@@ -73,13 +75,13 @@ export const InitProfileDialog: React.FC<InitProfileDialogProps> = ({
             }
 
             if (!res.success) {
-                alert(res.msg || "Failed to update profile info.");
+                alert(localize(res.msg || "Failed to update profile info."));
                 return;
             }
 
         } catch (e) {
             console.error(e);
-            alert("Failed to update profile info.");
+            alert(localize("Failed to update profile info."));
         } finally {
             setSaving(false);
         }
@@ -98,13 +100,13 @@ export const InitProfileDialog: React.FC<InitProfileDialogProps> = ({
                 onInteractOutside={(e) => e.preventDefault()}
             >
                 <DialogHeader>
-                    <DialogTitle>Initialize your profile</DialogTitle>
-                    <DialogDescription>Enter your basic information to continue.</DialogDescription>
+                    <DialogTitle>{localize("Initialize your profile")}</DialogTitle>
+                    <DialogDescription>{localize("Enter your basic information to continue.")}</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6">
                     <div className="space-y-2">
-                        <Label htmlFor="init-email">Email</Label>
+                        <Label htmlFor="init-email">{localize("Email")}</Label>
                         <Input id="init-email" value={email} disabled />
                     </div>
 
@@ -113,10 +115,10 @@ export const InitProfileDialog: React.FC<InitProfileDialogProps> = ({
 
                 <DialogFooter className="flex gap-3">
                     <Button type="button" variant="secondary" onClick={handleLogout}>
-                        Logout
+                        {localize("Logout")}
                     </Button>
                     <Button type="button" onClick={handleSave} disabled={saving}>
-                        {saving ? "Saving..." : "Save & Continue"}
+                        {saving ? localize("Saving...") : localize("Save & Continue")}
                     </Button>
                 </DialogFooter>
             </DialogContent>

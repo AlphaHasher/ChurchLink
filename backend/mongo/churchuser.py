@@ -5,10 +5,6 @@ from datetime import datetime
 from mongo.roles import RoleHandler
 from helpers.MongoHelper import serialize_objectid_deep
 from typing import Tuple, List, Dict
-from models.transaction import Transaction
-from models.event import generate_attendee_key
-
-_PERSON_ID_NOT_PROVIDED = object()
 
 class UserHandler:
     @staticmethod
@@ -19,7 +15,7 @@ class UserHandler:
     ## Operations ##
     ################
     @staticmethod
-    async def create_schema(first_name:str, last_name:str, email:str, verified:bool, uid:str, roles:list, phone=None, birthday=None, address=None):
+    async def create_schema(first_name:str, last_name:str, email:str, verified:bool, uid:str, roles:list, phone=None, birthday=None, address=None, favorite_events=None):
         return {
             "first_name": first_name,
             "last_name": last_name,
@@ -28,6 +24,7 @@ class UserHandler:
             "membership": False,
             "uid": uid,
             "roles": await RoleHandler.names_to_ids(roles),
+            "favorite_events": favorite_events or [],
             "phone": phone,
             "birthday": birthday,
             "gender": None,
@@ -46,14 +43,12 @@ class UserHandler:
                 "Live Stream Alerts": True
             },
             "people": [],
-            "my_events": [],
             "sermon_favorites": [],
-            "bible_notes": [],
             "createdOn": datetime.now(),
         }
 
     @staticmethod
-    async def create_user(first_name, last_name, email, uid, roles, verified=False, phone=None, birthday=None, address=None):
+    async def create_user(first_name, last_name, email, uid, roles, verified=False, phone=None, birthday=None, address=None,favorite_events=None):
         """
         'roles' is a list of role names
         """
@@ -71,7 +66,8 @@ class UserHandler:
                 roles,
                 phone,
                 birthday,
-                address
+                address,
+                favorite_events
             ))
         except Exception as e:
             print(f"An error occurred:\n {e}")
@@ -88,41 +84,6 @@ class UserHandler:
             "gender": gender,
             "date_of_birth": date_of_birth,   # (aka DOB)
             "createdOn": datetime.now(),
-        }
-
-    @staticmethod
-    def create_event_ref_schema(
-        event_id: ObjectId,
-        user_uid: str,          # ADD: user_uid to generate correct key
-        reason: str,            # "watch" | "rsvp"  (RSVP not implemented here, but future-proof)
-        scope: str,             # "series" | "occurrence"
-        series_id: ObjectId = None,   # optional: if your model separates series vs instances
-        occurrence_id: ObjectId = None,  # optional: if occurrences are stored as docs
-        occurrence_start=None,  # optional: datetime for the chosen occurrence time
-        meta: dict | None = None,
-        person_id: ObjectId = None  # optional: for family member registrations
-    ):
-        """
-        A normalized reference to an event the user is 'involved in'.
-
-        Uniqueness key ensures add/remove is easy and duplicates are prevented.
-        """
-        # Build a stable "composite key" to enforce uniqueness inside the array
-        # FIXED: Use user_uid instead of event_id to generate correct attendee key
-        unique_key = generate_attendee_key(user_uid, str(person_id) if person_id else None, reason, scope)
-
-        return {
-            "_id": ObjectId(),          # local id of the embedded record
-            "event_id": event_id,       # required
-            "person_id": person_id,     # optional: for family member registrations
-            "reason": reason,           # "watch" or (later) "rsvp"
-            "scope": scope,             # "series" or "occurrence"
-            "series_id": series_id,     # optional
-            "occurrence_id": occurrence_id,   # optional
-            "occurrence_start": occurrence_start,  # optional datetime
-            "key": unique_key,          # used with $addToSet / $pull
-            "meta": meta or {},         # room for notification prefs, etc.
-            "addedOn": datetime.now(),
         }
 
     @staticmethod
@@ -315,76 +276,6 @@ class UserHandler:
         if not doc or "people" not in doc or not doc["people"]:
             return None
         return doc["people"][0]
-    
-    @staticmethod
-    async def list_my_events(uid: str, expand: bool = False, person_id: ObjectId = None):
-        """
-        If expand=True, join with 'events' to return full event docs alongside refs.
-        If person_id is provided, filter events for specific family member.
-        Always enriches with computed_payment_status from Transaction model.
-        """
-        if not expand:
-            user = await DB.db["users"].find_one({"uid": uid}, {"_id": 0, "my_events": 1})
-            events = (user or {}).get("my_events", [])
-            if person_id:
-                events = [event for event in events if event.get("person_id") == person_id]
-            
-            # Enrich with computed payment status
-            for event in events:
-                event_id = str(event.get("event_id", ""))
-                attendee_key = event.get("key", "")
-                if event_id and attendee_key:
-                    computed_status = await Transaction.get_attendee_payment_status(event_id, attendee_key)
-                    event["computed_payment_status"] = computed_status
-            
-            return events
-
-        pipeline = [
-            {"$match": {"uid": uid}},
-            {"$unwind": {"path": "$my_events", "preserveNullAndEmptyArrays": False}},
-        ]
-
-        # Add person_id filter if specified
-        if person_id:
-            pipeline.append({"$match": {"my_events.person_id": person_id}})
-
-        pipeline.extend([
-            {"$lookup": {
-                "from": "events",
-                "localField": "my_events.event_id",
-                "foreignField": "_id",
-                "as": "event"
-            }},
-            {"$unwind": "$event"},
-            {"$replaceRoot": {"newRoot": {
-                "$mergeObjects": [
-                    "$my_events",
-                    {"event": "$event"}
-                ]
-            }}}
-        ])
-        cursor = DB.db["users"].aggregate(pipeline)
-        events = [doc async for doc in cursor]
-        
-        # Enrich with computed payment status for both event refs and attendees
-        for event in events:
-            event_id = str(event.get("event_id", ""))
-            attendee_key = event.get("key", "")
-            
-            # Add computed status to event reference
-            if event_id and attendee_key:
-                computed_status = await Transaction.get_attendee_payment_status(event_id, attendee_key)
-                event["computed_payment_status"] = computed_status
-            
-            # Enrich attendees in expanded event data
-            if "event" in event and "attendees" in event["event"]:
-                for attendee in event["event"]["attendees"]:
-                    attendee_key = attendee.get("key", "")
-                    if attendee_key:
-                        computed_status = await Transaction.get_attendee_payment_status(event_id, attendee_key)
-                        attendee["computed_payment_status"] = computed_status
-        
-        return events
 
     @staticmethod
     async def add_to_sermon_favorites(
@@ -489,47 +380,7 @@ class UserHandler:
             array_filters=[{"p._id": person_id}]
         )
         return result.modified_count == 1
-        
-    @staticmethod
-    async def add_to_my_events(
-        uid: str,
-        event_id: ObjectId,
-        *,
-        reason: str = "watch",            # "watch" now; "rsvp" later if needed
-        scope: str = "series",            # "series" or "occurrence"
-        series_id: ObjectId | None = None,
-        occurrence_id: ObjectId | None = None,
-        occurrence_start=None,
-        meta: dict | None = None,
-        person_id: ObjectId = None        # optional: for family member registrations
-    ):
-        """
-        Add an event to user's my_events with proper duplicate prevention.
-        Returns the event reference if added, None if already exists.
-        """
-        # Create the event reference with proper unique key
-        ref = UserHandler.create_event_ref_schema(
-            event_id=event_id,
-            user_uid=uid,  # FIXED: Pass user_uid to generate correct key
-            reason=reason,
-            scope=scope,
-            series_id=series_id,
-            occurrence_id=occurrence_id,
-            occurrence_start=occurrence_start,
-            meta=meta,
-            person_id=person_id
-        )
 
-        # IMPROVED: Atomic duplicate prevention to avoid race conditions
-        # Use MongoDB's filter to ensure the key doesn't exist, then push in a single operation
-        
-        # Atomically add only if the key doesn't exist
-        result = await DB.db["users"].update_one(
-            {"uid": uid, "my_events.key": {"$ne": ref["key"]}},
-            {"$push": {"my_events": ref}}
-        )
-        
-        return ref if result.modified_count == 1 else None
     
     @staticmethod
     async def add_person_to_user(uid: str, first_name: str, last_name: str, gender: str, date_of_birth):
@@ -551,102 +402,30 @@ class UserHandler:
         except Exception as e:
             print(f"An error occurred:\n {e}")
 
-    @staticmethod
-    async def remove_from_my_events(
-        uid: str,
-        *,
-        key: str = None,
-        event_id: ObjectId = None,
-        reason: str = None,
-        scope: str = None,
-        occurrence_id: ObjectId = None,
-        occurrence_start=None,
-        series_id: ObjectId = None,
-        person_id: ObjectId | None | object = _PERSON_ID_NOT_PROVIDED,
-    ):
-        """
-        Remove by the stable 'key' (recommended) OR by matching fields.
-
-        Person filtering rules:
-        - If person_id is not passed, entries are matched without considering person_id.
-        - If person_id is explicitly passed as None, entries for the main user (no person_id) are removed.
-        - If person_id is an ObjectId, entries for the specified family member are removed.
-        """
-        person_id_provided = person_id is not _PERSON_ID_NOT_PROVIDED
-
-        if key:
-            criteria = {"key": key}
-        else:
-            # build a precise matcher
-            criteria = {"event_id": event_id}
-            if reason is not None:
-                criteria["reason"] = reason
-            if scope is not None:
-                criteria["scope"] = scope
-            if series_id is not None:
-                criteria["series_id"] = series_id
-            if occurrence_id is not None:
-                criteria["occurrence_id"] = occurrence_id
-            if occurrence_start is not None:
-                criteria["occurrence_start"] = occurrence_start
-
-            if person_id_provided:
-                if person_id is None:
-                    # Remove entry for main user (no person_id or explicit null)
-                    criteria["$or"] = [
-                        {"person_id": {"$exists": False}},
-                        {"person_id": None},
-                    ]
-                else:
-                    # Remove entry for specific family member
-                    criteria["person_id"] = person_id
-
-        result = await DB.db["users"].update_one(
-            {"uid": uid},
-            {"$pull": {"my_events": criteria}}
-        )
-        return result.modified_count == 1
     
     @staticmethod
-    async def remove_person(uid: str, person_id: ObjectId):
+    async def remove_person(uid: str, person_id: ObjectId) -> bool:
         """
-        Remove a family member and clean up their event registrations.
+        Remove a family member from the user's document and clean up any references
+        to that person in `my_events`. Safety (refunds/unregisters) is handled upstream.
         """
         try:
-            # First, get all events this family member is registered for
-            family_member_events = await UserHandler.list_my_events(uid, expand=False, person_id=person_id)
-            
             # Remove the person from the people array
             result = await DB.db["users"].update_one(
                 {"uid": uid},
                 {"$pull": {"people": {"_id": person_id}}}
             )
 
-            if result.modified_count == 1:
-                # Clean up event registrations from user's my_events
-                cleanup_result = await DB.db["users"].update_one(
-                    {"uid": uid},
-                    {"$pull": {"my_events": {"person_id": person_id}}}
-                )
-                print(f"Cleaned up {cleanup_result.modified_count} event registrations from user my_events for family member {person_id}")
+            if result.modified_count != 1:
+                return False
 
-                # Now remove the family member from all event attendee lists
-                from models.event import rsvp_remove_person
-                events_cleaned = 0
-                for event_record in family_member_events:
-                    event_id = str(event_record.get("event_id"))
-                    if event_id:
-                        try:
-                            # Use the existing rsvp_remove_person function to clean up event attendee lists
-                            removed = await rsvp_remove_person(event_id, uid, person_id)
-                            if removed:
-                                events_cleaned += 1
-                        except Exception as e:
-                            print(f"Warning: Failed to remove family member {person_id} from event {event_id}: {e}")
-                
-                print(f"Cleaned up family member {person_id} from {events_cleaned} event attendee lists")
+            # Best-effort cleanup of any my_events entries referencing this person
+            await DB.db["users"].update_one(
+                {"uid": uid},
+                {"$pull": {"my_events": {"person_id": person_id}}}
+            )
 
-            return result.modified_count == 1
+            return True
         except Exception as e:
             print(f"Error removing person {person_id}: {e}")
             return False

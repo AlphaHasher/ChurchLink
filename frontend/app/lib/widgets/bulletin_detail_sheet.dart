@@ -5,13 +5,20 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:app/models/bulletin.dart';
+import 'package:app/models/ministry.dart';
 import 'package:app/providers/bulletins_provider.dart';
 import 'package:app/widgets/bulletin_media_image.dart';
+import 'package:app/helpers/localization_helper.dart';
 
 class BulletinDetailSheet extends StatefulWidget {
-  const BulletinDetailSheet({super.key, required this.bulletinId});
+  const BulletinDetailSheet({
+    super.key,
+    required this.bulletinId,
+    this.ministriesById,
+  });
 
   final String bulletinId;
+  final Map<String, Ministry>? ministriesById;
 
   @override
   State<BulletinDetailSheet> createState() => _BulletinDetailSheetState();
@@ -75,8 +82,10 @@ class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
               initialChildSize: clampedExtent,
               minChildSize: clampedExtent,
               maxChildSize: maxChildFraction,
-              builder:
-                  (BuildContext context, ScrollController scrollController) {
+              builder: (
+                BuildContext context,
+                ScrollController scrollController,
+              ) {
                 return Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
@@ -168,10 +177,9 @@ class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withAlpha(32),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withAlpha(32),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
@@ -185,13 +193,12 @@ class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
                         const SizedBox(width: 6),
                         Text(
                           'Upcoming',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -200,10 +207,9 @@ class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
               if (bulletin.isUpcoming) const SizedBox(height: 12),
               Text(
                 bulletin.headline,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -212,26 +218,23 @@ class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
                 children: [
                   Chip(
                     label: Text(bulletin.formattedWeek),
-                    avatar: const Icon(
-                      Icons.calendar_today,
-                      size: 16,
-                    ),
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withAlpha(28),
+                    avatar: const Icon(Icons.calendar_today, size: 16),
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primary.withAlpha(28),
                     side: BorderSide.none,
                   ),
-                  ...bulletin.ministries.map(
-                    (ministry) => Chip(
-                      label: Text(ministry),
-                      backgroundColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withAlpha(20),
+                  ...bulletin.ministries.map((ministryId) {
+                    final ministry = widget.ministriesById?[ministryId];
+                    final name = ministry?.name ?? ministryId;
+                    return Chip(
+                      label: Text(LocalizationHelper.localize(name)),
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primary.withAlpha(20),
                       side: BorderSide.none,
-                    ),
-                  ),
+                    );
+                  }),
                 ],
               ),
               const SizedBox(height: 20),
@@ -243,10 +246,9 @@ class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
                 const SizedBox(height: 24),
                 Text(
                   'Attachments',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 ...bulletin.attachments.map(
@@ -259,10 +261,8 @@ class _BulletinDetailSheetState extends State<BulletinDetailSheet> {
                           Icons.open_in_new,
                           color: Theme.of(context).colorScheme.primary,
                         ),
-                        onPressed: () => _openAttachment(
-                          context,
-                          attachment.url,
-                        ),
+                        onPressed:
+                            () => _openAttachment(context, attachment.url),
                       ),
                     ),
                   ),

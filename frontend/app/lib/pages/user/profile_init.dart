@@ -55,12 +55,13 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
 
       final successMsg = 'Profile initialized!';
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMsg)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMsg)));
 
       Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
-
     } else {
-
       String errorMsg;
 
       if (result.msg.isNotEmpty) {
@@ -73,12 +74,10 @@ class _ProfileInitScreenState extends State<ProfileInitScreen> {
 
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-
-        SnackBar(content: Text(errorMsg)),
-
-      );
-
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMsg)));
     }
   }
 

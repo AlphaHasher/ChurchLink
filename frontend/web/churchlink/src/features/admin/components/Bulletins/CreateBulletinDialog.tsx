@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { Label } from "@/shared/components/ui/label";
 import {
@@ -11,24 +11,31 @@ import {
 } from "@/shared/components/ui/Dialog";
 import { Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import {
+    Popover, PopoverTrigger, PopoverContent,
+} from "@/shared/components/ui/popover";
+import {
+    Command, CommandInput, CommandEmpty, CommandList, CommandGroup, CommandItem,
+} from "@/shared/components/ui/command";
 
 import { ChurchBulletin, AttachmentItem } from "@/shared/types/ChurchBulletin";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
 import { createBulletin } from "@/features/bulletins/api/bulletinsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
 import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 import { BulletinImageSelector } from "./BulletinImageSelector";
 import { Switch } from "@/shared/components/ui/switch";
-import { BULLETIN_MINISTRY_OPTIONS } from "@/features/admin/constants/bulletinMinistryOptions";
+import { Ministry } from "@/shared/types/Ministry";
 
 interface CreateBulletinProps {
     onSave: () => Promise<void>;
     permissions: AccountPermissions | null;
+    availableMinistries: Ministry[];
 }
 
-export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
+export function CreateBulletinDialog({ onSave, availableMinistries }: CreateBulletinProps) {
     const initial: Partial<ChurchBulletin> = {
         headline: "",
         body: "",
@@ -46,16 +53,17 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [checkingPerms, setCheckingPerms] = useState(false);
-    const ministryOptions = useMemo(() => {
-        const base = new Set<string>(BULLETIN_MINISTRY_OPTIONS);
-        (bulletin.ministries || []).forEach((name) => {
-            const normalized = (name || "").trim();
-            if (normalized) {
-                base.add(normalized);
-            }
-        });
-        return Array.from(base).sort((a, b) => a.localeCompare(b));
-    }, [bulletin.ministries]);
+
+    // Ministry data assembly (same pattern as EventUpdateInputsV2)
+    const ministryNameById = useMemo<Record<string, string>>(
+        () => Object.fromEntries(availableMinistries.map((m) => [m.id, m.name])),
+        [availableMinistries],
+    );
+    const selectedMinistryNames = useMemo(() => {
+        if (!bulletin.ministries?.length) return "";
+        const names = (bulletin.ministries || []).map((id) => ministryNameById[id]).filter(Boolean);
+        return names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+    }, [bulletin.ministries, ministryNameById]);
 
     const handleDialogClose = () => {
         setBulletin(initial);
@@ -188,12 +196,58 @@ export function CreateBulletinDialog({ onSave }: CreateBulletinProps) {
                             helperText="Select an optional image to display with this announcement. The image will appear as a thumbnail in the bulletin list."
                         />
 
-                        <div>
-                            <EventMinistryDropdown
-                                selected={bulletin.ministries ?? []}
-                                onChange={(next: string[]) => setBulletin({ ...bulletin, ministries: next })}
-                                ministries={ministryOptions}
-                            />
+                        {/* Ministries - same pattern as EventUpdateInputsV2 */}
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="ministries-trigger">Ministries</Label>
+
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="ministries-trigger"
+                                        type="button"
+                                        variant="outline"
+                                        className="justify-between w-full"
+                                    >
+                                        {bulletin.ministries?.length ? (
+                                            <span className="truncate">{selectedMinistryNames}</span>
+                                        ) : (
+                                            <span>Choose ministries</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+
+                                <PopoverContent className="p-0 w-[300px]" align="start" onWheel={(e) => e.stopPropagation()}>
+                                    <Command>
+                                        <CommandInput placeholder="Search ministries…" />
+                                        <CommandEmpty>No results.</CommandEmpty>
+                                        <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
+                                            <CommandGroup>
+                                                {availableMinistries.map((m) => {
+                                                    const checked = bulletin.ministries?.includes(m.id);
+                                                    return (
+                                                        <CommandItem
+                                                            key={m.id}
+                                                            onSelect={() => {
+                                                                const next = new Set(bulletin.ministries ?? []);
+                                                                if (checked) next.delete(m.id);
+                                                                else next.add(m.id);
+                                                                setBulletin({ ...bulletin, ministries: Array.from(next) });
+                                                            }}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <Checkbox checked={!!checked} />
+                                                                <span>{m.name}</span>
+                                                            </div>
+                                                        </CommandItem>
+                                                    );
+                                                })}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+
+                            <p className="text-xs text-muted-foreground">Tags used for categorization and discovery.</p>
                         </div>
 
                         <label className="flex flex-col">

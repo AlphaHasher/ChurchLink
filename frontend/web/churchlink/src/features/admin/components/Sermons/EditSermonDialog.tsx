@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import {
     Dialog,
@@ -17,21 +17,31 @@ import {
     AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
+import { Label } from "@/shared/components/ui/label";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import {
+    Popover, PopoverTrigger, PopoverContent,
+} from "@/shared/components/ui/popover";
+import {
+    Command, CommandInput, CommandEmpty, CommandList, CommandGroup, CommandItem,
+} from "@/shared/components/ui/command";
 
 import { ChurchSermon } from "@/shared/types/ChurchSermon";
 import { updateSermon, deleteSermon } from "@/features/sermons/api/sermonsApi";
 import { getMyPermissions } from "@/helpers/UserHelper";
 import { MyPermsRequest } from '@/shared/types/MyPermsRequest';
-import { EventMinistryDropdown } from '@/features/admin/components/Events/EventMinistryDropdown';
-import { fetchMinistries } from "@/helpers/EventsHelper";
+import { Ministry } from "@/shared/types/Ministry";
 import { getApiErrorMessage } from "@/helpers/ApiErrorHelper";
 
 interface EditSermonProps {
     sermon: ChurchSermon;
     onSave: () => Promise<void>;
+    availableMinistries: Ministry[];
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonProps) {
+export function EditSermonDialog({ sermon: initialSermon, onSave, availableMinistries, open: externalOpen, onOpenChange }: EditSermonProps) {
     const [sermon, setSermon] = useState<ChurchSermon>(initialSermon);
 
     const [isOpen, setIsOpen] = useState(false);
@@ -39,19 +49,33 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
     const [checkingPerms, setCheckingPerms] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [ministries, setMinistries] = useState<string[]>([]);
 
-    useEffect(() => {
-        if (isOpen) {
-            fetchMinistries().then(setMinistries)
+    // Ministry data assembly (same pattern as EventUpdateInputsV2)
+    const ministryNameById = useMemo<Record<string, string>>(
+        () => Object.fromEntries(availableMinistries.map((m) => [m.id, m.name])),
+        [availableMinistries],
+    );
+    const selectedMinistryNames = useMemo(() => {
+        if (!sermon.ministry?.length) return "";
+        const names = (sermon.ministry || []).map((id) => ministryNameById[id]).filter(Boolean);
+        return names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : "");
+    }, [sermon.ministry, ministryNameById]);
+
+    // Use external open state if provided, otherwise use internal state
+    const dialogOpen = externalOpen !== undefined ? externalOpen : isOpen;
+    const setDialogOpen = (open: boolean) => {
+        if (onOpenChange) {
+            onOpenChange(open);
+        } else {
+            setIsOpen(open);
         }
-    }, [isOpen])
+    };
 
     const handleDialogClose = () => {
         setSermon(initialSermon);
         setDeleteConfirmOpen(false);
         setDeleting(false);
-        setIsOpen(false);
+        setDialogOpen(false);
     };
 
     const handleSave = async () => {
@@ -91,7 +115,7 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
             const result = await getMyPermissions(requestOptions);
             if (result?.success) {
                 if (result?.perms?.admin || result?.perms?.sermon_editing) {
-                    setIsOpen(true);
+                    setDialogOpen(true);
                 } else {
                     alert("You must have the Sermon Editor permission to edit sermons.");
                 }
@@ -107,8 +131,8 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
 
     return (
         <>
-            <Button size="sm" variant="ghost" onClick={handleDialogOpen} disabled={checkingPerms}>Edit</Button>
-            <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
+            {!externalOpen && <Button size="sm" variant="ghost" onClick={handleDialogOpen} disabled={checkingPerms}>Edit</Button>}
+            <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
                 <DialogContent className="sm:max-w-[100vh] max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Edit Sermon</DialogTitle>
@@ -133,14 +157,59 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
                             <input className="border p-2 rounded" value={sermon.speaker} onChange={(e) => setSermon({ ...sermon, speaker: e.target.value })} />
                         </label>
 
-                        <label className="flex flex-col">
-                            <span className="text-sm font-medium">Ministry</span>
-                            <EventMinistryDropdown
-                                selected={sermon.ministry ?? []}
-                                onChange={(next: string[]) => setSermon({ ...sermon, ministry: next })}
-                                ministries={ministries}
-                            />
-                        </label>
+                        {/* Ministries - same pattern as EventUpdateInputsV2 */}
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="ministries-trigger">Ministries</Label>
+
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        id="ministries-trigger"
+                                        type="button"
+                                        variant="outline"
+                                        className="justify-between w-full"
+                                    >
+                                        {sermon.ministry?.length ? (
+                                            <span className="truncate">{selectedMinistryNames}</span>
+                                        ) : (
+                                            <span>Choose ministries</span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+
+                                <PopoverContent className="p-0 w-[300px]" align="start" onWheel={(e) => e.stopPropagation()}>
+                                    <Command>
+                                        <CommandInput placeholder="Search ministries…" />
+                                        <CommandEmpty>No results.</CommandEmpty>
+                                        <CommandList className="max-h-64 overflow-y-auto overscroll-contain">
+                                            <CommandGroup>
+                                                {availableMinistries.map((m) => {
+                                                    const checked = sermon.ministry?.includes(m.id);
+                                                    return (
+                                                        <CommandItem
+                                                            key={m.id}
+                                                            onSelect={() => {
+                                                                const next = new Set(sermon.ministry ?? []);
+                                                                if (checked) next.delete(m.id);
+                                                                else next.add(m.id);
+                                                                setSermon({ ...sermon, ministry: Array.from(next) });
+                                                            }}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <Checkbox checked={!!checked} />
+                                                                <span>{m.name}</span>
+                                                            </div>
+                                                        </CommandItem>
+                                                    );
+                                                })}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+
+                            <p className="text-xs text-muted-foreground">Tags used for categorization and discovery.</p>
+                        </div>
 
                         <label className="flex flex-col">
                             <span className="text-sm font-medium">YouTube URL</span>
@@ -181,30 +250,30 @@ export function EditSermonDialog({ sermon: initialSermon, onSave }: EditSermonPr
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            onClick={handleDelete}
-                                            disabled={deleting}
-                                        >
-                                            {deleting ? (
-                                                <>
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    Deleting...
-                                                </>
-                                            ) : (
-                                                'Delete permanently'
-                                            )}
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setDeleteConfirmOpen(false)}
-                                            disabled={deleting}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </AlertDialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                    disabled={deleting}
+                                >
+                                    {deleting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        'Delete permanently'
+                                    )}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setDeleteConfirmOpen(false)}
+                                    disabled={deleting}
+                                >
+                                    Cancel
+                                </Button>
+                            </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
 

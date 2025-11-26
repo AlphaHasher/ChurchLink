@@ -1,12 +1,13 @@
 import { BulletinCard } from './BulletinCard';
-import { ChurchBulletin } from '@/shared/types/ChurchBulletin';
+import type { ChurchBulletin } from '@/shared/types/ChurchBulletin';
 
 interface BulletinListProps {
     items: ChurchBulletin[];
-    onItemClick?: (b: ChurchBulletin) => void;
+    onItemClick?: (bulletin: ChurchBulletin) => void;
+    ministryNameMap?: Record<string, string>;
 }
 
-export default function BulletinList({ items, onItemClick }: BulletinListProps) {
+export default function BulletinList({ items, onItemClick, ministryNameMap }: BulletinListProps) {
     if (!items || items.length === 0) return <p>No bulletins found.</p>;
 
     return (
@@ -16,7 +17,7 @@ export default function BulletinList({ items, onItemClick }: BulletinListProps) 
                     key={b.id}
                     className="flex w-full sm:w-[320px] md:w-[360px] lg:w-[380px]"
                 >
-                    <BulletinCard bulletin={b} onClick={() => onItemClick?.(b)} />
+                    <BulletinCard bulletin={b} onClick={() => onItemClick?.(b)} ministryNameMap={ministryNameMap} />
                 </div>
             ))}
         </div>

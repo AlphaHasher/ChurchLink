@@ -30,8 +30,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     gender,
     className,
     footer,
-    }) => {
-        const localize = useLocalize();
+}) => {
+    const localize = useLocalize();
     const displayName = `${firstName} ${lastName}`.trim();
 
     const dob = birthday
@@ -42,7 +42,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         })
         : "—";
 
-    const genderDisplay = gender ?? "—";
+    let genderDisplay = gender ?? "—";
+    if (genderDisplay === "M") {
+        genderDisplay = "Male";
+    }
+    else {
+        genderDisplay = "Female";
+    }
 
     const initials = getInitials(firstName, lastName);
 

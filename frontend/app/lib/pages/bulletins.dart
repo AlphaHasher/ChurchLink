@@ -3,13 +3,16 @@ import 'package:provider/provider.dart';
 
 import 'package:app/models/bulletin.dart';
 import 'package:app/models/service_bulletin.dart';
+import 'package:app/models/ministry.dart';
 import 'package:app/providers/bulletins_provider.dart';
 import 'package:app/widgets/bulletin_card.dart';
 import 'package:app/widgets/bulletin_detail_sheet.dart';
 import 'package:app/widgets/bulletin_filter_sheet.dart';
+import 'package:app/widgets/service_filter_sheet.dart';
 import 'package:app/widgets/service_card.dart';
 import 'package:app/pages/service_detail.dart';
 import 'package:app/helpers/localized_widgets.dart';
+import 'package:app/helpers/ministries_helper.dart';
 
 class BulletinsPage extends StatefulWidget {
   const BulletinsPage({super.key});
@@ -19,15 +22,30 @@ class BulletinsPage extends StatefulWidget {
 }
 
 class _BulletinsPageState extends State<BulletinsPage> {
+  Map<String, Ministry> _ministriesById = <String, Ministry>{};
+
   @override
   void initState() {
     super.initState();
+    _loadMinistries();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<BulletinsProvider>();
       if (provider.items.isEmpty) {
         provider.loadInitial();
       }
     });
+  }
+
+  Future<void> _loadMinistries() async {
+    try {
+      final list = await MinistriesHelper.fetchMinistries();
+      if (!mounted) return;
+      setState(() {
+        _ministriesById = {for (final m in list) m.id: m};
+      });
+    } catch (e) {
+      debugPrint('Failed to load ministries: $e');
+    }
   }
 
   @override
@@ -122,32 +140,88 @@ class _BulletinsPageState extends State<BulletinsPage> {
               onTap: () => _openServiceDetails(service),
             ),
           ),
-        ],
-
-        // Announcements section - BULLETINS ARE THE ANNOUNCEMENTS
-        if (hasBulletins) ...[
+        ] else ...[
+          // Show empty state when no services found
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-            child: Row(
+            padding: const EdgeInsets.all(32),
+            child: Column(
               children: [
-                Icon(
-                  Icons.campaign_outlined,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                const SizedBox(width: 8),
                 Text(
-                  'Announcements',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ).localized(),
+                  LocalizationHelper.localize(
+                    'No services found',
+                    capitalize: true,
+                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  LocalizationHelper.localize(
+                    'Try adjusting your filters',
+                    capitalize: true,
+                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           ),
+        ],
+
+        // Announcements section - BULLETINS ARE THE ANNOUNCEMENTS
+        // Always show header and filter button, even when no results
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Announcements',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ).localized(),
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: _openAnnouncementsFilter,
+                tooltip: 'Filter Announcements',
+              ),
+            ],
+          ),
+        ),
+        // Show bulletins or empty state message
+        if (hasBulletins) ...[
           ...provider.items.map(
             (bulletin) => BulletinCard(
               bulletin: bulletin,
-              onTap: () => _openDetails(bulletin),
+              ministriesById: _ministriesById,
+              onTap: () => _showBulletinDetail(bulletin),
+            ),
+          ),
+        ] else ...[
+          // Show empty state when no announcements found
+          Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              children: [
+                Text(
+                  LocalizationHelper.localize(
+                    'No announcements found',
+                    capitalize: true,
+                  ),
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  LocalizationHelper.localize(
+                    'Try adjusting your filters',
+                    capitalize: true,
+                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           ),
         ],
@@ -165,7 +239,25 @@ class _BulletinsPageState extends State<BulletinsPage> {
     );
   }
 
-  Future<void> _openFilters() async {
+  Future<void> _openServicesFilter() async {
+    final provider = context.read<BulletinsProvider>();
+    final result = await showModalBottomSheet<ServiceFilterOptions>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder:
+          (context) =>
+              ServiceFilterSheet(initialFilter: provider.activeServiceFilter),
+    );
+
+    if (result != null) {
+      await provider.applyServiceFilter(result);
+    }
+  }
+
+  Future<void> _openAnnouncementsFilter() async {
     final provider = context.read<BulletinsProvider>();
     final result = await showModalBottomSheet<BulletinFilter>(
       context: context,
@@ -174,17 +266,17 @@ class _BulletinsPageState extends State<BulletinsPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder:
-          (context) =>
-              BulletinFilterSheet(initialFilter: provider.activeFilter),
+          (context) => BulletinFilterSheet(
+            initialFilter: provider.activeAnnouncementFilter,
+          ),
     );
 
     if (result != null) {
-      // Filter already has skip=0 from the filter sheet
-      await provider.applyFilter(result);
+      await provider.applyAnnouncementFilter(result);
     }
   }
 
-  void _openDetails(Bulletin bulletin) {
+  void _showBulletinDetail(Bulletin bulletin) {
     final provider = context.read<BulletinsProvider>();
     provider.selectBulletin(bulletin);
 
@@ -192,7 +284,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => BulletinDetailSheet(bulletinId: bulletin.id),
+      builder:
+          (_) => BulletinDetailSheet(
+            bulletinId: bulletin.id,
+            ministriesById: _ministriesById,
+          ),
     );
   }
 }

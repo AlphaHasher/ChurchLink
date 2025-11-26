@@ -54,6 +54,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
   const [localHtml, setLocalHtml] = React.useState(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
   const prevRef = React.useRef<Node | null>(null);
   const [colorOpen, setColorOpen] = React.useState(false);
+  const [hexInput, setHexInput] = React.useState<string>((node.style as any)?.color || '#000000');
 
   React.useEffect(() => {
     const fam = (node.style as any)?.fontFamily as string | undefined;
@@ -65,8 +66,25 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
     setLocalHtml(resolveLocalized(node, 'html', activeLocale, defaultLocale) || node.props?.text || '');
   }, [node.props?.html, (node as any).i18n, activeLocale, defaultLocale, node.props?.text]);
 
+  // Sync hex input when color changes externally
+  React.useEffect(() => {
+    const currentColor = (node.style as any)?.color || '#000000';
+    setHexInput(currentColor);
+  }, [(node.style as any)?.color]);
+
   const handleHtmlChange = (value: string) => {
     setLocalHtml(value);
+    // Live apply to builder without pushing to history (history pushed on blur)
+    const useLocale = activeLocale && defaultLocale && activeLocale !== defaultLocale ? activeLocale : null;
+    onUpdate((n) => {
+      if (n.type !== 'text') return n;
+      if (useLocale) {
+        const prevI18n = ((n as any).i18n || {}) as Record<string, Record<string, any>>;
+        const prevFor = prevI18n[useLocale] || {};
+        return { ...(n as any), i18n: { ...prevI18n, [useLocale]: { ...prevFor, html: value } } } as Node;
+      }
+      return ({ ...n, props: { ...(n.props || {}), html: value } } as Node);
+    });
   };
 
   const handleHtmlBlur = () => {
@@ -299,9 +317,42 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
                 <div className="grid grid-rows-[180px_1rem_1rem] gap-2">
                   <ColorPickerSelection />
                   <ColorPickerHue />
-                  <ColorPickerAlpha />
+                  <ColorPickerAlpha 
+                    style={{
+                      background: 'linear-gradient(to right, transparent, currentColor)',
+                      boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
+                    }}
+                  />
                 </div>
-                <div className="mt-1 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2">
+                  <Label htmlFor="hex-input" className="text-xs whitespace-nowrap">Hex:</Label>
+                  <Input
+                    id="hex-input"
+                    type="text"
+                    value={hexInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setHexInput(val);
+                      // Only apply if valid hex format
+                      if (/^#([0-9A-Fa-f]{3}){1,2}$/.test(val) || /^#([0-9A-Fa-f]{8})$/.test(val)) {
+                        onUpdate((n) =>
+                          n.type === 'text'
+                            ? ({
+                                ...n,
+                                style: {
+                                  ...(n.style || {}),
+                                  color: val,
+                                },
+                              } as Node)
+                            : n
+                        );
+                      }
+                    }}
+                    className="h-8 text-xs font-mono"
+                    placeholder="#000000"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
                   <ColorPickerOutput />
                 </div>
               </ColorPicker>
@@ -443,7 +494,7 @@ export const TextInspector: React.FC<TextInspectorProps> = ({ node, onUpdate, fo
         <ToggleGroup
           type="single"
           value={node.props?.align || 'left'}
-          onValueChange={(value) => value && handleAlignChange(value)}
+          onValueChange={(value: string) => value && handleAlignChange(value)}
           className="justify-start"
         >
           <ToggleGroupItem value="left" aria-label="Align left">

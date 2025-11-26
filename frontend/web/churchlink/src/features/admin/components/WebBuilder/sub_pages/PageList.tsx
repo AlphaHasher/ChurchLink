@@ -106,12 +106,14 @@ const WebBuilderPageList = () => {
       field: "title",
       sortable: true,
       filter: true,
+      flex: 2,
     },
     {
       headerName: "Slug",
       field: "slug",
       sortable: true,
       filter: true,
+      flex: 1,
       cellRenderer: (params: any) => (
         <button
           onClick={() => navigate(params.value === '/' ? '/' : `/${params.value}`)}
@@ -149,6 +151,7 @@ const WebBuilderPageList = () => {
     {
       headerName: "Actions",
       field: "actions",
+      width: 110,
       cellRenderer: (params: any) => (
         <div className="flex items-center space-x-2">
           <button

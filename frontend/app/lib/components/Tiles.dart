@@ -40,8 +40,9 @@ class _TilesState extends State<Tiles> {
         });
       },
       child: AnimatedOpacity(
-        duration:
-            const Duration(milliseconds: 150), // Adjust the duration as needed
+        duration: const Duration(
+          milliseconds: 150,
+        ), // Adjust the duration as needed
         opacity: isPressed ? 0.8 : 1.0, // Lower opacity when pressed
         child: Container(
           width: widget.width,
@@ -56,13 +57,22 @@ class _TilesState extends State<Tiles> {
               end: Alignment.bottomRight,
               colors: [
                 Color.fromARGB(
-                      255, 238, 237, 237), //old: Color.fromARGB(255, 6, 74, 83)
+                  255,
+                  238,
+                  237,
+                  237,
+                ), //old: Color.fromARGB(255, 6, 74, 83)
                 Color.fromARGB(
-                      32, 67, 157, 216) //old: Color.fromARGB(255, 99, 25, 148)
+                  32,
+                  67,
+                  157,
+                  216,
+                ), //old: Color.fromARGB(255, 99, 25, 148)
               ],
             ),
           ),
-            child: (widget.subText.isEmpty)
+          child:
+              (widget.subText.isEmpty)
                   ? Center(
                     child: Text(
                       textAlign: TextAlign.center,

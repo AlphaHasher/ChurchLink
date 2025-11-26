@@ -39,7 +39,9 @@ class _ChangeEmailSheetState extends State<ChangeEmailSheet> {
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16,
+        left: 16,
+        right: 16,
+        top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Form(
@@ -48,7 +50,10 @@ class _ChangeEmailSheetState extends State<ChangeEmailSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Change email', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const Text(
+              'Change email',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 12),
 
             TextFormField(
@@ -67,9 +72,15 @@ class _ChangeEmailSheetState extends State<ChangeEmailSheet> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _currentPassword,
-                decoration: const InputDecoration(labelText: 'Current password'),
+                decoration: const InputDecoration(
+                  labelText: 'Current password',
+                ),
                 obscureText: true,
-                validator: (v) => (v == null || v.isEmpty) ? 'Enter your current password' : null,
+                validator:
+                    (v) =>
+                        (v == null || v.isEmpty)
+                            ? 'Enter your current password'
+                            : null,
               ),
             ],
 
@@ -77,50 +88,72 @@ class _ChangeEmailSheetState extends State<ChangeEmailSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _busy ? null : () async {
-                  if (!_form.currentState!.validate()) return;
+                onPressed:
+                    _busy
+                        ? null
+                        : () async {
+                          if (!_form.currentState!.validate()) return;
 
-                  setState(() => _busy = true);
-                  try {
-                    await FirebaseAuthService().changeEmail(
-                      newEmail: _newEmail.text.trim(),
-                      currentPasswordIfEmailUser:
-                          isEmailPasswordUser ? _currentPassword.text : null,
-                    );
+                          setState(() => _busy = true);
+                          try {
+                            await FirebaseAuthService().changeEmail(
+                              newEmail: _newEmail.text.trim(),
+                              currentPasswordIfEmailUser:
+                                  isEmailPasswordUser
+                                      ? _currentPassword.text
+                                      : null,
+                            );
 
-                    Navigator.pop(context);
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
 
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text(
-                        'Verification link sent to new email address. '
-                        'Click the verification link first before signing back in with the new address.',
-                      ),
-                    ));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Verification link sent to new email address. '
+                                  'Click the verification link first before signing back in with the new address.',
+                                ),
+                              ),
+                            );
 
-                    await FirebaseAuthService().signOut();
-                    if (!mounted) return;
-                    Navigator.of(context).pushNamedAndRemoveUntil('/signin', (_) => false);
-                  } on FirebaseAuthException catch (e) {
-                    final msg = switch (e.code) {
-                      'email-already-in-use' => 'That email is already in use.',
-                      'invalid-email' => 'Invalid email format.',
-                      // 'requires-recent-login' => 'Please re-authenticate and try again.',
-                      _ => e.message ?? 'Email change failed.'
-                    };
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email change failed. $e')));
-                    }
-                  } finally {
-                    if (mounted) setState(() => _busy = false);
-                  }
-                },
-                child: _busy
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Send confirmation'),
+                            await FirebaseAuthService().signOut();
+                            if (!context.mounted) return;
+                            Navigator.of(
+                              context,
+                            ).pushNamedAndRemoveUntil('/signin', (_) => false);
+                          } on FirebaseAuthException catch (e) {
+                            final msg = switch (e.code) {
+                              'email-already-in-use' =>
+                                'That email is already in use.',
+                              'invalid-email' => 'Invalid email format.',
+                              // 'requires-recent-login' => 'Please re-authenticate and try again.',
+                              _ => e.message ?? 'Email change failed.',
+                            };
+                            if (mounted) {
+                              ScaffoldMessenger.of(
+                                context,
+                              ).showSnackBar(SnackBar(content: Text(msg)));
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Email change failed. $e'),
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _busy = false);
+                          }
+                        },
+                child:
+                    _busy
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Text('Send confirmation'),
               ),
             ),
             const SizedBox(height: 8),

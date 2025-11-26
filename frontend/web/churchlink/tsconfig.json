@@ -1,14 +1,24 @@
 {
-  "files": [],
+  "include": [
+    "cypress/support/commands.js"
+  ],
   "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    }
   ],
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"],
-      "@sections/*": ["src/features/admin/components/WebBuilder/sections/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@sections/*": [
+        "src/features/admin/components/WebBuilder/sections/*"
+      ]
     }
   }
 }

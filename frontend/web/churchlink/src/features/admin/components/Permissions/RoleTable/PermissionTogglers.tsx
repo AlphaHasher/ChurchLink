@@ -92,18 +92,10 @@ export const PermissionTogglers = ({ permissions, editor_permissions, onChange }
             <RadioToggler
                 name="event_editing"
                 label="Event Editor"
-                description="This option grants the user the ability to create or edit events. In addition, this role becomes accessible as being able to be assigned for Events role-based access."
+                description="This option grants the user the ability to create, edit, delete, and manage events."
                 value={permissions.event_editing}
                 onChange={handleChange("event_editing")}
                 disabled={!editor_permissions.admin && !editor_permissions.event_editing}
-            />
-            <RadioToggler
-                name="event_management"
-                label="Event Moderator"
-                description="This option grants the user the ability to manage all events, regardless of specific permission tags. An Event Editor role is still necessary for event creation, but this lets the user manage them all."
-                value={permissions.event_management}
-                onChange={handleChange("event_management")}
-                disabled={!editor_permissions.admin && !editor_permissions.event_management}
             />
             <RadioToggler
                 name="sermon_editing"

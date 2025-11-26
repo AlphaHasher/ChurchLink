@@ -82,7 +82,7 @@ const AdminDashboardSideBar = () => {
 
   const webBuilderChildren = useMemo(
     () => [
-      { title: "Pages", url: "/admin/webbuilder" },
+      { title: "Pages", url: "/admin/webbuilder/" },
       { title: "Header", url: "/admin/webbuilder/header" },
       { title: "Footer", url: "/admin/webbuilder/footer" },
       { title: "Website Settings", url: "/admin/webbuilder/settings" },
@@ -94,9 +94,9 @@ const AdminDashboardSideBar = () => {
     { title: "Go Back to Main Site", url: "/", icon: ArrowLeft },
     { title: "Admin Panel Home", url: "/admin/", icon: Home },
     {
-      title: "Users", 
-      url: "/admin/users", 
-      icon: User, 
+      title: "Users",
+      url: "/admin/users",
+      icon: User,
       requiresPermission: "permissions_management",
       children: [
         { title: "Management", url: "/admin/users/manage-users" },
@@ -104,89 +104,93 @@ const AdminDashboardSideBar = () => {
       ]
     },
 
-    { 
-      title: "Permissions", 
-      url: "/admin/permissions", 
-      icon: Shield, 
-      requiresPermission: "permissions_management" 
-    },
-    { 
-      title: "Ministries", 
-      url: "/admin/ministries", 
-      icon: Church, 
-      requiresPermission: "ministries_management" 
-    },
-    { 
-      title: "Web Builder", 
-      icon: FileText, 
-      requiresPermission: "web_builder_management",
-      children: webBuilderChildren 
-    },
-    { 
-      title: "Media Library", 
-      url: "/admin/media-library", 
-      icon: Image, 
-      requiresPermission: "media_management" 
+    {
+      title: "Permissions",
+      url: "/admin/permissions",
+      icon: Shield,
+      requiresPermission: "permissions_management"
     },
     {
-      title: "Mobile UI", 
-      icon: Smartphone, 
+      title: "Ministries",
+      url: "/admin/ministries",
+      icon: Church,
+      requiresPermission: "ministries_management"
+    },
+    {
+      title: "Web Builder",
+      icon: FileText,
+      requiresPermission: "web_builder_management",
+      children: webBuilderChildren
+    },
+    {
+      title: "Media Library",
+      url: "/admin/media-library",
+      icon: Image,
+      requiresPermission: "media_management"
+    },
+    {
+      title: "Mobile UI",
+      icon: Smartphone,
       requiresPermission: "mobile_ui_management",
       children: [
         { title: "Tabs", url: "/admin/mobile-ui-tab" },
         { title: "Pages", url: "/admin/mobile-ui-pages" },
       ]
     },
-    { 
-      title: "Events", 
-      url: "/admin/events", 
-      icon: CalendarFold, 
-      requiresPermission: ["event_management", "event_editing"],
-    },
+
     {
-      title: "Forms", 
-      icon: ClipboardList, 
+      title: "Events", icon: CalendarFold, requiresPermission: "event_editing", children: [
+        { title: "Manage Events", url: "/admin/events/" },
+        { title: "Manage Discount Codes", url: "/admin/events/discount-codes" },
+      ]
+    },
+
+    {
+      title: "Forms",
+      icon: ClipboardList,
       requiresPermission: "forms_management",
       children: [
         { title: "Manage Forms", url: "/admin/forms/manage-forms" },
         { title: "Form Builder", url: "/admin/forms/form-builder" },
       ]
     },
-    { 
-      title: "Weekly Bulletin", 
-      url: "/admin/bulletins", 
-      icon: Newspaper, 
-      requiresPermission: "bulletin_editing" 
-    },
-    { 
-      title: "Sermons Manager", 
-      url: "/admin/sermons", 
-      icon: Lectern, 
-      requiresPermission: "sermon_editing" 
+    {
+      title: "Weekly Bulletin",
+      url: "/admin/bulletins",
+      icon: Newspaper,
+      requiresPermission: "bulletin_editing"
     },
     {
-      title: "Bible Plans", 
-      icon: BookOpen, 
+      title: "Sermons Manager",
+      url: "/admin/sermons",
+      icon: Lectern,
+      requiresPermission: "sermon_editing"
+    },
+    {
+      title: "Bible Plans",
+      icon: BookOpen,
       requiresPermission: "bible_plan_management",
       children: [
         { title: "Manage Plans", url: "/admin/bible-plans/manage-plans" },
         { title: "Plan Builder", url: "/admin/bible-plans/plan-builder" },
+        { title: "Templates", url: "/admin/bible-plans/manage-templates" },
       ]
     },
     {
-      title: "Finance", 
-      icon: Wallet, 
+      title: "Finance",
+      icon: Wallet,
       requiresPermission: "finance",
       children: [
-        { title: "Overview", url: "/admin/finance" },
-        { title: "Refund Management", url: "/admin/finance/refunds" },
+        { title: "Transactions Management", url: "/admin/finance/view-transactions" },
+        { title: "Refund Management", url: "/admin/finance/manage-refunds" },
+        { title: "Financial Reports", url: "/admin/finance/view-reports" },
       ]
     },
-    { 
-      title: "Notifications", 
-      url: "/admin/notifications", 
-      icon: Bell, 
-      requiresPermission: "notification_management" 
+    {
+      title: "Notifications",
+      url: "/admin/notifications",
+      icon: Bell,
+      requiresPermission: "notification_management"
     },
   ];
 
@@ -199,8 +203,14 @@ const AdminDashboardSideBar = () => {
     }));
 
   return (
-    <Sidebar collapsible="icon" autoCollapse={false} hoverable={false} className="border-r">
-      <SidebarContent>
+    <Sidebar 
+      collapsible="icon" 
+      autoCollapse={false} 
+      hoverable={false} 
+      className="border-r"
+      data-testid="admin-dashboard-sidebar"
+    >
+      <SidebarContent data-testid="admin-dashboard-sidebar-content">
         <SidebarGroup>
           <SidebarGroupLabel>Admin</SidebarGroupLabel>
           <SidebarGroupContent>

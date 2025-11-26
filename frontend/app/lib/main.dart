@@ -2,11 +2,11 @@ import 'package:app/pages/bible.dart';
 import 'package:app/pages/dashboard.dart';
 import 'package:app/pages/sermons.dart';
 import 'package:app/pages/bulletins.dart';
-import 'package:app/pages/eventspage.dart';
+import 'package:app/pages/events/eventspage.dart';
 import 'package:app/pages/user/user_settings.dart';
 import 'package:app/pages/joinlive.dart';
 import 'package:app/pages/weeklybulletin.dart';
-import 'package:app/pages/giving.dart';
+import 'package:app/pages/donations/giving.dart';
 import 'package:app/services/connectivity_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +25,7 @@ import 'package:app/gates/auth_gate.dart';
 import 'package:app/theme/app_theme.dart';
 import 'package:app/theme/theme_controller.dart';
 import 'package:app/helpers/localized_widgets.dart';
-
+import 'package:timezone/data/latest.dart' as tzdata;
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 const bool kTestMode = bool.fromEnvironment('TEST_MODE', defaultValue: false);
@@ -55,6 +55,9 @@ Future<void> main() async {
   // Initialize DeepLinkingService with the navigator key
   DeepLinkingService.initialize(navigatorKey);
 
+  // Dart is weird and needs time zones init for my TimeFormatter helper to work properly
+  tzdata.initializeTimeZones();
+
   // Setup messaging and notifications BEFORE checking for initial message
 
   setupFirebaseMessaging();
@@ -63,16 +66,15 @@ Future<void> main() async {
   // Startup connectivity service
   ConnectivityService().start();
 
-    RemoteMessage? initialMessage =
-        await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null) {
-      initialNotificationData = initialMessage.data;
-      // Store the initial message for handling after the app is built
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        DeepLinkingService.handleNotificationData(initialMessage.data);
-      });
-    }
-  
+  RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    initialNotificationData = initialMessage.data;
+    // Store the initial message for handling after the app is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkingService.handleNotificationData(initialMessage.data);
+    });
+  }
 
   // Initialize localization
   await initLocalization();
@@ -85,7 +87,7 @@ Future<void> main() async {
             final provider = TabProvider();
             TabProvider.instance = provider;
             provider.loadTabConfiguration();
-            
+
             return provider;
           },
         ),
@@ -235,7 +237,14 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<Widget> tabRoots =
         tabNames.map((name) => _getScreenForTab(name)).toList();
     final List<GlobalKey<NavigatorState>> navKeys =
-        tabNames.map((name) => _navKeyForTab.putIfAbsent(name, () => GlobalKey<NavigatorState>())).toList();
+        tabNames
+            .map(
+              (name) => _navKeyForTab.putIfAbsent(
+                name,
+                () => GlobalKey<NavigatorState>(),
+              ),
+            )
+            .toList();
 
     final theme = Theme.of(context);
 
@@ -252,26 +261,22 @@ class _MyHomePageState extends State<MyHomePage> {
         // Pop only if possible
         if (nav != null && nav.canPop()) {
           nav.pop();
-        }
-        else {
+        } else {
           // Do nothing, no more pages to pop
         }
       },
       child: Scaffold(
         body: IndexedStack(
           index: tabProvider.currentIndex,
-          children: List.generate(
-            tabRoots.length,
-            (i) {
-              final tabName = tabNames[i];
-              return _buildTabNavigator(
-                navKey: navKeys[i],
-                root: tabRoots[i],
-                isActive: tabProvider.currentIndex == i,
-                tabName: tabName,
-              );
-            },
-          ),
+          children: List.generate(tabRoots.length, (i) {
+            final tabName = tabNames[i];
+            return _buildTabNavigator(
+              navKey: navKeys[i],
+              root: tabRoots[i],
+              isActive: tabProvider.currentIndex == i,
+              tabName: tabName,
+            );
+          }),
         ),
         bottomNavigationBar: LocalizedBuilder(
           builder: (_) => BottomNavigationBar(
@@ -366,64 +371,43 @@ class _MyHomePageState extends State<MyHomePage> {
         tooltip: 'tab-$name', // optional
       );
     }).toList();
- }
+  }
 
   Widget _getTabIcon(String tabName, String iconName, bool isActive) {
     // First try to use the specific iconName from the database
     switch (iconName.toLowerCase()) {
       case 'home':
-        return Icon(
-          Icons.home,
-        );
+        return Icon(Icons.home);
       case 'menu_book':
       case 'bible':
-        return Icon(
-          Icons.menu_book,
-        );
+        return Icon(Icons.menu_book);
       case 'play_circle':
       case 'cross':
       case 'sermons':
-        return Icon(
-          Icons.church,
-        );
+        return Icon(Icons.church);
       case 'description':
       case 'bulletins':
         return Icon(Icons.description);
       case 'event':
       case 'events':
-        return Icon(
-          Icons.event,
-        );
+        return Icon(Icons.event);
       case 'person':
       case 'profile':
-        return Icon(
-          Icons.person,
-          key: ValueKey('nav_profile')
-        );
+        return Icon(Icons.person, key: ValueKey('nav_profile'));
       case 'live_tv':
       case 'live':
-        return Icon(
-          Icons.live_tv,
-        );
+        return Icon(Icons.live_tv);
       case 'article':
       case 'bulletin':
-        return Icon(
-          Icons.article,
-        );
+        return Icon(Icons.article);
       case 'volunteer_activism':
       case 'giving':
-        return Icon(
-          Icons.volunteer_activism,
-        );
+        return Icon(Icons.volunteer_activism);
       case 'groups':
-        return Icon(
-          Icons.groups,
-        );
+        return Icon(Icons.groups);
       case 'contact_mail':
       case 'contact':
-        return Icon(
-          Icons.contact_mail,
-        );
+        return Icon(Icons.contact_mail);
       default:
         // Fallback to tab name if icon doesn't match
         return _getDefaultIconForTab(tabName, isActive);
@@ -433,44 +417,25 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _getDefaultIconForTab(String tabName, bool isActive) {
     switch (tabName.toLowerCase()) {
       case 'home':
-        return Icon(
-          Icons.home,
-        );
+        return Icon(Icons.home);
       case 'bible':
-        return Icon(
-          Icons.menu_book,
-        );
+        return Icon(Icons.menu_book);
       case 'sermons':
-        return Icon(
-          Icons.church,
-        );
+        return Icon(Icons.church);
       case 'bulletins':
         return Icon(Icons.description);
       case 'events':
-        return Icon(
-          Icons.event,
-        );
+        return Icon(Icons.event);
       case 'profile':
-        return Icon(
-          Icons.person,
-          key: ValueKey('nav_profile')
-        );
+        return Icon(Icons.person, key: ValueKey('nav_profile'));
       case 'live':
-        return Icon(
-          Icons.live_tv,
-        );
+        return Icon(Icons.live_tv);
       case 'bulletin':
-        return Icon(
-          Icons.article,
-        );
+        return Icon(Icons.article);
       case 'giving':
-        return Icon(
-          Icons.volunteer_activism,
-        );
+        return Icon(Icons.volunteer_activism);
       case 'contact':
-        return Icon(
-          Icons.contact_mail,
-        );
+        return Icon(Icons.contact_mail);
       default:
         return Icon(Icons.tab);
     }

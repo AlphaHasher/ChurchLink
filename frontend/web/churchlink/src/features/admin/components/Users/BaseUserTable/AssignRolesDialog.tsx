@@ -103,7 +103,7 @@ export function AssignRolesDialog({
         <>
             {/* Physical Manifestation of the Dialog, the Button that opens it */}
             <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 onClick={async () => {
                     setCheckingPerms(true)
@@ -162,8 +162,8 @@ export function AssignRolesDialog({
                                             No Selectable Roles
                                         </Button>
                                     ) : (
-                                        <Button 
-                                            variant="outline" 
+                                        <Button
+                                            variant="outline"
                                             className="flex items-center gap-2 dark:hover:bg-muted dark:hover:text-foreground focus-visible:ring-1 focus-visible:ring-border"
                                         >
                                             Select Roles <ChevronDown className="h-4 w-4" />

@@ -2,6 +2,7 @@ from mongo.churchuser import UserHandler as User
 from mongo.roles import RoleHandler
 
 from firebase_admin import auth
+from datetime import datetime, timezone
 
 
 class FirebaseSyncer:
@@ -39,19 +40,41 @@ class FirebaseSyncer:
             # Auto-assign admin role to admin@testing.com (even for updates)
             if user['email'] == 'admin@testing.com':
                 await FirebaseSyncer.assign_admin_role(user['uid'])
+                adminUpdateData = {}
+                if not checkUser.get('verified'):
+                    adminUpdateData['verified'] = True
+                if not checkUser.get('birthday'):
+                    adminUpdateData['birthday'] = datetime(1990, 1, 1, tzinfo=timezone.utc)
+                if not checkUser.get('gender'):
+                    adminUpdateData['gender'] = 'm'
+                if adminUpdateData:
+                    await User.update_user(filterQuery, adminUpdateData)
             return
         else:
-            await User.create_user(first_name="Unitialized", last_name="Name", email=user['email'], uid = user['uid'], roles=[], verified=(user['has_google'] or user['email_verified']))
+            is_admin = user['email'] == 'admin@testing.com'
+            verified_status = True if is_admin else (user['has_google'] or user['email_verified'])
+            birthday = datetime(1990, 1, 1, tzinfo=timezone.utc) if is_admin else None
+            
+            await User.create_user(
+                first_name="Unitialized", 
+                last_name="Name", 
+                email=user['email'], 
+                uid=user['uid'], 
+                roles=[], 
+                verified=verified_status,
+                birthday=birthday
+            )
 
             # Auto-assign admin role to admin@testing.com
-            if user['email'] == 'admin@testing.com':
+            if is_admin:
                 await FirebaseSyncer.assign_admin_role(user['uid'])
+                await User.update_user({"uid": user['uid']}, {"gender": "m"})
 
     # Method that syncs one particular user only by a requested UID
     @staticmethod
     async def syncUserByUID(uid):
         user = await FirebaseSyncer.fetchFirebaseUserByUID(uid)
-        if user != None:
+        if user is not None:
             await FirebaseSyncer.syncUser(user)
             checkUser = await User.find_by_uid(user['uid'])
             return checkUser

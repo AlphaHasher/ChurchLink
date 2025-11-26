@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Filter, RotateCcw, Search } from 'lucide-react';
+import { RotateCcw, Search } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -25,9 +25,14 @@ export const DEFAULT_BULLETIN_FILTERS: BulletinFilters = {
     headline: '',
 };
 
+interface MinistryOption {
+    id: string;
+    name: string;
+}
+
 interface BulletinsFilterDialogProps {
     filters: BulletinFilters;
-    availableMinistries: string[];
+    availableMinistries: MinistryOption[];
     onApply: (next: BulletinFilters) => void;
     onReset: () => void;
 }
@@ -59,8 +64,11 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
     };
 
     const handleReset = () => {
+        // Reset filters to default which triggers immediate data reload
         onReset();
+        // Update draft state to reflect the reset
         setDraft({ ...DEFAULT_BULLETIN_FILTERS });
+        // Close dialog immediately after reset
         setOpen(false);
     };
 
@@ -86,20 +94,20 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
                     size="sm"
                     className="flex items-center gap-2"
                 >
-                <Filter className="h-4 w-4" />
-                Filters
-                {activeFilterCount > 0 && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                        {activeFilterCount}
-                    </span>
-                )}
+                    <Search className="h-4 w-4" />
+                    Filters
+                    {activeFilterCount > 0 && (
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                            {activeFilterCount}
+                        </span>
+                    )}
                 </Button>
             </DialogTrigger>
             <DialogContent className="w-full max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Filter bulletins</DialogTitle>
                     <DialogDescription>
-                        Refine the bulletin list by combining ministry, headline, and date range.
+                        Refine the bulletin list by combining ministry, title, and date range.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -117,20 +125,20 @@ export function BulletinsFilterDialog({ filters, availableMinistries, onApply, o
                                 <SelectContent>
                                     <SelectItem value="all">All ministries</SelectItem>
                                     {availableMinistries.map((ministry) => (
-                                        <SelectItem key={ministry} value={ministry}>
-                                            {ministry}
+                                        <SelectItem key={ministry.id} value={ministry.id}>
+                                            {ministry.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="flex flex-col gap-2">
-                            <Label htmlFor="bulletin-filter-headline">Headline</Label>
+                            <Label htmlFor="bulletin-filter-title">Title</Label>
                             <div className="relative">
                                 <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    id="bulletin-filter-headline"
-                                    placeholder="Search by headline"
+                                    id="bulletin-filter-title"
+                                    placeholder="Search by title"
                                     className="pl-9"
                                     value={draft.headline}
                                     onChange={(event) => updateDraft('headline', event.target.value)}

@@ -8,7 +8,6 @@ class RoleHandler:
         "web_builder_management": False,
         "mobile_ui_management": False,
         "event_editing":False,
-        "event_management":False,
         "media_management":False,
         "sermon_editing": False,
         "bulletin_editing": False,
@@ -64,8 +63,6 @@ class RoleHandler:
             for key,value in permissions.items():
                 permissions[key] = True
         
-        if permissions['event_management']:
-            permissions['event_editing'] = True
         return permissions
 
     @staticmethod
@@ -101,7 +98,7 @@ class RoleHandler:
     async def get_user_event_editor_roles(role_ids, perms):
         returnable_roles = []
         roles = await RoleHandler.find_roles_with_permissions(['event_editing'])
-        if perms['admin'] or perms['event_management']:
+        if perms['admin']:
             returnable_roles = roles.copy()
             admin_roles = await RoleHandler.find_roles_with_permissions(['admin'])
             for role in admin_roles:

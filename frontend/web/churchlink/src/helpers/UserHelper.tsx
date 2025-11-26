@@ -351,6 +351,21 @@ export const getMyFamilyMembers = async () => {
     }
 }
 
+export const getAllPeople = async () => {
+    try {
+        const res = await api.get("/v1/users/all-people");
+        const data = res.data;
+        if (data.success) {
+            return { "success": data.success, "msg": data.msg, "profile_info": toProfileInfo(data.profile_info), "family_members": (res.data.family_members as PersonDetails[]) ?? [] };
+        }
+        return { "success": data.success, "msg": data.msg }
+    }
+    catch (err) {
+        console.error("Failed to get all people:", err);
+        return { "success": false, "msg": `Unexpected error in fetching people: ${err}` }
+    }
+}
+
 export const addFamilyMember = async (person: PersonDetails) => {
     try {
         const payload = {

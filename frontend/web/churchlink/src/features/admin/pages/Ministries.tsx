@@ -31,14 +31,12 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/shared/components/ui/alert';
 import { Pencil, Trash } from 'lucide-react';
 
+import { fetchMinistries as ApiFetchMinistries } from '@/helpers/MinistriesHelper';
+
+import { Ministry } from '@/shared/types/Ministry';
+
 ModuleRegistry.registerModules([ClientSideRowModelModule]);
 
-type Ministry = {
-    id: string;
-    name: string;
-    created_at: string;
-    updated_at: string;
-};
 
 type GridContext = {
     openRename: (ministry: Ministry) => void;
@@ -53,10 +51,10 @@ const ActionsCellRenderer = (props: ICellRendererParams) => {
 
     return (
         <div className="flex items-center h-full gap-2">
-            <Button size="sm" variant="outline" onClick={() => openRename(ministry)}>
+            <Button size="sm" variant="outline" aria-label="Rename Ministry" title="Rename Ministry" onClick={() => openRename(ministry)}>
                 <Pencil className="mr-2 h-4 w-4" /> Rename
             </Button>
-            <Button size="sm" variant="destructive" onClick={() => openDelete(ministry)}>
+            <Button size="sm" variant="destructive" aria-label="Delete Ministry" title="Delete Ministry" onClick={() => openDelete(ministry)}>
                 <Trash className="mr-2 h-4 w-4" /> Delete
             </Button>
         </div>
@@ -102,8 +100,8 @@ const Ministries = () => {
     const fetchMinistries = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await api.get('/v1/ministries');
-            setMinistries(response.data || []);
+            const response = await ApiFetchMinistries();
+            setMinistries(response);
         } catch (error) {
             console.error('Failed to load ministries', error);
             showStatus({ type: 'error', message: 'Failed to load ministries. Please try again.' });
@@ -267,6 +265,7 @@ const Ministries = () => {
                     loading={loading}
                     overlayNoRowsTemplate={loading ? '<span>Loading ministries...</span>' : '<span>No ministries found.</span>'}
                     context={context}
+                    enableCellTextSelection
                 />
             </div>
 
@@ -342,7 +341,18 @@ const Ministries = () => {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete ministry</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to delete "{deleteTarget?.name}"? This will remove the ministry from the master list.
+                            <div className="space-y-2">
+                                <p>Are you sure you want to delete "{deleteTarget?.name}"?</p>
+                                <p className="font-semibold">
+                                    Deleting a ministry removes its association from all linked content but does not delete the content itself. This includes:
+                                </p>
+                                <ul className="list-disc list-inside space-y-1 text-sm">
+                                    <li>Forms</li>
+                                    <li>Events</li>
+                                    <li>Sermons</li>
+                                    <li>Bulletins</li>
+                                </ul>
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -351,13 +361,14 @@ const Ministries = () => {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => void handleDelete()}
                             disabled={deleting}
+                            title='Confirm Delete'
                         >
                             {deleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 };
 

@@ -219,7 +219,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
     return (
         <>
             <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 onClick={open}
                 aria-label="View details"
@@ -243,7 +243,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
                                 [&_textarea]:bg-muted/30
                                 [&_textarea]:text-foreground
                                 [&_textarea]:border-border"
-                    >
+                >
                     <DialogHeader>
                         <DialogTitle>{fullName} Details</DialogTitle>
                     </DialogHeader>

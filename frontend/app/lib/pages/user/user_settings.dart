@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app/helpers/logger.dart';
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:app/models/profile_info.dart';
@@ -13,13 +14,13 @@ import 'package:flutter/material.dart';
 import 'package:app/components/auth_popup.dart';
 import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
-import 'package:app/pages/my_events_page.dart';
+import 'package:app/pages/events/myevents.dart';
 import 'package:app/theme/theme_controller.dart';
-
- 
 
 import 'package:app/widgets/change_email_sheet.dart';
 import 'package:app/helpers/localized_widgets.dart';
+import 'package:app/pages/my_transactions/my_transactions_page.dart';
+import 'package:app/pages/refund_requests/view_refund_requests.dart';
 
 class UserSettings extends StatefulWidget {
   const UserSettings({super.key});
@@ -88,7 +89,6 @@ class _UserSettingsState extends State<UserSettings> {
 
   ProfileInfo? _profile; // backend truth (cached/online)
   String _selectedLanguage = 'en'; // Language preference
-  bool _loading = true;
 
   @override
   void initState() {
@@ -122,8 +122,6 @@ class _UserSettingsState extends State<UserSettings> {
 
     _loadProfile();
   }
-
- 
 
   @override
   void dispose() {
@@ -193,10 +191,11 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_light'),
                 leading: const Icon(Icons.wb_sunny_outlined),
-                title: Text('Light').localized(),
-                trailing: current == ThemeMode.light
-                    ? const Icon(Icons.check)
-                    : null,
+                title: Text(
+                  'Light').localized(,
+                ),
+                trailing:
+                    current == ThemeMode.light ? const Icon(Icons.check) : null,
                 onTap: () {
                   ThemeController.instance.setMode(ThemeMode.light);
                   Navigator.pop(context);
@@ -206,7 +205,8 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_system'),
                 leading: const Icon(Icons.brightness_auto),
-                title: Text('System').localized(),
+                title: Text(
+                  'System').localized(),
                 trailing: current == ThemeMode.system
                     ? const Icon(Icons.check)
                     : null,
@@ -249,12 +249,21 @@ class _UserSettingsState extends State<UserSettings> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (BuildContext context) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final filtered = languages.where((lang) =>
-            lang.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-            lang.code.toLowerCase().contains(searchQuery.toLowerCase())
-          ).toList();
+      builder:
+          (BuildContext context) => StatefulBuilder(
+            builder: (context, setSheetState) {
+              final filtered =
+                  languages
+                      .where(
+                        (lang) =>
+                            lang.name.toLowerCase().contains(
+                              searchQuery.toLowerCase(),
+                            ) ||
+                            lang.code.toLowerCase().contains(
+                              searchQuery.toLowerCase(),
+                            ),
+                      )
+                      .toList();
 
           return SafeArea(
             child: AnimatedPadding(
@@ -364,21 +373,34 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Update _updateLanguage
   Future<void> _updateLanguage(String newLang) async {
-    setState(() => _loading = true);
-
     try {
       await changeLocaleAndAwait(
         newLang,
         warmupKeys: const [
-          'User Settings', 'Theme', 'System', 'Language', 'Notifications', 'Terms & Policies',
-          'Login or Signup', 'To access more features login or signup',
-          'Home', 'Bible', 'Sermons', 'Events', 'Profile',
+          'User Settings',
+          'Theme',
+          'System',
+          'Language',
+          'Notifications',
+          'Terms & Policies',
+          'Login or Signup',
+          'To access more features login or signup',
+          'Home',
+          'Bible',
+          'Sermons',
+          'Events',
+          'Profile',
           'No events found.',
           'Customize alert preferences',
           'Privacy policy and terms of use',
-          'Account', 'Guest', 'Preferences', 'Support',
-          'Trust me bro', 'Close',
-          'Notification Preferences', 'ßChoose which notifications you want to receive:',
+          'Account',
+          'Guest',
+          'Preferences',
+          'Support',
+          'Trust me bro',
+          'Close',
+          'Notification Preferences',
+          'ßChoose which notifications you want to receive:',
         ],
       );
       if (mounted) {
@@ -387,10 +409,8 @@ class _UserSettingsState extends State<UserSettings> {
         });
       }
     } catch (e) {
-      print('Failed to update language: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+      logger.e('Failed to update language: $e');
+    } finally {}
   }
 
   void _onLocaleChanged() {
@@ -408,17 +428,13 @@ class _UserSettingsState extends State<UserSettings> {
     if (mounted) {
       setState(() {
         _selectedLanguage = lang;
-        _loading = false;
       });
     }
   }
 
   // Show Terms and Policies popup
   void _showTermsAndPolicies(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const _TermsDialog(),
-    );
+    showDialog(context: context, builder: (context) => const _TermsDialog());
   }
 
   @override
@@ -427,22 +443,24 @@ class _UserSettingsState extends State<UserSettings> {
     final user = authService.getCurrentUser();
     final bool loggedIn = user != null;
 
-    final displayName = (() {
-      final p = _profile;
-      if (p != null) {
-        final fn = p.firstName.trim();
-        final ln = p.lastName.trim();
-        final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
-        if (joined.isNotEmpty) return joined;
-      }
-      return user?.displayName ?? "(Please set your display name)";
-    })();
+    final displayName =
+        (() {
+          final p = _profile;
+          if (p != null) {
+            final fn = p.firstName.trim();
+            final ln = p.lastName.trim();
+            final joined = [fn, ln].where((s) => s.isNotEmpty).join(' ').trim();
+            if (joined.isNotEmpty) return joined;
+          }
+          return user?.displayName ?? "(Please set your display name)";
+        })();
 
-    final displayEmail = (() {
-      final email = _profile?.email;
-      if (email != null && email.trim().isNotEmpty) return email.trim();
-      return user?.email ?? "(Please set your display email)";
-    })();
+    final displayEmail =
+        (() {
+          final email = _profile?.email;
+          if (email != null && email.trim().isNotEmpty) return email.trim();
+          return user?.email ?? "(Please set your display email)";
+        })();
 
     final mode = ThemeController.instance.mode;
     final themeLabel = switch (mode) {
@@ -465,8 +483,11 @@ class _UserSettingsState extends State<UserSettings> {
               final result = await Navigator.push<ProfileInfo>(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      EditProfileScreen(user: user, initialProfile: _profile),
+                  builder:
+                      (context) => EditProfileScreen(
+                        user: user,
+                        initialProfile: _profile,
+                      ),
                 ),
               );
               if (!mounted) return;
@@ -528,15 +549,49 @@ class _UserSettingsState extends State<UserSettings> {
             },
           },
           {
+            'icon': Icons.attach_money,
+            'title': LocalizationHelper.localize('My Transactions'),
+            'subtitle': LocalizationHelper.localize(
+              'View and manage your payments',
+            ),
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MyTransactionsPage(),
+                ),
+              );
+            },
+          },
+          {
+            'icon': Icons.money_off_csred,
+            'title': LocalizationHelper.localize('My Refund Requests'),
+            'subtitle': LocalizationHelper.localize(
+              'View and manage your refund requests',
+            ),
+            'ontap': () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ViewRefundRequestsPage(),
+                ),
+              );
+            },
+          },
+          {
             'icon': Icons.alternate_email,
             'title': 'Change Email',
-            'subtitle': 'Request an email to change your address',
+            'subtitle': 
+              'Request an email to change your address',
+            ,
             'ontap': () => ChangeEmailSheet.show(context),
           },
           {
             'icon': Icons.password,
             'title': 'Change Password',
-            'subtitle': 'Request an email to reset your password',
+            'subtitle': 
+              'Request an email to reset your password',
+            ,
             'ontap': () {
               PasswordReset.show(context, user?.email);
             },
@@ -549,7 +604,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.account_circle,
             'title': 'Login or Signup',
-            'subtitle': 'To access more features login or signup',
+            'subtitle': 
+              'To access more features login or signup',
+            ,
             'ontap': () {
               AuthPopup.show(context);
             },
@@ -570,10 +627,12 @@ class _UserSettingsState extends State<UserSettings> {
             'icon': Icons.language,
             'title': 'Language',
             'subtitle': () {
-              final selectedLang = availableLanguages.firstWhere(
-                (l) => l.code == _selectedLanguage,
-                orElse: () => const LanguageOption(code: 'en', name: 'English'),
-              );
+              final selectedLang = availableLanguages
+                  .firstWhere(
+                    (l) => l.code == _selectedLanguage,
+                    orElse:
+                        () => const LanguageOption(code: 'en', name: 'English'),
+                  );
               return selectedLang.name;
             }(),
             'ontap': _showLanguageSheet,
@@ -581,7 +640,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.notifications,
             'title': 'Notifications',
-            'subtitle': 'Customize alert preferences',
+            'subtitle': 
+              'Customize alert preferences',
+            ,
             'ontap': () {
               Navigator.push(
                 context,
@@ -599,7 +660,9 @@ class _UserSettingsState extends State<UserSettings> {
           {
             'icon': Icons.policy,
             'title': 'Terms & Policies',
-            'subtitle': 'Privacy policy and terms of use',
+            'subtitle': 
+              'Privacy policy and terms of use',
+            ,
             'ontap': () => _showTermsAndPolicies(context),
           },
         ],
@@ -618,10 +681,11 @@ class _UserSettingsState extends State<UserSettings> {
               CircleAvatar(
                 radius: 32,
                 backgroundColor: theme.colorScheme.primary,
-                backgroundImage: (user.photoURL != null && user.photoURL!.isNotEmpty
-                    ? NetworkImage(user.photoURL!)
-                    : const AssetImage('assets/user/ssbc-dove.png')
-                        as ImageProvider),
+                backgroundImage:
+                    (user.photoURL != null && user.photoURL!.isNotEmpty
+                        ? NetworkImage(user.photoURL!)
+                        : const AssetImage('assets/user/ssbc-dove.png')
+                            as ImageProvider),
               ),
               const SizedBox(width: 16),
               Column(
@@ -768,4 +832,3 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 }
-

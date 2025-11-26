@@ -1,5 +1,5 @@
 import 'package:intl/intl.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:app/helpers/backend_helper.dart';
 
 /// Represents an attachment item in a bulletin
 class AttachmentItem {
@@ -30,11 +30,11 @@ class Bulletin {
   final bool published;
   final int order;
   final List<String> roles;
-  final List<String> ministries;
+  final List<String> ministries; // Stores ObjectId strings
   final List<AttachmentItem> attachments;
   final DateTime? createdAt;
   final DateTime? updatedAt;
-  
+
   // Media library integration - EXACTLY like dashboard
   final String? imageId;
   final String? imageUrl;
@@ -104,7 +104,8 @@ class Bulletin {
       published: json['published'] == true,
       order: json['order'] is int ? json['order'] as int : 0,
       roles: coerceStringList(json['roles']),
-      ministries: coerceStringList(json['ministries']),
+      // Accept both ministries and ministry_ids from API, prefer ministry_ids
+      ministries: coerceStringList(json['ministry_ids'] ?? json['ministries']),
       attachments: parseAttachments(json['attachments']),
       createdAt: parseDate(createdAtRaw?.toString()),
       updatedAt: parseDate(updatedAtRaw?.toString()),
@@ -113,19 +114,19 @@ class Bulletin {
       thumbnailUrl: json['thumbnail_url']?.toString(),
     );
   }
-  
+
   /// Build image URL from imageId - EXACT pattern from dashboard
   String _buildImageUrl(String id, {bool thumbnail = true}) {
-    String base = dotenv.get('BACKEND_URL');
+    String base = BackendHelper.apiBase;
     if (!base.endsWith('/')) base = '$base/';
-    
+
     final prefix = 'api/v1';
     final path = 'assets/public/id/${Uri.encodeComponent(id)}';
     final query = thumbnail ? '?thumbnail=1' : '';
-    
+
     return '$base$prefix/$path$query';
   }
-  
+
   /// Get resolved thumbnail URL - uses imageId with dashboard pattern
   String? get resolvedThumbnailUrl {
     if (imageId != null && imageId!.isNotEmpty) {
@@ -133,7 +134,7 @@ class Bulletin {
     }
     return null;
   }
-  
+
   /// Get resolved image URL - uses imageId with dashboard pattern
   String? get resolvedImageUrl {
     if (imageId != null && imageId!.isNotEmpty) {
@@ -244,7 +245,7 @@ class Bulletin {
 class BulletinFilter {
   final int skip;
   final int limit;
-  final String? ministry;
+  final String? ministry_id;
   final String? query; // Search query for bulletin headlines
   final bool? published;
   final DateTime? weekStart; // Used for services filtering only
@@ -254,7 +255,7 @@ class BulletinFilter {
   const BulletinFilter({
     this.skip = 0,
     this.limit = 100,
-    this.ministry,
+    this.ministry_id,
     this.query,
     this.published,
     this.weekStart,
@@ -265,8 +266,8 @@ class BulletinFilter {
   Map<String, dynamic> toQueryParams() {
     final params = <String, dynamic>{'skip': skip, 'limit': limit};
 
-    if (ministry != null && ministry!.isNotEmpty) {
-      params['ministry'] = ministry;
+    if (ministry_id != null && ministry_id!.isNotEmpty) {
+      params['ministry_id'] = ministry_id;
     }
     if (query != null && query!.isNotEmpty) {
       params['query'] = query;
@@ -295,7 +296,7 @@ class BulletinFilter {
   BulletinFilter copyWith({
     int? skip,
     int? limit,
-    String? ministry,
+    String? ministry_id,
     String? query,
     bool? published,
     DateTime? weekStart,
@@ -305,7 +306,7 @@ class BulletinFilter {
     return BulletinFilter(
       skip: skip ?? this.skip,
       limit: limit ?? this.limit,
-      ministry: ministry ?? this.ministry,
+      ministry_id: ministry_id ?? this.ministry_id,
       query: query ?? this.query,
       published: published ?? this.published,
       weekStart: weekStart ?? this.weekStart,

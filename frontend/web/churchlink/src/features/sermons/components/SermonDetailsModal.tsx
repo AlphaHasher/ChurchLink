@@ -18,6 +18,7 @@ import {
 import { getEmbedURLFromStreamID } from '@/helpers/YoutubeHelper';
 import { favoriteSermon, unfavoriteSermon } from '@/features/sermons/api/sermonsApi';
 import { useAuth } from '@/features/auth/hooks/auth-context';
+import { useLocalize } from '@/shared/utils/localizationUtils';
 
 interface SermonDetailsModalProps {
     sermon: ChurchSermon | null;
@@ -25,9 +26,11 @@ interface SermonDetailsModalProps {
     onClose: () => void;
     isLoading?: boolean;
     onFavoriteToggle?: (sermonId: string, isFavorited: boolean) => void;
+    ministryNameMap?: Record<string, string>;
 }
 
-export function SermonDetailsModal({ sermon, isOpen, onClose, isLoading = false, onFavoriteToggle }: SermonDetailsModalProps) {
+export function SermonDetailsModal({ sermon, isOpen, onClose, isLoading = false, onFavoriteToggle, ministryNameMap = {} }: SermonDetailsModalProps) {
+    const localize = useLocalize();
     const videoId = useMemo(() => extractYoutubeId(sermon?.youtube_url), [sermon?.youtube_url]);
     const embedUrl = videoId ? getEmbedURLFromStreamID(videoId) : null;
     const thumbnailUrl = sermon ? buildThumbnailUrl(sermon) : null;
@@ -169,23 +172,21 @@ export function SermonDetailsModal({ sermon, isOpen, onClose, isLoading = false,
                                 )}
                             </div>
 
-                            {sermon.ministry && sermon.ministry.length > 0 && (
-                                <div>
-                                    <h3 className="mb-2 font-medium">Ministries</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {sermon.ministry.map((ministry) => (
-                                            <span
-                                                key={ministry}
-                                                className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700"
-                                            >
-                                                {ministry}
-                                            </span>
-                                        ))}
-                                    </div>
+                        {sermon.ministry && sermon.ministry.length > 0 && (
+                            <div>
+                                <h3 className="mb-2 font-medium">Ministries</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {sermon.ministry.map((id) => (
+                                        <span
+                                            key={id}
+                                            className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700"
+                                        >
+                                            {localize(ministryNameMap[id]) || id}
+                                        </span>
+                                    ))}
                                 </div>
-                            )}
-
-                            {sermon.roles && sermon.roles.length > 0 && (
+                            </div>
+                        )}                            {sermon.roles && sermon.roles.length > 0 && (
                                 <div>
                                     <h3 className="mb-2 font-medium">Target roles</h3>
                                     <div className="flex flex-wrap gap-2">

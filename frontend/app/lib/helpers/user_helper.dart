@@ -2,8 +2,8 @@ import 'package:app/models/contact_info.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:app/helpers/api_client.dart';
 import 'package:app/helpers/logger.dart';
-
 import 'package:app/models/profile_info.dart';
+import 'package:app/models/family_member.dart';
 import 'package:app/caches/user_status_cache.dart';
 import 'package:app/caches/user_profile_cache.dart';
 import 'package:app/caches/user_contact_info_cache.dart';
@@ -49,8 +49,21 @@ class UpdateLanguageResult {
   });
 }
 
-class UserHelper {
+class AllPeopleResult {
+  final bool success;
+  final String msg;
+  final ProfileInfo? profile;
+  final List<FamilyMember> familyMembers;
 
+  const AllPeopleResult({
+    required this.success,
+    required this.msg,
+    required this.profile,
+    required this.familyMembers,
+  });
+}
+
+class UserHelper {
   static Future<Map<String, dynamic>?> getIsInit() async {
     try {
       final res = await api.get('/v1/users/is-init');
@@ -248,30 +261,112 @@ class UserHelper {
         }
       }
     } catch (e) {
+      //fall
     }
     return 'en';
   }
 
   /// Update user's preferred language in MongoDB.
-  static Future<UpdateLanguageResult> updateLanguage(String languageCode) async {
+  static Future<UpdateLanguageResult> updateLanguage(
+    String languageCode,
+  ) async {
     try {
       final payload = <String, dynamic>{'language': languageCode.trim()};
 
       final res = await api.patch('/v1/users/update-language', data: payload);
 
-      final data = (res.data is Map)
-          ? Map<String, dynamic>.from(res.data)
-          : const <String, dynamic>{};
+      final data =
+          (res.data is Map)
+              ? Map<String, dynamic>.from(res.data)
+              : const <String, dynamic>{};
 
       final success = data['success'] == true;
       final msg = (data['msg'] is String) ? data['msg'] as String : '';
 
-      return UpdateLanguageResult(success: success, msg: msg, language: languageCode.trim());
+      return UpdateLanguageResult(
+        success: success,
+        msg: msg,
+        language: languageCode.trim(),
+      );
     } catch (e) {
       return const UpdateLanguageResult(
         success: false,
         msg: 'Failed to update language.',
         language: 'en',
+      );
+    }
+  }
+
+  static Future<AllPeopleResult> getAllPeople() async {
+    try {
+      final res = await api.get('/v1/users/all-people');
+      final raw = res.data;
+
+      if (raw is! Map) {
+        return const AllPeopleResult(
+          success: false,
+          msg: 'Unexpected response from server.',
+          profile: null,
+          familyMembers: <FamilyMember>[],
+        );
+      }
+
+      final data = Map<String, dynamic>.from(raw);
+
+      final success = data['success'] == true;
+      final msg = (data['msg'] is String) ? data['msg'] as String : '';
+
+      if (!success) {
+        return AllPeopleResult(
+          success: false,
+          msg: msg.isNotEmpty ? msg : 'Failed to load people.',
+          profile: null,
+          familyMembers: const <FamilyMember>[],
+        );
+      }
+
+      // profile_info
+      ProfileInfo? profile;
+      final piRaw = data['profile_info'];
+      if (piRaw is Map) {
+        profile = ProfileInfo.fromJson(Map<String, dynamic>.from(piRaw));
+      }
+
+      // family_members
+      final famRaw = data['family_members'];
+      final familyMembers = <FamilyMember>[];
+
+      if (famRaw is List) {
+        for (final item in famRaw) {
+          if (item is Map) {
+            try {
+              familyMembers.add(
+                FamilyMember.fromJson(Map<String, dynamic>.from(item)),
+              );
+            } catch (e, st) {
+              logger.e(
+                'getAllPeople: failed to parse family member',
+                error: e,
+                stackTrace: st,
+              );
+            }
+          }
+        }
+      }
+
+      return AllPeopleResult(
+        success: true,
+        msg: msg,
+        profile: profile,
+        familyMembers: familyMembers,
+      );
+    } catch (e, st) {
+      logger.e('Failed to get all people', error: e, stackTrace: st);
+      return AllPeopleResult(
+        success: false,
+        msg: 'Unexpected error in fetching people: $e',
+        profile: null,
+        familyMembers: const <FamilyMember>[],
       );
     }
   }

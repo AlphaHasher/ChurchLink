@@ -11,6 +11,7 @@ import { Mail } from "lucide-react";
 import { auth, signOut } from "@/lib/firebase";
 import { sendEmailVerification } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 // helpers
 import { verifyAndSyncUser, getIsInit } from "@/helpers/UserHelper";
@@ -31,6 +32,8 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
     const pollRef = React.useRef<number | null>(null);
     const navigatingRef = React.useRef(false);
 
+    const localize = useLocalize();
+
     const clearAllTimers = React.useCallback(() => {
         if (cdRef.current) {
             clearInterval(cdRef.current);
@@ -45,7 +48,6 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
     React.useEffect(() => clearAllTimers, [clearAllTimers]);
 
     const onVerifyError = React.useCallback(async (msg: string) => {
-        // Your helper signs out on failure; just surface a message if you want.
         alert(msg);
     }, []);
 
@@ -59,7 +61,7 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
             navigatingRef.current = true;
             clearAllTimers();
             setIsPolling(false);
-            // Verified — go to home; your guards will route to /auth/init if needed
+            // Verified — go to home, guards will route to /auth/init if needed
             navigate("/", { replace: true });
         }
     }, [onVerifyError, navigate, clearAllTimers]);
@@ -100,10 +102,9 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
         if (!user) return;
 
         try {
-            // Adjust these to your needs; ensure the domain is in Auth > Settings > Authorized domains
             await sendEmailVerification(user, {
                 url: `${window.location.origin}/`,
-                handleCodeInApp: false, // set true only if you implement applyActionCode handling in-app
+                handleCodeInApp: false,
             });
 
             setHasSent(true);     // flip label after first successful send
@@ -123,16 +124,19 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
 
     const sendDisabled = cooldown > 0;
     const sendLabel = sendDisabled
-        ? `Resend in ${cooldown}s`
+        ? `${localize("Seconds left until you may re-send:")} ${cooldown}`
         : hasSent
-            ? "Re-send verification email"
-            : "Send verification email";
+            ? localize("Re-send verification email")
+            : localize("Send verification email");
 
     return (
         <Dialog open onOpenChange={() => { }}>
             <DialogContent
                 className={[
-                    "sm:max-w-sm",
+                    "w-full",
+                    "max-w-[100vw]",
+                    "sm:max-w-3xl",
+                    "overflow-x-auto",
                     "py-8",
                     "text-center",
                     className || "",
@@ -142,10 +146,15 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
                 onInteractOutside={(e) => e.preventDefault()}
             >
                 <DialogHeader className="text-center">
-                    <DialogTitle className="text-xl">Verify your email</DialogTitle>
+                    <DialogTitle className="text-xl">
+                        {localize("Verify your email")}
+                    </DialogTitle>
                     <DialogDescription className="mt-1 leading-relaxed">
-                        Please verify your email:{" "}
-                        <span className="font-medium">{email || "(unknown)"}</span> to continue. You may need to check your spam folder if you cannot find the verification email.
+                        {localize("Please verify your email:")}{" "}
+                        <span className="font-medium">{email || "(unknown)"}</span>{" "}
+                        {localize(
+                            "to continue. You may need to check your spam folder if you cannot find the verification email."
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -158,18 +167,32 @@ const VerifyEmailDialog: React.FC<VerifyEmailDialogProps> = ({ email, className 
                         type="button"
                         onClick={handleSend}
                         disabled={sendDisabled}
-                        className="w-64 bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                        className={[
+                            "max-w-full",
+                            "whitespace-normal",
+                            "break-words",
+                            "text-center",
+                            "bg-green-600",
+                            "text-white",
+                            "hover:bg-green-700",
+                            "disabled:opacity-50",
+                        ].join(" ")}
                     >
-                        {sendLabel}
+                        {localize(sendLabel)}
                     </Button>
 
                     <Button
                         type="button"
                         variant="secondary"
                         onClick={handleLogout}
-                        className="w-64"
+                        className={[
+                            "max-w-full",
+                            "whitespace-normal",
+                            "break-words",
+                            "text-center",
+                        ].join(" ")}
                     >
-                        Logout
+                        {localize("Logout")}
                     </Button>
                 </div>
             </DialogContent>

@@ -1,23 +1,35 @@
+import { useRef, useState } from "react";
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import {
+  ColDef,
+  ICellRendererParams,
+  ModuleRegistry,
+  ClientSideRowModelModule,
+  PaginationModule,
+  RowSelectionModule
+} from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-quartz.css';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+ModuleRegistry.registerModules([
+  ClientSideRowModelModule,
+  PaginationModule,
+  RowSelectionModule
+]);
 
-import { Input } from "@/shared/components/ui/input"
+import { Input } from "@/shared/components/ui/input";
+import { Button } from "@/shared/components/ui/button";
 
-import { CreatePermDialog } from "@/features/admin/components/Permissions/RoleTable/CreatePermDialog"
-import { EditPermDialog } from "@/features/admin/components/Permissions/RoleTable/EditPermDialog"
-import { DeletePermDialog } from "@/features/admin/components/Permissions/RoleTable/DeletePermDialog"
+import { CreatePermDialog } from "@/features/admin/components/Permissions/RoleTable/CreatePermDialog";
+import { EditPermDialog } from "@/features/admin/components/Permissions/RoleTable/EditPermDialog";
+import { DeletePermDialog } from "@/features/admin/components/Permissions/RoleTable/DeletePermDialog";
 
 import {
   AccountPermissions,
   permissionLabels
-} from "@/shared/types/AccountPermissions"
-import { PermRoleMembersDialog } from "./PermRoleMembersDialog"
+} from "@/shared/types/AccountPermissions";
+import { PermRoleMembersDialog } from "./PermRoleMembersDialog";
 
-import { getDisplayValue } from "@/helpers/DataFunctions"
-import { useState, useRef } from "react"
+import { getDisplayValue } from "@/helpers/DataFunctions";
 
 // Helper function to get accessible permissions for a role
 const getAccessiblePermissions = (permissions: AccountPermissions): string => {
@@ -72,6 +84,7 @@ const ActionsCellRenderer = (props: ICellRendererParams<AccountPermissions>) => 
 export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
   const [quickFilterText, setQuickFilterText] = useState('');
   const gridRef = useRef<AgGridReact<AccountPermissions>>(null);
+  const gridOptions = {};
 
   const columnDefs: ColDef<AccountPermissions>[] = [
     {
@@ -82,7 +95,15 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
       flex: 2,
       minWidth: 200,
       valueFormatter: (params) => getDisplayValue(params.value, "name" as any),
-      cellClass: "font-medium",
+      cellRenderer: (props: ICellRendererParams<AccountPermissions>) => {
+        const { data } = props;
+        if (!data) return null;
+        return (
+          <div className="flex items-center gap-2 w-full min-w-0">
+            <span className="font-medium truncate" title={data.name}>{data.name}</span>
+          </div>
+        );
+      },
     },
     {
       headerName: "Accessible Pages/Permissions",
@@ -94,18 +115,24 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
         if (!params.data) return "";
         return getAccessiblePermissions(params.data);
       },
-      cellClass: "text-sm text-gray-600",
-      tooltipValueGetter: (params) => {
-        if (!params.data) return "";
-        // Show full list in tooltip
+      cellRenderer: (props: ICellRendererParams<AccountPermissions>) => {
+        const { data } = props;
+        if (!data) return null;
+        const permsText = getAccessiblePermissions(data);
         const accessiblePerms: string[] = [];
-        Object.entries(params.data).forEach(([key, value]) => {
+        Object.entries(data).forEach(([key, value]) => {
           if (key !== '_id' && key !== 'name' && value === true) {
             const label = permissionLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             accessiblePerms.push(label);
           }
         });
-        return accessiblePerms.length > 0 ? accessiblePerms.join(', ') : "No permissions";
+        const fullText = accessiblePerms.length > 0 ? accessiblePerms.join(', ') : "No permissions";
+        
+        return (
+          <div className="text-sm text-muted-foreground" title={fullText}>
+            {permsText}
+          </div>
+        );
       },
     },
     {
@@ -115,12 +142,14 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
       filter: false,
       flex: 2.5,
       minWidth: 420,
-      suppressSizeToFit: true,
+      cellStyle: { display: 'flex', alignItems: 'center', height: '100%' },
       pinned: 'right',
     },
   ];
 
-  const defaultColDef: ColDef = { resizable: true };
+  const defaultColDef: ColDef = {
+    resizable: true,
+  };
 
   return (
     <div className="w-full">
@@ -132,28 +161,27 @@ export function PermissionsTable({ data, onSave }: PermissionsTableProps) {
           className="max-w-sm"
         />
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
+          <Button onClick={() => onSave()}>Refresh</Button>
           <CreatePermDialog onSave={onSave} />
         </div>
       </div>
 
-      <div className="w-full overflow-x-auto">
-        <div className="ag-theme-quartz w-full" style={{ height: 400, width: '100%', minWidth: 700 }}>
-          <AgGridReact
+      <div className="ag-theme-quartz" style={{ height: '600px', width: '100%' }}>
+        <AgGridReact
           ref={gridRef}
           rowData={data}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
+          gridOptions={gridOptions}
           context={{ onSave }}
           pagination={true}
-          paginationPageSize={10}
-          paginationPageSizeSelector={[10, 25, 50]}
+          paginationPageSize={20}
+          paginationPageSizeSelector={[10, 20, 50]}
           animateRows={true}
           enableCellTextSelection={true}
           quickFilterText={quickFilterText}
-          tooltipShowDelay={500}
         />
-        </div>
       </div>
     </div>
   );

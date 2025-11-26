@@ -16,6 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/Dialog";
+import { Separator } from "@/shared/components/ui/separator";
+import { NumericDragInput } from "@/shared/components/NumericDragInput";
 import { BuilderState } from "@/features/webeditor/state/BuilderState";
 import MediaLibrary from "@/features/admin/pages/MediaLibrary";
 import { getThumbnailUrl } from "@/helpers/MediaInteraction";
@@ -56,6 +58,19 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({
   const currentId = (node?.props as any)?.src as string | undefined;
   const previewUrl = currentId ? getThumbnailUrl(currentId) : "";
 
+  // Parse current filter for brightness only; ignore any legacy drop-shadow or crop
+  const style = (node as any)?.style || {};
+  const filterStr = String(style.filter || '').trim();
+  const brightnessMatch = filterStr.match(/brightness\((\d+(?:\.\d+)?)%?\)/);
+  const initialBrightness = brightnessMatch ? parseFloat(brightnessMatch[1]) : 100;
+
+  const [brightness, setBrightness] = React.useState(initialBrightness);
+
+  // Sync state when node changes
+  React.useEffect(() => {
+    setBrightness(initialBrightness);
+  }, [node.id]);
+
   const commitHistoryIfNeeded = React.useCallback(
     (nextNodeSnapshot?: Node) => {
       const sectionId = BuilderState.selection?.sectionId;
@@ -67,6 +82,23 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({
     },
     [node]
   );
+
+  const applyBrightness = React.useCallback((bright: number) => {
+    onUpdate((n) => {
+      const s = { ...(n as any).style } as any;
+      if (bright !== 100) {
+        s.filter = `brightness(${bright}%)`;
+      } else {
+        if (s.filter && /brightness\(/.test(String(s.filter))) {
+          // remove brightness; if only brightness remove filter entirely
+          const remaining = String(s.filter).split(/\s+/).filter(p => !/brightness\(/.test(p));
+          if (remaining.length > 0) s.filter = remaining.join(' '); else delete s.filter;
+        }
+      }
+      if (s.clipPath) delete s.clipPath; // ensure crop removed
+      return { ...n, style: s } as Node;
+    });
+  }, [onUpdate]);
 
   return (
     <div className="space-y-4">
@@ -210,7 +242,7 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({
           <SelectTrigger id="image-objectfit">
             <SelectValue placeholder="Select" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent side="bottom" align="start" sideOffset={4}>
             <SelectItem value="cover">cover</SelectItem>
             <SelectItem value="contain">contain</SelectItem>
             <SelectItem value="fill">fill</SelectItem>
@@ -219,6 +251,26 @@ export const ImageInspector: React.FC<ImageInspectorProps> = ({
           </SelectContent>
         </Select>
       </div>
+
+      <Separator className="my-4" />
+
+      {/* Brightness */}
+      <div className="space-y-2">
+        <Label htmlFor="image-brightness">Brightness (%)</Label>
+        <NumericDragInput
+          id="image-brightness"
+          min={0}
+          max={200}
+          step={5}
+          value={brightness}
+          onChange={(val) => {
+            const next = typeof val === 'number' ? val : brightness;
+            setBrightness(next);
+            applyBrightness(next);
+          }}
+        />
+      </div>
+      {/* Drop shadow & crop system removed */}
     </div>
   );
 };

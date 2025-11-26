@@ -1,5 +1,6 @@
 import 'package:app/models/sermon.dart';
 import 'package:app/models/sermon_filter.dart';
+import 'package:app/models/ministry.dart';
 import 'package:app/providers/sermons_provider.dart';
 import 'package:app/widgets/sermon_card.dart';
 import 'package:app/widgets/sermon_detail_sheet.dart';
@@ -7,6 +8,7 @@ import 'package:app/widgets/sermon_filter_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app/helpers/localized_widgets.dart';
+import 'package:app/helpers/ministries_helper.dart';
 
 class SermonsPage extends StatefulWidget {
   const SermonsPage({super.key});
@@ -16,6 +18,8 @@ class SermonsPage extends StatefulWidget {
 }
 
 class _SermonsPageState extends State<SermonsPage> {
+  Map<String, Ministry> _ministriesById = <String, Ministry>{};
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +30,18 @@ class _SermonsPageState extends State<SermonsPage> {
         provider.loadInitial();
       }
     });
+  }
+
+  Future<void> _loadMinistries() async {
+    try {
+      final list = await MinistriesHelper.fetchMinistries();
+      if (!mounted) return;
+      setState(() {
+        _ministriesById = {for (final m in list) m.id: m};
+      });
+    } catch (e) {
+      debugPrint('Failed to load ministries: $e');
+    }
   }
 
   void _onLocaleChanged() {
@@ -100,6 +116,7 @@ class _SermonsPageState extends State<SermonsPage> {
                                 final sermon = provider.items[index];
                                 return SermonCard(
                                   sermon: sermon,
+                                  ministriesById: _ministriesById,
                                   onTap: () => _openDetails(sermon),
                                   onToggleFavorite:
                                       () => _toggleFavorite(sermon),
@@ -141,7 +158,11 @@ class _SermonsPageState extends State<SermonsPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => SermonDetailSheet(sermonId: sermon.id),
+      builder:
+          (_) => SermonDetailSheet(
+            sermonId: sermon.id,
+            ministriesById: _ministriesById,
+          ),
     );
   }
 
@@ -222,4 +243,3 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
-

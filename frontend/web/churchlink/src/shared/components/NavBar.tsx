@@ -16,8 +16,7 @@ import { SidebarTrigger } from "@/shared/components/ui/sidebar";
 
 // Define interfaces for header data types
 interface HeaderLink {
-    title: string;
-    titles?: Record<string, string>;
+    titles: Record<string, string>;
     url?: string;
     slug?: string;
     is_hardcoded_url?: boolean;
@@ -26,8 +25,7 @@ interface HeaderLink {
 }
 
 interface HeaderDropdown {
-    title: string;
-    titles?: Record<string, string>;
+    titles: Record<string, string>;
     items: HeaderLink[];
     visible?: boolean;
     type?: string;
@@ -163,7 +161,7 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                 <NavigationMenuList className="lg:flex flex-wrap items-center justify-end xl:pr-8">
                     {!loading && headerItems.map((item) => (
                         <NavigationMenuItem
-                            key={item.title}
+                            key={item.titles.en}
                             className="hidden lg:block px-[20px]! py-[12px]! text-white! font-medium text-[15px]! tracking-wide!
                                        hover:bg-white/10 hover:text-gray-300! transition-colors duration-200 rounded-none!"
                         >
@@ -172,39 +170,39 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                                     className="text-white! font-medium text-[15px]! tracking-wide! hover:text-gray-300! transition-colors duration-200 font-[Montserrat]! bg-transparent border-none cursor-pointer"
                                     onClick={() => handleNavigation(item as HeaderLink)}
                                 >
-                                    {getLabelFromTitles((item as any).titles, item.title)}
+                                    {getLabelFromTitles((item as any).titles, (item as any).titles.en)}
                                 </button>
                             ) : (
                                 <div
                                     className="relative"
-                                    onMouseEnter={() => setActiveDropdown(item.title)}
+                                    onMouseEnter={() => setActiveDropdown(item.titles.en)}
                                     onMouseLeave={() => setActiveDropdown(null)}
                                 >
                                     <div className="cursor-pointer flex items-center gap-1 text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! hover:text-gray-300! transition-colors duration-200">
                                         <span>
-                                            {getLabelFromTitles((item as any).titles, item.title)}
+                                            {getLabelFromTitles((item as any).titles, (item as any).titles.en)}
                                         </span>
                                         <ChevronDown
-                                            className={`h-4 w-4 transition-transform duration-200 ${activeDropdown === item.title ? "rotate-180" : ""}`}
+                                            className={`h-4 w-4 transition-transform duration-200 ${activeDropdown === item.titles.en ? "rotate-180" : ""}`}
                                         />
                                     </div>
 
                                     {/* invisible hover bridge (no layout shift) */}
-                                    {activeDropdown === item.title && (
+                                    {activeDropdown === item.titles.en && (
                                         <div className="absolute top-full right-0 h-3 w-full z-[90]"></div>
                                     )}
 
-                                    {activeDropdown === item.title && (
+                                    {activeDropdown === item.titles.en && (
                                         <div
                                             className="absolute top-full right-0 translate-y-3 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden shadow-lg z-[90]"
                                         >
                                             {'items' in item && item.items.filter((subItem: HeaderLink) => subItem.visible !== false).map((subItem: HeaderLink) => (
                                                 <button
-                                                    key={`${item.title}-${subItem.title}`}
+                                                    key={`${item.titles.en}-${subItem.titles.en}`}
                                                     onClick={() => handleNavigation(subItem)}
                                                     className="block w-full py-2 px-4 transition-colors duration-150 hover:bg-slate-700! text-white! font-medium text-[15px]! tracking-wide! font-[Montserrat]! bg-transparent border-none cursor-pointer text-left whitespace-nowrap first:rounded-t-lg last:rounded-b-lg"
                                                 >
-                                                    {getLabelFromTitles((subItem as any).titles, subItem.title)}
+                                                    {getLabelFromTitles((subItem as any).titles, (subItem as any).titles.en)}
                                                 </button>
                                             ))}
                                         </div>
@@ -227,11 +225,11 @@ export default function NavBar({ headerData }: NavBarProps = {}) {
                                 to="/auth/login"
                                 className="block bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-white font-medium text-[15px]! tracking-wide! font-[Montserrat]! transition-colors duration-200"
                             >
-                                Login
+                                {localize("Log In")}
                             </Link>
                         </div>
                     )}
-                    
+
                     {/* Mobile Hamburger Menu Trigger - Positioned on the Right */}
                     <SidebarTrigger className="lg:hidden flex items-center justify-center text-white hover:text-gray-300 hover:bg-white/10 transition-colors duration-200 rounded-md p-2 ml-auto [&_svg:not([class*='size-'])]:size-6" />
                 </NavigationMenuList>

@@ -9,11 +9,14 @@ import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
 
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
-    DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogTrigger, DialogFooter,
 } from "@/shared/components/ui/Dialog";
+import { useLocalize } from "@/shared/utils/localizationUtils";
 
 export default function ChangeEmailDialog() {
+  const localize = useLocalize();
+
   const [open, setOpen] = React.useState(false);
   const [newEmail, setNewEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -30,7 +33,7 @@ export default function ChangeEmailDialog() {
 
     // Tell SSO accounts without a password to create a password first
     if (!passwordRequired) {
-      setErr("Account requires a password before email can be changed.");
+      setErr(localize("Account requires a password before email can be changed."));
       setBusy(false);
       return;
     }
@@ -38,14 +41,14 @@ export default function ChangeEmailDialog() {
     try {
       setBusy(true);
       if (!password.trim()) {
-        setErr("Enter your current password.");
+        setErr(localize("Enter your current password."));
         setBusy(false);
         return;
       }
 
       const cred = EmailAuthProvider.credential(user.email || "", password);
       await reauthenticateWithCredential(user, cred);
-      
+
       await verifyBeforeUpdateEmail(user, newEmail, {
         url: `${window.location.origin}/auth/action?next=/profile`,
         handleCodeInApp: false,
@@ -53,13 +56,13 @@ export default function ChangeEmailDialog() {
 
       await signOut(auth);
       setOpen(false);
-      alert("Verification link sent to the new address. Click the link then sign back in.");
+      alert(localize("Verification link sent to the new address. Click the link then sign back in."));
     } catch (e: any) {
       const code = e?.code || "";
-      if (code === "auth/email-already-in-use") setErr("That email is already in use.");
-      else if (code === "auth/invalid-email") setErr("Invalid email.");
-      else if (code === "auth/requires-recent-login") setErr("Please reauthenticate and try again.");
-      else setErr(e?.message || "Something went wrong.");
+      if (code === "auth/email-already-in-use") setErr(localize("That email is already in use."));
+      else if (code === "auth/invalid-email") setErr(localize("Invalid email."));
+      else if (code === "auth/requires-recent-login") setErr(localize("Please reauthenticate and try again."));
+      else setErr(localize(e?.message || "Something went wrong."));
     } finally {
       setBusy(false);
     }
@@ -67,24 +70,31 @@ export default function ChangeEmailDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="secondary">Change Email</Button></DialogTrigger>
+      <DialogTrigger asChild>
+        <Button
+          variant="secondary"
+          className="whitespace-normal break-words text-left"
+        >
+          {localize("Change Email")}
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Change Email</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{localize("Change Email")}</DialogTitle></DialogHeader>
         <form onSubmit={onSubmit} className="space-y-3">
           <div className="space-y-1">
-            <Label>New email</Label>
+            <Label>{localize("New email")}</Label>
             <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} required />
           </div>
           <div className="space-y-1">
-            <Label>Current password</Label>
+            <Label>{localize("Current password")}</Label>
             <Input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder={
                 passwordRequired
-                  ? "Enter your current password"
-                  : "Set a password first before changing emails."
+                  ? localize("Enter your current password")
+                  : localize("Set a password first before changing emails.")
               }
               disabled={!passwordRequired}
               aria-disabled={!passwordRequired}
@@ -93,8 +103,8 @@ export default function ChangeEmailDialog() {
           </div>
           {err && <p className="text-sm text-destructive">{err}</p>}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={busy}>Cancel</Button>
-            <Button type="submit" disabled={busy || !newEmail.trim() || !passwordRequired || (passwordRequired && !password.trim())}>Send Link & Sign Out</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={busy}>{localize("Cancel")}</Button>
+            <Button type="submit" disabled={busy || !newEmail.trim() || !passwordRequired || (passwordRequired && !password.trim())}>{localize("Send Link & Sign Out")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -24,18 +24,14 @@ class LocalizationHelper {
   static const int _maxPersistedEntries = 2000; // safety cap
 
   static String _currentLocale = 'en';
-  static String? _pendingRebuildLocale; 
+  static String? _pendingRebuildLocale;
 
   static final Map<String, Map<String, String>> _cache =
       <String, Map<String, String>>{};
-  static final Map<String, Set<String>> _pending =
-      <String, Set<String>>{};
-  static final Map<String, Timer?> _timers =
-      <String, Timer?>{};
-  static final Map<String, Future<void>?> _inflight =
-      <String, Future<void>?>{};
-  static final Set<LocalizationListener> _listeners =
-      <LocalizationListener>{};
+  static final Map<String, Set<String>> _pending = <String, Set<String>>{};
+  static final Map<String, Timer?> _timers = <String, Timer?>{};
+  static final Map<String, Future<void>?> _inflight = <String, Future<void>?>{};
+  static final Set<LocalizationListener> _listeners = <LocalizationListener>{};
   static List<LanguageOption> _availableLanguages = [];
 
   static Timer? _persistTimer;
@@ -141,6 +137,7 @@ class LocalizationHelper {
         });
       }
     } catch (e) {
+      // fall
     }
   }
 
@@ -160,7 +157,8 @@ class LocalizationHelper {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_prefsCacheKey, jsonEncode(toStore));
       } catch (e) {
-    }
+        //fall
+      }
     });
   }
 
@@ -178,7 +176,6 @@ class LocalizationHelper {
 
     Future<void> run() async {
       try {
-        
         final response = await api.post(
           '/v1/translator/translate-multi',
           data: <String, dynamic>{
@@ -202,25 +199,24 @@ class LocalizationHelper {
         }
 
         var updated = false;
-        var updatedCount = 0;
         for (final key in items) {
           final perLocale = translations[key];
           if (perLocale is Map) {
             final value = perLocale[locale];
             if (value is String && value.trim().isNotEmpty) {
               final trimmed = value.trim();
-              final localeMap =
-                  _cache.putIfAbsent(key, () => <String, String>{});
+              final localeMap = _cache.putIfAbsent(
+                key,
+                () => <String, String>{},
+              );
               if (localeMap[locale] != trimmed) {
                 localeMap[locale] = trimmed;
                 updated = true;
-                updatedCount += 1;
               }
             }
           }
         }
 
-        
         if (updated) {
           _cacheDirty = true;
           _schedulePersist();
@@ -240,9 +236,7 @@ class LocalizationHelper {
     final previous = _inflight[locale];
     Future<void> future;
     if (previous != null) {
-      future = previous
-          .catchError((_) {})
-          .then((_) => run());
+      future = previous.catchError((_) {}).then((_) => run());
     } else {
       future = run();
     }
@@ -286,7 +280,9 @@ class LocalizationHelper {
           try {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString(_prefsLocaleKey, newLocale);
-          } catch (e) {}
+          } catch (e) {
+            //fall
+          }
           return;
         }
       }
@@ -298,7 +294,8 @@ class LocalizationHelper {
     try {
       final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getString(_prefsLocaleKey);
-      final next = (stored == null || stored.trim().isEmpty) ? 'en' : stored.trim();
+      final next =
+          (stored == null || stored.trim().isEmpty) ? 'en' : stored.trim();
       if (next != _currentLocale) {
         _currentLocale = next;
         _notifyListeners();
@@ -323,7 +320,9 @@ class LocalizationHelper {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefsLocaleKey, trimmed);
-    } catch (e) {}
+    } catch (e) {
+      //fall
+    }
 
     // Defer rebuild until translations are fetched for this locale.
     _pendingRebuildLocale = trimmed;
@@ -376,7 +375,8 @@ class LocalizationHelper {
     }
   }
 
-  static List<LanguageOption> get availableLanguages => List.unmodifiable(_availableLanguages);
+  static List<LanguageOption> get availableLanguages =>
+      List.unmodifiable(_availableLanguages);
 
   static Future<void> init() async {
     await _loadCacheFromPrefs();
@@ -384,4 +384,3 @@ class LocalizationHelper {
     await loadAvailableLanguages();
   }
 }
-

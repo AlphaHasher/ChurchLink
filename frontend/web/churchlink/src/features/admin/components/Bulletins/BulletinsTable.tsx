@@ -18,6 +18,9 @@ import { format } from 'date-fns';
 import CreateBulletinDialog from './CreateBulletinDialog';
 import EditBulletinDialog from './EditBulletinDialog';
 import { GripVertical, Image as ImageIcon } from 'lucide-react';
+import { fetchMinistries } from '@/helpers/MinistriesHelper';
+import { Ministry } from '@/shared/types/Ministry';
+import { MinistryCards } from '@/shared/components/MinistryCards';
 import {
     DndContext,
     closestCenter,
@@ -47,9 +50,10 @@ interface SortableRowProps {
     bulletin: ChurchBulletin;
     permissions: AccountPermissions | null;
     onRefresh: () => Promise<void>;
+    availableMinistries: Ministry[];
 }
 
-function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
+function SortableRow({ bulletin, permissions, onRefresh, availableMinistries }: SortableRowProps) {
     const {
         attributes,
         listeners,
@@ -127,15 +131,17 @@ function SortableRow({ bulletin, permissions, onRefresh }: SortableRowProps) {
                 </span>
             </TableCell>
             <TableCell>
-                {bulletin.ministries && bulletin.ministries.length > 0
-                    ? bulletin.ministries.join(', ')
-                    : '-'}
+                <MinistryCards 
+                    ministryIds={bulletin.ministries || []} 
+                    availableMinistries={availableMinistries} 
+                />
             </TableCell>
             <TableCell>
                 <EditBulletinDialog
                     bulletin={bulletin}
                     onSave={onRefresh}
                     permissions={permissions}
+                    availableMinistries={availableMinistries}
                 />
             </TableCell>
         </TableRow>
@@ -151,6 +157,7 @@ export function BulletinsTable({
     const [search, setSearch] = useState('');
     const [isReordering, setIsReordering] = useState(false);
     const [localBulletins, setLocalBulletins] = useState<ChurchBulletin[]>(bulletins);
+    const [availableMinistries, setAvailableMinistries] = useState<Ministry[]>([]);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -158,6 +165,11 @@ export function BulletinsTable({
             coordinateGetter: sortableKeyboardCoordinates,
         })
     );
+
+    // Fetch ministries on mount
+    useEffect(() => {
+        fetchMinistries().then(setAvailableMinistries);
+    }, []);
 
     // Sync local state when bulletins prop changes
     useEffect(() => {
@@ -217,7 +229,7 @@ export function BulletinsTable({
     };
 
     return (
-        <div className="container mx-start">
+        <div >
             <div className="flex items-center py-4">
                 <Input
                     placeholder="Search Headline or Body..."
@@ -229,7 +241,7 @@ export function BulletinsTable({
                     <Button onClick={handleRefresh} disabled={isReordering}>
                         Refresh
                     </Button>
-                    <CreateBulletinDialog onSave={handleRefresh} permissions={permissions} />
+                    <CreateBulletinDialog onSave={handleRefresh} permissions={permissions} availableMinistries={availableMinistries} />
                 </div>
             </div>
 
@@ -265,6 +277,7 @@ export function BulletinsTable({
                                             bulletin={bulletin}
                                             permissions={permissions}
                                             onRefresh={handleRefresh}
+                                            availableMinistries={availableMinistries}
                                         />
                                     ))
                                 ) : (

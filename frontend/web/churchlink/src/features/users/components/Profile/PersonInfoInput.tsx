@@ -212,9 +212,9 @@ export const PersonInfoInput: React.FC<PersonInfoInputProps> = ({
                     >
                         <SelectValue placeholder={localize("Select gender")} />
                     </SelectTrigger>
-                    <SelectContent className="z-50 max-h-60">
-                        <SelectItem value="M">{localize("M")}</SelectItem>
-                        <SelectItem value="F">{localize("F")}</SelectItem>
+                    <SelectContent className="z-600 max-h-60">
+                        <SelectItem value="M">{localize("Male")}</SelectItem>
+                        <SelectItem value="F">{localize("Female")}</SelectItem>
                     </SelectContent>
                 </Select>
             </div>

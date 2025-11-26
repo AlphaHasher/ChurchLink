@@ -11,7 +11,7 @@ import re
 from datetime import datetime, timezone
 from bson import ObjectId
 from firebase_admin import auth
-from models.user import get_family_member_by_id, AddressSchema
+from models.user import get_family_member_by_id, AddressSchema, get_family_members
 from models.membership_request import get_membership_request_by_uid, explicit_update_membership_request
 
 NAME_RE = re.compile(r"^[A-Za-z][A-Za-z .'\-]{0,49}$")
@@ -28,8 +28,8 @@ class PersonalInfo(BaseModel):
     last_name: str
     email: str
     membership: bool
-    birthday: Optional[datetime]
-    gender: Optional[str]
+    birthday: Optional[datetime] = None
+    gender: Optional[str] = None
 
     @field_validator('membership', mode='before')
     @classmethod
@@ -184,6 +184,29 @@ async def get_is_init(request: Request):
     if not verified:
         msg = " However, they have not verified their email!"
     return {"init": init, "verified":verified, "msg":msg}
+
+
+# This is a controller that is able to fetch ALL family members but ALSO the user's profile information in an all-in-one function.
+async def process_fetch_all_people(request: Request):
+    user = request.state.user
+
+    profile_info = PersonalInfo(
+        first_name=user.get("first_name", ""),
+        last_name=user.get("last_name", ""),
+        email=user.get("email", ""),
+        membership = user.get("membership", ""),
+        birthday=user.get("birthday"),
+        gender=user.get("gender")
+    )
+
+    family_members = await get_family_members(request.state.uid)
+
+    if family_members is None:
+        return {"success":False, "msg":"Failed to get family members due to an unknown error!"}
+    
+    return {"success":True, "msg":"Successfully fetched family members and profile info!", "profile_info":profile_info, "family_members":family_members}
+
+
     
 
 async def fetch_profile_info(request: Request):
@@ -379,8 +402,8 @@ async def update_profile(uid:str, profile_info: PersonalInfo):
     update_data = {
         "first_name": (profile_info.first_name or "").strip(),
         "last_name": (profile_info.last_name or "").strip(),
-        "birthday": profile_info.birthday,
-        "gender": profile_info.gender,
+        "birthday": profile_info.birthday or None,
+        "gender": profile_info.gender or None,
     }
 
     # Ensure name inputs are valid and sane

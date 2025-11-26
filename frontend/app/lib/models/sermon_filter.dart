@@ -1,11 +1,9 @@
-// ignore_for_file: no_leading_underscores_for_local_identifiers
-
 const _undefined = Object();
 
 class SermonFilter {
   final int skip;
   final int limit;
-  final String? ministry;
+  final String? ministry_id;
   final String? speaker;
   final List<String> tags;
   final DateTime? dateAfter;
@@ -16,7 +14,7 @@ class SermonFilter {
   const SermonFilter({
     this.skip = 0,
     this.limit = 50,
-    this.ministry,
+    this.ministry_id,
     this.speaker,
     this.tags = const <String>[],
     this.dateAfter,
@@ -28,7 +26,7 @@ class SermonFilter {
   SermonFilter copyWith({
     int? skip,
     int? limit,
-    Object? ministry = _undefined,
+    Object? ministry_id = _undefined,
     Object? speaker = _undefined,
     Object? tags = _undefined,
     Object? dateAfter = _undefined,
@@ -39,18 +37,24 @@ class SermonFilter {
     return SermonFilter(
       skip: skip ?? this.skip,
       limit: limit ?? this.limit,
-      ministry: ministry == _undefined ? this.ministry : ministry as String?,
+      ministry_id:
+          ministry_id == _undefined ? this.ministry_id : ministry_id as String?,
       speaker: speaker == _undefined ? this.speaker : speaker as String?,
-      tags: tags == _undefined ? this.tags : tags as List<String>? ?? const <String>[],
-      dateAfter: dateAfter == _undefined ? this.dateAfter : dateAfter as DateTime?,
-      dateBefore: dateBefore == _undefined ? this.dateBefore : dateBefore as DateTime?,
+      tags:
+          tags == _undefined
+              ? this.tags
+              : tags as List<String>? ?? const <String>[],
+      dateAfter:
+          dateAfter == _undefined ? this.dateAfter : dateAfter as DateTime?,
+      dateBefore:
+          dateBefore == _undefined ? this.dateBefore : dateBefore as DateTime?,
       query: query == _undefined ? this.query : query as String?,
       favoritesOnly: favoritesOnly ?? this.favoritesOnly,
     );
   }
 
   Map<String, String> toQueryParameters() {
-    String? _formatDate(DateTime? date) {
+    String? formatDate(DateTime? date) {
       if (date == null) return null;
       return date.toIso8601String().split('T').first;
     }
@@ -58,14 +62,15 @@ class SermonFilter {
     final Map<String, String> params = {
       'skip': skip.toString(),
       'limit': limit.toString(),
-      if (ministry != null && ministry!.isNotEmpty) 'ministry': ministry!,
+      if (ministry_id != null && ministry_id!.isNotEmpty)
+        'ministry_id': ministry_id!,
       if (speaker != null && speaker!.isNotEmpty) 'speaker': speaker!,
       if (tags.isNotEmpty) 'tags': tags.join(','),
       if (query != null && query!.isNotEmpty) 'query': query!,
       'published': 'true',
-      if (_formatDate(dateAfter) != null) 'date_after': _formatDate(dateAfter)!,
-      if (_formatDate(dateBefore) != null)
-        'date_before': _formatDate(dateBefore)!,
+      if (formatDate(dateAfter) != null) 'date_after': formatDate(dateAfter)!,
+      if (formatDate(dateBefore) != null)
+        'date_before': formatDate(dateBefore)!,
       if (favoritesOnly) 'favorites_only': 'true',
     };
 

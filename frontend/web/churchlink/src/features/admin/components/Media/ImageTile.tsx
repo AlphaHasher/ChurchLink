@@ -25,6 +25,18 @@ const ImageTile: React.FC<Props> = ({
     onSelect,
     onContextMenu,
 }) => {
+
+
+    let displayName: string;
+    if (asset.name == null) {
+        displayName = asset.id;
+    }
+    else if (asset.extension == null) {
+        displayName = asset.name;
+    }
+    else {
+        displayName = `${asset.name}.${asset.extension}`;
+    }
     return (
         <div
             className={[
@@ -63,9 +75,8 @@ const ImageTile: React.FC<Props> = ({
                 />
                 <div className="pointer-events-none absolute inset-0 rounded-md ring-0 group-hover:ring-2 group-hover:ring-primary/40" />
             </div>
-            {/* More room for names: 2-line area with wrap, tiny padding */}
-            <div className="px-1 py-0.5 text-[12px] leading-tight whitespace-normal break-words h-[34px] overflow-hidden">
-                {asset.name || asset.id}
+            <div className="p-2 text-[12px] leading-tight whitespace-normal break-words h-[34px] overflow-hidden">
+                {displayName}
             </div>
         </div>
     );
