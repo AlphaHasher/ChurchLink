@@ -162,6 +162,11 @@ class DB:
         }
         ,
         {
+            "name": "legal_pages",
+            # We want a unique slug per document (terms, privacy, refunds, etc.)
+            "indexes": ["slug"],
+        },
+        {
             "name": "bible_plans",
             "compound_indexes": [
                 # User’s own plans, newest first:
@@ -525,6 +530,7 @@ class DB:
 
             # Import migration data if collection is empty
             await DB.import_migration_data(collection_name)
+        await DB.run_post_init_hooks()
 
     @staticmethod
     def convert_mongodb_extended_json(data):
@@ -770,3 +776,18 @@ class DB:
         # Combine both settings into one dictionary
         combined_settings = {**paypal_settings, **church_settings}
         return combined_settings
+    
+    @staticmethod
+    async def run_post_init_hooks():
+        # Legal pages seeding (local import to avoid circular dependency)
+        try:
+            from models.legal_pages import seed_initial_pages
+        except ImportError:
+            print("legal_pages module not available; skipping legal page seeding")
+            return
+
+        try:
+            await seed_initial_pages()
+            print("legal pages seeded")
+        except Exception as e:
+            print(f"Warning: legal pages seeding failed: {e}")

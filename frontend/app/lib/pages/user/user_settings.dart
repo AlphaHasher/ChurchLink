@@ -10,12 +10,13 @@ import 'package:app/pages/user/family_members_page.dart';
 import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:app/pages/dashboard.dart';
 import 'package:app/components/auth_popup.dart';
 import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/events/myevents.dart';
 import 'package:app/theme/theme_controller.dart';
+import 'package:app/pages/user/legal_terms.dart';
 
 import 'package:app/widgets/change_email_sheet.dart';
 import 'package:app/helpers/localization_helper.dart';
@@ -74,6 +75,91 @@ class _TermsDialogState extends State<_TermsDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(LocalizationHelper.localize('Close')),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeleteConfirmationDialog extends StatefulWidget {
+  final String confirmedEmail;
+
+  const _DeleteConfirmationDialog({required this.confirmedEmail});
+
+  @override
+  State<_DeleteConfirmationDialog> createState() => _DeleteConfirmationDialogState();
+}
+
+class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
+  late final TextEditingController _controller;
+  bool _isValid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(LocalizationHelper.localize('Final Confirmation', capitalize: true)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LocalizationHelper.localize(
+              'Type your email address to confirm account deletion:',
+              capitalize: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            widget.confirmedEmail,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              hintText: LocalizationHelper.localize('Enter your email', capitalize: true),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _isValid = value.trim().toLowerCase() == 
+                          widget.confirmedEmail.trim().toLowerCase();
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(LocalizationHelper.localize('Cancel', capitalize: true)),
+        ),
+        TextButton(
+          onPressed: _isValid
+              ? () => Navigator.of(context).pop(true)
+              : null,
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+            disabledForegroundColor: Colors.grey,
+          ),
+          child: Text(LocalizationHelper.localize('Delete Account', capitalize: true)),
         ),
       ],
     );
@@ -238,6 +324,246 @@ class _UserSettingsState extends State<UserSettings> {
       },
     );
   }
+
+  void _showDeleteAccountWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.warning, color: Colors.red),
+              const SizedBox(width: 8),
+              Text(LocalizationHelper.localize('Delete Account?', capitalize: true)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                LocalizationHelper.localize('This action cannot be undone. You will permanently lose:', capitalize: true),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _buildWarningItem('All your personal data'),
+              _buildWarningItem('Your saved preferences'),
+              _buildWarningItem('Access to this account'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(LocalizationHelper.localize('Cancel', capitalize: true)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showDeleteAccountConfirmation();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text(LocalizationHelper.localize('Continue', capitalize: true)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+void _showDeleteAccountConfirmation() async {
+    // Fetch user's email from cache or API
+    String? userEmail;
+    final cachedProfile = await UserHelper.readCachedProfile();
+    if (cachedProfile != null) {
+      userEmail = cachedProfile.email;
+    } else {
+      final profileData = await UserHelper.getMyProfile();
+      userEmail = profileData?.profile?.email;
+    }
+    
+    if (!mounted) return;
+    
+    if (userEmail == null || userEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LocalizationHelper.localize(
+              'Unable to verify account information. Please try again.',
+              capitalize: true,
+            ),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final String confirmedEmail = userEmail;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext confirmContext) {
+        return _DeleteConfirmationDialog(confirmedEmail: confirmedEmail);
+      },
+    );
+
+    if (result == true && mounted) {
+      await _performAccountDeletion();
+    }
+  }
+
+
+  Widget _buildWarningItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.close, size: 16, color: Colors.red),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(LocalizationHelper.localize(text, capitalize: true)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performAccountDeletion() async {
+  logger.i('_performAccountDeletion: Starting');
+  
+  try {
+    logger.i('_performAccountDeletion: Calling UserHelper.deleteAccount()');
+    
+    final result = await UserHelper.deleteAccount().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        logger.e('_performAccountDeletion: Timed out after 30 seconds');
+        return const DeleteAccountResult(
+          success: false,
+          msg: 'Request timed out. Please check your connection and try again.',
+        );
+      },
+    );
+    
+    logger.i('_performAccountDeletion: Got result - success: ${result.success}, msg: ${result.msg}');
+    
+    if (!mounted) {
+      logger.w('_performAccountDeletion: Widget not mounted, returning');
+      return;
+    }
+    
+    if (result.success) {
+      logger.i('_performAccountDeletion: Success - showing success message');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LocalizationHelper.localize(
+              result.msg.isNotEmpty ? result.msg : 'Account deleted successfully',
+              capitalize: true,
+            ),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
+      // Small delay before navigation
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (!mounted) return;
+      
+      logger.i('_performAccountDeletion: Navigating to success screen');
+      
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 80,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    LocalizationHelper.localize(
+                      'Account deleted successfully',
+                      capitalize: true,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    LocalizationHelper.localize(
+                      'You have been signed out',
+                      capitalize: true,
+                    ),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => const UserSettings()),
+                        (route) => false,
+                      );
+                    },
+                    child: Text(
+                      LocalizationHelper.localize('Return to Settings', capitalize: true),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        (route) => false,
+      );
+    } else {
+      logger.w('_performAccountDeletion: Failed - ${result.msg}');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            LocalizationHelper.localize(
+              result.msg.isNotEmpty 
+                  ? result.msg 
+                  : 'Failed to delete account. Please try again.',
+              capitalize: true,
+            ),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  } catch (e, stackTrace) {
+    logger.e('_performAccountDeletion: Exception caught', error: e, stackTrace: stackTrace);
+    
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          LocalizationHelper.localize(
+            'An unexpected error occurred: $e',
+            capitalize: true,
+          ),
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+}
 
   // Show language selection bottom sheet
   void _showLanguageSheet() {
@@ -453,7 +779,52 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Show Terms and Policies popup
   void _showTermsAndPolicies(BuildContext context) {
-    showDialog(context: context, builder: (context) => const _TermsDialog());
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('View Legal Documents'),
+        content: const Text('Select which document you’d like to view:'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalPageScreen(slug: 'terms'),
+                ),
+              );
+            },
+            child: const Text('Terms & Conditions'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalPageScreen(slug: 'privacy'),
+                ),
+              );
+            },
+            child: const Text('Privacy Policy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LegalPageScreen(slug: 'refunds'),
+                ),
+              );
+            },
+            child: const Text('Refund Policy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -621,6 +992,14 @@ class _UserSettingsState extends State<UserSettings> {
             ),
             'ontap': () {
               PasswordReset.show(context, user?.email);
+            },
+          },
+          {
+            'icon': Icons.no_accounts,
+            'title': LocalizationHelper.localize('Manage Account Status'),
+            'subtitle': LocalizationHelper.localize('Delete Account'),
+            'ontap': () {
+              _showDeleteAccountWarning();
             },
           },
         ],

@@ -124,7 +124,13 @@ from routes.webhook_listener_routes.paypal_central_webhook_routes import (
 from routes.webhook_listener_routes.youtube_listener_routes import (
     youtube_listener_router,
 )
+from routes.legal_routes import (
+    admin_legal_router,
+    user_legal_router,
+)
+
 from scalar_fastapi import get_scalar_api_reference
+
 
 load_dotenv()
 
@@ -362,6 +368,7 @@ public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
 public_router.include_router(public_ministry_router)
+public_router.include_router(user_legal_router)
 public_router.include_router(public_event_router)
 public_router.include_router(public_forms_router)
 public_router.include_router(webbuilder_config_public_router)
@@ -409,6 +416,7 @@ mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
 mod_router.include_router(mod_event_router)
+mod_router.include_router(admin_legal_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
