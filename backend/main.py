@@ -94,6 +94,11 @@ from routes.form_routes.form_translations_routes import form_translations_router
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
+from routes.frontend_routes import frontend_router
+from routes.legal_routes import (
+    admin_legal_router,
+    user_legal_router,
+)
 from routes.page_management_routes.footer_routes import (
     mod_footer_router,
     public_footer_router,
@@ -106,7 +111,6 @@ from routes.page_management_routes.page_routes import (
     mod_page_router,
     public_page_router,
 )
-
 from routes.permissions_routes.permissions_routes import (
     permissions_protected_router,
     permissions_view_router,
@@ -124,7 +128,6 @@ from routes.webhook_listener_routes.paypal_central_webhook_routes import (
 from routes.webhook_listener_routes.youtube_listener_routes import (
     youtube_listener_router,
 )
-from routes.frontend_routes import frontend_router
 from scalar_fastapi import get_scalar_api_reference
 
 load_dotenv()
@@ -363,6 +366,7 @@ public_router.include_router(translator_router)
 public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
 public_router.include_router(public_ministry_router)
+public_router.include_router(user_legal_router)
 public_router.include_router(public_event_router)
 public_router.include_router(public_forms_router)
 public_router.include_router(webbuilder_config_public_router)
@@ -410,6 +414,7 @@ mod_router.include_router(dashboard_app_config_private_router)
 mod_router.include_router(member_mod_router)
 mod_router.include_router(mod_assets_router)
 mod_router.include_router(mod_event_router)
+mod_router.include_router(admin_legal_router)
 
 #####################################################
 # Perm Routers - Protected by various permissions
