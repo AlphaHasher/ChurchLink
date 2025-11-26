@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/my_transactions_formatting.dart';
 import 'package:app/helpers/transactions_helper.dart';
 import 'package:app/models/transactions.dart';
@@ -336,26 +337,23 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
 
   Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
-    final localize = LocalizationHelper.localize;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          localize('My Transactions', capitalize: true),
+          'My Transactions',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
           ),
-        ),
+        ).localized(),
         const SizedBox(height: 4),
         Text(
-          localize(
-            'Only transactions paid through PayPal and recorded in this app are shown here. '
-            'If something looks off, consider your bank information as the ultimate source of truth.',
-          ),
+          'Only transactions paid through PayPal and recorded in this app are shown here. '
+          'If something looks off, consider your bank information as the ultimate source of truth.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
           ),
-        ),
+        ).localized(),
       ],
     );
   }
@@ -363,11 +361,10 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final localize = LocalizationHelper.localize;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localize('My Transactions', capitalize: true)),
+        title: Text('My Transactions').localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -387,9 +384,9 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
                       const SizedBox(height: 40),
                       Center(
                         child: Text(
-                          localize('You do not have any transactions yet.'),
+                          'You do not have any transactions yet.',
                           style: theme.textTheme.bodyMedium,
-                        ),
+                        ).localized(),
                       ),
                     ],
                   )
@@ -421,7 +418,7 @@ class _MyTransactionsPageState extends State<MyTransactionsPage> {
                                     ? const CircularProgressIndicator()
                                     : OutlinedButton(
                                       onPressed: _onLoadMore,
-                                      child: Text(localize('Load more')),
+                                      child: Text('Load more').localized(),
                                     ),
                           ),
                         if (_isRefreshing)

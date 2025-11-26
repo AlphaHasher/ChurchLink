@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
-import 'package:app/pages/events/event_showcase_V2.dart';
+import 'package:app/pages/events/event_showcase_v2.dart';
 import 'package:app/helpers/event_user_helper.dart';
 import 'package:app/main.dart';
 import 'package:app/pages/my_bible_plans_page.dart';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/my_transactions_formatting.dart';
 import 'package:app/helpers/refund_request_helper.dart';
 import 'package:app/models/transactions.dart';
@@ -275,7 +276,7 @@ class _CreateRefundRequestPageState extends State<CreateRefundRequestPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localize('Request a Refund', capitalize: true)),
+        title: Text('Request a Refund').localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -377,12 +378,7 @@ class _CreateRefundRequestPageState extends State<CreateRefundRequestPage> {
                                     color: Colors.white,
                                   ),
                                 )
-                                : Text(
-                                  localize(
-                                    'Submit Refund Request',
-                                    capitalize: true,
-                                  ),
-                                ),
+                                : Text('Submit Refund Request').localized(),
                       ),
                     ),
                   ],

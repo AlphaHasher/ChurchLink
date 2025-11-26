@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app/theme/theme_controller.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 /// Light / System / Dark mode toggle widget.
 class DarkModeToggle extends StatelessWidget {
@@ -17,20 +17,20 @@ class DarkModeToggle extends StatelessWidget {
 
         return ListTile(
           leading: const Icon(Icons.dark_mode),
-          title: Text(LocalizationHelper.localize('Appearance')),
+          title: Text('Appearance').localized(),
           subtitle: Text(
             switch (mode) {
-              ThemeMode.light => LocalizationHelper.localize('Light'),
-              ThemeMode.system => LocalizationHelper.localize('System default'),
-              ThemeMode.dark => LocalizationHelper.localize('Dark'),
+              ThemeMode.light => 'Light',
+              ThemeMode.system => 'System default',
+              ThemeMode.dark => 'Dark',
             },
-          ),
+          ).localized(),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           trailing: SegmentedButton<ThemeMode>(
             segments: [
-              ButtonSegment(value: ThemeMode.light, label: Text(LocalizationHelper.localize('Light'))),
-              ButtonSegment(value: ThemeMode.system, label: Text(LocalizationHelper.localize('System'))),
-              ButtonSegment(value: ThemeMode.dark, label: Text(LocalizationHelper.localize('Dark'))),
+              ButtonSegment(value: ThemeMode.light, label: Text('Light').localized()),
+              ButtonSegment(value: ThemeMode.system, label: Text('System').localized()),
+              ButtonSegment(value: ThemeMode.dark, label: Text('Dark').localized()),
             ],
             selected: {mode},
             onSelectionChanged: (s) => c.setMode(s.first),

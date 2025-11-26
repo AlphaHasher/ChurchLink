@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/my_transactions_formatting.dart';
 import 'package:app/helpers/donation_helper.dart';
 import 'package:app/helpers/time_formatter.dart';
@@ -40,7 +41,7 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localize('Transaction Details', capitalize: true)),
+        title: Text('Transaction Details').localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
@@ -580,7 +581,7 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
                       ),
                     )
                     : const Icon(Icons.cancel_schedule_send_outlined),
-            label: Text(localize('Cancel Donation Plan', capitalize: true)),
+            label: Text('Cancel Donation Plan').localized(),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade700,
               foregroundColor: Colors.white,
@@ -601,7 +602,7 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
           child: OutlinedButton.icon(
             onPressed: canRequestRefund ? _goToRefundRequest : null,
             icon: const Icon(Icons.reply_all_outlined),
-            label: Text(localize('Request a Refund', capitalize: true)),
+            label: Text('Request a Refund').localized(),
             style: OutlinedButton.styleFrom(
               backgroundColor: theme.primaryColor,
               foregroundColor: Colors.white,
@@ -680,7 +681,7 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
       context: context,
       builder:
           (ctx) => AlertDialog(
-            title: Text(localize('Cancel Donation Plan', capitalize: true)),
+            title: Text('Cancel Donation Plan').localized(),
             content: Text(
               localize(
                 'Are you sure you want to cancel this recurring donation plan? '
@@ -691,16 +692,16 @@ class _ViewTransactionPageState extends State<ViewTransactionPage> {
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
                 child: Text(
-                  localize('Keep Plan', capitalize: true),
+                  'Keep Plan',
                   style: TextStyle(color: theme.colorScheme.primary),
-                ),
+                ).localized(),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 child: Text(
-                  localize('Cancel Plan', capitalize: true),
+                  'Cancel Plan',
                   style: TextStyle(color: theme.colorScheme.error),
-                ),
+                ).localized(),
               ),
             ],
           ),

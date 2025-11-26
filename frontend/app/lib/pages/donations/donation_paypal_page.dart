@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 enum DonationPaypalFlow { oneTime, recurring }
 
@@ -116,15 +117,15 @@ class _DonationPaypalWebViewPageState extends State<DonationPaypalWebViewPage> {
     final title = () {
       switch (widget.flow) {
         case DonationPaypalFlow.oneTime:
-          return localize('Complete Your Donation', capitalize: true);
+          return 'Complete Your Donation';
         case DonationPaypalFlow.recurring:
-          return localize('Set Up Recurring Donation', capitalize: true);
+          return 'Set Up Recurring Donation';
       }
     }();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(title).localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:app/helpers/membership_helper.dart';
 import 'package:app/helpers/user_helper.dart';
 import 'package:app/models/membership_request.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 import 'package:app/widgets/user/visualize_membership.dart';
 import 'package:app/widgets/user/request_status.dart';
@@ -120,8 +120,8 @@ class _MembershipScreenState extends State<MembershipScreen> {
       if (pr.resolved == true && pr.approved == false) {
         return _UiPlan(
           message:
-              LocalizationHelper.localize('Your previous membership request was denied. You can review your request below, there may be details as to why your request was denied.'),
-          buttonLabel: LocalizationHelper.localize('Read Request'),
+              'Your previous membership request was denied. You can review your request below, there may be details as to why your request was denied.',
+          buttonLabel: 'Read Request',
           action: _PrimaryAction.openRead,
           resubmission: false,
           prefill: null,
@@ -136,8 +136,8 @@ class _MembershipScreenState extends State<MembershipScreen> {
     if (pr == null || (pr.approved == true)) {
       return _UiPlan(
         message:
-            LocalizationHelper.localize('You’re not a member yet. But, you can submit a membership request to become one below!'),
-        buttonLabel: LocalizationHelper.localize('Request Membership'),
+            'You’re not a member yet. But, you can submit a membership request to become one below!',
+        buttonLabel: 'Request Membership',
         action: _PrimaryAction.openSubmit,
         resubmission: false,
         prefill: null,
@@ -150,8 +150,8 @@ class _MembershipScreenState extends State<MembershipScreen> {
     if (pr.resolved == false) {
       return _UiPlan(
         message:
-            LocalizationHelper.localize('You already have a membership request pending review. If needed, you can re-submit it with a new or updated message below.'),
-        buttonLabel: LocalizationHelper.localize('Re-Submit Request'),
+            'You already have a membership request pending review. If needed, you can re-submit it with a new or updated message below.',
+        buttonLabel: 'Re-Submit Request',
         action: _PrimaryAction.openSubmit,
         resubmission: true,
         prefill: pr.message,
@@ -164,8 +164,8 @@ class _MembershipScreenState extends State<MembershipScreen> {
     if (pr.resolved == true && pr.approved == false) {
       return _UiPlan(
         message:
-            LocalizationHelper.localize('Your previous membership request was denied. You can review the details below.'),
-        buttonLabel: LocalizationHelper.localize('Read Request'),
+            'Your previous membership request was denied. You can review the details below.',
+        buttonLabel: 'Read Request',
         action: _PrimaryAction.openRead,
         resubmission: false,
         prefill: null,
@@ -228,10 +228,10 @@ class _MembershipScreenState extends State<MembershipScreen> {
     final d = _details;
     if (d == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(LocalizationHelper.localize('Church Membership'))),
+        appBar: AppBar(title: Text('Church Membership').localized()),
         body: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(LocalizationHelper.localize('Unable to load membership details.')),
+          child: Text('Unable to load membership details.').localized(),
         ),
       );
     }
@@ -239,7 +239,7 @@ class _MembershipScreenState extends State<MembershipScreen> {
     final plan = _deriveUi(d);
 
     return Scaffold(
-      appBar: AppBar(title: Text(LocalizationHelper.localize('Church Membership'))),
+      appBar: AppBar(title: Text('Church Membership').localized()),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 100, 16, 0),
         child: Column(

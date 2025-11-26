@@ -2,7 +2,7 @@ import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/components/password_reset.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 
 class ContinueWithEmailPage extends StatefulWidget {
   const ContinueWithEmailPage({super.key});
@@ -36,9 +36,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          LocalizationHelper.localize(_isLogin ? 'Sign In' : 'Create Account'),
-        ),
+        title: Text(_isLogin ? 'Sign In' : 'Create Account').localized(),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -93,9 +91,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                             child: TextFormField(
                               controller: _firstNameController,
                               decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize(
-                                  'First Name',
-                                ),
+                                labelText: 'First Name',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -122,12 +118,10 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                                           ? Colors.grey[400]
                                           : Colors.grey[600],
                                 ),
-                              ),
+                              ).localizedLabels(),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return LocalizationHelper.localize(
-                                    'Required',
-                                  );
+                                  return 'Required';
                                 }
                                 return null;
                               },
@@ -138,9 +132,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                             child: TextFormField(
                               controller: _lastNameController,
                               decoration: InputDecoration(
-                                labelText: LocalizationHelper.localize(
-                                  'Last Name',
-                                ),
+                                labelText: 'Last Name',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -167,12 +159,10 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                                           ? Colors.grey[400]
                                           : Colors.grey[600],
                                 ),
-                              ),
+                              ).localizedLabels(),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return LocalizationHelper.localize(
-                                    'Required',
-                                  );
+                                  return 'Required';
                                 }
                                 return null;
                               },
@@ -186,7 +176,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                     TextFormField(
                       controller: _emailController,
                       decoration: InputDecoration(
-                        labelText: LocalizationHelper.localize('Email'),
+                        labelText: 'Email',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -211,13 +201,11 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                           color:
                               isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         ),
-                      ),
+                      ).localizedLabels(),
                       keyboardType: TextInputType.emailAddress,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return LocalizationHelper.localize(
-                            'Please enter your email',
-                          );
+                          return 'Please enter your email';
                         }
                         return null;
                       },
@@ -226,7 +214,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                     TextFormField(
                       controller: _passwordController,
                       decoration: InputDecoration(
-                        labelText: LocalizationHelper.localize('Password'),
+                        labelText: 'Password',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -251,13 +239,11 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                           color:
                               isDarkMode ? Colors.grey[400] : Colors.grey[600],
                         ),
-                      ),
+                      ).localizedLabels(),
                       obscureText: true,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return LocalizationHelper.localize(
-                            'Please enter your password',
-                          );
+                          return 'Please enter your password';
                         }
                         return null;
                       },
@@ -267,9 +253,7 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                       TextFormField(
                         controller: _confirmPasswordController,
                         decoration: InputDecoration(
-                          labelText: LocalizationHelper.localize(
-                            'Confirm Password',
-                          ),
+                          labelText: 'Confirm Password',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -296,18 +280,14 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                                     ? Colors.grey[400]
                                     : Colors.grey[600],
                           ),
-                        ),
+                        ).localizedLabels(),
                         obscureText: true,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return LocalizationHelper.localize(
-                              'Please confirm your password',
-                            );
+                            return 'Please confirm your password';
                           }
                           if (value.trim() != _passwordController.text.trim()) {
-                            return LocalizationHelper.localize(
-                              'Passwords do not match',
-                            );
+                            return 'Passwords do not match';
                           }
                           return null;
                         },
@@ -323,12 +303,12 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                             PasswordReset.show(context, null);
                           },
                           child: Text(
-                            LocalizationHelper.localize('Forgot Password?'),
+                            'Forgot Password?',
                             style: TextStyle(
                               color: forgotPasswordColor,
                               fontWeight: FontWeight.w500,
                             ),
-                          ),
+                          ).localized(),
                         ),
                       ),
                     ],
@@ -346,14 +326,12 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize(
-                          _isLogin ? 'Sign In' : 'Create Account',
-                        ),
+                        _isLogin ? 'Sign In' : 'Create Account',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
-                      ),
+                      ).localized(),
                     ),
 
                     const SizedBox(height: 16),
@@ -377,17 +355,15 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
                         ),
                       ),
                       child: Text(
-                        LocalizationHelper.localize(
-                          _isLogin
-                              ? 'Need an account? Sign up'
-                              : 'Already have an account? Sign in',
-                        ),
+                        _isLogin
+                            ? 'Need an account? Sign up'
+                            : 'Already have an account? Sign in',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                           color: isDarkMode ? Colors.white : Colors.grey[800],
                         ),
-                      ),
+                      ).localized(),
                     ),
                   ],
                 ),
@@ -441,14 +417,9 @@ class _ContinueWithEmailPageState extends State<ContinueWithEmailPage> {
           await _handleLogin();
         } else {
           if (mounted) {
-            String errorMsg =
-                tokenOrError ??
-                LocalizationHelper.localize('Registration failed.');
-            if (errorMsg.contains('already registered') ||
-                errorMsg.contains('already in use')) {
-              errorMsg = LocalizationHelper.localize(
-                'This email is already signed up. Please use a different email or sign in.',
-              );
+            String errorMsg = tokenOrError ?? 'Registration failed.';
+            if (errorMsg.contains('already registered') || errorMsg.contains('already in use')) {
+              errorMsg = 'This email is already signed up. Please use a different email or sign in.';
             }
             ScaffoldMessenger.of(
               context,

@@ -10,15 +10,15 @@ import 'package:app/pages/user/family_members_page.dart';
 import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import 'package:app/components/auth_popup.dart';
 import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
 import 'package:app/pages/events/myevents.dart';
 import 'package:app/theme/theme_controller.dart';
+import 'package:app/pages/user/legal_terms.dart';
 
 import 'package:app/widgets/change_email_sheet.dart';
-import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/pages/my_transactions/my_transactions_page.dart';
 import 'package:app/pages/refund_requests/view_refund_requests.dart';
 
@@ -43,28 +43,28 @@ class _TermsDialogState extends State<_TermsDialog> {
   @override
   void initState() {
     super.initState();
-    LocalizationHelper.addListener(_onLocaleChanged);
+    addLocaleListener(_onLocaleChanged);
   }
 
   @override
   void dispose() {
-    LocalizationHelper.removeListener(_onLocaleChanged);
+    removeLocaleListener(_onLocaleChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(LocalizationHelper.localize('Terms & Policies')),
+      title: Text('Terms & Policies').localized(),
       content: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              LocalizationHelper.localize('Trust me bro'),
+              'Trust me bro',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            ).localized(),
             const SizedBox(height: 8),
             Text('.'),
           ],
@@ -73,7 +73,86 @@ class _TermsDialogState extends State<_TermsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text(LocalizationHelper.localize('Close')),
+          child: Text('Close').localized(),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeleteConfirmationDialog extends StatefulWidget {
+  final String confirmedEmail;
+
+  const _DeleteConfirmationDialog({required this.confirmedEmail});
+
+  @override
+  State<_DeleteConfirmationDialog> createState() =>
+      _DeleteConfirmationDialogState();
+}
+
+class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
+  late final TextEditingController _controller;
+  bool _isValid = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Final Confirmation').localized(),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Type your email address to confirm account deletion:',
+          ).localized(),
+          const SizedBox(height: 8),
+          Text(
+            widget.confirmedEmail,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Enter your email',
+            ).localizedLabels(),
+            onChanged: (value) {
+              setState(() {
+                _isValid =
+                    value.trim().toLowerCase() ==
+                    widget.confirmedEmail.trim().toLowerCase();
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text('Cancel').localized(),
+        ),
+        TextButton(
+          onPressed: _isValid ? () => Navigator.of(context).pop(true) : null,
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red,
+            disabledForegroundColor: Colors.grey,
+          ),
+          child: Text('Delete Account').localized(),
         ),
       ],
     );
@@ -95,7 +174,7 @@ class _UserSettingsState extends State<UserSettings> {
     super.initState();
 
     _loadLanguageFromServer();
-    LocalizationHelper.addListener(_onLocaleChanged);
+    addLocaleListener(_onLocaleChanged);
     _authSub = FirebaseAuth.instance.authStateChanges().listen((_) async {
       if (!mounted) return;
       await _loadProfile();
@@ -125,7 +204,7 @@ class _UserSettingsState extends State<UserSettings> {
 
   @override
   void dispose() {
-    LocalizationHelper.removeListener(_onLocaleChanged);
+    removeLocaleListener(_onLocaleChanged);
     _authSub?.cancel();
     _userSub?.cancel();
     _scrollController.dispose();
@@ -191,9 +270,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_light'),
                 leading: const Icon(Icons.wb_sunny_outlined),
-                title: Text(
-                  LocalizationHelper.localize('Light', capitalize: true),
-                ),
+                title: Text('Light').localized(),
                 trailing:
                     current == ThemeMode.light ? const Icon(Icons.check) : null,
                 onTap: () {
@@ -205,9 +282,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_system'),
                 leading: const Icon(Icons.brightness_auto),
-                title: Text(
-                  LocalizationHelper.localize('System', capitalize: true),
-                ),
+                title: Text('System').localized(),
                 trailing:
                     current == ThemeMode.system
                         ? const Icon(Icons.check)
@@ -221,9 +296,7 @@ class _UserSettingsState extends State<UserSettings> {
               ListTile(
                 key: const Key('choose_theme_dark'),
                 leading: const Icon(Icons.nights_stay_outlined),
-                title: Text(
-                  LocalizationHelper.localize('Dark', capitalize: true),
-                ),
+                title: Text('Dark').localized(),
                 trailing:
                     current == ThemeMode.dark ? const Icon(Icons.check) : null,
                 onTap: () {
@@ -239,14 +312,246 @@ class _UserSettingsState extends State<UserSettings> {
     );
   }
 
+  void _showDeleteAccountWarning() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.warning, color: Colors.red),
+              const SizedBox(width: 8),
+              Text('Delete Account?').localized(),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This action cannot be undone. You will permanently lose:',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ).localized(),
+              const SizedBox(height: 12),
+              _buildWarningItem('All your personal data'),
+              _buildWarningItem('Your saved preferences'),
+              _buildWarningItem('Access to this account'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel').localized(),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showDeleteAccountConfirmation();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text('Continue').localized(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteAccountConfirmation() async {
+    // Fetch user's email from cache or API
+    String? userEmail;
+    final cachedProfile = await UserHelper.readCachedProfile();
+    if (cachedProfile != null) {
+      userEmail = cachedProfile.email;
+    } else {
+      final profileData = await UserHelper.getMyProfile();
+      userEmail = profileData?.profile?.email;
+    }
+
+    if (!mounted) return;
+
+    if (userEmail == null || userEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+              'Unable to verify account information. Please try again.',
+            ).localized(),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final String confirmedEmail = userEmail;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext confirmContext) {
+        return _DeleteConfirmationDialog(confirmedEmail: confirmedEmail);
+      },
+    );
+
+    if (result == true && mounted) {
+      await _performAccountDeletion();
+    }
+  }
+
+  Widget _buildWarningItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.close, size: 16, color: Colors.red),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text).localized(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _performAccountDeletion() async {
+    logger.i('_performAccountDeletion: Starting');
+
+    try {
+      logger.i('_performAccountDeletion: Calling UserHelper.deleteAccount()');
+
+      final result = await UserHelper.deleteAccount().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          logger.e('_performAccountDeletion: Timed out after 30 seconds');
+          return const DeleteAccountResult(
+            success: false,
+            msg:
+                'Request timed out. Please check your connection and try again.',
+          );
+        },
+      );
+
+      logger.i(
+        '_performAccountDeletion: Got result - success: ${result.success}, msg: ${result.msg}',
+      );
+
+      if (!mounted) {
+        logger.w('_performAccountDeletion: Widget not mounted, returning');
+        return;
+      }
+
+      if (result.success) {
+        logger.i('_performAccountDeletion: Success - showing success message');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              (result.msg.isNotEmpty
+                      ? result.msg
+                      : 'Account deleted successfully')
+                  .toString(),
+            ).localized(),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Small delay before navigation
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        if (!mounted) return;
+
+        logger.i('_performAccountDeletion: Navigating to success screen');
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder:
+                (context) => Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 80,
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Account deleted successfully',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ).localized(),
+                        const SizedBox(height: 16),
+                        Text(
+                          'You have been signed out',
+                          style: const TextStyle(fontSize: 16),
+                        ).localized(),
+                        const SizedBox(height: 32),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (context) => const UserSettings(),
+                              ),
+                              (route) => false,
+                            );
+                          },
+                          child: Text('Return to Settings').localized(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+          ),
+          (route) => false,
+        );
+      } else {
+        logger.w('_performAccountDeletion: Failed - ${result.msg}');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              (result.msg.isNotEmpty
+                      ? result.msg
+                      : 'Failed to delete account. Please try again.')
+                  .toString(),
+            ).localized(),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      logger.e(
+        '_performAccountDeletion: Exception caught',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('An unexpected error occurred: $e').localized(),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
   // Show language selection bottom sheet
   void _showLanguageSheet() {
-    final languages = LocalizationHelper.availableLanguages;
+    final languages = availableLanguages;
     final currentCode = _selectedLanguage;
     String searchQuery = '';
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -268,121 +573,127 @@ class _UserSettingsState extends State<UserSettings> {
                       .toList();
 
               return SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 12),
-                    Container(
-                      width: 50,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[400],
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      LocalizationHelper.localize("Select Language"),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Divider(height: 24),
-                    // Search field
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: TextField(
-                        onChanged: (value) {
-                          searchQuery = value;
-                          setSheetState(() {});
-                        },
-                        decoration: InputDecoration(
-                          hintText: LocalizationHelper.localize(
-                            "Search languages",
-                          ),
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
+                child: AnimatedPadding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                  child: SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.85,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      children: [
+                        const SizedBox(height: 12),
+                        Container(
+                          width: 50,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                      ),
-                    ),
-                    // Current language
-                    if (currentCode.isNotEmpty &&
-                        languages.any((l) => l.code == currentCode))
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.language,
-                            color: Colors.blue,
+                        const SizedBox(height: 16),
+                        Text(
+                          'Select Language',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
                           ),
-                          title: Text(
-                            languages
-                                .firstWhere((l) => l.code == currentCode)
-                                .name,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                        ).localized(),
+                        const Divider(height: 24),
+                        // Search field
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: TextField(
+                            onChanged: (value) {
+                              searchQuery = value;
+                              setSheetState(() {});
+                            },
+                            decoration:
+                                InputDecoration(
+                                  hintText: 'Search languages',
+                                  prefixIcon: const Icon(Icons.search),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ).localizedLabels(),
                           ),
-                          subtitle: Text(
-                            LocalizationHelper.localize("Current"),
-                          ),
-                          enabled: false,
                         ),
-                      ),
-                    const Divider(),
-                    // List
-                    if (languages.isEmpty)
-                      Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Column(
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              LocalizationHelper.localize(
-                                'Loading languages...',
-                                capitalize: true,
+                        // Current language
+                        if (currentCode.isNotEmpty &&
+                            languages.any((l) => l.code == currentCode))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ),
+                            child: ListTile(
+                              leading: const Icon(
+                                Icons.language,
+                                color: Colors.blue,
+                              ),
+                              title: Text(
+                                languages
+                                    .firstWhere((l) => l.code == currentCode)
+                                    .name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text('Current').localized(),
+                              enabled: false,
+                            ),
+                          ),
+                        const Divider(),
+                        // List
+                        if (languages.isEmpty)
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.all(32.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text('Loading languages...').localized(),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    else ...[
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height * 0.6,
-                        ),
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final lang = filtered[index];
-                            final isSelected = lang.code == currentCode;
-                            return ListTile(
-                              leading: Icon(
-                                Icons.language,
-                                color: isSelected ? Colors.blue : null,
-                              ),
-                              title: Text(lang.name),
-                              trailing:
-                                  isSelected
-                                      ? const Icon(
-                                        Icons.check,
-                                        color: Colors.blue,
-                                      )
-                                      : null,
-                              onTap: () {
-                                Navigator.pop(context);
-                                _updateLanguage(lang.code);
+                          )
+                        else
+                          Expanded(
+                            child: ListView.builder(
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final lang = filtered[index];
+                                final isSelected = lang.code == currentCode;
+                                return ListTile(
+                                  leading: Icon(
+                                    Icons.language,
+                                    color: isSelected ? Colors.blue : null,
+                                  ),
+                                  title: Text(lang.name),
+                                  trailing:
+                                      isSelected
+                                          ? const Icon(
+                                            Icons.check,
+                                            color: Colors.blue,
+                                          )
+                                          : null,
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _updateLanguage(lang.code);
+                                  },
+                                );
                               },
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                  ],
+                            ),
+                          ),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
                 ),
               );
             },
@@ -393,7 +704,7 @@ class _UserSettingsState extends State<UserSettings> {
   // Update _updateLanguage
   Future<void> _updateLanguage(String newLang) async {
     try {
-      await LocalizationHelper.changeLocaleAndAwait(
+      await changeLocaleAndAwait(
         newLang,
         warmupKeys: const [
           'User Settings',
@@ -419,7 +730,7 @@ class _UserSettingsState extends State<UserSettings> {
           'Trust me bro',
           'Close',
           'Notification Preferences',
-          'ßChoose which notifications you want to receive:',
+          'Choose which notifications you want to receive:',
         ],
       );
       if (mounted) {
@@ -442,7 +753,7 @@ class _UserSettingsState extends State<UserSettings> {
     String lang = await UserHelper.fetchUserLanguage();
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      lang = LocalizationHelper.currentLocale;
+      lang = currentLocale;
     }
     if (mounted) {
       setState(() {
@@ -453,7 +764,53 @@ class _UserSettingsState extends State<UserSettings> {
 
   // Show Terms and Policies popup
   void _showTermsAndPolicies(BuildContext context) {
-    showDialog(context: context, builder: (context) => const _TermsDialog());
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('View Legal Documents').localized(),
+            content: Text("Select which document you'd like to view:").localized(),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const LegalPageScreen(slug: 'terms'),
+                    ),
+                  );
+                },
+                child: Text('Terms & Conditions').localized(),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const LegalPageScreen(slug: 'privacy'),
+                    ),
+                  );
+                },
+                child: Text('Privacy Policy').localized(),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const LegalPageScreen(slug: 'refunds'),
+                    ),
+                  );
+                },
+                child: Text('Refund Policy').localized(),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('Cancel').localized(),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
@@ -494,10 +851,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.account_circle,
-            'title': LocalizationHelper.localize('Edit Profile'),
-            'subtitle': LocalizationHelper.localize(
-              'First/Last name, birthday, gender',
-            ),
+            'title': 'Edit Profile',
+            'subtitle': 'First/Last name, birthday, gender',
             'ontap': () async {
               if (user == null) return;
               // Await result and update immediately if we get a ProfileInfo back
@@ -519,8 +874,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.contact_page,
-            'title': LocalizationHelper.localize('Edit Contact Info'),
-            'subtitle': LocalizationHelper.localize('Phone and address'),
+            'title': 'Edit Contact Info',
+            'subtitle': 'Phone and address',
             'ontap': () {
               if (user != null) {
                 Navigator.push(
@@ -534,10 +889,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.card_membership,
-            'title': LocalizationHelper.localize('View Membership Status'),
-            'subtitle': LocalizationHelper.localize(
-              'View your Church Membership Status',
-            ),
+            'title': 'View Membership Status',
+            'subtitle': 'View your Church Membership Status',
             'ontap': () {
               if (user != null) {
                 Navigator.push(
@@ -549,10 +902,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.family_restroom,
-            'title': LocalizationHelper.localize('Family Members'),
-            'subtitle': LocalizationHelper.localize(
-              'Manage your family members',
-            ),
+            'title': 'Family Members',
+            'subtitle': 'Manage your family members',
             'ontap': () {
               Navigator.push(
                 context,
@@ -564,10 +915,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.event,
-            'title': LocalizationHelper.localize('My Events'),
-            'subtitle': LocalizationHelper.localize(
-              'Your registrations and RSVPs',
-            ),
+            'title': 'My Events',
+            'subtitle': 'Your registrations and RSVPs',
             'ontap': () {
               Navigator.push(
                 context,
@@ -577,10 +926,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.attach_money,
-            'title': LocalizationHelper.localize('My Transactions'),
-            'subtitle': LocalizationHelper.localize(
-              'View and manage your payments',
-            ),
+            'title': 'My Transactions',
+            'subtitle': 'View and manage your payments',
             'ontap': () {
               Navigator.push(
                 context,
@@ -592,10 +939,8 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.money_off_csred,
-            'title': LocalizationHelper.localize('My Refund Requests'),
-            'subtitle': LocalizationHelper.localize(
-              'View and manage your refund requests',
-            ),
+            'title': 'My Refund Requests',
+            'subtitle': 'View and manage your refund requests',
             'ontap': () {
               Navigator.push(
                 context,
@@ -607,20 +952,24 @@ class _UserSettingsState extends State<UserSettings> {
           },
           {
             'icon': Icons.alternate_email,
-            'title': LocalizationHelper.localize('Change Email'),
-            'subtitle': LocalizationHelper.localize(
-              'Request an email to change your address',
-            ),
+            'title': 'Change Email',
+            'subtitle': 'Request an email to change your address',
             'ontap': () => ChangeEmailSheet.show(context),
           },
           {
             'icon': Icons.password,
-            'title': LocalizationHelper.localize('Change Password'),
-            'subtitle': LocalizationHelper.localize(
-              'Request an email to reset your password',
-            ),
+            'title': 'Change Password',
+            'subtitle': 'Request an email to reset your password',
             'ontap': () {
               PasswordReset.show(context, user?.email);
+            },
+          },
+          {
+            'icon': Icons.no_accounts,
+            'title': 'Manage Account Status',
+            'subtitle': 'Delete Account',
+            'ontap': () {
+              _showDeleteAccountWarning();
             },
           },
         ],
@@ -630,10 +979,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.account_circle,
-            'title': LocalizationHelper.localize('Login or Signup'),
-            'subtitle': LocalizationHelper.localize(
-              'To access more features login or signup',
-            ),
+            'title': 'Login or Signup',
+            'subtitle': 'To access more features login or signup',
             'ontap': () {
               AuthPopup.show(context);
             },
@@ -645,31 +992,27 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.dark_mode,
-            'title': LocalizationHelper.localize('Theme'),
+            'title': 'Theme',
             'subtitle': themeLabel,
             'ontap': _showThemeSheet,
             'key': const ValueKey('settings_theme_tile'),
           },
           {
             'icon': Icons.language,
-            'title': LocalizationHelper.localize('Language'),
+            'title': 'Language',
             'subtitle': () {
-              final selectedLang = LocalizationHelper.availableLanguages
-                  .firstWhere(
-                    (l) => l.code == _selectedLanguage,
-                    orElse:
-                        () => const LanguageOption(code: 'en', name: 'English'),
-                  );
+              final selectedLang = availableLanguages.firstWhere(
+                (l) => l.code == _selectedLanguage,
+                orElse: () => const LanguageOption(code: 'en', name: 'English'),
+              );
               return selectedLang.name;
             }(),
             'ontap': _showLanguageSheet,
           },
           {
             'icon': Icons.notifications,
-            'title': LocalizationHelper.localize('Notifications'),
-            'subtitle': LocalizationHelper.localize(
-              'Customize alert preferences',
-            ),
+            'title': 'Notifications',
+            'subtitle': 'Customize alert preferences',
             'ontap': () {
               Navigator.push(
                 context,
@@ -686,10 +1029,8 @@ class _UserSettingsState extends State<UserSettings> {
         'items': [
           {
             'icon': Icons.policy,
-            'title': LocalizationHelper.localize('Terms & Policies'),
-            'subtitle': LocalizationHelper.localize(
-              'Privacy policy and terms of use',
-            ),
+            'title': 'Terms & Policies',
+            'subtitle': 'Privacy policy and terms of use',
             'ontap': () => _showTermsAndPolicies(context),
           },
         ],
@@ -749,10 +1090,14 @@ class _UserSettingsState extends State<UserSettings> {
       pageWidgets.add(
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Text(
-            LocalizationHelper.localize(catName),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          child:
+              Text(
+                catName,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ).localized(),
         ),
       );
 
@@ -787,8 +1132,8 @@ class _UserSettingsState extends State<UserSettings> {
                   item['icon'] as IconData,
                   color: theme.colorScheme.primary,
                 ),
-                title: Text(item['title'] as String),
-                subtitle: Text(item['subtitle'] as String),
+                title: Text(item['title'] as String).localized(),
+                subtitle: Text(item['subtitle'] as String).localized(),
                 trailing:
                     item['trailing'] as Widget? ??
                     const Icon(Icons.arrow_forward_ios, size: 16),
@@ -838,21 +1183,19 @@ class _UserSettingsState extends State<UserSettings> {
                 ),
               ),
             ),
-            child: Text(
-              LocalizationHelper.localize('Logout'),
-              style: const TextStyle(fontSize: 16),
-            ),
+            child:
+                Text(
+                  'Logout',
+                  style: const TextStyle(fontSize: 16),
+                ).localized(),
           ),
         ),
       );
     }
 
     return Scaffold(
-      key: ValueKey(
-        'settings-${LocalizationHelper.currentLocale}-${LocalizationHelper.uiVersion}',
-      ),
       appBar: AppBar(
-        title: Text(LocalizationHelper.localize("User Settings")),
+        title: Text('User Settings').localized(),
         centerTitle: true,
       ),
       backgroundColor:

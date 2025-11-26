@@ -47,7 +47,9 @@ class LocalizationHelper {
     _listeners.remove(listener);
   }
 
-  static String localize(String? input, {bool capitalize = false}) {
+  static String localize(
+    String? input,
+  ) {
     final base = (input ?? '').toString();
     if (base.trim().isEmpty) {
       return '';
@@ -55,22 +57,21 @@ class LocalizationHelper {
 
     final normalizedLocale = _currentLocale.trim();
     if (normalizedLocale.isEmpty || normalizedLocale == _sourceLocale) {
-      return _postProcess(base, capitalize: capitalize);
+      return base;
     }
 
     final cached = _cache[base]?[normalizedLocale];
     if (cached != null) {
-      return _postProcess(cached, capitalize: capitalize);
+      return cached;
     }
 
     _queueTranslation(base, normalizedLocale);
-    return _postProcess(base, capitalize: capitalize);
+    return base;
   }
 
   static Future<String> localizeAsync(
-    String? input, {
-    bool capitalize = false,
-  }) async {
+    String? input,
+  ) async {
     final base = (input ?? '').toString().trim();
     if (base.isEmpty) {
       return '';
@@ -78,13 +79,13 @@ class LocalizationHelper {
 
     final normalizedLocale = _currentLocale.trim();
     if (normalizedLocale.isEmpty || normalizedLocale == _sourceLocale) {
-      return _postProcess(base, capitalize: capitalize);
+      return base;
     }
 
     final localeMap = _cache.putIfAbsent(base, () => <String, String>{});
     final cached = localeMap[normalizedLocale];
     if (cached != null) {
-      return _postProcess(cached, capitalize: capitalize);
+      return cached;
     }
 
     // Queue and await flush
@@ -101,7 +102,7 @@ class LocalizationHelper {
 
     // Now get the translated value
     final translated = localeMap[normalizedLocale];
-    return _postProcess(translated ?? base, capitalize: capitalize);
+    return translated ?? base;
   }
 
   static void _queueTranslation(String text, String locale) {
@@ -260,15 +261,7 @@ class LocalizationHelper {
     }
   }
 
-  static String _postProcess(String value, {required bool capitalize}) {
-    if (!capitalize || value.isEmpty) {
-      return value;
-    }
-    if (value.length == 1) {
-      return value.toUpperCase();
-    }
-    return value[0].toUpperCase() + value.substring(1);
-  }
+ 
 
   static Future<void> loadUserLocale() async {
     // Try server first

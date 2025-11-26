@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/my_transactions_formatting.dart';
 import 'package:app/helpers/refund_request_helper.dart';
 import 'package:app/helpers/time_formatter.dart';
@@ -261,7 +262,7 @@ class _ViewRefundRequestResponsePageState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localize('Refund Request Details', capitalize: true)),
+        title: Text('Refund Request Details').localized(),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
       ),
