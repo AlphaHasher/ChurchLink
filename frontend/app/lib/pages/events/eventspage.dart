@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:app/helpers/localization_helper.dart';
+import 'package:app/helpers/localized_widgets.dart';
 import 'package:app/helpers/time_formatter.dart';
 import 'package:app/helpers/event_user_helper.dart';
 import 'package:app/helpers/ministries_helper.dart';
@@ -793,9 +794,9 @@ END:VCALENDAR
       appBar: AppBar(
         centerTitle: true,
         title: Text(
-          localize('Upcoming Events'),
+          'Upcoming Events',
           overflow: TextOverflow.ellipsis,
-        ),
+        ).localized(),
       ),
       body: SafeArea(
         minimum: const EdgeInsets.symmetric(horizontal: 10),
@@ -811,9 +812,9 @@ END:VCALENDAR
                       const SizedBox(height: 60),
                       Center(
                         child: Text(
-                          localize('There are no upcoming events.'),
+                          'There are no upcoming events.',
                           style: theme.textTheme.bodyMedium,
-                        ),
+                        ).localized(),
                       ),
                     ],
                   )
