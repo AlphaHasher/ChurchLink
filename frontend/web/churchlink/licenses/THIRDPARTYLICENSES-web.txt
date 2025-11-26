@@ -1,4 +1,4 @@
-Start of 'THIRDPARTYLICENSES-frontend.txt' generated from license-checker at 2025-11-26T07:21:06.833Z
+Start of 'THIRDPARTYLICENSES-web.txt' generated from license-checker at 2025-11-26T07:21:06.833Z
 
 ----------------------------------------
 
