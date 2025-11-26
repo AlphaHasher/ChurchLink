@@ -10,7 +10,6 @@ import 'package:app/pages/user/family_members_page.dart';
 import 'package:app/pages/user/membership_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:app/pages/dashboard.dart';
 import 'package:app/components/auth_popup.dart';
 import 'package:app/components/password_reset.dart';
 import 'package:app/pages/user/notification_settings_page.dart';
@@ -731,7 +730,7 @@ class _UserSettingsState extends State<UserSettings> {
           'Trust me bro',
           'Close',
           'Notification Preferences',
-          'ßChoose which notifications you want to receive:',
+          'Choose which notifications you want to receive:',
         ],
       );
       if (mounted) {
@@ -769,8 +768,8 @@ class _UserSettingsState extends State<UserSettings> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('View Legal Documents'),
-            content: const Text('Select which document you’d like to view:'),
+            title: Text('View Legal Documents').localized(),
+            content: Text("Select which document you'd like to view:").localized(),
             actions: [
               TextButton(
                 onPressed: () {
@@ -781,7 +780,7 @@ class _UserSettingsState extends State<UserSettings> {
                     ),
                   );
                 },
-                child: const Text('Terms & Conditions'),
+                child: Text('Terms & Conditions').localized(),
               ),
               TextButton(
                 onPressed: () {
@@ -792,7 +791,7 @@ class _UserSettingsState extends State<UserSettings> {
                     ),
                   );
                 },
-                child: const Text('Privacy Policy'),
+                child: Text('Privacy Policy').localized(),
               ),
               TextButton(
                 onPressed: () {
@@ -803,11 +802,11 @@ class _UserSettingsState extends State<UserSettings> {
                     ),
                   );
                 },
-                child: const Text('Refund Policy'),
+                child: Text('Refund Policy').localized(),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
+                child: Text('Cancel').localized(),
               ),
             ],
           ),
