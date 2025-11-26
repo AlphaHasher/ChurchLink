@@ -2,6 +2,7 @@ import 'package:app/helpers/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:app/pages/user/use_email.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthPopup extends StatelessWidget {
   AuthPopup({super.key});
@@ -40,6 +41,13 @@ class AuthPopup extends StatelessWidget {
         'title': 'Continue with Google',
         'icon': Icons.g_mobiledata,
         'ontap': _continueWithGoogle,
+        'backgroundColor': buttonBackgroundColor,
+        'foregroundColor': buttonTextColor,
+      },
+      {
+        'title': 'Continue with Apple',
+        'icon': Icons.apple,
+        'ontap': _continueWithApple,
         'backgroundColor': buttonBackgroundColor,
         'foregroundColor': buttonTextColor,
       },
@@ -200,6 +208,63 @@ class AuthPopup extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Sign-in failed. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _continueWithApple(BuildContext context) async {
+    try {
+      // Check if Apple Sign In is available (iOS only)
+      if (!await SignInWithApple.isAvailable()) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Apple Sign-In is not available on this device.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Use the AuthController for consistent authentication flow
+      final bool success = await authController.loginWithAppleAndSync((errorMessage) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Sign-in failed: $errorMessage'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      });
+
+      if (success && context.mounted) {
+        Navigator.pop(context);
+      } else if (context.mounted) {
+        // Sign-in was cancelled or failed without specific error
+        debugPrint("Apple Sign-In returned false (cancelled or failed)");
+      }
+    } catch (e) {
+      debugPrint("Apple Sign-In error: $e");
+      if (context.mounted) {
+        String errorMessage = 'Sign-in failed. Please try again.';
+        
+        // Provide more specific error messages for common issues
+        if (e.toString().contains('1000') || e.toString().contains('unknown')) {
+          errorMessage = 'Apple Sign-In is not properly configured. Please contact support.';
+        } else if (e.toString().contains('canceled')) {
+          errorMessage = 'Sign-in was cancelled.';
+        } else if (e.toString().contains('operation-not-allowed')) {
+          errorMessage = 'Apple Sign-In is not enabled. Please contact support.';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
           ),
         );

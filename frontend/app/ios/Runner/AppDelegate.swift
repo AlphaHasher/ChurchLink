@@ -1,12 +1,10 @@
 import UIKit
 import Flutter
-import Firebase
-import FirebaseMessaging
+import FirebaseCore
 import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
-  
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -15,7 +13,6 @@ import UserNotifications
     FirebaseApp.configure() // ✅ Initialize Firebase
 
     // Set Firebase Messaging Delegate
-    Messaging.messaging().delegate = self
     UNUserNotificationCenter.current().delegate = self
 
     // Request Notification Permission
@@ -42,13 +39,5 @@ import UserNotifications
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
       completionHandler([.alert, .sound, .badge])
-  }
-}
-
-// ✅ Extension for Firebase Messaging Delegate
-extension AppDelegate: MessagingDelegate {
-  
-  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-      print("✅ FCM Token: \(fcmToken ?? "No Token")")
   }
 }
