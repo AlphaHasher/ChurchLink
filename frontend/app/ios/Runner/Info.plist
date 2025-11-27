@@ -29,7 +29,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.790634165676-alcf5jbpfr0l967gn86p1e8ksifvlkke</string>
+				<string>com.googleusercontent.apps.790634165676-4h5faf8oasotgakq7pdh5ths1ljluq0s</string>
 			</array>
 		</dict>
 	</array>
@@ -40,7 +40,7 @@
 		<string>googlechrome</string>
 		<string>googlechromes</string>
 		<string>google</string>
-		<string>com.googleusercontent.apps.com.googleusercontent.apps.790634165676-alcf5jbpfr0l967gn86p1e8ksifvlkke</string>
+		<string>com.googleusercontent.apps.790634165676-4h5faf8oasotgakq7pdh5ths1ljluq0s</string>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
