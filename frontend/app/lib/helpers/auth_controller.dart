@@ -24,4 +24,15 @@ class AuthController {
     final verified = await backendHelper.verifyAndSyncUser(onError);
     return verified;
   }
+
+  Future<bool> loginWithAppleAndSync(Function(String) onError) async {
+    final token = await authService.signInWithApple();
+    if (token == null) {
+      onError("Apple Sign-In failed. Please try again.");
+      return false;
+    }
+
+    final verified = await backendHelper.verifyAndSyncUser(onError);
+    return verified;
+  }
 }

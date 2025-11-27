@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:app/services/fcm_token_service.dart';
 import 'package:app/helpers/backend_helper.dart';
 
@@ -94,6 +97,105 @@ class FirebaseAuthService {
       return null;
     } catch (e) {
       debugPrint("❌ Unexpected error during Google Sign-In: $e");
+      return null;
+    }
+  }
+
+  Future<String?> signInWithApple({BuildContext? context}) async {
+    try {
+      debugPrint("🍎 Attempting Apple Sign-In...");
+      
+      // Disable Apple Sign-In on Android due to session storage issues
+      if (!kIsWeb && Platform.isAndroid) {
+        debugPrint("❌ Apple Sign-In is disabled on Android");
+        debugPrint("ℹ️  Please use Google Sign-In or Email/Password on Android");
+        return null;
+      }
+      
+      // Check if Apple Sign In is available
+      if (!await SignInWithApple.isAvailable()) {
+        debugPrint("❌ Apple Sign-In is not available on this device");
+        return null;
+      }
+
+      // Request credential from Apple (iOS only)
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      debugPrint("✅ Apple authentication successful");
+
+      // Create Firebase credential using Apple ID token
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      // Sign in to Firebase using the Apple credential
+      final UserCredential userCredential =
+          await _firebaseAuth.signInWithCredential(oauthCredential);
+
+      final User? user = userCredential.user;
+      if (user == null) {
+        throw Exception("❌ No user found after Firebase authentication.");
+      }
+
+      debugPrint("✅ Firebase authentication successful for user: ${user.email ?? 'No email provided'}");
+
+      // Get Firebase ID Token for backend authentication
+      final String? idToken = await user.getIdToken(true);
+      if (idToken == null) {
+        throw Exception("❌ Failed to retrieve Firebase ID Token.");
+      }
+
+      debugPrint("🔥 Firebase ID Token acquired (length: ${idToken.length})");
+      return idToken;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      debugPrint("❌ Apple Sign-In Authorization Error: ${e.code} - ${e.message}");
+      // Handle specific Apple Sign-In errors
+      switch (e.code) {
+        case AuthorizationErrorCode.canceled:
+          debugPrint("❌ Apple Sign-In was cancelled by user");
+          break;
+        case AuthorizationErrorCode.failed:
+          debugPrint("❌ Apple Sign-In failed - check iOS configuration");
+          break;
+        case AuthorizationErrorCode.invalidResponse:
+          debugPrint("❌ Apple Sign-In invalid response");
+          break;
+        case AuthorizationErrorCode.notHandled:
+          debugPrint("❌ Apple Sign-In not handled");
+          break;
+        case AuthorizationErrorCode.notInteractive:
+          debugPrint("❌ Apple Sign-In not interactive");
+          break;
+        case AuthorizationErrorCode.unknown:
+          debugPrint("❌ Apple Sign-In unknown error - likely configuration issue");
+          break;
+        case AuthorizationErrorCode.credentialExport:
+          debugPrint("❌ Apple Sign-In credential export error");
+          break;
+        default:
+          debugPrint("❌ Apple Sign-In unhandled error code: ${e.code}");
+          break;
+      }
+      return null;
+    } on FirebaseAuthException catch (e) {
+      debugPrint("❌ Firebase Auth Error: ${e.code} - ${e.message}");
+      
+      // Handle specific Firebase Auth errors for Apple Sign-In
+      if (e.code == 'operation-not-allowed') {
+        debugPrint("❌ Apple Sign-In not configured in Firebase Console");
+        debugPrint("ℹ️  Go to Firebase Console > Authentication > Sign-in method");
+        debugPrint("ℹ️  Enable Apple provider and configure Services ID");
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint("❌ Unexpected error during Apple Sign-In: $e");
       return null;
     }
   }

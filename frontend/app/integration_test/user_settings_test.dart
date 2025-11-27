@@ -57,6 +57,7 @@ void main() {
   expect($('Sign in').exists, isTrue);
   expect($('Continue with Email').exists, isTrue);
   expect($('Continue with Google').exists, isTrue);
+  expect($('Continue with Apple').exists, isTrue);
 },
   timeout: Timeout(Duration(seconds: 30)),
 );
