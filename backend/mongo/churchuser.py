@@ -37,11 +37,6 @@ class UserHandler:
                 "country": None,
                 "postal_code": None
             },
-            "notification_preferences": {
-                "Event Notification": True,
-                "App Announcements": True,
-                "Live Stream Alerts": True
-            },
             "people": [],
             "sermon_favorites": [],
             "createdOn": datetime.now(),
