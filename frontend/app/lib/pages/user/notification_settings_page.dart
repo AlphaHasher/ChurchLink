@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -10,7 +9,8 @@ class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({super.key});
 
   @override
-  State<NotificationSettingsPage> createState() => _NotificationSettingsPageState();
+  State<NotificationSettingsPage> createState() =>
+      _NotificationSettingsPageState();
 }
 
 class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
@@ -23,7 +23,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     'Bible Plan Reminders': true,
   };
   bool _loading = true;
-  String get _baseUrl => '${dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000/'}api/v1/notification/preferences';
 
   @override
   void initState() {
@@ -32,7 +31,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
   }
 
   Future<void> _fetchFcmTokenAndPrefs() async {
-    setState(() { _loading = true; });
+    setState(() {
+      _loading = true;
+    });
     try {
       // Get FCM token for this device
       _fcmToken = await FirebaseMessaging.instance.getToken();
@@ -41,26 +42,30 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     } catch (e) {
       debugPrint('Error fetching FCM token: $e');
     } finally {
-      setState(() { _loading = false; });
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
   Future<void> _fetchNotificationPrefs() async {
-    setState(() { _loading = true; });
+    setState(() {
+      _loading = true;
+    });
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl?token=$_fcmToken'),
-      );
-      debugPrint('Notification prefs response: ${response.body}');
+      final path = '/v1/notification/preferences?token=$_fcmToken';
+      final response = await api.get(path);
+      debugPrint('Notification prefs response: ${response.data}');
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-  final rawPrefs = data['notification_preferences'] ?? {};
+        final data = response.data;
+        final rawPrefs = data['notification_preferences'] ?? {};
         Map<String, bool> prefs = Map.fromEntries(
           (rawPrefs as Map<String, dynamic>).entries.map((entry) {
             final key = entry.key;
             final value = entry.value;
             if (value is bool) return MapEntry(key, value);
-            if (value is String) return MapEntry(key, value.toLowerCase() == 'true');
+            if (value is String)
+              return MapEntry(key, value.toLowerCase() == 'true');
             return MapEntry(key, false);
           }),
         );
@@ -74,7 +79,9 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     } catch (e) {
       debugPrint('Error fetching notification prefs: $e');
     } finally {
-      setState(() { _loading = false; });
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
@@ -82,10 +89,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     try {
       final response = await api.post(
         '/v1/notification/preferences',
-        data: {
-          'token': _fcmToken,
-          'preferences': _notificationPrefs,
-        },
+        data: {'token': _fcmToken, 'preferences': _notificationPrefs},
       );
       debugPrint('Update notification prefs response: \\${response.data}');
       // You may want to check response status or handle errors as needed
@@ -101,18 +105,24 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
         title: Text('Notification Preferences').localized(),
         centerTitle: true,
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              children: [
-                 Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'Choose which notifications you want to receive:',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ).localized(),
-                ),
-                ..._notificationPrefs.entries.map((entry) => SwitchListTile(
+      body:
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child:
+                        Text(
+                          'Choose which notifications you want to receive:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ).localized(),
+                  ),
+                  ..._notificationPrefs.entries.map(
+                    (entry) => SwitchListTile(
                       title: Text(entry.key).localized(),
                       value: entry.value,
                       onChanged: (val) {
@@ -121,9 +131,10 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
                         });
                         _updateNotificationPrefs();
                       },
-                    )),
-              ],
-            ),
+                    ),
+                  ),
+                ],
+              ),
     );
   }
 }
