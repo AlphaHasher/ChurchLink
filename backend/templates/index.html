@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="{{ favicon_type }}" href="{{ favicon_url }}" id="favicon-link" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="{{ meta_description }}" id="meta-description" />
+  <title>{{ title }}</title>
+
+  <!-- Open Graph Meta Tags for Social Media -->
+  <meta property="og:title" content="{{ og_title }}" id="og-title" />
+  <meta property="og:type" content="website" />
+  <meta property="og:description" content="{{ og_description }}" id="og-description" />
+  <meta property="og:image" content="{{ og_image }}" id="og-image" />
+  <meta property="og:url" content="{{ og_url }}" />
+
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{ twitter_title }}" id="twitter-title" />
+  <meta name="twitter:description" content="{{ twitter_description }}" id="twitter-description" />
+  <meta name="twitter:image" content="{{ twitter_image }}" id="twitter-image" />
+
+  <!-- Inject vite build assets -->
+  {{ vite_assets|safe }}
+</head>
+
+<body>
+  <div id="root"></div>
+  <div id="web-editor-preview"></div>
+</body>
+
+</html>

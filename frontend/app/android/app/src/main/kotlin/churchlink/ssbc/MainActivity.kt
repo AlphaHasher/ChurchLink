@@ -1,4 +1,4 @@
-package com.example.app
+package churchlink.ssbc
 
 import io.flutter.embedding.android.FlutterActivity
 

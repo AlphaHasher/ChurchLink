@@ -31,14 +31,14 @@ class BackendHelper {
   static String get webBase {
     // Try to read from .env file if loaded
     try {
-      final envUrl = dotenv.env['WEB_URL'];
+      final envUrl = dotenv.env['BACKEND_URL'];
       if (envUrl != null && envUrl.isNotEmpty) return envUrl;
     } catch (_) {
       // dotenv not initialized in test mode, fall through to other options
     }
 
     // Fall back to compile-time environment variable
-    const fromDefine = String.fromEnvironment('WEB_URL');
+    const fromDefine = String.fromEnvironment('BACKEND_URL');
     if (fromDefine.isNotEmpty) return fromDefine;
 
     // Fall back to platform-specific defaults

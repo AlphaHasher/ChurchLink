@@ -17,7 +17,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.app"
+    namespace = "churchlink.ssbc"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "29.0.14206865"
 
@@ -36,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.app"
+        applicationId = "churchlink.ssbc"
         minSdk = flutter.minSdkVersion
         targetSdk = 34
         versionCode = flutter.versionCode
@@ -78,7 +78,7 @@ android {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     androidTestUtil("androidx.test:orchestrator:1.5.1")
-
+    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
 }
 
 flutter {

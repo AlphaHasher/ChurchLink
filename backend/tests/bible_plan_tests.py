@@ -49,7 +49,7 @@ async def test_create_plan(async_client, admin_headers):
     response = await async_client.post(
         "/api/v1/bible-plans/",
         json={
-            "name": "Test Plan",
+            "name": f"Test Plan {str(ObjectId())}",
             "duration": 1,
             "readings": {
                 "1": [
@@ -67,12 +67,16 @@ async def test_create_plan(async_client, admin_headers):
         },
         headers=admin_headers,
     )
+    if response.status_code != 201:
+        print(f"Create failed with status {response.status_code}: {response.text}")
     assert response.status_code == 201
     body = response.json()
     assert "id" in body
 
     plan_id = body["id"]
+    print(f"Plan ID: {plan_id}, length: {len(plan_id)}")
     delete_response = await async_client.delete(f"/api/v1/bible-plans/{plan_id}", headers=admin_headers)
+    print(f"Delete response status: {delete_response.status_code}")
     assert delete_response.status_code == 200
 
 async def test_forbid_create_plan(async_client, auth_headers):
@@ -170,8 +174,9 @@ async def test_forbid_get_plan(async_client, auth_headers):
 
 
 async def test_forbid_update_plan(async_client, auth_headers):
+    valid_object_id = str(ObjectId())
     response = await async_client.put(
-        "/api/v1/bible-plans/test-plan-id",
+        f"/api/v1/bible-plans/{valid_object_id}",
         json={"name": "Updated Plan", "description": "Updated description", "days": []},
         headers=auth_headers,
     )

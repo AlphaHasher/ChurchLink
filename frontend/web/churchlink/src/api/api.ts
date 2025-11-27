@@ -52,7 +52,7 @@ const api = axios.create({
 
 // Public API instance without Firebase auth/interceptors (for proxy endpoints that don't need user auth)
 export const publicApi = axios.create({
-  baseURL: `${import.meta.env.VITE_API_HOST}/api`,
+  baseURL: resolveApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

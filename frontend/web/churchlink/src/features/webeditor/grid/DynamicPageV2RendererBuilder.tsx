@@ -239,12 +239,23 @@ const renderNode = (
         ...(typeof paddingRight === 'number' ? { paddingRight: paddingRight * transform.cellPx } : {}),
       } : {};
 
+      // Handle brightness for background images
+      const bgBrightnessVar = (nodeStyleRaw as any)?.['--bg-brightness'];
+      const bgImageValue = (nodeStyleRaw as any)?.backgroundImage;
+      const hasBgImage = bgImageValue && /url\(/.test(bgImageValue);
+      const shouldApplyBrightnessOverlay = hasBgImage && bgBrightnessVar && String(bgBrightnessVar) !== '100';
+
       const wrapperStyle: React.CSSProperties = {
         ...nodeStyle,
         width: '100%',
         height: '100%',
         display: 'block',
+        position: 'relative',
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(shouldApplyBrightnessOverlay ? {} : (bgImageValue ? { backgroundImage: bgImageValue } : {})),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(backgroundColor ? { backgroundColor } : {}),
         ...(typeof borderRadius === 'number' ? { borderRadius } : {}),
         ...paddingStyles,
@@ -293,6 +304,21 @@ const renderNode = (
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
           >
+            {shouldApplyBrightnessOverlay && (
+              <div
+                key={`${node.id}-bg-brightness-${bgBrightnessVar}`}
+                aria-hidden="true"
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage: bgImageValue,
+                  backgroundSize: (nodeStyleRaw as any)?.backgroundSize,
+                  backgroundPosition: (nodeStyleRaw as any)?.backgroundPosition,
+                  backgroundRepeat: (nodeStyleRaw as any)?.backgroundRepeat,
+                  filter: `brightness(${bgBrightnessVar}%)`,
+                  borderRadius: typeof borderRadius === 'number' ? borderRadius : undefined,
+                }}
+              />
+            )}
             <Tag
               className={cn(
                 align === 'center' && 'text-center',
@@ -301,7 +327,7 @@ const renderNode = (
                 isUnderline && 'underline',
                 nodeClassName
               )}
-              style={innerStyle}
+              style={{...innerStyle, position: 'relative', zIndex: 1}}
               dangerouslySetInnerHTML={{ __html: html }}
             />
           </div>
@@ -324,6 +350,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...((nodeStyleRaw as any)?.backgroundImage ? { backgroundImage: (nodeStyleRaw as any).backgroundImage } : {}),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
         overflow: 'hidden',
@@ -347,6 +377,7 @@ const renderNode = (
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              key={`${node.id}-${styleFilter || 'no-filter'}`}
               src={getPublicUrl(src)}
               alt={alt}
               draggable={false}
@@ -376,9 +407,20 @@ const renderNode = (
       );
       const gridScaleBtn = transform ? (transform.cellPx / 16) : 1;
       const fontSizeRemBtn = typeof (nodeStyleRaw as any)?.fontSize === 'number' ? (nodeStyleRaw as any).fontSize : 1; // default 1rem
+
+      // Handle brightness for background images
+      const btnBgBrightnessVar = (nodeStyleRaw as any)?.['--bg-brightness'];
+      const btnBgImageValue = (nodeStyleRaw as any)?.backgroundImage;
+      const btnHasBgImage = btnBgImageValue && /url\(/.test(btnBgImageValue);
+      const btnShouldApplyBrightnessOverlay = btnHasBgImage && btnBgBrightnessVar && String(btnBgBrightnessVar) !== '100';
+
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...(btnShouldApplyBrightnessOverlay ? {} : (btnBgImageValue ? { backgroundImage: btnBgImageValue } : {})),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any)?.backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any)?.backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any)?.backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
         ...(nodeStyleRaw?.color ? { color: nodeStyleRaw.color } : {}),
@@ -391,6 +433,7 @@ const renderNode = (
         whiteSpace: 'nowrap',
         width: '100%',
         height: '100%',
+        position: 'relative',
       };
       if (href) {
         return (
@@ -413,7 +456,22 @@ const renderNode = (
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
-              {label}
+              {btnShouldApplyBrightnessOverlay && (
+                <div
+                  key={`${node.id}-btn-bg-brightness-${btnBgBrightnessVar}`}
+                  aria-hidden="true"
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundImage: btnBgImageValue,
+                    backgroundSize: (nodeStyleRaw as any)?.backgroundSize,
+                    backgroundPosition: (nodeStyleRaw as any)?.backgroundPosition,
+                    backgroundRepeat: (nodeStyleRaw as any)?.backgroundRepeat,
+                    filter: `brightness(${btnBgBrightnessVar}%)`,
+                    borderRadius: typeof nodeStyleRaw?.borderRadius === 'number' ? nodeStyleRaw.borderRadius : undefined,
+                  }}
+                />
+              )}
+              <span style={{position: 'relative', zIndex: 1}}>{label}</span>
             </a>
             {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
           </>
@@ -432,7 +490,22 @@ const renderNode = (
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
           >
-            {label}
+            {btnShouldApplyBrightnessOverlay && (
+              <div
+                key={`${node.id}-btn-bg-brightness-${btnBgBrightnessVar}`}
+                aria-hidden="true"
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage: btnBgImageValue,
+                  backgroundSize: (nodeStyleRaw as any)?.backgroundSize,
+                  backgroundPosition: (nodeStyleRaw as any)?.backgroundPosition,
+                  backgroundRepeat: (nodeStyleRaw as any)?.backgroundRepeat,
+                  filter: `brightness(${btnBgBrightnessVar}%)`,
+                  borderRadius: typeof nodeStyleRaw?.borderRadius === 'number' ? nodeStyleRaw.borderRadius : undefined,
+                }}
+              />
+            )}
+            <span style={{position: 'relative', zIndex: 1}}>{label}</span>
           </button>
           {/* <ScopedStyle nodeId={node.id} css={customCss} /> */}
         </>
@@ -443,6 +516,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...((nodeStyleRaw as any)?.backgroundImage ? { backgroundImage: (nodeStyleRaw as any).backgroundImage } : {}),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
@@ -480,6 +557,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...((nodeStyleRaw as any)?.backgroundImage ? { backgroundImage: (nodeStyleRaw as any).backgroundImage } : {}),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
@@ -503,6 +584,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...((nodeStyleRaw as any)?.backgroundImage ? { backgroundImage: (nodeStyleRaw as any).backgroundImage } : {}),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
@@ -528,6 +613,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...((nodeStyleRaw as any)?.backgroundImage ? { backgroundImage: (nodeStyleRaw as any).backgroundImage } : {}),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
@@ -553,6 +642,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...((nodeStyleRaw as any)?.backgroundImage ? { backgroundImage: (nodeStyleRaw as any).backgroundImage } : {}),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
       };
@@ -591,6 +684,10 @@ const renderNode = (
       const inlineStyle: React.CSSProperties = {
         ...nodeStyle,
         ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+        ...((nodeStyleRaw as any)?.backgroundImage ? { backgroundImage: (nodeStyleRaw as any).backgroundImage } : {}),
+        ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+        ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+        ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
         ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
         ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
         display: 'block',
@@ -657,6 +754,13 @@ const renderNode = (
         ...(innerMaxWidth ? { maxWidth: innerMaxWidth, marginLeft: 'auto', marginRight: 'auto' } : {}),
         ...(nodeFontFamily ? { fontFamily: nodeFontFamily } : {}),
       };
+
+      // Handle brightness for container background images
+      const containerBgBrightnessVar = (nodeStyleRaw as any)?.['--bg-brightness'];
+      const containerBgImageValue = (nodeStyleRaw as any)?.backgroundImage;
+      const containerHasBgImage = containerBgImageValue && /url\(/.test(containerBgImageValue);
+      const containerShouldApplyBrightnessOverlay = containerHasBgImage && containerBgBrightnessVar && String(containerBgBrightnessVar) !== '100';
+
       // Render container div with nested children wrapped in DraggableNode for absolute positioning
       const containerContent = (node.children ?? []).map((c) => {
         const childHasLayout = !!c.layout?.units;
@@ -717,8 +821,13 @@ const renderNode = (
             style={{
               ...nodeStyle,
               ...((nodeStyleRaw as any)?.background ? { background: (nodeStyleRaw as any).background } : {}),
+              ...(containerShouldApplyBrightnessOverlay ? {} : (containerBgImageValue ? { backgroundImage: containerBgImageValue } : {})),
+              ...((nodeStyleRaw as any)?.backgroundSize ? { backgroundSize: (nodeStyleRaw as any).backgroundSize } : {}),
+              ...((nodeStyleRaw as any)?.backgroundPosition ? { backgroundPosition: (nodeStyleRaw as any).backgroundPosition } : {}),
+              ...((nodeStyleRaw as any)?.backgroundRepeat ? { backgroundRepeat: (nodeStyleRaw as any).backgroundRepeat } : {}),
               ...(nodeStyleRaw?.backgroundColor ? { backgroundColor: nodeStyleRaw.backgroundColor } : {}),
               ...(typeof nodeStyleRaw?.borderRadius === 'number' ? { borderRadius: nodeStyleRaw.borderRadius } : {}),
+              zIndex: 1,
             }}
             // data-node-id used by ScopedStyle; disabled
             onMouseEnter={handleMouseEnter}
@@ -726,7 +835,22 @@ const renderNode = (
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
           >
-            <div style={innerPaddingStyle}>
+            {containerShouldApplyBrightnessOverlay && (
+              <div
+                key={`${node.id}-container-bg-brightness-${containerBgBrightnessVar}`}
+                aria-hidden="true"
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage: containerBgImageValue,
+                  backgroundSize: (nodeStyleRaw as any)?.backgroundSize,
+                  backgroundPosition: (nodeStyleRaw as any)?.backgroundPosition,
+                  backgroundRepeat: (nodeStyleRaw as any)?.backgroundRepeat,
+                  filter: `brightness(${containerBgBrightnessVar}%)`,
+                  borderRadius: typeof nodeStyleRaw?.borderRadius === 'number' ? nodeStyleRaw.borderRadius : undefined,
+                }}
+              />
+            )}
+            <div style={{...innerPaddingStyle, position: 'relative', zIndex: 1}}>
               {containerContent}
             </div>
           </div>

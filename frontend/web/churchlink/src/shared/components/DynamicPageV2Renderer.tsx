@@ -605,8 +605,26 @@ const SectionWithVirtualGridPublic: React.FC<{
 
   const baseBgStyle = (section.background?.style as React.CSSProperties) || {};
   const brightnessVar = (baseBgStyle as any)['--bg-brightness'];
-  const bgImage = (baseBgStyle as any).backgroundImage as string | undefined;
-  const sectionStyle: React.CSSProperties = { ...baseBgStyle };
+  let bgImage = (baseBgStyle as any).backgroundImage as string | undefined;
+
+  // Process background image URL - convert asset IDs to full URLs
+  if (bgImage && /url\(['"]?([^'")\s]+)['"]?\)/.test(bgImage)) {
+    const match = bgImage.match(/url\(['"]?([^'")\s]+)['"]?\)/);
+    if (match && match[1]) {
+      const assetId = match[1];
+      // Check if it's an asset ID (24-char hex) and not already a full URL
+      if (/^[a-f0-9]{24}$/i.test(assetId)) {
+        const fullUrl = getPublicUrl(assetId);
+        bgImage = `url('${fullUrl}')`;
+      }
+    }
+  }
+
+  const sectionStyle: React.CSSProperties = {
+    ...baseBgStyle,
+    // Apply resolved background image URL
+    ...(bgImage ? { backgroundImage: bgImage } : {})
+  };
   delete (sectionStyle as any)['--bg-brightness'];
   if (bgImage && brightnessVar && String(brightnessVar) !== '100') {
     delete (sectionStyle as any).backgroundImage;

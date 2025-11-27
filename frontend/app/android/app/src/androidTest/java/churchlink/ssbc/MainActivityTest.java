@@ -1,4 +1,4 @@
-package com.example.app;
+package churchlink.ssbc;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;
