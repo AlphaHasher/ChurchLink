@@ -126,7 +126,7 @@ Ensure you have the following installed:
 	- frontend/web/churchlink
 	- frontend/app
 
-3.	Set Up Environment Variables in all direcotires from step 2
+3.	Set Up Environment Variables in all directories from step 2
 
 4.	Run the Web Frontend (React)
   ```sh
