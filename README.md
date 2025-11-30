@@ -182,7 +182,7 @@ ChurchLink supports **online donations** through **PayPal**, allowing churches t
 
 ## ⚙️ Permissions Currently Implemented
 
-ChurchLink supports permissions implemented by the means of **user-defined permission roles.** Some of these permissions are directly integrated into **Strapi**, for a seamless transition from ChurchLink provided utilities to Strapi itself. Below is the list of permissions that can be implemented into these roles, that have fully been implemented as working.
+ChurchLink supports permissions implemented by the means of **user-defined permission roles.** Below is the list of permissions that can be implemented into permission roles:
 
 - admin: Allows the user to have complete permissions access. Only able to be granted to default Administrator role. Allows for creation/edit/deletion of roles with permissions_management perm.
 
