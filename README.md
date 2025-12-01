@@ -151,44 +151,6 @@ Ensure you have the following installed:
 	•	Mobile App: (Run on emulator or physical device)
 
 ---
-## 👥 Project Contributors and How to Contact Us
-
-### Daniel Agafanov
-Personal Email Address: agdaniel7@gmail.com
-
-Phone Number: 916-696-4743
-
-### Jaden Bruha
-Personal Email Address: jadenbruha@gmail.com
-
-Phone Number: 209-417-0913
-
-### Andrew Coats
-Personal Email Address: dedicatedpanda@gmail.com
-
-Phone Number: 916-824-5765
-
-### Dylan Cochran
-Personal Email Address: dylancochran629@gmail.com
-
-Phone Number (Preferred): (530)301-8059
-
-### Gabriel Malek
-Personal Email Address: malek.gabriel33@gmail.com
-
-Phone Number: (978) 873-0012
-
-### Rylan Pereira
-Personal Email Address: rylanrpcollege@gmail.com
-
-Phone Number: 707-386-8004
-
-### Tai Pham
-Personal Email Address: taipham164@gmail.com
-
-Phone Number: 279-203-1957
-
----
 
 ## 📖 Documentation and Manuals
 
