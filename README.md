@@ -150,6 +150,58 @@ Ensure you have the following installed:
 	•	Web App: http://localhost:3000
 	•	Mobile App: (Run on emulator or physical device)
 
+---
+## 👥 Project Contributors and How to Contact Us
+
+### Daniel Agafanov
+Personal Email Address: agdaniel7@gmail.com
+
+Phone Number: 916-696-4743
+
+### Jaden Bruha
+Personal Email Address: jadenbruha@gmail.com
+
+Phone Number: 209-417-0913
+
+### Andrew Coats
+Personal Email Address: dedicatedpanda@gmail.com
+
+Phone Number: 916-824-5765
+
+### Dylan Cochran
+Personal Email Address: dylancochran629@gmail.com
+
+Phone Number (Preferred): (530)301-8059
+
+### Gabriel Malek
+Personal Email Address: malek.gabriel33@gmail.com
+
+Phone Number: (978) 873-0012
+
+### Rylan Pereira
+Personal Email Address: rylanrpcollege@gmail.com
+
+Phone Number: 707-386-8004
+
+### Tai Pham
+Personal Email Address: taipham164@gmail.com
+
+Phone Number: 279-203-1957
+
+---
+
+## 📖 Documentation and Manuals
+
+[You may find a link to a Google Drive folder that contains well over 500 pages of documentation by clicking here!](https://drive.google.com/drive/folders/1iROJdqdsG2-M1OJ6CPjaXgic_Ft5GZUn?usp=drive_link)
+
+This link includes a System Test Report with instructions on how to test,
+
+A Maintenance Manual with instructions on how to deploy and keep the project running,
+
+And a User Manual to explain how you may use our project all in great detail!
+
+---
+
 ## 🔔 Mobile Notifications
 
 ChurchLink supports **push notifications** to keep church members informed about announcements, upcoming events, and other important updates.
@@ -214,7 +266,9 @@ ChurchLink supports permissions implemented by the means of **user-defined permi
 
 ## 📊 Database Design
 
-We have approximately 40 different Database collections, so it is impractical to give you a full diagram to be able to understand the full database all at once. Here are some examples of tables depicting some of the most important Database collection items and how they interact with eachother:
+We have approximately 40 different Database collections, so it is impractical to give you a full diagram to be able to understand the full database all at once. For a greater view of our database design, please view our link for manuals & documentation, check the maintenance manual, and visit section 6.
+
+Here are some examples of tables depicting some of the most important Database collection items and how they interact with each other:
 
 <img width="2495" height="1350" alt="image" src="https://github.com/user-attachments/assets/ca683914-cb7a-4865-9065-4ba34a77f3af" />
 
