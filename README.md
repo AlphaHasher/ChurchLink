@@ -272,3 +272,7 @@ Here are some examples of tables depicting some of the most important Database c
 ## 📜 License
 
 This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+If you have any questions, please contact the project developers using the [Discussion](https://github.com/AlphaHasher/ChurchLink/discussions) page on this repository
