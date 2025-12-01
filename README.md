@@ -36,13 +36,22 @@ For detailed PayPal integration setup instructions, see our comprehensive guide:
 
 ### 📋 Admin Interface, Creating a new Permission Role
 <p align="center">
-  <img width="3000" alt="image" src="https://github.com/user-attachments/assets/fe70bbb2-1a2b-4ff2-9ff5-6ceae76fe26c" />
+  <img width="3000" alt="image" src="https://github.com/user-attachments/assets/b1edb894-cee8-4abe-ac52-31d19a8c0d01" />
 </p>
+
+<img width="1236" height="986" alt="image" src="https://github.com/user-attachments/assets/b1edb894-cee8-4abe-ac52-31d19a8c0d01" />
+
 
 ### 📋 Admin Interface, Creating a new Event
 <p align="center">
-  <img width="1877" height="1391" alt="image" src="https://github.com/user-attachments/assets/1fca052b-49fb-4acc-acea-5f186f9adeac" />
+  <img width="1877" height="1391" alt="image" src="https://github.com/user-attachments/assets/15ac319d-4625-4d54-b0bf-c368d9370dbd" />
 </p>
+
+### 🔨 Web Builder, Page Builder View
+<p align="center">
+	<img width="3000" alt="image" src="https://github.com/user-attachments/assets/9b189a4b-afe9-421e-8a7e-123275d4381b" />
+</p>
+
 
 ### 🔨 Web Builder, Page View
 <p align="center">
@@ -64,9 +73,9 @@ For detailed PayPal integration setup instructions, see our comprehensive guide:
   <img src="https://github.com/user-attachments/assets/a3194747-d719-467d-872d-babe77edbbae" width="600" alt="Login">
 </p>
 
-### 💻 Web Example
+### 💻 Web Example, A Real Page Created in our Builder
 <p align="center">
-	<img width="3840" height="8318" alt="image" src="https://github.com/user-attachments/assets/6920316c-aa23-4fb2-b47c-4b769bd259d1" />
+	<img width="3840" height="8318" alt="image" src="https://github.com/user-attachments/assets/328a8518-6a7b-47c4-85ac-5b5029deedaf" />
 </p>
 
 ### 📱 Mobile App
