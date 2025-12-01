@@ -39,8 +39,6 @@ For detailed PayPal integration setup instructions, see our comprehensive guide:
   <img width="3000" alt="image" src="https://github.com/user-attachments/assets/b1edb894-cee8-4abe-ac52-31d19a8c0d01" />
 </p>
 
-<img width="1236" height="986" alt="image" src="https://github.com/user-attachments/assets/b1edb894-cee8-4abe-ac52-31d19a8c0d01" />
-
 
 ### 📋 Admin Interface, Creating a new Event
 <p align="center">
