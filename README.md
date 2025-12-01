@@ -181,8 +181,6 @@ Phone Number: (978) 873-0012
 ### Rylan Pereira
 Personal Email Address: rylanrpcollege@gmail.com
 
-Phone Number: 707-386-8004
-
 ### Tai Pham
 Personal Email Address: taipham164@gmail.com
 
