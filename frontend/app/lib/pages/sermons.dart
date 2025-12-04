@@ -22,6 +22,7 @@ class _SermonsPageState extends State<SermonsPage> {
 
   @override
   void initState() {
+    _loadMinistries();
     super.initState();
     addLocaleListener(_onLocaleChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -102,10 +103,11 @@ class _SermonsPageState extends State<SermonsPage> {
                                 ),
                                 SizedBox(height: 12),
                                 Center(
-                                  child: Text(
-                                    'No Sermons available yet. Pull to refresh.',
-                                    style: TextStyle(color: Colors.grey),
-                                  ).localized(),
+                                  child:
+                                      Text(
+                                        'No Sermons available yet. Pull to refresh.',
+                                        style: TextStyle(color: Colors.grey),
+                                      ).localized(),
                                 ),
                               ],
                             )
@@ -202,9 +204,7 @@ class _ErrorBanner extends StatelessWidget {
       color: theme.colorScheme.error.withValues(alpha: 0.1),
       child: ListTile(
         leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
-        title: Text(
-          message,
-        ).localized(),
+        title: Text(message).localized(),
         trailing: IconButton(
           icon: Icon(Icons.close, color: theme.colorScheme.error),
           onPressed: onDismiss,
