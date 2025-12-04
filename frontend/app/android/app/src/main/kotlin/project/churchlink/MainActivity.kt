@@ -1,4 +1,4 @@
-package com.example.app
+package project.churchlink
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -17,7 +17,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.app"
+    namespace = "project.churchlink"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "29.0.14206865"
 
@@ -36,9 +36,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.app"
+        applicationId = "project.churchlink"
         minSdk = flutter.minSdkVersion
-        targetSdk = 34
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
