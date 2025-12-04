@@ -5,7 +5,8 @@
 // -----------------------------------------------------------------------------
 
 import 'dart:convert';
-import 'package:flutter/services.dart' show rootBundle;
+
+import 'package:flutter/services.dart' show rootBundle, AssetManifest;
 import 'package:flutter/foundation.dart' show FlutterError;
 import 'package:app/models/bible_reader/books.dart';
 
@@ -16,12 +17,10 @@ int _toInt(dynamic v) {
 }
 
 /// Converts values to String.
-String _toText(dynamic vText, dynamic vAlt) =>
-    (vText ?? vAlt ?? '').toString();
+String _toText(dynamic vText, dynamic vAlt) => (vText ?? vAlt ?? '').toString();
 
 /// Reads verse number from either `verse` or `v` field.
-int _toVerse(dynamic vVerse, dynamic vAlt) =>
-    _toInt(vVerse ?? vAlt);
+int _toVerse(dynamic vVerse, dynamic vAlt) => _toInt(vVerse ?? vAlt);
 
 class ElishaJsonSource {
   // In-memory cache: translation|bookKey -> rows
@@ -29,12 +28,13 @@ class ElishaJsonSource {
   // In-memory cache for chapter runs: translation|bookKey -> { chapter:int -> [ {type,text} ] }
   final Map<String, Map<int, List<Map<String, String>>>> _bookRunsCache = {};
   // In-memory cache for verse block styles: translation|bookKey -> { chapter:int -> { verse:int -> {type,level,break:true} } }
-  final Map<String, Map<int, Map<int, Map<String, dynamic>>>> _bookBlocksCache = {};
+  final Map<String, Map<int, Map<int, Map<String, dynamic>>>> _bookBlocksCache =
+      {};
 
   Future<List<Map<String, dynamic>>> load(String translation) async {
     await Books.instance.ensureLoaded();
     final candidates = <String>[
-      'assets/bibles/translations/$translation.json',          // JSON
+      'assets/bibles/translations/$translation.json', // JSON
     ];
 
     Object? decoded;
@@ -60,13 +60,19 @@ class ElishaJsonSource {
     } catch (_) {}
 
     throw lastErr ??
-        FlutterError('Bible JSON/USFM not found. Tried: ${candidates.join(', ')} and USFM folder for "$translation"');
+        FlutterError(
+          'Bible JSON/USFM not found. Tried: ${candidates.join(', ')} and USFM folder for "$translation"',
+        );
   }
 
   // Preferred: only load the specific book for the requested translation
-  Future<List<Map<String, dynamic>>> loadFor(String translation, String bookNameOrKey) async {
+  Future<List<Map<String, dynamic>>> loadFor(
+    String translation,
+    String bookNameOrKey,
+  ) async {
     await Books.instance.ensureLoaded();
-    final key = Books.instance.keyFor(bookNameOrKey) ?? bookNameOrKey.toUpperCase();
+    final key =
+        Books.instance.keyFor(bookNameOrKey) ?? bookNameOrKey.toUpperCase();
     final cacheKey = '$translation|$key';
     final cached = _bookCache[cacheKey];
     if (cached != null) return cached;
@@ -81,15 +87,26 @@ class ElishaJsonSource {
     // Fallback: full JSON then filter
     final all = await load(translation);
     final canonical = Books.instance.englishByKey(key);
-    final filtered = all.where((r) => (r['book'] as String).toLowerCase() == canonical.toLowerCase()).toList();
+    final filtered =
+        all
+            .where(
+              (r) =>
+                  (r['book'] as String).toLowerCase() ==
+                  canonical.toLowerCase(),
+            )
+            .toList();
     _bookCache[cacheKey] = filtered;
     return filtered;
   }
 
   // Returns per-chapter runs like headings/section titles: { chapter -> [ {type,text} ] }
-  Future<Map<int, List<Map<String, String>>>> loadRunsFor(String translation, String bookNameOrKey) async {
+  Future<Map<int, List<Map<String, String>>>> loadRunsFor(
+    String translation,
+    String bookNameOrKey,
+  ) async {
     await Books.instance.ensureLoaded();
-    final key = Books.instance.keyFor(bookNameOrKey) ?? bookNameOrKey.toUpperCase();
+    final key =
+        Books.instance.keyFor(bookNameOrKey) ?? bookNameOrKey.toUpperCase();
     final cacheKey = '$translation|$key';
     final cached = _bookRunsCache[cacheKey];
     if (cached != null) return cached;
@@ -100,26 +117,32 @@ class ElishaJsonSource {
   }
 
   // Returns per-chapter verse block styles: { chapter -> { verse -> {type, level, break} } }
-  Future<Map<int, Map<int, Map<String, dynamic>>>> loadVerseBlocksFor(String translation, String bookNameOrKey) async {
+  Future<Map<int, Map<int, Map<String, dynamic>>>> loadVerseBlocksFor(
+    String translation,
+    String bookNameOrKey,
+  ) async {
     await Books.instance.ensureLoaded();
-    final key = Books.instance.keyFor(bookNameOrKey) ?? bookNameOrKey.toUpperCase();
+    final key =
+        Books.instance.keyFor(bookNameOrKey) ?? bookNameOrKey.toUpperCase();
     final cacheKey = '$translation|$key';
     final cached = _bookBlocksCache[cacheKey];
     if (cached != null) return cached;
     await _loadUsfmForBook(translation, key);
-    return _bookBlocksCache[cacheKey] ?? <int, Map<int, Map<String, dynamic>>>{};
+    return _bookBlocksCache[cacheKey] ??
+        <int, Map<int, Map<String, dynamic>>>{};
   }
 
   List<Map<String, dynamic>> _normalize(Object? decoded) {
     if (decoded is List && (decoded.isEmpty || decoded.first is Map)) {
       return decoded.cast<Map>().map<Map<String, dynamic>>((m) {
         final bookRaw = m['book'] ?? m['b'];
-        final book = (bookRaw is int)
-            ? Books.instance.englishByOrder(bookRaw)
-            : Books.instance.canonEnglishName(bookRaw.toString());
+        final book =
+            (bookRaw is int)
+                ? Books.instance.englishByOrder(bookRaw)
+                : Books.instance.canonEnglishName(bookRaw.toString());
         final chapter = _toInt(m['chapter'] ?? m['c']);
         final verse = _toVerse(m['verse'], m['v']);
-        final text  = _toText(m['text'], m['t']);
+        final text = _toText(m['text'], m['t']);
         return {'book': book, 'chapter': chapter, 'verse': verse, 'text': text};
       }).toList();
     }
@@ -128,12 +151,15 @@ class ElishaJsonSource {
       return decoded.map<Map<String, dynamic>>((row) {
         final r = row as List;
         if (r.length < 5) {
-          throw const FormatException('Tuple row must have at least 5 elements');
+          throw const FormatException(
+            'Tuple row must have at least 5 elements',
+          );
         }
         final bookRaw = r[1];
-        final book = (bookRaw is int)
-            ? Books.instance.englishByOrder(bookRaw)
-            : Books.instance.canonEnglishName(bookRaw.toString());
+        final book =
+            (bookRaw is int)
+                ? Books.instance.englishByOrder(bookRaw)
+                : Books.instance.canonEnglishName(bookRaw.toString());
         final chapter = _toInt(r[2]);
         final verse = _toInt(r[3]);
         final text = r[4].toString();
@@ -145,15 +171,38 @@ class ElishaJsonSource {
 
   // ----- USFM support (assets manifest enumeration) -----
 
-  Future<List<Map<String, dynamic>>> _loadFromUsfmAssets(String translation) async {
-    final manifestRaw = await rootBundle.loadString('AssetManifest.json');
-    final manifest = jsonDecode(manifestRaw) as Map<String, dynamic>;
+  /// Returns the list of `.usfm` asset paths for a translation.
+  /// Uses the new AssetManifest API, with a fallback to AssetManifest.json
+  /// for older Flutter versions.
+  Future<List<String>> _listUsfmAssetsForTranslation(String translation) async {
     final prefix = 'assets/bibles/translations/$translation/';
 
-    final usfmPaths = manifest.keys
-        .where((p) => p.startsWith(prefix) && p.toLowerCase().endsWith('.usfm'))
-        .toList()
-      ..sort();
+    try {
+      final assetManifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      return assetManifest
+          .listAssets()
+          .where(
+            (p) => p.startsWith(prefix) && p.toLowerCase().endsWith('.usfm'),
+          )
+          .toList()
+        ..sort();
+    } on FlutterError {
+      // Fallback for older SDKs that still generate AssetManifest.json
+      final manifestRaw = await rootBundle.loadString('AssetManifest.json');
+      final manifest = jsonDecode(manifestRaw) as Map<String, dynamic>;
+      return manifest.keys
+          .where(
+            (p) => p.startsWith(prefix) && p.toLowerCase().endsWith('.usfm'),
+          )
+          .toList()
+        ..sort();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadFromUsfmAssets(
+    String translation,
+  ) async {
+    final usfmPaths = await _listUsfmAssetsForTranslation(translation);
 
     final rows = <Map<String, dynamic>>[];
     for (final p in usfmPaths) {
@@ -165,18 +214,22 @@ class ElishaJsonSource {
     return rows;
   }
 
-  Future<List<Map<String, dynamic>>> _loadUsfmForBook(String translation, String bookKey) async {
-    final manifestRaw = await rootBundle.loadString('AssetManifest.json');
-    final manifest = jsonDecode(manifestRaw) as Map<String, dynamic>;
-    final prefix = 'assets/bibles/translations/$translation/';
-
-    final candidates = manifest.keys
-        .where((p) => p.startsWith(prefix) && p.toLowerCase().endsWith('.usfm'))
-        .toList()
-      ..sort();
+  Future<List<Map<String, dynamic>>> _loadUsfmForBook(
+    String translation,
+    String bookKey,
+  ) async {
+    final candidates = await _listUsfmAssetsForTranslation(translation);
 
     // Quick filename match
-    final byName = candidates.where((p) => p.toUpperCase().contains('-$bookKey') || p.toUpperCase().endsWith('/$bookKey.usfm')).toList();
+    final byName =
+        candidates
+            .where(
+              (p) =>
+                  p.toUpperCase().contains('-$bookKey') ||
+                  p.toUpperCase().endsWith('/$bookKey.usfm'),
+            )
+            .toList();
+
     if (byName.isNotEmpty) {
       // Initialize runs map for cache
       final runsOut = <int, List<Map<String, String>>>{};
@@ -239,7 +292,10 @@ class ElishaJsonSource {
   // Strip/unwrap inline USFM markers while keeping human-readable text
   String _cleanInline(String s) {
     // Keep the word before the first pipe in \w and \+w, drop attributes
-    s = s.replaceAllMapped(RegExp(r'\\\+?w\s+([^|\\]+?)(?:\|[^\\]*?)?\\\+?w\*'), (m) => m[1] ?? '');
+    s = s.replaceAllMapped(
+      RegExp(r'\\\+?w\s+([^|\\]+?)(?:\|[^\\]*?)?\\\+?w\*'),
+      (m) => m[1] ?? '',
+    );
 
     // Convert emphasis tags to lightweight markers our renderer understands
     String wrap(String tag, String text) => '⟦$tag⟧$text⟦/$tag⟧';
@@ -256,7 +312,10 @@ class ElishaJsonSource {
     for (final e in tagMap.entries) {
       final src = e.key;
       final dst = e.value;
-      s = s.replaceAllMapped(RegExp('\\\\$src\\s+([\\s\\S]*?)\\\\$src\\*', dotAll: true), (m) => wrap(dst, m[1] ?? ''));
+      s = s.replaceAllMapped(
+        RegExp('\\\\$src\\s+([\\s\\S]*?)\\\\$src\\*', dotAll: true),
+        (m) => wrap(dst, m[1] ?? ''),
+      );
     }
 
     // Remove any stray opening markers like \add that did not have a closing tag
@@ -282,7 +341,12 @@ class ElishaJsonSource {
     return s;
   }
 
-  List<Map<String, dynamic>> _parseUsfm(String src, String bookKey, [Map<int, List<Map<String, String>>>? runsOut, Map<int, Map<int, Map<String, dynamic>>>? blocksOut]) {
+  List<Map<String, dynamic>> _parseUsfm(
+    String src,
+    String bookKey, [
+    Map<int, List<Map<String, String>>>? runsOut,
+    Map<int, Map<int, Map<String, dynamic>>>? blocksOut,
+  ]) {
     final rows = <Map<String, dynamic>>[];
     int currentChapter = 0;
     int currentVerse = 0;
@@ -304,7 +368,8 @@ class ElishaJsonSource {
           'text': text,
         });
         if (blocksOut != null && blockType != null) {
-          final chMap = (blocksOut[currentChapter] ??= <int, Map<String, dynamic>>{});
+          final chMap =
+              (blocksOut[currentChapter] ??= <int, Map<String, dynamic>>{});
           chMap[currentVerse] = {
             'type': blockType,
             'level': blockLevel,
@@ -323,18 +388,26 @@ class ElishaJsonSource {
       if (line.isEmpty) continue;
       if (line.startsWith(r'\c ')) {
         flush();
-        currentChapter = int.tryParse(line.substring(3).trim().split(' ').first) ?? currentChapter;
+        currentChapter =
+            int.tryParse(line.substring(3).trim().split(' ').first) ??
+            currentChapter;
         currentVerse = 0;
-        blockType = null; blockLevel = 0; blockBreak = false;
+        blockType = null;
+        blockLevel = 0;
+        blockBreak = false;
         continue;
       }
       // Headings / section titles captured as runs
       final mt = RegExp(r'^\\mt(\d+)\s+(.*)').firstMatch(line);
       if (mt != null) {
         final text = _cleanInline(mt.group(2) ?? '');
-        final ch = currentChapter == 0 ? 1 : currentChapter; // preface applies to ch1
+        final ch =
+            currentChapter == 0 ? 1 : currentChapter; // preface applies to ch1
         if (text.isNotEmpty && runsOut != null) {
-          (runsOut[ch] ??= <Map<String, String>>[]).add({'type': 'mt${mt.group(1)}', 'text': text});
+          (runsOut[ch] ??= <Map<String, String>>[]).add({
+            'type': 'mt${mt.group(1)}',
+            'text': text,
+          });
         }
         continue;
       }
@@ -344,23 +417,56 @@ class ElishaJsonSource {
         final ty = 's${(s.group(1) ?? '1')}';
         final ch = currentChapter == 0 ? 1 : currentChapter;
         if (text.isNotEmpty && runsOut != null) {
-          (runsOut[ch] ??= <Map<String, String>>[]).add({'type': ty, 'text': text});
+          (runsOut[ch] ??= <Map<String, String>>[]).add({
+            'type': ty,
+            'text': text,
+          });
         }
         continue;
       }
       // Paragraph/poetry markers
       final mP = RegExp(r'^\\p\b').firstMatch(line);
-      if (mP != null) { blockType = 'p'; blockLevel = 0; blockBreak = true; continue; }
+      if (mP != null) {
+        blockType = 'p';
+        blockLevel = 0;
+        blockBreak = true;
+        continue;
+      }
       final mM = RegExp(r'^\\m\b').firstMatch(line);
-      if (mM != null) { blockType = 'm'; blockLevel = 0; blockBreak = true; continue; }
+      if (mM != null) {
+        blockType = 'm';
+        blockLevel = 0;
+        blockBreak = true;
+        continue;
+      }
       final mPi = RegExp(r'^\\pi(\d*)\b').firstMatch(line);
-      if (mPi != null) { blockType = 'pi'; blockLevel = int.tryParse(mPi.group(1) ?? '1') ?? 1; blockBreak = true; continue; }
+      if (mPi != null) {
+        blockType = 'pi';
+        blockLevel = int.tryParse(mPi.group(1) ?? '1') ?? 1;
+        blockBreak = true;
+        continue;
+      }
       final mQ = RegExp(r'^\\q(\d*)\b').firstMatch(line);
-      if (mQ != null) { blockType = 'q'; blockLevel = int.tryParse(mQ.group(1) ?? '1') ?? 1; blockBreak = true; continue; }
+      if (mQ != null) {
+        blockType = 'q';
+        blockLevel = int.tryParse(mQ.group(1) ?? '1') ?? 1;
+        blockBreak = true;
+        continue;
+      }
       final mB = RegExp(r'^\\b\b').firstMatch(line);
-      if (mB != null) { blockType = 'b'; blockLevel = 0; blockBreak = true; continue; }
+      if (mB != null) {
+        blockType = 'b';
+        blockLevel = 0;
+        blockBreak = true;
+        continue;
+      }
       final mNb = RegExp(r'^\\nb\b').firstMatch(line);
-      if (mNb != null) { blockType = 'nb'; blockLevel = 0; blockBreak = false; continue; }
+      if (mNb != null) {
+        blockType = 'nb';
+        blockLevel = 0;
+        blockBreak = false;
+        continue;
+      }
 
       if (line.startsWith(r'\v ')) {
         flush();
