@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, User, Shield, LogOut } from "lucide-react";
+import { ChevronDown, User, Shield, LogOut, CreditCard } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -70,7 +70,7 @@ export function AppSidebar() {
   // Helper function to handle navigation
   const handleNavigation = (item: HeaderLink) => {
     setOpen(false); // Close sidebar on navigation
-    
+
     if (item.is_hardcoded_url && item.url) {
       window.location.href = item.url;
       return;
@@ -150,7 +150,7 @@ export function AppSidebar() {
             <HeaderDove className="w-48 h-20" />
           </Link>
         </div>
-        
+
         <SidebarGroup>
           <SidebarGroupContent className="pt-4 px-2">
             <SidebarMenu className="gap-1">
@@ -201,7 +201,7 @@ export function AppSidebar() {
                       />
                     )}
                   </SidebarMenuButton>
-                  
+
                   {user && expandedDropdowns.has("profile") && (
                     <SidebarMenuSub className="mt-1 mb-1 ml-3 border-l-2 border-white/20 rounded-none">
                       <SidebarMenuSubItem>
@@ -215,7 +215,19 @@ export function AppSidebar() {
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
-                      
+
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
+                        >
+                          <Link to="/my-transactions" onClick={() => setOpen(false)} className="flex items-center gap-2">
+                            <CreditCard className="h-4 w-4 flex-shrink-0 text-white!" />
+                            <span className="whitespace-normal! break-words! flex-1">My Transactions</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+
                       {isMod && (
                         <SidebarMenuSubItem>
                           <SidebarMenuSubButton
@@ -229,7 +241,7 @@ export function AppSidebar() {
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       )}
-                      
+
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton
                           className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
@@ -253,57 +265,57 @@ export function AppSidebar() {
               {!loading && headerItems
                 .filter((item) => item.visible !== false)
                 .map((item) => {
-                const isDropdown = 'items' in item;
-                const isExpanded = expandedDropdowns.has(item.titles.en);
+                  const isDropdown = 'items' in item;
+                  const isExpanded = expandedDropdowns.has(item.titles.en);
 
-                if (isDropdown) {
-                  // Render dropdown with collapsible sub-items
-                  const dropdown = item as HeaderDropdown;
-                  return (
-                    <SidebarMenuItem key={item.titles.en}>
-                      <SidebarMenuButton
-                        className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 justify-between font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
-                        onClick={() => toggleDropdown(item.titles.en)}
-                      >
-                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words! flex-1">{getLabelFromTitles(dropdown.titles, dropdown.titles.en)}</span>
-                        <ChevronDown
-                          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-                        />
-                      </SidebarMenuButton>
-                      
-                      {isExpanded && (
-                        <SidebarMenuSub className="mt-1 mb-1 ml-3 border-l-2 border-white/20 rounded-none">
-                          {dropdown.items
-                            .filter((subItem) => subItem.visible !== false)
-                            .map((subItem) => (
-                              <SidebarMenuSubItem key={`${item.titles.en}-${subItem.titles.en}`}>
-                                <SidebarMenuSubButton
-                                  className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] whitespace-normal! break-words! [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
-                                  onClick={() => handleNavigation(subItem)}
-                                >
-                                  {getLabelFromTitles(subItem.titles, subItem.titles.en)}
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                        </SidebarMenuSub>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                } else {
-                  // Render regular link
-                  const link = item as HeaderLink;
-                  return (
-                    <SidebarMenuItem key={item.titles.en}>
-                      <SidebarMenuButton
-                        className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
-                        onClick={() => handleNavigation(link)}
-                      >
-                        <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words!">{getLabelFromTitles(link.titles, link.titles.en)}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                }
-              })}
+                  if (isDropdown) {
+                    // Render dropdown with collapsible sub-items
+                    const dropdown = item as HeaderDropdown;
+                    return (
+                      <SidebarMenuItem key={item.titles.en}>
+                        <SidebarMenuButton
+                          className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 justify-between font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
+                          onClick={() => toggleDropdown(item.titles.en)}
+                        >
+                          <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words! flex-1">{getLabelFromTitles(dropdown.titles, dropdown.titles.en)}</span>
+                          <ChevronDown
+                            className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                          />
+                        </SidebarMenuButton>
+
+                        {isExpanded && (
+                          <SidebarMenuSub className="mt-1 mb-1 ml-3 border-l-2 border-white/20 rounded-none">
+                            {dropdown.items
+                              .filter((subItem) => subItem.visible !== false)
+                              .map((subItem) => (
+                                <SidebarMenuSubItem key={`${item.titles.en}-${subItem.titles.en}`}>
+                                  <SidebarMenuSubButton
+                                    className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] pl-4 py-2.5 text-[16px] font-[Montserrat]! font-medium tracking-wide transition-all duration-200 rounded-none h-auto! min-h-[2.5rem] whitespace-normal! break-words! [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
+                                    onClick={() => handleNavigation(subItem)}
+                                  >
+                                    {getLabelFromTitles(subItem.titles, subItem.titles.en)}
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                          </SidebarMenuSub>
+                        )}
+                      </SidebarMenuItem>
+                    );
+                  } else {
+                    // Render regular link
+                    const link = item as HeaderLink;
+                    return (
+                      <SidebarMenuItem key={item.titles.en}>
+                        <SidebarMenuButton
+                          className="text-white! hover:bg-white/10! hover:text-gray-300! hover:translate-y-[-2px] px-4 py-3 font-[Montserrat]! transition-all duration-200 rounded-none h-auto! min-h-[3rem] [&>span:last-child]:whitespace-normal! [&>span:last-child]:break-words!"
+                          onClick={() => handleNavigation(link)}
+                        >
+                          <span className="text-[17px] font-medium tracking-wide whitespace-normal! break-words!">{getLabelFromTitles(link.titles, link.titles.en)}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+                })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
