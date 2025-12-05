@@ -34,7 +34,7 @@ export const getPublicUrl = (id: string) => {
 
 export const getThumbnailUrl = (id: string) => {
   const base = (publicApi.defaults.baseURL || "").replace(/\/+$/, "");
-  return `${base}/v1/assets/public/id/${encodeURIComponent(id)}/?thumbnail=true`;
+  return `${base}/v1/assets/public/id/${encodeURIComponent(id)}?thumbnail=true`;
 };
 
 export const uploadImages = async (

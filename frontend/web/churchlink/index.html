@@ -15,33 +15,65 @@
   <meta property="og:title" content="Second Slavic Baptist Church" id="og-title" />
   <meta property="og:type" content="website" />
   <meta property="og:description" content="Welcome to Second Slavic Baptist Church" id="og-description" />
-  <meta property="og:image" content="/dove-favicon.svg" id="og-image" />
+  <meta property="og:image" content="" id="og-image" />
 
   <!-- Twitter Card Meta Tags -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Second Slavic Baptist Church" id="twitter-title" />
   <meta name="twitter:description" content="Welcome to Second Slavic Baptist Church" id="twitter-description" />
-  <meta name="twitter:image" content="/dove-favicon.svg" id="twitter-image" />
+  <meta name="twitter:image" content="" id="twitter-image" />
+
+  <!-- Set absolute URL for og:image immediately -->
+  <script>
+    (function() {
+      const baseUrl = window.location.origin;
+      const defaultImage = baseUrl + '/dove-favicon.svg';
+      document.getElementById('og-image').setAttribute('content', defaultImage);
+      document.getElementById('twitter-image').setAttribute('content', defaultImage);
+    })();
+  </script>
 
   <!-- Apply cached website config immediately to prevent flash -->
   <script>
     (function() {
       try {
+        // Check if we're visiting the same page as last time
+        const currentPath = window.location.pathname;
+        const lastPageSlug = localStorage.getItem('last_page_slug');
+        const lastPageTitle = localStorage.getItem('last_page_title');
+
+        // If we're on the same page and have a cached title, use it
+        if (lastPageSlug && lastPageTitle && currentPath.includes(lastPageSlug)) {
+          document.title = lastPageTitle;
+
+          // Update OG and Twitter meta tags
+          const ogTitle = document.getElementById('og-title');
+          if (ogTitle) ogTitle.setAttribute('content', lastPageTitle);
+
+          const twitterTitle = document.getElementById('twitter-title');
+          if (twitterTitle) twitterTitle.setAttribute('content', lastPageTitle);
+        } else {
+          // Otherwise, use the website config title
+          const cached = localStorage.getItem('website_config');
+          if (cached) {
+            const config = JSON.parse(cached);
+
+            if (config.title) {
+              document.title = config.title;
+
+              // Update OG and Twitter meta tags
+              const ogTitle = document.getElementById('og-title');
+              if (ogTitle) ogTitle.setAttribute('content', config.title);
+
+              const twitterTitle = document.getElementById('twitter-title');
+              if (twitterTitle) twitterTitle.setAttribute('content', config.title);
+            }
+          }
+        }
+
         const cached = localStorage.getItem('website_config');
         if (cached) {
           const config = JSON.parse(cached);
-
-          // Update title immediately
-          if (config.title) {
-            document.title = config.title;
-
-            // Update OG and Twitter meta tags
-            const ogTitle = document.getElementById('og-title');
-            if (ogTitle) ogTitle.setAttribute('content', config.title);
-
-            const twitterTitle = document.getElementById('twitter-title');
-            if (twitterTitle) twitterTitle.setAttribute('content', config.title);
-          }
 
           // Update favicon immediately
           if (config.favicon_url) {
@@ -75,6 +107,16 @@
 
             const twitterImage = document.getElementById('twitter-image');
             if (twitterImage) twitterImage.setAttribute('content', imageUrl);
+          } else {
+            // Set absolute URL for default favicon
+            const baseUrl = window.location.origin;
+            const defaultImage = baseUrl + '/dove-favicon.svg';
+
+            const ogImage = document.getElementById('og-image');
+            if (ogImage) ogImage.setAttribute('content', defaultImage);
+
+            const twitterImage = document.getElementById('twitter-image');
+            if (twitterImage) twitterImage.setAttribute('content', defaultImage);
           }
         }
       } catch (e) {

@@ -23,16 +23,21 @@ export const useWebsiteConfig = () => {
           console.warn('Failed to cache website config:', storageError);
         }
 
-        // Update document title
+        // Update document title (only if we're not on a custom page)
         if (config.title) {
-          document.title = config.title;
-          console.log('Updated document title to:', config.title);
+          // Check if we're on a page with a custom title
+          const lastPageSlug = localStorage.getItem('last_page_slug');
+          const currentPath = window.location.pathname;
+
+          // Only update if we're not on a page with a cached custom title
+          if (!lastPageSlug || !currentPath.includes(lastPageSlug)) {
+            document.title = config.title;
+          }
         }
 
         // Update favicon
         if (config.favicon_url) {
           updateDocumentFavicon(config.favicon_url);
-          console.log('Updated favicon to:', config.favicon_url);
         }
       } catch (error) {
         console.warn('Failed to load website configuration, using cached or defaults:', error);
@@ -43,7 +48,14 @@ export const useWebsiteConfig = () => {
           if (cached) {
             const config = JSON.parse(cached);
             if (config.title) {
-              document.title = config.title;
+              // Check if we're on a page with a custom title
+              const lastPageSlug = localStorage.getItem('last_page_slug');
+              const currentPath = window.location.pathname;
+
+              // Only update if we're not on a page with a cached custom title
+              if (!lastPageSlug || !currentPath.includes(lastPageSlug)) {
+                document.title = config.title;
+              }
             }
             if (config.favicon_url) {
               updateDocumentFavicon(config.favicon_url);

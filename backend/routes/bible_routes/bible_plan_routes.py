@@ -31,6 +31,9 @@ mod_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans"])
 private_bible_plan_router = APIRouter(prefix="/bible-plans", tags=["Bible Plans Private"])
 
 
+# SPECIFIC ROUTES (must come before generic /{plan_id} routes)
+# ============================================================
+
 # Get all published Bible plans (visible=True)
 @public_bible_plan_router.get("/published", response_model=List[ReadingPlanOut])
 async def list_published_plans() -> List[ReadingPlanOut]:
@@ -85,6 +88,24 @@ async def get_bible_plan_template(template_name: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch template: {str(e)}")
 
+# Update template name
+@mod_bible_plan_router.patch("/templates/{template_id}", response_model=ReadingPlanTemplateOut)
+async def update_template(template_id: str, name: str) -> ReadingPlanTemplateOut:
+    """Update a Bible plan template's name"""
+    updated = await update_bible_plan_template(template_id, name)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found or update failed")
+    return updated
+
+# Delete template
+@mod_bible_plan_router.delete("/templates/{template_id}")
+async def delete_template(template_id: str) -> dict:
+    """Delete a Bible plan template"""
+    ok = await delete_bible_plan_template(template_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return {"message": "Template deleted"}
+
 # Get all plans from a specific user
 @mod_bible_plan_router.get("/user/{user_id}", response_model=List[ReadingPlanOut])
 async def get_user_plans(user_id: str) -> List[ReadingPlanOut]:
@@ -110,26 +131,7 @@ async def create_template_from_plan_endpoint(plan_id: str, request: Request) -> 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create template")
     return template
 
-# Update template name
-@mod_bible_plan_router.patch("/templates/{template_id}", response_model=ReadingPlanTemplateOut)
-async def update_template(template_id: str, name: str) -> ReadingPlanTemplateOut:
-    """Update a Bible plan template's name"""
-    updated = await update_bible_plan_template(template_id, name)
-    if not updated:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found or update failed")
-    return updated
-
-# Delete template
-@mod_bible_plan_router.delete("/templates/{template_id}")
-async def delete_template(template_id: str) -> dict:
-    """Delete a Bible plan template"""
-    ok = await delete_bible_plan_template(template_id)
-    if not ok:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    return {"message": "Template deleted"}
-
-
-# Get plan by ID
+# Get plan by ID (by-id endpoint - specific, comes before generic /{plan_id})
 @private_bible_plan_router.get("/by-id/{plan_id}", response_model=ReadingPlanOut)
 async def get_plan_private(plan_id: str, request: Request) -> ReadingPlanOut:
     """Allow the authenticated owner of a plan to fetch it (no mod role required)."""
@@ -170,6 +172,58 @@ async def patch_plan(plan_id: str, update: ReadingPlanUpdate, request: Request) 
 # Delete plan
 @mod_bible_plan_router.delete("/by-id/{plan_id}")
 async def remove_plan(plan_id: str, request: Request) -> dict:
+    uid = request.state.uid
+    ok = await delete_reading_plan(plan_id, uid)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    return {"message": "Plan deleted"}
+
+# GENERIC ROUTES (must come AFTER specific routes)
+# ================================================
+
+# Get plan by ID (generic endpoint for simple ID access)
+# Only matches actual MongoDB ObjectIDs, not paths like /templates, /user, etc.
+@private_bible_plan_router.get("/{plan_id:regex(^[0-9a-f]{24}$)}", response_model=ReadingPlanOut)
+async def get_plan(plan_id: str, request: Request) -> ReadingPlanOut:
+    """Fetch a Bible plan by its ID."""
+    uid = request.state.uid
+    try:
+        pid = ObjectId(plan_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Bible plan ID")
+
+    doc = await DB.db.bible_plans.find_one({"_id": pid})
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    # Allow if owner or if plan is published (visible=True)
+    if doc.get("user_id") == uid or doc.get("visible", False):
+        return _convert_plan_doc_to_out(doc)
+
+    # Fake 404 to avoid leaking existence of plan to non-owners
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+# Update plan by ID (generic endpoint)
+@mod_bible_plan_router.put("/{plan_id:regex(^[0-9a-f]{24}$)}", response_model=ReadingPlanOut)
+async def update_plan_generic(plan_id: str, update: ReadingPlanUpdate, request: Request) -> ReadingPlanOut:
+    uid = request.state.uid
+    updated = await update_reading_plan(plan_id, uid, update)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found or update failed")
+    return updated
+
+# PATCH for partial updates (generic endpoint)
+@mod_bible_plan_router.patch("/{plan_id:regex(^[0-9a-f]{24}$)}", response_model=ReadingPlanOut)
+async def patch_plan_generic(plan_id: str, update: ReadingPlanUpdate, request: Request) -> ReadingPlanOut:
+    uid = request.state.uid
+    updated = await update_reading_plan(plan_id, uid, update)
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found or update failed")
+    return updated
+
+# Delete plan by ID (generic endpoint)
+@mod_bible_plan_router.delete("/{plan_id:regex(^[0-9a-f]{24}$)}")
+async def delete_plan(plan_id: str, request: Request) -> dict:
     uid = request.state.uid
     ok = await delete_reading_plan(plan_id, uid)
     if not ok:

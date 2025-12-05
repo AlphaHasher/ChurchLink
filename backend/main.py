@@ -94,6 +94,11 @@ from routes.form_routes.form_translations_routes import form_translations_router
 from routes.form_routes.mod_forms_routes import mod_forms_router
 from routes.form_routes.private_forms_routes import private_forms_router
 from routes.form_routes.public_forms_routes import public_forms_router
+from routes.frontend_routes import frontend_router
+from routes.legal_routes import (
+    admin_legal_router,
+    user_legal_router,
+)
 from routes.page_management_routes.footer_routes import (
     mod_footer_router,
     public_footer_router,
@@ -106,7 +111,6 @@ from routes.page_management_routes.page_routes import (
     mod_page_router,
     public_page_router,
 )
-
 from routes.permissions_routes.permissions_routes import (
     permissions_protected_router,
     permissions_view_router,
@@ -124,13 +128,7 @@ from routes.webhook_listener_routes.paypal_central_webhook_routes import (
 from routes.webhook_listener_routes.youtube_listener_routes import (
     youtube_listener_router,
 )
-from routes.legal_routes import (
-    admin_legal_router,
-    user_legal_router,
-)
-
 from scalar_fastapi import get_scalar_api_reference
-
 
 load_dotenv()
 
@@ -185,7 +183,9 @@ validate_e2e_mode()
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
 BYPASS_FIREBASE_SYNC = False
 
-FRONTEND_URL = os.getenv("FRONTEND_URL")
+# CORS Configuration
+# NOTE: Frontend is served by the backend on the same origin in production
+# ADDITIONAL_ORIGINS is only needed for development when running frontend separately with npm run dev
 ADDITIONAL_ORIGINS = os.getenv("ADDITIONAL_ORIGINS", "")
 
 def _normalize_origin(orig: str) -> str | None:
@@ -195,11 +195,6 @@ def _normalize_origin(orig: str) -> str | None:
     return o.rstrip('/')
 
 ALLOWED_ORIGINS = []
-if FRONTEND_URL:
-    norm = _normalize_origin(FRONTEND_URL)
-    if norm:
-        ALLOWED_ORIGINS.append(norm)
-
 if ADDITIONAL_ORIGINS:
     for origin in ADDITIONAL_ORIGINS.split(','):
         norm = _normalize_origin(origin)
@@ -208,7 +203,10 @@ if ADDITIONAL_ORIGINS:
 
 ALLOWED_ORIGINS = list(dict.fromkeys([o for o in ALLOWED_ORIGINS if o]))
 
-logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
+if ALLOWED_ORIGINS:
+    logger.info(f"CORS allowed origins: {ALLOWED_ORIGINS}")
+else:
+    logger.info("CORS: No additional origins configured (frontend served by backend)")
 
 
 @asynccontextmanager
@@ -489,6 +487,9 @@ app.include_router(web_builder_management_protected_router)
 app.include_router(finance_management_protected_router)
 app.include_router(admin_refund_management_router)
 app.include_router(media_management_protected_router)
+
+# Frontend serving - MUST be last to catch all non-API routes
+app.include_router(frontend_router)
 
 
 

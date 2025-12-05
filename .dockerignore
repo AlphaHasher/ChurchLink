@@ -1,0 +1,54 @@
+# Node modules and build artifacts
+node_modules/
+frontend/web/churchlink/node_modules/
+frontend/web/churchlink/dist/
+npm-debug.log*
+
+# Python virtual environments and cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment files
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+.coverage
+cypress/videos/
+cypress/screenshots/
+
+# Documentation
+*.md
+
+# Docker files (they're in docker/ directory)
+docker/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Flutter mobile app (not needed for web deployment)
+frontend/app/
+
+# Development scripts
+run_all_dev.sh
+run_all_dev.bat
+run_all_production.bat

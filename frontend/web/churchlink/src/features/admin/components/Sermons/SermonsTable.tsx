@@ -14,14 +14,16 @@ import { AccountPermissions } from '@/shared/types/AccountPermissions';
 import { format } from 'date-fns';
 import CreateSermonDialog from './CreateSermonDialog';
 import EditSermonDialog from './EditSermonDialog';
+import { Ministry } from '@/shared/types/Ministry';
 
 interface SermonsTableProps {
     data: ChurchSermon[];
     permData: AccountPermissions[];
     onSave: () => Promise<void>;
+    availableMinistries: Ministry[];
 }
 
-export function SermonsTable({ data, permData: _permData, onSave }: SermonsTableProps) {
+export function SermonsTable({ data, permData: _permData, onSave, availableMinistries }: SermonsTableProps) {
     const [search, setSearch] = useState('');
     // permData is accepted for future permission-based filtering; reference to avoid unused var lint
     void _permData;
@@ -34,7 +36,7 @@ export function SermonsTable({ data, permData: _permData, onSave }: SermonsTable
                 <Input placeholder="Search Title..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
                 <div className="ml-auto flex items-center space-x-2">
                     <Button onClick={() => onSave()}>Refresh</Button>
-                    <CreateSermonDialog onSave={onSave} />
+                    <CreateSermonDialog onSave={onSave} availableMinistries={availableMinistries} />
                 </div>
             </div>
 
@@ -72,7 +74,7 @@ export function SermonsTable({ data, permData: _permData, onSave }: SermonsTable
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex space-x-2">
-                                            <EditSermonDialog sermon={s} onSave={onSave} />
+                                            <EditSermonDialog sermon={s} onSave={onSave} availableMinistries={availableMinistries} />
                                         </div>
                                     </TableCell>
                                 </TableRow>
