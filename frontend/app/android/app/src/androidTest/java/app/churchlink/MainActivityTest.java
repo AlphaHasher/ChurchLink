@@ -1,8 +1,4 @@
-<<<<<<<< HEAD:frontend/app/android/app/src/androidTest/java/churchlink/ssbc/MainActivityTest.java
-package churchlink.ssbc;
-========
 package app.churchlink;
->>>>>>>> origin/main:frontend/app/android/app/src/androidTest/java/app/churchlink/MainActivityTest.java
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;
