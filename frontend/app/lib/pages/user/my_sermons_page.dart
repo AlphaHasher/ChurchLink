@@ -5,6 +5,8 @@ import 'package:app/widgets/sermon_detail_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app/helpers/localized_widgets.dart';
+import 'package:app/models/ministry.dart';
+import 'package:app/helpers/ministries_helper.dart';
 
 class MySermonsPage extends StatefulWidget {
   const MySermonsPage({super.key});
@@ -16,11 +18,28 @@ class MySermonsPage extends StatefulWidget {
 class _MySermonsPageState extends State<MySermonsPage> {
   @override
   void initState() {
+    _loadMinistries();
     super.initState();
     // Delay refresh to allow widget to mount fully.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SermonsProvider>().refreshFavorites();
     });
+  }
+
+  // Ministries
+  Map<String, Ministry> _ministriesById = <String, Ministry>{};
+
+  Future<void> _loadMinistries() async {
+    try {
+      final list = await MinistriesHelper.fetchMinistries();
+      if (!mounted) return;
+
+      setState(() {
+        _ministriesById = {for (final m in list) m.id: m};
+      });
+    } catch (e, st) {
+      debugPrint('Failed to load ministries: $e\n$st');
+    }
   }
 
   Future<void> _refresh() {
@@ -44,12 +63,21 @@ class _MySermonsPageState extends State<MySermonsPage> {
       if (!mounted) return;
       final title = sermon.title.trim();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(localize('Removed "{title}" from favorites.').replaceFirst('{title}', title)).localized()),
+        SnackBar(
+          content:
+              Text(
+                localize(
+                  'Removed "{title}" from favorites.',
+                ).replaceFirst('{title}', title),
+              ).localized(),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to update favorites: $error').localized()),
+        SnackBar(
+          content: Text('Unable to update favorites: $error').localized(),
+        ),
       );
     }
   }
@@ -61,9 +89,7 @@ class _MySermonsPageState extends State<MySermonsPage> {
       appBar: AppBar(
         backgroundColor: ssbcGray,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          'My Sermons',
-        ).localized(),
+        title: Text('My Sermons').localized(),
         centerTitle: true,
       ),
       backgroundColor: const Color.fromARGB(255, 245, 245, 245),
@@ -92,10 +118,11 @@ class _MySermonsPageState extends State<MySermonsPage> {
                         Icon(Icons.star_border, size: 72, color: Colors.grey),
                         SizedBox(height: 12),
                         Center(
-                          child: Text(
-                            'You have no favorite sermons yet.',
-                            style: TextStyle(color: Colors.grey),
-                          ).localized(),
+                          child:
+                              Text(
+                                'You have no favorite sermons yet.',
+                                style: TextStyle(color: Colors.grey),
+                              ).localized(),
                         ),
                       ],
                     )
@@ -109,10 +136,16 @@ class _MySermonsPageState extends State<MySermonsPage> {
                         if (sermon == null) {
                           return ListTile(
                             leading: const Icon(Icons.menu_book_outlined),
-                            title: Text(localize('Sermon {id}').replaceFirst('{id}', favorite.sermonId.toString())),
-                            subtitle: Text(
-                              'Details unavailable. Tap to refresh.',
-                            ).localized(),
+                            title: Text(
+                              localize('Sermon {id}').replaceFirst(
+                                '{id}',
+                                favorite.sermonId.toString(),
+                              ),
+                            ),
+                            subtitle:
+                                Text(
+                                  'Details unavailable. Tap to refresh.',
+                                ).localized(),
                             onTap: () => provider.refreshFavorites(),
                           );
                         }
@@ -122,6 +155,7 @@ class _MySermonsPageState extends State<MySermonsPage> {
                           onTap: () => _openDetail(sermon),
                           onToggleFavorite:
                               () => _removeFavorite(provider, sermon),
+                          ministriesById: _ministriesById,
                         );
                       },
                     ),
@@ -155,7 +189,10 @@ class _ErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: onRetry, child: Text('Try again').localized()),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: Text('Try again').localized(),
+            ),
           ],
         ),
       ),
