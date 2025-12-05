@@ -20,7 +20,7 @@ Modify `android/app/build.gradle` and update the `defaultConfig`:
 android {
     defaultConfig {
         minSdkVersion 23
-        targetSdkVersion 34
+        targetSdkVersion 35
     }
 }
 ```

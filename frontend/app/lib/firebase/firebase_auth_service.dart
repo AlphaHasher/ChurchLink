@@ -8,9 +8,9 @@ import 'package:app/helpers/backend_helper.dart';
 
 class FirebaseAuthService {
   static final FirebaseAuthService _instance = FirebaseAuthService._internal();
-  
+
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  
+
   bool _initialized = false;
 
   FirebaseAuthService._internal();
@@ -21,8 +21,7 @@ class FirebaseAuthService {
 
   // Calls the sync function to make MongoDB email match Firebase
   Future<void> _postSignInSync() async {
-    await BackendHelper().verifyAndSyncUser((msg) {
-    });
+    await BackendHelper().verifyAndSyncUser((msg) {});
   }
 
   Future<void> initializeGoogleSignIn({
@@ -30,7 +29,7 @@ class FirebaseAuthService {
     String? serverClientId,
   }) async {
     if (_initialized) return;
-    
+
     try {
       await GoogleSignIn.instance.initialize(
         serverClientId: serverClientId, // Optionally: override if needed
@@ -46,14 +45,17 @@ class FirebaseAuthService {
   Future<String?> signInWithGoogle() async {
     try {
       if (!_initialized) {
-        debugPrint("⚠️  GoogleSignIn not initialized. Call initializeGoogleSignIn() first.");
+        debugPrint(
+          "⚠️  GoogleSignIn not initialized. Call initializeGoogleSignIn() first.",
+        );
         return null;
       }
 
       debugPrint("🔐 Attempting Google Sign-In...");
-      
-      final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate();
-      
+
+      final GoogleSignInAccount googleUser =
+          await GoogleSignIn.instance.authenticate();
+
       debugPrint("✅ Google authentication successful for: ${googleUser.email}");
 
       // Get authentication tokens
@@ -70,15 +72,17 @@ class FirebaseAuthService {
       );
 
       // Sign in to Firebase using the Google credential
-      final UserCredential userCredential =
-          await _firebaseAuth.signInWithCredential(credential);
+      final UserCredential userCredential = await _firebaseAuth
+          .signInWithCredential(credential);
 
       final User? user = userCredential.user;
       if (user == null) {
         throw Exception("❌ No user found after Firebase authentication.");
       }
 
-      debugPrint("✅ Firebase authentication successful for user: ${user.email}");
+      debugPrint(
+        "✅ Firebase authentication successful for user: ${user.email}",
+      );
 
       // Get Firebase ID Token for backend authentication
       final String? idToken = await user.getIdToken(true);
@@ -101,11 +105,8 @@ class FirebaseAuthService {
   // ✅ Email & Password Sign-In
   Future<String?> signInWithEmail(String email, String password) async {
     try {
-      final UserCredential userCredential =
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
 
       final User? user = userCredential.user;
       if (user == null) {
@@ -135,11 +136,8 @@ class FirebaseAuthService {
 
   Future<String?> registerWithEmail(String email, String password) async {
     try {
-      final UserCredential userCredential =
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       final User? user = userCredential.user;
       if (user == null) {
@@ -181,15 +179,15 @@ class FirebaseAuthService {
     try {
       // Sign out from Firebase
       await _firebaseAuth.signOut();
-      
+
       // Sign out from Google Sign-In
       await GoogleSignIn.instance.signOut();
-      
+
       debugPrint("✅ User signed out successfully");
     } catch (e) {
       debugPrint("❌ Error signing out: $e");
     }
-    
+
     // Reset FCM token flag when user logs out
     FCMTokenService.reset();
   }
@@ -206,7 +204,7 @@ class FirebaseAuthService {
     String? currentPasswordIfEmailUser,
   }) async {
     final user = FirebaseAuth.instance.currentUser!;
-    
+
     // Re-auth for email/password users (Google/Apple reauth can be added later)
     if (currentPasswordIfEmailUser != null && user.email != null) {
       final cred = EmailAuthProvider.credential(

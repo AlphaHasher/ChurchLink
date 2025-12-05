@@ -16,7 +16,7 @@ class BackendHelper {
     }
 
     // Fall back to compile-time environment variable
-    const fromDefine = String.fromEnvironment('API_BASE_URL');
+    const fromDefine = String.fromEnvironment('BACKEND_URL');
     if (fromDefine.isNotEmpty) return fromDefine;
 
     // Fall back to platform-specific defaults

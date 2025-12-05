@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:app/firebase/firebase_auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:open_filex/open_filex.dart';
@@ -44,6 +45,7 @@ class _EventShowcaseV2State extends State<EventShowcaseV2> {
   bool _busyFav = false;
   String? _shareMsg;
   bool _openSisters = false;
+  final FirebaseAuthService authService = FirebaseAuthService();
 
   @override
   void initState() {
@@ -1104,6 +1106,71 @@ END:VCALENDAR
     }
 
     final loc = LocalizationHelper.localize;
+    final user = authService.getCurrentUser();
+    final loggedIn = user != null;
+
+    if (!loggedIn) {
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    loc('Registration'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Ownership badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      e.hasRegistrations
+                          ? const Color(0xFFECFDF5)
+                          : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color:
+                        e.hasRegistrations
+                            ? const Color(0xFFA7F3D0)
+                            : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: const Color(0xFF64748B)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        loc("You must be signed in to register for events"),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     final now = DateTime.now();
     final opens =
