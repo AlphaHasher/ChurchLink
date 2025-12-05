@@ -1,4 +1,4 @@
-package project.churchlink;
+package app.churchlink;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;

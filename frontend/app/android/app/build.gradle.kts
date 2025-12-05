@@ -17,7 +17,7 @@ plugins {
 }
 
 android {
-    namespace = "project.churchlink"
+    namespace = "app.churchlink"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "29.0.14206865"
 
@@ -36,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "project.churchlink"
+        applicationId = "app.churchlink"
         minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = flutter.versionCode

@@ -1,4 +1,4 @@
-package project.churchlink
+package app.churchlink
 
 import io.flutter.embedding.android.FlutterActivity
 
