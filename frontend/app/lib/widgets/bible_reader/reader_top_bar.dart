@@ -107,11 +107,6 @@ class ReaderTopBar extends StatelessWidget {
             icon: Icon(Icons.search),
           ),
           IconButton(
-            tooltip: 'Read aloud',
-            onPressed: null,
-            icon: Icon(Icons.volume_up_outlined),
-          ),
-          IconButton(
             tooltip: 'Next chapter',
             onPressed: isAtLastChapter ? null : onNextChapter,
             icon: Icon(

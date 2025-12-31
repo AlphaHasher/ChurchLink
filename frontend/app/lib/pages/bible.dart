@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app/pages/bible_reader/bible_reader_body.dart';
-import 'package:app/pages/bible_reader/bible_repo_elisha.dart';
+import 'package:app/services/bible/local_bible_repository.dart';
 import 'package:app/helpers/bible_plan_auth_utils.dart';
 
 class BiblePage extends StatefulWidget {
@@ -15,7 +15,7 @@ class _BiblePageState extends State<BiblePage> {
   @override
   void initState() {
     super.initState();
-    _boot = ElishaBibleRepo.ensureInitialized();
+    _boot = LocalBibleRepository.ensureInitialized();
   }
 
   @override

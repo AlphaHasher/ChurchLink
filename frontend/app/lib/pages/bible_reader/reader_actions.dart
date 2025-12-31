@@ -9,7 +9,7 @@ import 'package:app/widgets/bible_reader/verse_actions_sheet.dart'; // ActionRes
 import 'package:app/pages/bible_reader/notes_api.dart' as api;
 import 'package:app/helpers/bible_notes_helper.dart' as bh;
 import 'package:app/pages/bible_reader/verse_matching.dart' show VerseKey;
-import 'package:app/pages/bible_reader/bible_repo_elisha.dart'; // for VerseRef
+import 'package:app/models/bible_reader/verse_ref.dart';
 
 // ctx: bundle with the reader's current state 
 // notesAPI: used for communicating with the backend
