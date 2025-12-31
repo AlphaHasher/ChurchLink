@@ -38,7 +38,7 @@ async def authenticate_uid(credentials: HTTPAuthorizationCredentials = Security(
         raise HTTPException(status_code=401, detail="Missing Authorization: Bearer token")
 
     try:
-        decoded_token = auth.verify_id_token(token)
+        decoded_token = auth.verify_id_token(token, clock_skew_seconds=10)
         return decoded_token['uid']
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
@@ -58,7 +58,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
         raise HTTPException(status_code=401, detail="Missing Authorization: Bearer token")
 
     try:
-        decoded_token = auth.verify_id_token(token)
+        decoded_token = auth.verify_id_token(token, clock_skew_seconds=10)
         uid = decoded_token['uid']
         user = auth.get_user(uid)
 
@@ -75,7 +75,6 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Security(
         raise HTTPException(status_code=401, detail="Invalid Firebase ID token. Please sign in again.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error validating Firebase ID token: {str(e)}")
-    
 
 def role_based_access(required_roles: List[str]) -> Callable:
     """

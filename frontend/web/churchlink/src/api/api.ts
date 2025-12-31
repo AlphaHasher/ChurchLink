@@ -1,5 +1,9 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { auth } from '../lib/firebase';
+
+interface RetryableAxiosConfig extends AxiosRequestConfig {
+  _retryOnce?: boolean;
+}
 
 const resolveApiBaseUrl = () => {
   const rawHost = import.meta.env.VITE_API_HOST?.trim();
@@ -64,7 +68,7 @@ export const publicApi = axios.create({
 // Helper endpoints for page staging/publish
 export const pageApi = {
   // Autosave to staging by slug
-  saveStaging: (slug: string, data: any) => api.put(`/v1/pages/staging/${encodeURIComponent(slug)}`, data),
+  saveStaging: (slug: string, data: Record<string, unknown>) => api.put(`/v1/pages/staging/${encodeURIComponent(slug)}`, data),
   // Get staging by slug
   getStaging: (slug: string) => api.get(`/v1/pages/staging/${encodeURIComponent(slug)}`),
   // Publish staging to live
@@ -94,14 +98,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error.response?.status;
-    const originalConfig = error.config || {};
+    const originalConfig = error.config as RetryableAxiosConfig || {};
     if (status === 401) {
       const user = auth.currentUser;
       // Avoid infinite retry loops: retry at most once per request
-      if (user && !(originalConfig as any)._retryOnce) {
+      if (user && !originalConfig._retryOnce) {
         try {
           const newToken = await user.getIdToken(true);
-          (originalConfig as any)._retryOnce = true;
+          originalConfig._retryOnce = true;
           originalConfig.headers = {
             ...(originalConfig.headers || {}),
             Authorization: `Bearer ${newToken}`,
@@ -136,7 +140,7 @@ export const websiteConfigApi = {
     formData.append('file', file);
     formData.append('folder', 'system/favicon');
     formData.append('description', 'Website favicon image');
-    
+
     // Use the existing assets upload system which has proper authentication
     const response = await api.post('/v1/assets/upload', formData, {
       headers: {
@@ -149,18 +153,18 @@ export const websiteConfigApi = {
   // Update favicon configuration to use specific asset (admin only)
   setFavicon: async (assetId: string) => {
     const faviconUrl = `/api/v1/assets/public/id/${assetId}`;
-    const response = await api.put('/v1/website/config', { 
+    const response = await api.put('/v1/website/config', {
       favicon_asset_id: assetId,
-      favicon_url: faviconUrl 
+      favicon_url: faviconUrl
     });
     return response.data;
   },
 
-  // Remove favicon (admin only) 
+  // Remove favicon (admin only)
   removeFavicon: async () => {
-    const response = await api.put('/v1/website/config', { 
+    const response = await api.put('/v1/website/config', {
       favicon_asset_id: null,
-      favicon_url: null 
+      favicon_url: null
     });
     return response.data;
   },
@@ -184,7 +188,7 @@ export const websiteConfigApi = {
   },
 
   // Update church settings (admin only)
-  updateChurchSettings: async (settings: Record<string, any>) => {
+  updateChurchSettings: async (settings: Record<string, unknown>) => {
     const response = await api.put('/v1/website/church/settings', settings);
     return response.data;
   },
