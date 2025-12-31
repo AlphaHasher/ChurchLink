@@ -179,6 +179,9 @@ export interface PageV2 {
 	sectionsMobile?: SectionV2[];
   created_at?: string;
   updated_at?: string;
+  // Puck editor format support
+  format?: "puck" | "legacy";
+  puckData?: unknown; // Puck Data structure when format === "puck"
 }
 
 

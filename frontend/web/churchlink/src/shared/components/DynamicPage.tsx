@@ -4,9 +4,8 @@ import api from "@/api/api";
 import NotFoundPage from "@/shared/components/NotFoundPage";
 import InConstructionPage from "@/shared/components/InConstructionPage";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import DynamicPageV2Renderer from "@/shared/components/DynamicPageV2Renderer";
+import { PuckPageRenderer } from "@/features/puck-editor/components/PuckPageRenderer";
 import { PageV2 } from "@/shared/types/pageV2";
-import { useLanguage } from "@/provider/LanguageProvider";
 
 export interface SectionSettings {
   showFilters?: boolean;
@@ -56,7 +55,6 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
 }) => {
   const { slug: paramSlug } = useParams();
   const location = useLocation();
-  const { locale: ctxLocale } = useLanguage();
 
   const slug = useMemo(() => {
     // If previewSlug is provided (preview mode), use it directly
@@ -183,17 +181,14 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
   if (!isEffectivelyPreview && pageData.visible === false) return <InConstructionPage />;
 
   console.log("DynamicPage: Rendering page:", pageData);
-  console.log("DynamicPage: Page sections:", pageData.sections);
 
-  const searchParams = new URLSearchParams(location.search);
-  const localeParam = searchParams.get('locale') || undefined;
-  return (
-    <DynamicPageV2Renderer
-      page={pageData}
-      activeLocale={localeParam || ctxLocale}
-      defaultLocale={pageData?.defaultLocale}
-    />
-  );
+  // Only Puck-formatted pages are supported
+  if (pageData.format === "puck" && pageData.puckData) {
+    return <PuckPageRenderer data={pageData.puckData as import("@/features/puck-editor/config").PuckData} />;
+  }
+
+  // Page exists but is not in Puck format - show not found
+  return <NotFoundPage />;
 };
 
 export default DynamicPage;

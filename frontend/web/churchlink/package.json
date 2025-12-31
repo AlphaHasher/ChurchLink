@@ -36,6 +36,7 @@
     "@emotion/styled": "^11.14.1",
     "@firebase/auth": "^1.9.1",
     "@hookform/resolvers": "^5.2.2",
+    "@measured/puck": "^0.20.2",
     "@mui/material": "^7.3.5",
     "@paypal/react-paypal-js": "^8.9.2",
     "@radix-ui/react-accordion": "^1.2.12",

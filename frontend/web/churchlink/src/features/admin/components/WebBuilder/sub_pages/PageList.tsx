@@ -73,31 +73,9 @@ const WebBuilderPageList = () => {
     }
   };
 
-  const openEditor = async (slug: string) => {
+  const openEditor = (slug: string) => {
     const encoded = encodeURIComponent(slug);
-    const goNew = () => navigate(`/web-editor/${encoded}`);
-    const goOld = () => navigate(`/admin/webbuilder/edit/${encoded}`);
-    try {
-      // Prefer staging draft if exists
-      try {
-        const s = await api.get(`/v1/pages/staging/${encoded}`);
-        const data = s.data || {};
-        const isV2 = data?.version === 2;
-        const isEmpty = !Array.isArray(data?.sections) || data.sections.length === 0;
-        return (isV2 || isEmpty) ? goNew() : goOld();
-      } catch (e: any) {
-        if (e?.response?.status !== 404) throw e;
-      }
-      // Fallback to preview/live
-      const p = await api.get(`/v1/pages/preview/${encoded}`);
-      const pdata = p.data || {};
-      const isV2 = pdata?.version === 2;
-      const isEmpty = !Array.isArray(pdata?.sections) || pdata.sections.length === 0;
-      return (isV2 || isEmpty) ? goNew() : goOld();
-    } catch (err) {
-      console.error("Failed to decide editor route, defaulting to old editor", err);
-      return goOld();
-    }
+    navigate(`/web-editor/${encoded}`);
   };
 
   const columnDefs = useMemo<ColDef[]>(() => [

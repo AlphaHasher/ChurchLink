@@ -195,6 +195,7 @@ async def publish_staging_page(slug: str):
 
         # Build publish fields with sane defaults and include style tokens for v2
         # Include mobile sections if provided
+        # Include Puck editor format fields
         allowed_keys = [
             "title",
             "slug",
@@ -203,6 +204,8 @@ async def publish_staging_page(slug: str):
             "visible",
             "version",
             "styleTokens",
+            "format",      # "puck" or "legacy"
+            "puckData",    # Puck editor data when format === "puck"
         ]
         publish_fields = {k: staging.get(k) for k in allowed_keys if k in staging}
         publish_fields["slug"] = decoded
