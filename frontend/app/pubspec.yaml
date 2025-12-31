@@ -61,7 +61,7 @@ dependencies:
   
 
   logger: ^2.0.2+1
-  webview_flutter_android: 4.10.5
+  webview_flutter_android: 4.10.11
   webview_flutter_wkwebview: ^3.23.2
   package_info_plus: ^9.0.0
   share_plus: ^12.0.1
@@ -69,7 +69,7 @@ dependencies:
   android_intent_plus: ^6.0.0
   cached_network_image: ^3.4.1
   qr_flutter: ^4.1.0
-  flutter_markdown_plus: ^1.0.3
+  flutter_markdown_plus: ^1.0.7
 
   # For timezone dependencies
   timezone: ^0.10.1
