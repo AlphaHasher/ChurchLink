@@ -172,7 +172,7 @@ export const getDetailedUserInfo = async (uid: string): Promise<DetailedUserInfo
         const c_prime = res.data.info.contact_info;
         const a_prime = c_prime.address;
 
-        let p: ProfileInfo = {
+        const p: ProfileInfo = {
             first_name: p_prime.first_name,
             last_name: p_prime.last_name,
             email: p_prime.email,
@@ -181,7 +181,7 @@ export const getDetailedUserInfo = async (uid: string): Promise<DetailedUserInfo
             birthday: p_prime.birthday,
         };
 
-        let a: AddressSchema = {
+        const a: AddressSchema = {
             address: a_prime.address,
             suite: a_prime.suite,
             city: a_prime.city,
@@ -190,12 +190,12 @@ export const getDetailedUserInfo = async (uid: string): Promise<DetailedUserInfo
             postal_code: a_prime.postal_code
         };
 
-        let c: ContactInfo = {
+        const c: ContactInfo = {
             phone: c_prime.phone,
             address: a
         };
 
-        let d: DetailedUserInfo = {
+        const d: DetailedUserInfo = {
             uid: uid,
             verified: res.data.info.verified,
             profile: p,
@@ -206,7 +206,7 @@ export const getDetailedUserInfo = async (uid: string): Promise<DetailedUserInfo
     }
     catch (err) {
         console.error("Failed to get detailed user info:", err);
-        let p: ProfileInfo = {
+        const p: ProfileInfo = {
             first_name: "",
             last_name: "",
             email: "",
@@ -215,7 +215,7 @@ export const getDetailedUserInfo = async (uid: string): Promise<DetailedUserInfo
             birthday: null,
         };
 
-        let a: AddressSchema = {
+        const a: AddressSchema = {
             address: "",
             suite: "",
             city: "",
@@ -224,12 +224,12 @@ export const getDetailedUserInfo = async (uid: string): Promise<DetailedUserInfo
             postal_code: ""
         };
 
-        let c: ContactInfo = {
+        const c: ContactInfo = {
             phone: "",
             address: a
         };
 
-        let d: DetailedUserInfo = {
+        const d: DetailedUserInfo = {
             uid: uid,
             verified: false,
             profile: p,

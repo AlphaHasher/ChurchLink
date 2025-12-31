@@ -62,7 +62,7 @@ export const readMembershipDetails = async (): Promise<MembershipDetails> => {
         const res = await api.get("v1/membership/membership-details");
 
         if (res.data.details['pending_request'] == null) {
-            let ret: MembershipDetails = {
+            const ret: MembershipDetails = {
                 membership: res.data.details.membership,
                 pending_request: null,
             }
@@ -70,7 +70,7 @@ export const readMembershipDetails = async (): Promise<MembershipDetails> => {
         }
         else {
             const pend = res.data.details['pending_request'];
-            let req: ReadMembershipRequest = {
+            const req: ReadMembershipRequest = {
                 approved: pend['approved'] ?? null,
                 message: pend['message'] ?? null,
                 muted: pend['muted'],
@@ -78,7 +78,7 @@ export const readMembershipDetails = async (): Promise<MembershipDetails> => {
                 resolved: pend['resolved'],
             };
 
-            let ret: MembershipDetails = {
+            const ret: MembershipDetails = {
                 membership: res.data.details['membership'],
                 pending_request: req
             };
@@ -86,7 +86,7 @@ export const readMembershipDetails = async (): Promise<MembershipDetails> => {
         }
     } catch (err) {
         console.error("Failed to respond to read membership details:", err);
-        let ret: MembershipDetails = {
+        const ret: MembershipDetails = {
             membership: false,
             pending_request: null,
         };

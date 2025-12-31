@@ -188,7 +188,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
 
   return (
     <div className={cn('relative flex flex-col h-full', className)}>
-      <div className="mb-4 flex items-start justify-between gap-4 px-1 flex-shrink-0">
+      <div className="mb-4 flex items-start justify-between gap-4 px-1 shrink-0">
         <h2 className="text-lg font-semibold text-foreground">
           {plan.duration}-Day Reading Plan
         </h2>

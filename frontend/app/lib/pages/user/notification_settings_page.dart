@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:app/helpers/api_client.dart';
 import 'package:app/helpers/localized_widgets.dart';
 

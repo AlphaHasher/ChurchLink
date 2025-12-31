@@ -41,7 +41,7 @@ let templatesInFlight: Promise<ReadingPlanWithId[]> | null = null;
 const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initialPlanId }: PlanSidebarProps) => {
   const [planName, setPlanName] = useState(plan.name);
   const [planId, setPlanId] = useState<string | null>(initialPlanId || null);
-  const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | null; title?: string; message?: string } | null>(null);
+  const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info' | 'warning' | null; title?: string; message?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [templates, setTemplates] = useState<ReadingPlanWithId[]>([]);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -240,20 +240,22 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
 
   const handleSavePlan = async () => {
     const trimmedName = (planName || '').trim();
-    const hasAnyPassages = Object.values(plan.readings).some((d: any) => (d || []).length > 0);
+    const hasAnyPassages = Object.values(plan.readings).some((d: BiblePassage[]) => (d || []).length > 0);
     if (!trimmedName) {
-      setStatus({ type: 'warning' as any, title: 'Name required', message: 'Please enter a plan name before saving.' });
+      setStatus({ type: 'warning', title: 'Name required', message: 'Please enter a plan name before saving.' });
       return;
     }
     if (!hasAnyPassages) {
-      setStatus({ type: 'warning' as any, title: 'No passages', message: 'Add at least one passage to save this plan.' });
+      setStatus({ type: 'warning', title: 'No passages', message: 'Add at least one passage to save this plan.' });
       return;
     }
     let currentPlans: ReadingPlanWithId[] = [];
     try {
       const { data } = await api.get('/v1/bible-plans/');
       currentPlans = data || [];
-    } catch { }
+    } catch {
+      // Silently fail - proceed with empty plans list if API call fails
+    }
 
     // Check for duplicate names
     const duplicate = currentPlans.find(p => p.name && p.name.trim().toLowerCase() === trimmedName.toLowerCase());
@@ -312,7 +314,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
       setPlan(prev => ({ ...prev, name: data.name }));
       setStatus({ type: 'success', title: 'Overridden', message: 'Existing plan overridden.' });
 
-    } catch (e) {
+    } catch {
       setStatus({ type: 'error', title: 'Override failed', message: 'Could not override existing plan.' });
     } finally {
       setShowNameConflictDialog(false);
@@ -329,10 +331,10 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
     if (!file) return;
     try {
       const text = await file.text();
-      const data = JSON.parse(text) as any;
-      if (data && typeof data === 'object' && data.duration != null && data.readings) {
+      const data = JSON.parse(text) as unknown;
+      if (data && typeof data === 'object' && data !== null && 'duration' in data && 'readings' in data) {
         setPlan(data as ReadingPlan);
-        setPlanName(data.name ?? '');
+        setPlanName('name' in data && typeof data.name === 'string' ? data.name : '');
       } else {
         throw new Error('Invalid plan file');
       }
@@ -356,7 +358,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
   };
 
   return (
-    <div className="w-80 h-full bg-card flex flex-col flex-shrink-0 rounded-lg border border-border">
+    <div className="w-80 h-full bg-card flex flex-col shrink-0 rounded-lg border border-border">
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-6">
@@ -422,7 +424,7 @@ const PlanSidebar = ({ plan, setPlan, selectedDay, onCreatePassageForDay, initia
 
         {/* Alerts */}
         {status?.type && (
-          <Alert variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'info' ? 'info' : 'warning'} className="mt-2">
+          <Alert variant={status.type === 'error' ? 'destructive' : status.type === 'success' ? 'success' : status.type === 'warning' ? 'warning' : 'info'} className="mt-2">
             <AlertTitle>{status.title}</AlertTitle>
             {status.message && <AlertDescription>{status.message}</AlertDescription>}
           </Alert>

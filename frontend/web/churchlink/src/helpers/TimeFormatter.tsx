@@ -131,7 +131,7 @@ function convertTime(
     const is_anchor_dst = isDstAt(utc_anchor, tz);
 
     // Initialize a delta to 0
-    var delta = 0;
+    let delta = 0;
 
     // If the event is in DST and the anchor is not, it means that the intended time will be 1 hour too late post-UTC conversion, so we set delta to -1 hour
     if (is_event_dst && !is_anchor_dst) {
@@ -162,7 +162,7 @@ export function localeEnUSToISOInAdminTz(input: string | null | undefined): stri
     const m = s.match(re);
     if (!m) return null;
 
-    let [, M, D, YYYY, hh, mm, ss, ap] = m;
+    const [, M, D, YYYY, hh, mm, ss, ap] = m;
     const year = Number(YYYY);
     const month = Number(M);   // 1-12
     const day = Number(D);     // 1-31
@@ -260,11 +260,11 @@ export function convertAdminEventInstancesToUserTime<T extends {
 }>(items: T[]): T[] {
     return items.map((e) => {
 
-        var date_ref = e.event_date;
-        var end_date_ref = e.event_date;
-        var op_ref = e.event_date;
-        var dl_ref = e.event_date;
-        var rdl_ref = e.event_date;
+        let date_ref = e.event_date;
+        let end_date_ref = e.event_date;
+        let op_ref = e.event_date;
+        let dl_ref = e.event_date;
+        let rdl_ref = e.event_date;
 
         if (e.overrides_tracker != null) {
             if (e.overrides_tracker.length > 3) {
@@ -319,11 +319,11 @@ export function convertUserFacingEventsToUserTime<T extends {
 }>(items: T[]): T[] {
     return items.map((e) => {
 
-        var date_ref = e.event_date;
-        var end_date_ref = e.event_date;
-        var op_ref = e.event_date;
-        var dl_ref = e.event_date;
-        var rdl_ref = e.event_date;
+        let date_ref = e.event_date;
+        let end_date_ref = e.event_date;
+        let op_ref = e.event_date;
+        let dl_ref = e.event_date;
+        let rdl_ref = e.event_date;
 
         if (e.overrides_tracker != null) {
             if (e.overrides_tracker.length > 3) {

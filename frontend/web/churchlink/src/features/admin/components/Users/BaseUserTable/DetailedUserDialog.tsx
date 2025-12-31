@@ -170,7 +170,7 @@ export default function DetailedUserDialog({ userId, onLoaded, onSaved }: Detail
         if (!info) return;
         setSaving(true);
 
-        var update_date = null;
+        let update_date = null;
         const isoBirthday = dobPartsToISO(person.dob);
         if (isoBirthday == null) {
             update_date = new Date();

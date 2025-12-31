@@ -141,7 +141,7 @@ const renderNode = (
       const directHtml = resolveLocalizedProp(node, 'html', activeLocale, defaultLocale);
       const baseHtml = (node as any).props?.html ?? (node as any).props?.text ?? "";
       const isNonDefaultLocale = !!activeLocale && activeLocale !== 'en';
-      let htmlToInject = (directHtml != null && String(directHtml).trim())
+      const htmlToInject = (directHtml != null && String(directHtml).trim())
         ? String(directHtml)
         : ((isNonDefaultLocale && baseHtml && localizeFn)
           ? localizeFn(String(baseHtml))
