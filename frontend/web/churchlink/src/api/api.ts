@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { auth } from '../lib/firebase';
+import type { ChurchSettings } from '../helpers/ChurchSettingsHelper';
 
 interface RetryableAxiosConfig extends AxiosRequestConfig {
   _retryOnce?: boolean;
@@ -188,7 +189,7 @@ export const websiteConfigApi = {
   },
 
   // Update church settings (admin only)
-  updateChurchSettings: async (settings: Record<string, unknown>) => {
+  updateChurchSettings: async (settings: ChurchSettings) => {
     const response = await api.put('/v1/website/church/settings', settings);
     return response.data;
   },
