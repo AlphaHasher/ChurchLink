@@ -1,8 +1,8 @@
 // Fetches chapter text and formatting information
-// Packes this and returns it to bible_reader_body.dart
+// Packs this and returns it to bible_reader_body.dart
 
-import 'package:app/pages/bible_reader/bible_repo_elisha.dart'; // ElishaBibleRepo, VerseRef
-import 'package:app/pages/bible_reader/elisha_json_source.dart';
+import 'package:app/models/bible_reader/verse_ref.dart';
+import 'package:app/services/bible/local_bible_repository.dart';
 
 class ReaderLoadResult {
   ReaderLoadResult({
@@ -17,9 +17,8 @@ class ReaderLoadResult {
 }
 
 class ReaderLoader {
-  ReaderLoader(this.repo, this.jsonSource);
-  final ElishaBibleRepo repo;
-  final ElishaJsonSource jsonSource;
+  ReaderLoader(this.repo);
+  final LocalBibleRepository repo;
 
   Future<ReaderLoadResult> load({
     required String translation,
@@ -35,9 +34,15 @@ class ReaderLoader {
     List<Map<String, String>>? runs;
     Map<int, Map<String, dynamic>>? blocks;
     try {
-      final runsByChapter = await jsonSource.loadRunsFor(translation, book);
+      final runsByChapter = await repo.getChapterRuns(
+        translation: translation,
+        book: book,
+      );
       runs = runsByChapter[chapter];
-      final blocksByChapter = await jsonSource.loadVerseBlocksFor(translation, book);
+      final blocksByChapter = await repo.getVerseBlocks(
+        translation: translation,
+        book: book,
+      );
       blocks = blocksByChapter[chapter];
     } catch (_) {
       runs = null;
@@ -45,5 +50,5 @@ class ReaderLoader {
     }
 
     return ReaderLoadResult(verses: verses, runs: runs, blocks: blocks);
-    }
+  }
 }

@@ -60,10 +60,7 @@ Future<(String, int)?> showJumpPicker({
                                       final selected = (book == selBook && c == selChap);
                                       return InkWell(
                                         borderRadius: BorderRadius.circular(12),
-                                        onTap: () => setSheet(() {
-                                          selBook = book;
-                                          selChap = c;
-                                        }),
+                                        onTap: () => Navigator.pop(ctx, (book, c)),
                                         child: Container(
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
@@ -114,24 +111,6 @@ Future<(String, int)?> showJumpPicker({
                               );
                             }),
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('Cancel'),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: () => Navigator.pop(ctx, (selBook, selChap)),
-                                child: const Text('Go'),
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),

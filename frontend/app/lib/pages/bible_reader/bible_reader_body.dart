@@ -4,8 +4,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
-import 'package:app/pages/bible_reader/bible_repo_elisha.dart';
-import 'package:app/pages/bible_reader/elisha_json_source.dart';
+import 'package:app/models/bible_reader/verse_ref.dart';
+import 'package:app/services/bible/local_bible_repository.dart';
 import 'package:app/models/bible_reader/books.dart';
 import 'package:app/pages/bible_reader/verse_matching.dart' show VerseMatching;
 
@@ -140,7 +140,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
 
   // Pre-load new chapter content without changing UI state
   Future<void> _preloadNewChapter(bool isNext) async {
-    await ElishaBibleRepo.ensureInitialized();
+    await LocalBibleRepository.ensureInitialized();
     
     if (!_booksReady) return;
     
@@ -257,7 +257,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
     verse: v.verse,
   );
 
-  final _repo = ElishaBibleRepo();
+  final _repo = LocalBibleRepository();
 
   // Current view
   late String _translation;
@@ -384,7 +384,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
   }
 
   // Helpers
-  ReaderLoader get _loader => ReaderLoader(_repo, ElishaJsonSource());
+  ReaderLoader get _loader => ReaderLoader(_repo);
   ReaderActions get _actions => ReaderActions(_ctx, api.NotesApi());
 
   @override
@@ -460,7 +460,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
   }
 
   Future<void> _load() async {
-    await ElishaBibleRepo.ensureInitialized();
+    await LocalBibleRepository.ensureInitialized();
 
     if (kDebugMode) {
       debugPrint(
@@ -1182,6 +1182,7 @@ class _BibleReaderBodyState extends State<BibleReaderBody> with TickerProviderSt
                             highlights: { for (final v in filteredVerses) v.$1: colorFor(_ctx, _r(v.$1)) },
                             onTapVerse: (vt) => _openActions(vt),
                             baseStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(fontSize: 16, height: 1.6),
+                            horizontalPadding: 0,
                             runs: _currentRuns,
                             verseBlocks: _currentBlocks,
                             verseKeys: _verseKeys,
