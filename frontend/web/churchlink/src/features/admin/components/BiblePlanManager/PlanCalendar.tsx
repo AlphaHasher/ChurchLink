@@ -17,10 +17,10 @@ import { Calendar } from '@/shared/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 
-interface PlanCalendarProps { 
-  plan: ReadingPlan; 
-  selectedDay: number | null; 
-  onSelectDay: (day: number) => void; 
+interface PlanCalendarProps {
+  plan: ReadingPlan;
+  selectedDay: number | null;
+  onSelectDay: (day: number) => void;
   className?: string;
 }
 
@@ -45,7 +45,7 @@ const CalendarDay = React.memo(({ dayNumber, passages, isSelected, onSelect, dat
     id: `day-${dayKey}`,
   });
   const { active } = useDndContext();
-  const isPassageOver = isOver && (active?.data?.current as any)?.type === 'passage';
+  const isPassageOver = isOver && (active?.data?.current as { type: string })?.type === 'passage';
 
   return (
     <div
@@ -68,12 +68,12 @@ const CalendarDay = React.memo(({ dayNumber, passages, isSelected, onSelect, dat
           {dateLabel}
         </div>
       )}
-      
+
       <div className="flex flex-col gap-1 min-w-0">
         {passages.map((passage: BiblePassage) => (
           <CalendarPassageChip key={passage.id} passage={passage} dayKey={dayKey} />
         ))}
-        
+
         {passages.length === 0 && (
           <div className="min-w-0 py-4 text-center text-xs italic text-muted-foreground/80">
             Drop passages here
@@ -104,29 +104,34 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
   const [showDayOverlay, setShowDayOverlay] = useState(false);
   const [showCalendarPicker, setShowCalendarPicker] = useState(false);
   const [baseDate, setBaseDate] = useState<Date | undefined>(new Date());
+  const [monthDate, setMonthDate] = useState<Date>(() => new Date());
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const calendarToggleRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (baseDate) {
+      setMonthDate(new Date(baseDate));
+    }
+  }, [baseDate]);
 
   const daysPerPage = 31;
   const totalPages = Math.ceil(plan.duration / daysPerPage);
 
-  const getCurrentPageDays = () => {
+  const days = useMemo(() => {
     const startDay = currentPage * daysPerPage;
     const endDay = Math.min(startDay + daysPerPage, plan.duration);
-    
+
     return Array.from({ length: endDay - startDay }, (_, i) => {
       const dayNumber = startDay + i + 1;
       const dayKey = String(dayNumber);
       const passages = plan.readings[dayKey] || [];
-      
+
       return {
         dayNumber,
         passages
       };
     });
-  };
-
-  const days = useMemo(() => getCurrentPageDays(), [currentPage, plan.duration, plan.readings]);
+  }, [currentPage, plan.duration, plan.readings]);
 
   const dateLabels = useMemo(() => {
     if (!showDayOverlay || !baseDate) return {} as Record<number, string>;
@@ -206,9 +211,13 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
         <div ref={overlayRef} className="absolute right-4 top-16 z-20">
           <Calendar
             mode="single"
+            month={monthDate}
+            onMonthChange={setMonthDate}
             selected={baseDate}
             onSelect={(d) => { if (d) setBaseDate(d); }}
             captionLayout="dropdown"
+            fromYear={2000}
+            toYear={2100}
             className="rounded-md border bg-card shadow-sm"
           />
         </div>
@@ -234,14 +243,14 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
           ))}
         </div>
       </div>
-      
+
       {plan.duration > daysPerPage && (
-        <div className="mt-6 flex flex-col items-center gap-2 flex-shrink-0 border-t border-border pt-6 px-1">
+        <div className="mt-6 flex flex-col items-center gap-2 shrink-0 border-t border-border pt-6 px-1">
           <Pagination className="w-full">
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  onClick={(e: any) => { e.preventDefault(); prevPage(); }}
+                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); prevPage(); }}
                   href="#"
                   className={currentPage === 0 ? 'pointer-events-none opacity-50' : ''}
                 />
@@ -261,7 +270,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
                       <PaginationLink
                         href="#"
                         isActive={currentPage === 0}
-                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(0); }}
+                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); setCurrentPage(0); }}
                       >1</PaginationLink>
                     </PaginationItem>
                   );
@@ -279,7 +288,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
                       <PaginationLink
                         href="#"
                         isActive={p === currentPage}
-                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(p); }}
+                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); setCurrentPage(p); }}
                       >{p + 1}</PaginationLink>
                     </PaginationItem>
                   );
@@ -297,7 +306,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
                       <PaginationLink
                         href="#"
                         isActive={currentPage === totalPages - 1}
-                        onClick={(e: any) => { e.preventDefault(); setCurrentPage(totalPages - 1); }}
+                        onClick={(e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); setCurrentPage(totalPages - 1); }}
                       >{totalPages}</PaginationLink>
                     </PaginationItem>
                   );
@@ -306,7 +315,7 @@ const PlanCalendar = ({ plan, selectedDay, onSelectDay, className }: PlanCalenda
               })()}
               <PaginationItem>
                 <PaginationNext
-                  onClick={(e: any) => { e.preventDefault(); nextPage(); }}
+                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => { e.preventDefault(); nextPage(); }}
                   href="#"
                   className={currentPage === totalPages - 1 ? 'pointer-events-none opacity-50' : ''}
                 />
