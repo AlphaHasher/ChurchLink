@@ -101,11 +101,12 @@ class ReaderTopBar extends StatelessWidget {
 
           const Spacer(),
 
-          IconButton(
-            tooltip: 'Search',
-            onPressed: onSearchPressed,
-            icon: Icon(Icons.search),
-          ),
+          // Commented out since the search was clunky and did not search fast enough - Daniel Agafonov
+          // IconButton(
+          //   tooltip: 'Search',
+          //   onPressed: onSearchPressed,
+          //   icon: Icon(Icons.search),
+          // ),
           IconButton(
             tooltip: 'Next chapter',
             onPressed: isAtLastChapter ? null : onNextChapter,
