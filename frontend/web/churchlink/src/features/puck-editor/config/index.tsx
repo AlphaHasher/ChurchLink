@@ -9,6 +9,7 @@ import { SpacerBlock, type SpacerBlockProps } from "./components/SpacerBlock";
 import { DividerBlock, type DividerBlockProps } from "./components/DividerBlock";
 import { MapBlock, type MapBlockProps } from "./components/MapBlock";
 import { GroupBlock, type GroupBlockProps } from "./components/GroupBlock";
+import { EventSectionBlock, type EventSectionBlockProps } from "./components/EventSectionBlock";
 
 // Define all component props types
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
   DividerBlock: DividerBlockProps;
   MapBlock: MapBlockProps;
   GroupBlock: GroupBlockProps;
+  EventSectionBlock: EventSectionBlockProps;
 };
 
 // Root props for page-level settings
@@ -58,7 +60,7 @@ export const config: Config<Props, RootProps> = {
     },
     sections: {
       title: "Sections",
-      components: ["HeroBlock"],
+      components: ["HeroBlock", "EventSectionBlock"],
     },
     integrations: {
       title: "Integrations",
@@ -74,6 +76,7 @@ export const config: Config<Props, RootProps> = {
     DividerBlock,
     MapBlock,
     GroupBlock,
+    EventSectionBlock,
   },
 };
 
