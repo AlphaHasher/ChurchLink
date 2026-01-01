@@ -142,114 +142,32 @@ async def duplicate_page(page_id: str = Path(...)):
     return {"_id": str(result.inserted_id), "slug": duplicate["slug"], "title": duplicate["title"]}
 
 
-# ------------------------------
-# Staging/Draft Endpoints
-# ------------------------------
-
-
-@public_page_router.get("/staging/{slug:path}")
-async def get_staging_page(slug: str):
-    """Fetch a staging (draft) page by slug (public preview)."""
-    decoded = _normalize_slug(slug)
-    # Try exact match first
-    page = await DB.db["pages_staging"].find_one({"slug": decoded})
-    # Fallback: if root not found, try "home"
-    if not page and decoded == "/":
-        page = await DB.db["pages_staging"].find_one({"slug": "home"})
-    # If no staging draft exists, fall back to live page for previewing with staging=1
-    if not page:
-        live = await DB.db["pages"].find_one({"slug": decoded, "visible": True})
-        if not live and decoded == "/":
-            live = await DB.db["pages"].find_one({"slug": "home", "visible": True})
-        if not live:
-            raise HTTPException(status_code=404, detail="Staging page not found")
-        live["_id"] = str(live["_id"])
-        return live
-    page["_id"] = str(page["_id"])
-    return page
-
-
-@mod_page_router.put("/staging/{slug:path}")
-async def upsert_staging_page(slug: str = Path(...), data: dict = Body(...)):
-    """Create or update a staging (draft) page by slug. Upserts by slug."""
-    data = {**data}
-    decoded = _normalize_slug(slug)
-    data["slug"] = decoded
-    data["updated_at"] = datetime.utcnow()
-    # Sanitize client-sent fields that would conflict with $setOnInsert or DB internals
-    for forbidden in ["_id", "created_at", "createdAt", "updatedAt"]:
-        if forbidden in data:
-            data.pop(forbidden, None)
-
-    result = await DB.db["pages_staging"].update_one(
-        {"slug": decoded},
-        {"$set": data, "$setOnInsert": {"created_at": datetime.utcnow()}},
-        upsert=True,
-    )
-    return {
-        "upserted": getattr(result, "upserted_id", None) is not None,
-        "modified": result.modified_count,
-    }
-
-
-@mod_page_router.delete("/staging/{slug:path}")
-async def delete_staging_page(slug: str):
-    decoded = _normalize_slug(slug)
-    # Prefer normalized slug, but also try deleting "home" if deleting root
-    result = await DB.db["pages_staging"].delete_one({"slug": decoded})
-    if result.deleted_count == 0 and decoded == "/":
-        result = await DB.db["pages_staging"].delete_one({"slug": "home"})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Staging page not found")
-    return {"deleted": result.deleted_count}
-
-
 @mod_page_router.post("/publish/{slug:path}")
-async def publish_staging_page(slug: str):
+async def publish_page(slug: str, data: dict = Body(...)):
     """
-    Publish a staging page into the live pages collection by slug.
+    Publish a page directly to the live pages collection.
 
-    Normalizes the provided slug, loads the corresponding staging document (with a root '/' fallback to 'home'), upserts a curated set of fields into the live pages collection, and removes the staging copy after successful publish.
+    Accepts page data in the request body and upserts it directly to the live pages collection.
 
     Parameters:
-        slug (str): Raw slug or path identifying the page to publish; it will be normalized/decoded before use.
+        slug (str): Raw slug or path identifying the page to publish.
+        data (dict): Page data including title and puckData.
 
     Returns:
         dict: `{'published': True}` when the publish completes successfully.
-
-    Raises:
-        HTTPException: If the staging page cannot be found (404) or if an internal error occurs during publishing (500).
     """
     try:
-        # Normalize and safely decode slug to mirror preview/get behavior
         decoded = _normalize_slug(slug)
 
-        # Load staging with fallback for root/home
-        staging = await DB.db["pages_staging"].find_one({"slug": decoded})
-        if not staging and decoded == "/":
-            staging = await DB.db["pages_staging"].find_one({"slug": "home"})
-        if not staging:
-            raise HTTPException(status_code=404, detail="Staging page not found")
-
-        # Build publish fields with sane defaults and include style tokens for v2
-        # Include mobile sections if provided
-        # Include Puck editor format fields
+        # Build publish fields from request data
         allowed_keys = [
             "title",
-            "slug",
-            "sections",
-            "sectionsMobile",
-            "visible",
-            "version",
-            "styleTokens",
-            "format",      # "puck" or "legacy"
-            "puckData",    # Puck editor data when format === "puck"
+            "format",      # "puck"
+            "puckData",    # Puck editor data
         ]
-        publish_fields = {k: staging.get(k) for k in allowed_keys if k in staging}
+        publish_fields = {k: data.get(k) for k in allowed_keys if k in data}
         publish_fields["slug"] = decoded
-        publish_fields.setdefault("version", 2)
-        publish_fields.setdefault("sections", [])
-        publish_fields.setdefault("title", decoded)
+        publish_fields["visible"] = True
         publish_fields["updated_at"] = datetime.utcnow()
 
         await DB.db["pages"].update_one(
@@ -258,17 +176,8 @@ async def publish_staging_page(slug: str):
             upsert=True,
         )
 
-        # Remove staging version after publish (try both normalized and home for root)
-        await DB.db["pages_staging"].delete_one({"slug": decoded})
-        if decoded == "/":
-            await DB.db["pages_staging"].delete_one({"slug": "home"})
-
         return {"published": True}
-    except HTTPException:
-        # Re-raise explicit HTTP errors
-        raise
     except Exception as e:
-        # Surface internal error for easier debugging during development
         raise HTTPException(status_code=500, detail=f"Publish failed: {str(e)}")
 
 

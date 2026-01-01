@@ -10,6 +10,7 @@ import { TemplateProvider } from "../context/TemplateContext";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { ModeToggle } from "@/shared/components/ModeToggle";
 import { ManageGroupsDialog } from "../components/ManageGroupsDialog";
+import { UndoRedoButtons } from "../components/UndoRedoButtons";
 import { Button } from "@/shared/components/ui/button";
 import { LayoutGrid, ArrowLeft } from "lucide-react";
 
@@ -22,9 +23,9 @@ export default function PuckEditor() {
     data,
     loading,
     error,
-    saveStatus,
+    publishing,
     isPublished,
-    save,
+    updateData,
     publish,
   } = usePuckPage(slug || "home");
 
@@ -41,7 +42,7 @@ export default function PuckEditor() {
     return buildConfigWithTemplates(templates);
   }, [templates]);
 
-    // Handler for saving a component as template
+  // Handler for saving a component as template
   const handleSaveAsTemplate = useCallback(
     async (puckData: object, name: string, description?: string) => {
       await saveTemplate(name, puckData, description);
@@ -100,16 +101,16 @@ export default function PuckEditor() {
           data={data as any}
           onPublish={async (publishData) => {
             try {
+              // Update local state with final data before publishing
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await save(publishData as any);
+              updateData(publishData as any);
               await publish();
-              // Show success message or redirect
             } catch (err) {
               console.error("Publish failed:", err);
             }
           }}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onChange={save as any}
+          onChange={updateData as any}
           headerTitle={slug || "home"}
           headerPath={`/${slug || ""}`}
           overrides={{
@@ -130,8 +131,12 @@ export default function PuckEditor() {
 
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-base">{slug || "home"}</span>
-                    <SaveStatusBadge status={saveStatus} />
-                    {isPublished && (
+                    {publishing && (
+                      <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded font-medium">
+                        Publishing...
+                      </span>
+                    )}
+                    {isPublished && !publishing && (
                       <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded font-medium">
                         Live
                       </span>
@@ -152,6 +157,8 @@ export default function PuckEditor() {
                     Manage Groups
                   </Button>
                   <div className="h-6 w-px bg-border mx-1" />
+                  <UndoRedoButtons />
+                  <div className="h-6 w-px bg-border mx-1" />
                   {actions}
                 </div>
               </header>
@@ -164,27 +171,5 @@ export default function PuckEditor() {
         />
       </div>
     </TemplateProvider>
-  );
-}
-
-function SaveStatusBadge({ status }: { status: "idle" | "saving" | "saved" | "error" }) {
-  if (status === "idle") return null;
-
-  const styles = {
-    saving: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-    saved: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-    error: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  };
-
-  const labels = {
-    saving: "Saving...",
-    saved: "Saved",
-    error: "Save failed",
-  };
-
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded ${styles[status]}`}>
-      {labels[status]}
-    </span>
   );
 }

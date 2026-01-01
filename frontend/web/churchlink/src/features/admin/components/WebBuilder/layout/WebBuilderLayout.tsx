@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import DynamicPage from "@/shared/components/DynamicPage";
 import NavBar from "@/shared/components/NavBar";
@@ -70,7 +69,6 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
   const [currentHeaderData, setCurrentHeaderData] = useState<HeaderItem[] | undefined>(initialHeaderData);
   const [currentFooterData, setCurrentFooterData] = useState<FooterSection[] | undefined>(initialFooterData);
   const [currentPageData, setCurrentPageData] = useState<{ slug: string; sections: PageSection[] } | undefined>(initialPageData);
-  const [useStagingPreview, setUseStagingPreview] = useState<boolean>(true);
 
   const handleHeaderDataChange = (data: HeaderItem[]) => {
     setCurrentHeaderData(data);
@@ -127,34 +125,25 @@ const WebBuilderLayout: React.FC<WebBuilderLayoutProps> = ({
         </TabsContent>
 
         <TabsContent value="preview" className="mt-0 flex-1 flex flex-col min-h-0">
-          <div className="text-center py-4 text-gray-500 flex-shrink-0">
-            <div className="container mx-auto px-4 flex items-center justify-between">
+          <div className="text-center py-4 text-gray-500 shrink-0">
+            <div className="container mx-auto px-4">
               <p className="mb-0">
                 {type === "page"
                   ? `Preview of page: ${currentPageData?.slug || "unknown"}`
                   : `Preview of root page with ${type} applied:`
                 }
               </p>
-              {type === "page" && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <Checkbox
-                    checked={useStagingPreview}
-                    onCheckedChange={(val) => setUseStagingPreview(Boolean(val))}
-                  />
-                  <span>Show staging</span>
-                </div>
-              )}
             </div>
           </div>
           <div className="flex-1 mx-4 mb-4 min-h-0 relative">
-            {/* Full page preview via iframe to staging for pages; component render for header/footer */}
+            {/* Full page preview via iframe for pages; component render for header/footer */}
             {type === "page" ? (
               <>
                 <div className="absolute inset-0 border rounded-lg overflow-hidden bg-background" />
                 <iframe
                   title="page-preview"
-                  key={`${currentPageData?.slug}-${useStagingPreview ? 'staging' : 'live'}`}
-                  src={`/${(currentPageData?.slug && currentPageData.slug !== "/" ? currentPageData.slug.replace(/^\/+/, "") : "")}${useStagingPreview ? "?staging=1&" : "?"}preview=true`}
+                  key={currentPageData?.slug}
+                  src={`/${(currentPageData?.slug && currentPageData.slug !== "/" ? currentPageData.slug.replace(/^\/+/, "") : "")}?preview=true`}
                   className="absolute inset-0 w-full h-full"
                   style={{
                     background: 'white',

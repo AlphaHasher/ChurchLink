@@ -66,16 +66,6 @@ export const publicApi = axios.create({
   withCredentials: true,
 });
 
-// Helper endpoints for page staging/publish
-export const pageApi = {
-  // Autosave to staging by slug
-  saveStaging: (slug: string, data: Record<string, unknown>) => api.put(`/v1/pages/staging/${encodeURIComponent(slug)}`, data),
-  // Get staging by slug
-  getStaging: (slug: string) => api.get(`/v1/pages/staging/${encodeURIComponent(slug)}`),
-  // Publish staging to live
-  publish: (slug: string) => api.post(`/v1/pages/publish/${encodeURIComponent(slug)}`),
-};
-
 // Add Firebase auth token interceptor
 api.interceptors.request.use(async (config) => {
   const user = auth.currentUser;

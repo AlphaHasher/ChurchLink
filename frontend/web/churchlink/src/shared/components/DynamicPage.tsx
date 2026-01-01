@@ -125,22 +125,18 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
 
     (async () => {
       try {
-        // Respect staging query param anywhere in the app (not only when isPreviewMode is true)
-        const searchParams = new URLSearchParams(location.search);
-        const useStaging = (searchParams.get("staging") === "1" || searchParams.get("staging") === "true");
-        const url = useStaging
-          ? `/v1/pages/staging/${encodeURIComponent(slug)}`
-          : (isPreviewMode
-            ? `/v1/pages/preview/${encodeURIComponent(slug)}`
-            : `/v1/pages/slug/${encodeURIComponent(slug)}`);
+        const url = isPreviewMode
+          ? `/v1/pages/preview/${encodeURIComponent(slug)}`
+          : `/v1/pages/slug/${encodeURIComponent(slug)}`;
         console.log("DynamicPage: Fetching from:", url);
         const res = await api.get(url, {
           signal: ctrl.signal,
         });
         setPageData(res.data);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (ctrl.signal.aborted) return;
-        const status = e?.response?.status;
+        const axiosErr = e as { response?: { status?: number } };
+        const status = axiosErr?.response?.status;
         if (status === 404) setNotFound(true);
         else setError("Failed to load page.");
       } finally {
@@ -153,9 +149,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({
 
   const isEffectivelyPreview =
     isPreviewMode ||
-    (new URLSearchParams(location.search).get("staging") === "1" ||
-      new URLSearchParams(location.search).get("staging") === "true") ||
-    (new URLSearchParams(location.search).get("preview") === "true");
+    new URLSearchParams(location.search).get("preview") === "true";
 
   // Add preview class to body for CSS targeting (must be before any early returns to keep hook order stable)
   React.useEffect(() => {

@@ -57,44 +57,17 @@ def test_delete_page():
     assert response.status_code in [200, 404, 400]
 
 
-def test_get_staging_page():
-    headers = get_admin_headers()
-    slug = "test-page"
-    response = httpx.get(f"{BASE_URL}/api/v1/pages/staging/{slug}", headers=headers)
-    assert response.status_code in [200, 404]
-
-
-def test_upsert_staging_page():
+def test_publish_page():
     headers = get_admin_headers()
     slug = "test-page"
     payload = {
-        "title": "Staging Test Page",
-        "content": "Draft content",
-        "sections": [],
+        "title": "Published Test Page",
+        "puckData": {"content": [], "root": {"props": {"title": "Test"}}},
+        "format": "puck",
     }
-    response = httpx.put(
-        f"{BASE_URL}/api/v1/pages/staging/{slug}",
+    response = httpx.post(
+        f"{BASE_URL}/api/v1/pages/publish/{slug}",
         json=payload,
         headers=headers,
     )
     assert response.status_code in [200, 201]
-
-
-def test_publish_staging_page():
-    headers = get_admin_headers()
-    slug = "test-page"
-    response = httpx.post(
-        f"{BASE_URL}/api/v1/pages/publish/{slug}",
-        headers=headers,
-    )
-    assert response.status_code in [200, 404]
-
-
-def test_delete_staging_page():
-    headers = get_admin_headers()
-    slug = "test-page"
-    response = httpx.delete(
-        f"{BASE_URL}/api/v1/pages/staging/{slug}",
-        headers=headers,
-    )
-    assert response.status_code in [200, 404]
