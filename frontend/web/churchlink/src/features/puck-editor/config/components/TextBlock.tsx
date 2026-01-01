@@ -12,6 +12,7 @@ export const TextBlock: ComponentConfig<TextBlockProps> = {
     content: {
       type: "textarea",
       label: "Content",
+      contentEditable: true,
     },
     variant: {
       type: "select",

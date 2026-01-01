@@ -1,0 +1,160 @@
+/**
+ * Puck Editor Dark Mode Overrides
+ *
+ * Maps Puck's internal CSS variables to our theme tokens when dark mode is active.
+ * Puck uses a light grey scale by default (grey-01 = darkest, grey-12 = lightest).
+ * For dark mode, we invert this: backgrounds become dark, text becomes light.
+ */
+
+/* Override Puck color variables in dark mode */
+.dark :root,
+.dark {
+  /* Invert the grey scale for dark mode */
+  /* Light backgrounds become dark */
+  --puck-color-white: #0D1117;
+  --puck-color-grey-12: #0C0D10;
+  --puck-color-grey-11: #14171C;
+  --puck-color-grey-10: #1A1F26;
+  --puck-color-grey-09: #23272E;
+  --puck-color-grey-08: #2D333B;
+
+  /* Mid tones */
+  --puck-color-grey-07: #444C56;
+  --puck-color-grey-06: #545D68;
+  --puck-color-grey-05: #6E7681;
+
+  /* Dark backgrounds become light (for text) */
+  --puck-color-grey-04: #8B949E;
+  --puck-color-grey-03: #B1BAC4;
+  --puck-color-grey-02: #C9D1D9;
+  --puck-color-grey-01: #E6EDF3;
+  --puck-color-black: #FFFFFF;
+
+  /* Adjust primary/accent colors for dark mode visibility */
+  --puck-color-azure-05: #58A6FF;
+  --puck-color-azure-06: #79B8FF;
+}
+
+/* Ensure Puck components respect dark mode */
+.dark [class*="_Puck"],
+.dark [class*="Puck-"],
+.dark [data-puck-component],
+.dark [data-puck-entry] {
+  color-scheme: dark;
+}
+
+/* Fix specific component backgrounds that may not use variables */
+.dark ._Puck_19z8c_1 {
+  background-color: #0D1117;
+}
+
+/* Action bar adjustments */
+.dark ._ActionBar_rvadt_1 {
+  background: #23272E;
+  border-color: #1A2D4D;
+}
+
+/* Sidebar/panel backgrounds */
+.dark [class*="_SidebarSection"],
+.dark [class*="_ComponentList"],
+.dark [class*="_Fields"] {
+  background-color: #0C0D10;
+}
+
+/* Input fields in dark mode */
+.dark [class*="_Input"],
+.dark [class*="_Textarea"],
+.dark [class*="_Select"] {
+  background-color: #14171C;
+  border-color: #1A2D4D;
+  color: #E6EDF3;
+}
+
+/* Dropdown menus */
+.dark [class*="_Dropdown"] {
+  background-color: #14171C;
+  border-color: #1A2D4D;
+}
+
+/* Canvas/preview area - EXCLUDE from dark mode, keep light for actual page content */
+/* The page content should always render as it would on the live site (light mode) */
+/* Only target the frame/iframe content, not the canvas controls */
+.dark [class*="_PuckFrame"],
+.dark [class*="_PuckPreview"] iframe,
+.dark [class*="_PuckCanvas"] iframe {
+  /* Reset to light mode for the actual page content */
+  --puck-color-white: #ffffff;
+  --puck-color-grey-12: #fafafa;
+  --puck-color-grey-11: #f5f5f5;
+  --puck-color-grey-10: #efefef;
+  --puck-color-grey-09: #dcdcdc;
+  --puck-color-grey-08: #c3c3c3;
+  --puck-color-grey-07: #ababab;
+  --puck-color-grey-06: #949494;
+  --puck-color-grey-05: #767676;
+  --puck-color-grey-04: #5a5a5a;
+  --puck-color-grey-03: #404040;
+  --puck-color-grey-02: #292929;
+  --puck-color-grey-01: #181818;
+  --puck-color-black: #000000;
+  background-color: #ffffff;
+}
+
+/* Canvas controls should stay in dark mode - these are editor controls, not page content */
+.dark [class*="_PuckCanvas-controls"] {
+  --puck-color-white: #0D1117;
+  --puck-color-grey-12: #0C0D10;
+  --puck-color-grey-11: #14171C;
+  --puck-color-grey-10: #1A1F26;
+  --puck-color-grey-09: #23272E;
+  --puck-color-grey-08: #2D333B;
+  --puck-color-grey-07: #444C56;
+  --puck-color-grey-06: #545D68;
+  --puck-color-grey-05: #6E7681;
+  --puck-color-grey-04: #8B949E;
+  --puck-color-grey-03: #B1BAC4;
+  --puck-color-grey-02: #C9D1D9;
+  --puck-color-grey-01: #E6EDF3;
+  --puck-color-black: #FFFFFF;
+  --puck-color-azure-05: #58A6FF;
+  --puck-color-azure-06: #79B8FF;
+  background-color: #23272E;
+  color: #E6EDF3;
+}
+
+/* Ensure iframe content stays in light mode */
+.dark [class*="_PuckFrame"] iframe {
+  background-color: #ffffff;
+}
+
+/* Hover states */
+.dark [class*="_Item"]:hover,
+.dark [class*="_Option"]:hover {
+  background-color: #23272E;
+}
+
+/* Selection highlights */
+.dark [class*="_selected"],
+.dark [class*="_active"] {
+  background-color: rgba(88, 166, 255, 0.15);
+  border-color: #58A6FF;
+}
+
+/* Scrollbar styling for dark mode */
+.dark [class*="_Puck"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark [class*="_Puck"] ::-webkit-scrollbar-track {
+  background: #14171C;
+}
+
+.dark [class*="_Puck"] ::-webkit-scrollbar-thumb {
+  background: #23272E;
+  border-radius: 4px;
+}
+
+.dark [class*="_Puck"] ::-webkit-scrollbar-thumb:hover {
+  background: #2D333B;
+}

@@ -102,7 +102,7 @@ export const AppRouter = () => {
         />
         {/* Standalone Puck Editor (admin-guarded, no AdminLayout) */}
         <Route
-          path="/web-editor/:slug"
+          path="/admin/webbuilder/:slug"
           element={
             <AdminRoute>
               <PuckEditor />

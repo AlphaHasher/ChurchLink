@@ -8,6 +8,7 @@ import { HeroBlock, type HeroBlockProps } from "./components/HeroBlock";
 import { SpacerBlock, type SpacerBlockProps } from "./components/SpacerBlock";
 import { DividerBlock, type DividerBlockProps } from "./components/DividerBlock";
 import { MapBlock, type MapBlockProps } from "./components/MapBlock";
+import { GroupBlock, type GroupBlockProps } from "./components/GroupBlock";
 
 // Define all component props types
 type Props = {
@@ -18,6 +19,7 @@ type Props = {
   SpacerBlock: SpacerBlockProps;
   DividerBlock: DividerBlockProps;
   MapBlock: MapBlockProps;
+  GroupBlock: GroupBlockProps;
 };
 
 // Root props for page-level settings
@@ -48,7 +50,7 @@ export const config: Config<Props, RootProps> = {
   categories: {
     layout: {
       title: "Layout",
-      components: ["SpacerBlock", "DividerBlock"],
+      components: ["GroupBlock", "SpacerBlock", "DividerBlock"],
     },
     content: {
       title: "Content",
@@ -71,6 +73,7 @@ export const config: Config<Props, RootProps> = {
     SpacerBlock,
     DividerBlock,
     MapBlock,
+    GroupBlock,
   },
 };
 

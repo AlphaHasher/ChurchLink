@@ -3,12 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { AgGridReact } from "ag-grid-react";
 import { ColDef, ICellRendererParams, ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import "ag-grid-community/styles/ag-theme-quartz.css";
-import { Edit, Trash2, RefreshCcw } from "lucide-react";
+import { Edit, Trash2, RefreshCcw, MoreHorizontal, Copy, Edit2, Download, Lock, Unlock } from "lucide-react";
 import api from "@/api/api";
 import { VisibilityToggleCellRenderer } from "@/shared/components/VisibilityToggle";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/Dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/shared/components/ui/Dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/shared/components/ui/dropdown-menu";
 import { slugify } from "@/shared/utils/slugify";
 
 // Register AG Grid modules
@@ -35,6 +42,14 @@ const WebBuilderPageList = () => {
   const [slugError, setSlugError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Rename dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; title: string; slug: string } | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
+  const [renameSlug, setRenameSlug] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameSaving, setRenameSaving] = useState(false);
 
   const fetchPages = async () => {
     try {
@@ -75,7 +90,85 @@ const WebBuilderPageList = () => {
 
   const openEditor = (slug: string) => {
     const encoded = encodeURIComponent(slug);
-    navigate(`/web-editor/${encoded}`);
+    navigate(`/admin/webbuilder/${encoded}`);
+  };
+
+  // Duplicate page
+  const duplicatePage = async (page: Page) => {
+    try {
+      const response = await api.post(`/v1/pages/${page._id}/duplicate`);
+      const newPage = response.data;
+      // Fetch the full page data
+      const fullPage = await api.get(`/v1/pages/preview/${newPage.slug}`);
+      setPages((prev) => [fullPage.data, ...prev]);
+    } catch (error) {
+      console.error("Error duplicating page:", error);
+      alert("Failed to duplicate page");
+    }
+  };
+
+  // Open rename dialog
+  const openRenameDialog = (page: Page) => {
+    setRenameTarget({ id: page._id, title: page.title, slug: page.slug });
+    setRenameTitle(page.title);
+    setRenameSlug(page.slug);
+    setRenameError(null);
+    setRenameDialogOpen(true);
+  };
+
+  // Handle rename
+  const handleRename = async () => {
+    if (!renameTarget) return;
+    if (!renameTitle.trim() || !renameSlug.trim()) {
+      setRenameError("Title and slug are required");
+      return;
+    }
+    setRenameSaving(true);
+    setRenameError(null);
+    try {
+      await api.put(`/v1/pages/${renameTarget.id}`, {
+        title: renameTitle.trim(),
+        slug: renameSlug.trim(),
+      });
+      setPages((prev) =>
+        prev.map((p) =>
+          p._id === renameTarget.id
+            ? { ...p, title: renameTitle.trim(), slug: renameSlug.trim() }
+            : p
+        )
+      );
+      setRenameDialogOpen(false);
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail || "Failed to rename page";
+      setRenameError(typeof detail === "string" ? detail : "Failed to rename page");
+    } finally {
+      setRenameSaving(false);
+    }
+  };
+
+  // Export page as JSON
+  const exportPage = async (page: Page) => {
+    try {
+      const response = await api.get(`/v1/pages/preview/${page.slug}`);
+      const pageData = response.data;
+
+      // Remove sensitive fields
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { _id, created_at, updated_at, ...exportData } = pageData;
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `page-${page.slug}-${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error exporting page:", error);
+      alert("Failed to export page");
+    }
   };
 
   const columnDefs = useMemo<ColDef[]>(() => [
@@ -113,42 +206,69 @@ const WebBuilderPageList = () => {
       cellRenderer: (props: ICellRendererParams<Page>) => VisibilityCellRenderer(props),
     },
     {
-      headerName: "Lock Status",
-      field: "locked",
-      sortable: true,
-      filter: true,
-      cellRenderer: (params: any) => (
-        <button
-          onClick={() => toggleLock(params.data._id, params.value ?? false)}
-          className="text-sm text-gray-600 hover:underline"
-        >
-          {params.value ? "Unlock" : "Lock"}
-        </button>
-      ),
-    },
-    {
       headerName: "Actions",
       field: "actions",
       width: 110,
-      cellRenderer: (params: any) => (
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => openEditor(params.data.slug)}
-            className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-            title="Edit page"
-          >
-            <Edit size={16} />
-          </button>
-          <button
-            onClick={() => deletePage(params.data._id)}
-            className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={params.data.locked}
-            title="Delete page"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      ),
+      cellRenderer: (params: any) => {
+        const page = params.data;
+        return (
+          <div className="flex items-center gap-2">
+            {/* Edit button */}
+            <button
+              onClick={() => openEditor(page.slug)}
+              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+              title="Edit page"
+            >
+              <Edit size={16} />
+            </button>
+
+            {/* Dropdown menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
+                  <MoreHorizontal size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => duplicatePage(page)}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openRenameDialog(page)}>
+                  <Edit2 className="mr-2 h-4 w-4" />
+                  Rename/Change Slug
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportPage(page)}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export JSON
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => toggleLock(page._id, page.locked ?? false)}>
+                  {page.locked ? (
+                    <>
+                      <Unlock className="mr-2 h-4 w-4" />
+                      Unlock
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="mr-2 h-4 w-4" />
+                      Lock
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => deletePage(page._id)}
+                  disabled={page.locked}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
     },
   ], [navigate]);
 
@@ -289,6 +409,58 @@ const WebBuilderPageList = () => {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsAddOpen(false)} disabled={saving}>Cancel</Button>
             <Button onClick={saveNewPage} disabled={saving || !!slugError || !newTitle.trim() || !newSlug.trim()}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Page Dialog */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Page</DialogTitle>
+            <DialogDescription>
+              Update the title and slug for this page. The slug is used in the URL.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Title</label>
+              <Input
+                value={renameTitle}
+                onChange={(e) => setRenameTitle(e.target.value)}
+                placeholder="Page title"
+                disabled={renameSaving}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Slug</label>
+              <Input
+                value={renameSlug}
+                onChange={(e) => setRenameSlug(e.target.value)}
+                placeholder="page-slug"
+                disabled={renameSaving}
+                className="mt-1"
+              />
+            </div>
+            {renameError && (
+              <div className="text-sm text-destructive">{renameError}</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setRenameDialogOpen(false)}
+              disabled={renameSaving}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRename}
+              disabled={renameSaving || !renameTitle.trim() || !renameSlug.trim()}
+            >
+              {renameSaving ? "Saving..." : "Save Changes"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

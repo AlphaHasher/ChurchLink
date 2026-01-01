@@ -104,6 +104,44 @@ async def update_page_sections(page_id: str = Path(...), data: dict = Body(...))
     return {"matched": result.matched_count, "modified": result.modified_count}
 
 
+# Mod Router - Duplicate a page
+@mod_page_router.post("/{page_id}/duplicate")
+async def duplicate_page(page_id: str = Path(...)):
+    """Duplicate a page with a new slug. The duplicated page will be hidden by default."""
+    try:
+        object_id = ObjectId(page_id)
+    except bson_errors.InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid page ID")
+
+    # Get original page
+    original = await DB.db["pages"].find_one({"_id": object_id})
+    if not original:
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    # Create duplicate
+    duplicate = {**original}
+    del duplicate["_id"]
+
+    # Generate unique slug (add -copy suffix and handle conflicts)
+    base_slug = f"{original['slug']}-copy"
+    new_slug = base_slug
+    counter = 1
+
+    # Check if slug exists and increment counter if needed
+    while await DB.db["pages"].find_one({"slug": new_slug}):
+        new_slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    duplicate["slug"] = new_slug
+    duplicate["title"] = f"{original['title']} (Copy)"
+    duplicate["visible"] = False
+    duplicate["created_at"] = datetime.utcnow()
+    duplicate["updated_at"] = datetime.utcnow()
+
+    result = await DB.db["pages"].insert_one(duplicate)
+    return {"_id": str(result.inserted_id), "slug": duplicate["slug"], "title": duplicate["title"]}
+
+
 # ------------------------------
 # Staging/Draft Endpoints
 # ------------------------------
