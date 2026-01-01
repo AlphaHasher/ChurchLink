@@ -8,6 +8,7 @@ import api from "@/api/api";
 import { VisibilityToggleCellRenderer } from "@/shared/components/VisibilityToggle";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/shared/components/ui/Dialog";
 import {
   DropdownMenu,
@@ -42,6 +43,8 @@ const WebBuilderPageList = () => {
   const [slugError, setSlugError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Rename dialog state
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -53,10 +56,13 @@ const WebBuilderPageList = () => {
 
   const fetchPages = async () => {
     try {
+      setLoading(true);
       const response = await api.get("/v1/pages/");
       setPages(response.data);
     } catch (error) {
       console.error("Error fetching pages:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,7 +96,7 @@ const WebBuilderPageList = () => {
 
   const openEditor = (slug: string) => {
     const encoded = encodeURIComponent(slug);
-    navigate(`/admin/webbuilder/${encoded}`);
+    navigate(`/admin/webbuilder/page/${encoded}`);
   };
 
   // Duplicate page
@@ -171,6 +177,14 @@ const WebBuilderPageList = () => {
     }
   };
 
+  const filteredPages = useMemo(() => {
+    if (!searchQuery.trim()) return pages;
+    return pages.filter((page) =>
+      page.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      page.slug?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [pages, searchQuery]);
+
   const columnDefs = useMemo<ColDef[]>(() => [
     {
       headerName: "Title",
@@ -208,26 +222,22 @@ const WebBuilderPageList = () => {
     {
       headerName: "Actions",
       field: "actions",
-      width: 110,
-      cellRenderer: (params: any) => {
+      width: 150,
+      cellRenderer: (params: ICellRendererParams<Page>) => {
         const page = params.data;
+        if (!page) return null;
+
         return (
           <div className="flex items-center gap-2">
-            {/* Edit button */}
-            <button
-              onClick={() => openEditor(page.slug)}
-              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-              title="Edit page"
-            >
-              <Edit size={16} />
-            </button>
-
-            {/* Dropdown menu */}
+            <Button size="sm" variant="outline" onClick={() => openEditor(page.slug)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors">
-                  <MoreHorizontal size={16} />
-                </button>
+                <Button size="sm" variant="ghost">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => duplicatePage(page)}>
@@ -318,32 +328,57 @@ const WebBuilderPageList = () => {
   };
 
   return (
-    <div className="p-4">
-      <div className="flex justify-end items-center mb-4 gap-2">
-        <Button variant="outline" size="sm" onClick={fetchPages} title="Refresh">
-          <RefreshCcw className="h-4 w-4" />
-        </Button>
-        <Button onClick={openAddDialog} className="h-9">
-          + Add Page
-        </Button>
+    <div>
+      {/* Header with title and actions */}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-semibold">Manage Pages</h1>
+        <div className="flex items-center gap-2">
+          <Button onClick={fetchPages} variant="outline" size="sm">
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button onClick={openAddDialog}>
+            Create New Page
+          </Button>
+        </div>
       </div>
-      <div className="ag-theme-quartz" style={{ height: 600, width: "100%" }}>
-        <AgGridReact
-          rowData={pages}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          context={{
-            setPages,
-            onToggleVisibility: async (id: string, newVisibility: boolean) => {
-              await api.put(`/v1/pages/${id}`, { visible: newVisibility });
-              setPages((prev) => prev.map((p) => (p._id === id ? { ...p, visible: newVisibility } : p)));
-            }
-          }}
-          pagination={true}
-          paginationPageSize={20}
-          paginationPageSizeSelector={[10, 20, 50]}
+
+      {/* Search Input */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Search by title or slug..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-md"
         />
       </div>
+
+      {/* Loading State or Grid */}
+      {loading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : (
+        <div className="ag-theme-quartz" style={{ height: 600, width: "100%" }}>
+          <AgGridReact
+            rowData={filteredPages}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            context={{
+              setPages,
+              onToggleVisibility: async (id: string, newVisibility: boolean) => {
+                await api.put(`/v1/pages/${id}`, { visible: newVisibility });
+                setPages((prev) => prev.map((p) => (p._id === id ? { ...p, visible: newVisibility } : p)));
+              }
+            }}
+            pagination={true}
+            paginationPageSize={20}
+            paginationPageSizeSelector={[10, 20, 50]}
+          />
+        </div>
+      )}
 
       {/* Add Page Dialog */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>

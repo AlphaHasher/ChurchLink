@@ -18,6 +18,7 @@ export interface CustomTemplate {
   };
   created_at: string;
   updated_at: string;
+  locked?: boolean;
 }
 
 interface UseCustomTemplatesReturn {
@@ -25,6 +26,9 @@ interface UseCustomTemplatesReturn {
   loading: boolean;
   error: string | null;
   saveTemplate: (name: string, puckData: object, description?: string) => Promise<CustomTemplate>;
+  updateTemplate: (id: string, updates: { name?: string; description?: string; locked?: boolean; puckData?: object }) => Promise<CustomTemplate>;
+  duplicateTemplate: (id: string) => Promise<CustomTemplate>;
+  toggleLock: (id: string, currentLocked: boolean) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
   refetch: () => Promise<void>;
 }
@@ -77,6 +81,51 @@ export function useCustomTemplates(): UseCustomTemplatesReturn {
     [fetchTemplates]
   );
 
+  const updateTemplate = useCallback(
+    async (id: string, updates: { name?: string; description?: string; locked?: boolean; puckData?: object }): Promise<CustomTemplate> => {
+      try {
+        const response = await api.put(`/v1/page-components/${id}`, updates);
+        await fetchTemplates();
+        return response.data;
+      } catch (err: unknown) {
+        console.error("Error updating template:", err);
+        const axiosError = err as { response?: { data?: { detail?: string } } };
+        const message = axiosError.response?.data?.detail || "Failed to update template";
+        throw new Error(message);
+      }
+    },
+    [fetchTemplates]
+  );
+
+  const duplicateTemplate = useCallback(
+    async (id: string): Promise<CustomTemplate> => {
+      try {
+        const response = await api.post(`/v1/page-components/${id}/duplicate`);
+        await fetchTemplates();
+        return response.data;
+      } catch (err: unknown) {
+        console.error("Error duplicating template:", err);
+        throw new Error("Failed to duplicate template");
+      }
+    },
+    [fetchTemplates]
+  );
+
+  const toggleLock = useCallback(
+    async (id: string, currentLocked: boolean): Promise<void> => {
+      try {
+        await api.put(`/v1/page-components/${id}`, { locked: !currentLocked });
+        setTemplates((prev) =>
+          prev.map((t) => (t._id === id ? { ...t, locked: !currentLocked } : t))
+        );
+      } catch (err: unknown) {
+        console.error("Error toggling lock:", err);
+        throw new Error("Failed to toggle lock");
+      }
+    },
+    []
+  );
+
   const deleteTemplate = useCallback(
     async (id: string): Promise<void> => {
       try {
@@ -95,6 +144,9 @@ export function useCustomTemplates(): UseCustomTemplatesReturn {
     loading,
     error,
     saveTemplate,
+    updateTemplate,
+    duplicateTemplate,
+    toggleLock,
     deleteTemplate,
     refetch: fetchTemplates,
   };

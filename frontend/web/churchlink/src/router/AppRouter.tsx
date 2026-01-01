@@ -15,6 +15,7 @@ import PaypalThankYouPage from "../features/paypal/pages/thank-you";
 const Login = lazy(() => import("../features/auth/pages/Login"));
 const Signup = lazy(() => import("../features/auth/pages/Signup"));
 const PuckEditor = lazy(() => import("@/features/puck-editor/pages/PuckEditor"));
+const GroupEditor = lazy(() => import("@/features/puck-editor/pages/GroupEditor"));
 const ProfileInit = lazy(() => import("../features/users/pages/InitProfilePage"));
 const VerifyEmail = lazy(() => import("../features/users/pages/VerifyEmailPage"));
 
@@ -102,10 +103,19 @@ export const AppRouter = () => {
         />
         {/* Standalone Puck Editor (admin-guarded, no AdminLayout) */}
         <Route
-          path="/admin/webbuilder/:slug"
+          path="/admin/webbuilder/page/:slug"
           element={
             <AdminRoute>
               <PuckEditor />
+            </AdminRoute>
+          }
+        />
+        {/* Standalone Group Editor (admin-guarded, no AdminLayout) */}
+        <Route
+          path="/admin/webbuilder/group/:groupId/edit"
+          element={
+            <AdminRoute>
+              <GroupEditor />
             </AdminRoute>
           }
         />

@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 import type { CustomTemplate } from "../hooks/useCustomTemplates";
 import { config as baseConfig, type PuckData } from "./index";
 
+// Deep clone utility to avoid reference sharing between template instances
+function deepClone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 // Helper to generate a unique component key from template name
 function templateToComponentKey(name: string): string {
   // Convert "My Template Name" to "Template_MyTemplateName"
@@ -29,11 +34,10 @@ function createTemplateComponent(template: CustomTemplate): ComponentConfig<any>
     defaultProps: {
       // Pre-populate the children slot with the saved template children
       // These will be instantiated when the template is placed on a page
-      children: templateChildren,
+      // Deep clone to ensure each instance gets independent component objects
+      children: deepClone(templateChildren),
     },
     render: ({ puck, ...props }: { puck?: { isEditing?: boolean }; children?: ReactNode | (() => ReactNode) }) => {
-      const isEditing = puck?.isEditing;
-
       // Render children - can be a function (slot render prop) or ReactNode
       const renderChildren = () => {
         if (typeof props.children === "function") {
@@ -45,11 +49,6 @@ function createTemplateComponent(template: CustomTemplate): ComponentConfig<any>
       // Render the group content - this will be a deep copy of the original
       return (
         <div className="template-block w-full" data-template-name={template.name}>
-          {isEditing && (
-            <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 mb-2 rounded border border-dashed border-blue-200 dark:border-blue-700">
-              Group: {template.name}
-            </div>
-          )}
           <div className="template-content">
             {renderChildren()}
           </div>

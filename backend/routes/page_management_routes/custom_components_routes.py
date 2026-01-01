@@ -16,6 +16,7 @@ class CustomComponentUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
     puckData: Optional[dict] = None
+    locked: Optional[bool] = None
 
 
 custom_components_router = APIRouter(prefix="/page-components", tags=["custom components"])
@@ -105,6 +106,9 @@ async def update_custom_component(
     if data.puckData is not None:
         update_data["puckData"] = data.puckData
 
+    if data.locked is not None:
+        update_data["locked"] = data.locked
+
     result = await DB.db["page-custom-components"].update_one(
         {"_id": object_id}, {"$set": update_data}
     )
@@ -123,9 +127,56 @@ async def delete_custom_component(component_id: str = Path(...)):
     except bson_errors.InvalidId:
         raise HTTPException(status_code=400, detail="Invalid component ID format")
 
+    # Check if component is locked
+    component = await DB.db["page-custom-components"].find_one({"_id": object_id})
+    if not component:
+        raise HTTPException(status_code=404, detail="Component not found")
+
+    if component.get("locked", False):
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete locked component. Unlock it first."
+        )
+
     result = await DB.db["page-custom-components"].delete_one({"_id": object_id})
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Component not found")
 
     return {"deleted": result.deleted_count}
+
+
+@custom_components_router.post("/{component_id}/duplicate")
+async def duplicate_custom_component(component_id: str = Path(...)):
+    """Duplicate a custom component template."""
+    try:
+        object_id = ObjectId(component_id)
+    except bson_errors.InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid component ID format")
+
+    original = await DB.db["page-custom-components"].find_one({"_id": object_id})
+    if not original:
+        raise HTTPException(status_code=404, detail="Component not found")
+
+    # Create unique name with "(Copy)" suffix
+    base_name = original["name"]
+    new_name = f"{base_name} (Copy)"
+
+    counter = 1
+    while await DB.db["page-custom-components"].find_one({"name": new_name}):
+        counter += 1
+        new_name = f"{base_name} (Copy {counter})"
+
+    duplicate_data = {
+        "name": new_name,
+        "description": original.get("description"),
+        "puckData": original["puckData"],
+        "locked": False,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
+    }
+
+    result = await DB.db["page-custom-components"].insert_one(duplicate_data)
+    created = await DB.db["page-custom-components"].find_one({"_id": result.inserted_id})
+    created["_id"] = str(created["_id"])
+    return created

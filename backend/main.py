@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import firebase_admin
 from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI
+from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from firebase.firebase_credentials import get_firebase_credentials
 from firebase_admin import credentials
@@ -111,6 +112,9 @@ from routes.page_management_routes.page_routes import (
     mod_page_router,
     public_page_router,
 )
+from routes.page_management_routes.custom_components_routes import (
+    custom_components_router,
+)
 from routes.permissions_routes.permissions_routes import (
     permissions_protected_router,
     permissions_view_router,
@@ -171,13 +175,13 @@ def validate_e2e_mode():
     if not E2E_TEST_MODE:
         return
     logger.warning("E2E_TEST_MODE enabled")
-    
+
     # This is a big no-no if test mode + production
     if ENVIRONMENT == "production":
         logger.critical("FATAL: E2E_TEST_MODE enabled in production - authentication bypassed!")
         logger.critical("Set E2E_TEST_MODE=false and restart immediately.")
         sys.exit(1)
-    
+
 validate_e2e_mode()
 
 # You can turn this on/off depending if you want firebase sync on startup, True will bypass it, meaning syncs wont happen
@@ -276,7 +280,7 @@ async def lifespan(app: FastAPI):
         youtubeSubscriptionCheck = asyncio.create_task(YoutubeHelper.youtubeSubscriptionLoop())
         eventPublishingLoop = asyncio.create_task(EventPublisher.runEventPublishLoop())
         scheduledNotifTask = asyncio.create_task(scheduled_notification_loop(DatabaseManager.db))
-        
+
         # Initialize Bible Plan Notification System
         logger.info("Initializing Bible plan notifications")
         await initialize_bible_plan_notifications()
@@ -294,7 +298,7 @@ async def lifespan(app: FastAPI):
         # Stop PayPal helper
         if hasattr(app.state, "paypal") and app.state.paypal:
             await app.state.paypal.stop()
-            
+
         logger.info("Shutdown complete")
 
     except Exception as e:
@@ -332,7 +336,6 @@ app.add_middleware(
 @app.get("/scalar", include_in_schema=False)
 async def scalar_html():
     if not IS_DEBUG_MODE:
-        from fastapi import HTTPException
 
         raise HTTPException(status_code=404, detail="Not found")
     return get_scalar_api_reference(
@@ -451,6 +454,7 @@ web_builder_management_protected_router = PermProtectedRouter(prefix="/api/v1", 
 web_builder_management_protected_router.include_router(mod_header_router)
 web_builder_management_protected_router.include_router(mod_footer_router)
 web_builder_management_protected_router.include_router(webbuilder_config_private_router)
+web_builder_management_protected_router.include_router(custom_components_router)
 
 # FINANCE MANAGEMENT CORE
 finance_management_protected_router = PermProtectedRouter(prefix="/api/v1", tags=["Finance Management"], required_perms=["finance"])
