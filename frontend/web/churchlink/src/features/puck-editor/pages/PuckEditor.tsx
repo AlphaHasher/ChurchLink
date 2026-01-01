@@ -27,7 +27,6 @@ export default function PuckEditor() {
     error,
     publishing,
     isPublished,
-    updateData,
     publish,
   } = usePuckPage(slug || "home");
 
@@ -159,17 +158,15 @@ export default function PuckEditor() {
           <Puck
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             config={dynamicConfig as any}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-an
-            data={data as any}
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            onChange={updateData as any}
+            data={data as any}
             overrides={{
               header: () => {
                 // Render UndoRedoButtons into portal if available
                 if (undoRedoPortal) {
                   return createPortal(<UndoRedoButtons />, undoRedoPortal);
                 }
-                return null;
+                return <></>;
               },
             }}
           />

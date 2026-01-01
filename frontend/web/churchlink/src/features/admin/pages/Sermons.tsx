@@ -135,7 +135,7 @@ const Sermons = () => {
     const [loading, setLoading] = useState(true);
     const [searchName, setSearchName] = useState('');
     const [searchMinistry, setSearchMinistry] = useState<string>('all');
-    const [selectedRows, setSelectedRows] = useState<any[]>([]);
+    const [selectedRows, setSelectedRows] = useState<ChurchSermon[]>([]);
     const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
     const [editTarget, setEditTarget] = useState<ChurchSermon | null>(null);
     const [assignmentTarget, setAssignmentTarget] = useState<{ sermonIds: string[]; selected: string[] } | null>(null);
@@ -284,8 +284,8 @@ const Sermons = () => {
     const handleMinistryAssignment = async (sermonIds: string[], newMinistries: string[]) => {
       try {
         await Promise.all(
-          sermonIds.map((id) => 
-            api.patch(`/v1/sermons/${id}`, { ministry: newMinistries })
+          sermonIds.map((id) =>
+            api.put(`/v1/sermons/${id}`, { ministry: newMinistries })
           )
         );
         await loadData();

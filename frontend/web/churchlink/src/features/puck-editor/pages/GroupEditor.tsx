@@ -212,7 +212,7 @@ export default function GroupEditor() {
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header - Outside Puck Layout */}
-      <header className="flex items-center gap-3 px-6 py-3 bg-background border-b flex-shrink-0">
+      <header className="flex items-center gap-3 px-6 py-3 bg-background border-b shrink-0">
         {/* Left Section - Close Button */}
         <Button variant="ghost" size="sm" onClick={handleClose}>
           <X className="h-4 w-4 mr-2" />
@@ -237,7 +237,7 @@ export default function GroupEditor() {
         <div className="h-6 w-px bg-border" />
 
         {/* Right Section - Mode Toggle */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <ModeToggle />
         </div>
       </header>
@@ -254,7 +254,7 @@ export default function GroupEditor() {
               if (undoRedoPortal) {
                 return createPortal(<UndoRedoButtons />, undoRedoPortal);
               }
-              return null;
+              return <></>;
             },
           }}
         />
