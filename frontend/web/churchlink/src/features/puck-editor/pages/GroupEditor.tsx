@@ -6,8 +6,10 @@ import "../styles/puck-dark-overrides.css";
 import { X } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { ModeToggle } from "@/shared/components/ModeToggle";
+import { UndoRedoButtons } from "../components/UndoRedoButtons";
 import { config } from "../config";
 import api from "@/api/api";
+import { createPortal } from "react-dom";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -69,6 +71,7 @@ export default function GroupEditor() {
   const [groupName, setGroupName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [undoRedoPortal, setUndoRedoPortal] = useState<HTMLElement | null>(null);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const latestDataRef = useRef<PuckData | null>(null);
@@ -207,41 +210,55 @@ export default function GroupEditor() {
   }
 
   return (
-    <div className="h-screen bg-background">
-      <Puck
-        config={config}
-        data={puckData}
-        onChange={handleSave}
-        overrides={{
-          header: ({ actions }) => (
-            <header className="flex items-center justify-between px-6 py-3 bg-background border-b">
-              {/* Left Section */}
-              <div className="flex items-center gap-3">
-                <Button variant="ghost" size="sm" onClick={handleClose}>
-                  <X className="h-4 w-4 mr-2" />
-                  Close
-                </Button>
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header - Outside Puck Layout */}
+      <header className="flex items-center gap-3 px-6 py-3 bg-background border-b flex-shrink-0">
+        {/* Left Section - Close Button */}
+        <Button variant="ghost" size="sm" onClick={handleClose}>
+          <X className="h-4 w-4 mr-2" />
+          Close
+        </Button>
 
-                <div className="h-6 w-px bg-border" />
+        <div className="h-6 w-px bg-border" />
 
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-base">
-                    Editing Group: {groupName}
-                  </span>
-                  <SaveStatusBadge status={saveStatus} />
-                </div>
-              </div>
+        {/* Center/Flex Section - Title with Save Status */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <span className="font-semibold text-base truncate">
+            Editing Group: {groupName}
+          </span>
+          <SaveStatusBadge status={saveStatus} />
+        </div>
 
-              {/* Right Section */}
-              <div className="flex items-center gap-2">
-                <ModeToggle />
-                <div className="h-6 w-px bg-border mx-1" />
-                {actions}
-              </div>
-            </header>
-          ),
-        }}
-      />
+        <div className="h-6 w-px bg-border" />
+
+        {/* Undo/Redo buttons portal target */}
+        <div ref={setUndoRedoPortal} />
+
+        <div className="h-6 w-px bg-border" />
+
+        {/* Right Section - Mode Toggle */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <ModeToggle />
+        </div>
+      </header>
+
+      {/* Puck Editor - Takes remaining space */}
+      <div className="flex-1 overflow-hidden">
+        <Puck
+          config={config}
+          data={puckData}
+          onChange={handleSave}
+          overrides={{
+            header: () => {
+              // Render UndoRedoButtons into portal if available
+              if (undoRedoPortal) {
+                return createPortal(<UndoRedoButtons />, undoRedoPortal);
+              }
+              return null;
+            },
+          }}
+        />
+      </div>
     </div>
   );
 }

@@ -13,11 +13,13 @@ import { ManageGroupsDialog } from "../components/ManageGroupsDialog";
 import { UndoRedoButtons } from "../components/UndoRedoButtons";
 import { Button } from "@/shared/components/ui/button";
 import { LayoutGrid, ArrowLeft } from "lucide-react";
+import { createPortal } from "react-dom";
 
 export default function PuckEditor() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [manageGroupsOpen, setManageGroupsOpen] = useState(false);
+  const [undoRedoPortal, setUndoRedoPortal] = useState<HTMLElement | null>(null);
 
   const {
     data,
@@ -93,78 +95,85 @@ export default function PuckEditor() {
 
   return (
     <TemplateProvider saveAsTemplate={handleSaveAsTemplate}>
-      <div className="h-screen bg-background">
-        <Puck
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          config={dynamicConfig as any}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          data={data as any}
-          onPublish={async (publishData) => {
-            try {
-              // Update local state with final data before publishing
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              updateData(publishData as any);
-              await publish();
-            } catch (err) {
-              console.error("Publish failed:", err);
-            }
-          }}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onChange={updateData as any}
-          headerTitle={slug || "home"}
-          headerPath={`/${slug || ""}`}
-          overrides={{
-            header: ({ actions }) => (
-              <header className="flex items-center justify-between px-6 py-3 bg-background border-b">
-                {/* Left Section */}
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => navigate("/admin/webbuilder")}
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back
-                  </Button>
+      <div className="h-screen flex flex-col bg-background">
+        {/* Header - Outside Puck Layout */}
+        <header className="flex items-center gap-3 px-6 py-3 bg-background border-b flex-shrink-0">
+          {/* Left Section - Back Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/admin/webbuilder")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
 
-                  <div className="h-6 w-px bg-border" />
+          <div className="h-6 w-px bg-border" />
 
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-base">{slug || "home"}</span>
-                    {publishing && (
-                      <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded font-medium">
-                        Publishing...
-                      </span>
-                    )}
-                    {isPublished && !publishing && (
-                      <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded font-medium">
-                        Live
-                      </span>
-                    )}
-                  </div>
-                </div>
+          {/* Center/Flex Section - Title with Status */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="font-semibold text-base truncate">{slug || "home"}</span>
+            {publishing && (
+              <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded font-medium whitespace-nowrap">
+                Publishing...
+              </span>
+            )}
+            {isPublished && !publishing && (
+              <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded font-medium whitespace-nowrap">
+                Live
+              </span>
+            )}
+          </div>
 
-                {/* Right Section */}
-                <div className="flex items-center gap-2">
-                  <ModeToggle />
-                  <div className="h-6 w-px bg-border mx-1" />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setManageGroupsOpen(true)}
-                  >
-                    <LayoutGrid className="h-4 w-4 mr-2" />
-                    Manage Groups
-                  </Button>
-                  <div className="h-6 w-px bg-border mx-1" />
-                  <UndoRedoButtons />
-                  <div className="h-6 w-px bg-border mx-1" />
-                  {actions}
-                </div>
-              </header>
-            ),
-          }}
-        />
+          <div className="h-6 w-px bg-border" />
+
+          {/* Undo/Redo buttons portal target */}
+          <div ref={setUndoRedoPortal} />
+
+          <div className="h-6 w-px bg-border" />
+
+          {/* Right Section - Tools and Controls */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setManageGroupsOpen(true)}
+            >
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Manage Groups
+            </Button>
+            <div className="h-6 w-px bg-border" />
+            <ModeToggle />
+            <Button
+              size="sm"
+              onClick={publish}
+              disabled={publishing}
+            >
+              {publishing ? "Publishing..." : "Publish"}
+            </Button>
+          </div>
+        </header>
+
+        {/* Puck Editor - Takes remaining space */}
+        <div className="flex-1 overflow-hidden">
+          <Puck
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            config={dynamicConfig as any}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-an
+            data={data as any}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onChange={updateData as any}
+            overrides={{
+              header: () => {
+                // Render UndoRedoButtons into portal if available
+                if (undoRedoPortal) {
+                  return createPortal(<UndoRedoButtons />, undoRedoPortal);
+                }
+                return null;
+              },
+            }}
+          />
+        </div>
         <ManageGroupsDialog
           open={manageGroupsOpen}
           onOpenChange={setManageGroupsOpen}
