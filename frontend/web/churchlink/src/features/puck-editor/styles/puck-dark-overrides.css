@@ -158,3 +158,8 @@
 .dark [class*="_Puck"] ::-webkit-scrollbar-thumb:hover {
   background: #2D333B;
 }
+
+/* Fix Puck layout to respect parent container height */
+[class*="_PuckLayout-inner"] {
+  height: 100% !important;
+}

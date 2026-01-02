@@ -190,7 +190,7 @@ export default function PuckEditor() {
           </header>
 
           {/* Puck Editor - Takes remaining space */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0">
             <Puck
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               config={dynamicConfig as any}
