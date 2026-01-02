@@ -28,6 +28,23 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <Render config={dynamicConfig as any} data={data} />;
+  // Get page margins from root props
+  const pageMargins = data.root.props?.pageMargins || "none";
+
+  // Margin classes - only applied in preview/live mode
+  const marginClasses: Record<string, string> = {
+    none: "",
+    small:  "md:mx-6   lg:mx-16  xl:mx-32  2xl:mx-48",
+    medium: "md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
+    large:  "md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
+    xl:     "md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
+  };
+
+
+  return (
+    <div className={marginClasses[pageMargins]}>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      <Render config={dynamicConfig as any} data={data} />
+    </div>
+  );
 }

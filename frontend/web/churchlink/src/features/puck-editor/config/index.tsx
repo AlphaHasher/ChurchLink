@@ -27,6 +27,7 @@ type Props = {
 // Root props for page-level settings
 type RootProps = {
   title: string;
+  pageMargins?: "none" | "small" | "medium" | "large" | "xl";
 };
 
 // Puck configuration
@@ -37,9 +38,21 @@ export const config: Config<Props, RootProps> = {
         type: "text",
         label: "Page Title",
       },
+      pageMargins: {
+        type: "select",
+        label: "Page Margins",
+        options: [
+          { label: "None (Full Width)", value: "none" },
+          { label: "Small", value: "small" },
+          { label: "Medium", value: "medium" },
+          { label: "Large", value: "large" },
+          { label: "Extra Large", value: "xl" },
+        ],
+      },
     },
     defaultProps: {
       title: "New Page",
+      pageMargins: "none",
     },
     render: ({ children }) => {
       return (
@@ -89,6 +102,7 @@ export const initialData: PuckData = {
   root: {
     props: {
       title: "New Page",
+      pageMargins: "none",
     },
   },
 };
