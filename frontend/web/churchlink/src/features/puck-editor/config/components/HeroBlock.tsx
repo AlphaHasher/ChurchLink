@@ -1,4 +1,7 @@
 import type { ComponentConfig } from "@measured/puck";
+import { TranslationsField } from "../../fields/TranslationsField";
+import { usePuckLanguage } from "../../context/PuckLanguageContext";
+import type { TranslationMap } from "../../utils/languageUtils";
 
 export type HeroBlockProps = {
   title: string;
@@ -10,6 +13,7 @@ export type HeroBlockProps = {
   buttonLabel: string;
   buttonHref: string;
   showButton: boolean;
+  translations?: TranslationMap;
 };
 
 export const HeroBlock: ComponentConfig<HeroBlockProps> = {
@@ -73,6 +77,21 @@ export const HeroBlock: ComponentConfig<HeroBlockProps> = {
       type: "text",
       label: "Button Link",
     },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "title", type: "text", label: "Title" },
+            { name: "subtitle", type: "textarea", label: "Subtitle" },
+            { name: "buttonLabel", type: "text", label: "Button Text" },
+          ]}
+        />
+      ),
+    },
   },
   defaultProps: {
     title: "Welcome to Our Church",
@@ -84,6 +103,7 @@ export const HeroBlock: ComponentConfig<HeroBlockProps> = {
     showButton: true,
     buttonLabel: "Learn More",
     buttonHref: "#",
+    translations: {},
   },
   render: ({
     title,
@@ -95,7 +115,21 @@ export const HeroBlock: ComponentConfig<HeroBlockProps> = {
     showButton,
     buttonLabel,
     buttonHref,
+    translations,
   }) => {
+    // Try to use preview language context, but gracefully handle if not in editor
+    let previewLanguage = "en";
+    try {
+      const context = usePuckLanguage();
+      previewLanguage = context.previewLanguage;
+    } catch {
+      // Not in editor context (e.g., public page renderer) - will be handled by localizeComponentData
+    }
+
+    // Use translated text if available, otherwise use defaults
+    const displayTitle = translations?.[previewLanguage]?.title || title;
+    const displaySubtitle = translations?.[previewLanguage]?.subtitle || subtitle;
+    const displayButtonLabel = translations?.[previewLanguage]?.buttonLabel || buttonLabel;
     const heightClasses: Record<string, string> = {
       sm: "min-h-[300px]",
       md: "min-h-[400px]",
@@ -133,19 +167,19 @@ export const HeroBlock: ComponentConfig<HeroBlockProps> = {
           className={`relative z-10 flex flex-col ${alignClasses[textAlign]} max-w-4xl mx-auto w-full gap-4`}
         >
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white drop-shadow-lg">
-            {title}
+            {displayTitle}
           </h1>
-          {subtitle && (
+          {displaySubtitle && (
             <p className="text-lg md:text-xl text-white/90 max-w-2xl drop-shadow">
-              {subtitle}
+              {displaySubtitle}
             </p>
           )}
-          {showButton && buttonLabel && (
+          {showButton && displayButtonLabel && (
             <a
               href={buttonHref}
               className="inline-flex items-center justify-center mt-4 px-6 py-3 bg-primary text-primary-foreground font-medium rounded-md hover:bg-primary/90 transition-colors"
             >
-              {buttonLabel}
+              {displayButtonLabel}
             </a>
           )}
         </div>

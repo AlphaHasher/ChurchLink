@@ -3,6 +3,8 @@ import { Render } from "@measured/puck";
 import { config as baseConfig, type PuckData } from "../config";
 import { useCustomTemplates } from "../hooks/useCustomTemplates";
 import { buildConfigWithTemplates } from "../config/buildConfigWithTemplates";
+import { useLanguage } from "@/provider/LanguageProvider";
+import { localizeComponentData } from "../utils/languageUtils";
 
 interface PuckPageRendererProps {
   data: PuckData;
@@ -10,6 +12,7 @@ interface PuckPageRendererProps {
 
 export function PuckPageRenderer({ data }: PuckPageRendererProps) {
   const { templates, loading } = useCustomTemplates();
+  const { locale } = useLanguage(); // Get user's account language from LanguageProvider
 
   // Build dynamic config with templates - memoized to avoid recreating on every render
   const dynamicConfig = useMemo(() => {
@@ -18,6 +21,15 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
     }
     return buildConfigWithTemplates(templates);
   }, [templates, loading]);
+
+  // Get browser language as fallback
+  const browserLang = navigator.language?.split("-")[0] || "en";
+  const defaultLang = (data.root.props?.defaultLanguage as string) || "en";
+
+  // Transform data using smart fallback logic
+  const localizedData = useMemo(() => {
+    return localizeComponentData(data, locale || browserLang, browserLang, defaultLang);
+  }, [data, locale, browserLang, defaultLang]);
 
   // Show loading state while templates load
   if (loading) {
@@ -29,7 +41,7 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
   }
 
   // Get page margins from root props
-  const pageMargins = data.root.props?.pageMargins || "none";
+  const pageMargins = ((localizedData.root.props as { pageMargins?: string })?.pageMargins) || "none";
 
   // Margin classes - only applied in preview/live mode
   const marginClasses: Record<string, string> = {
@@ -43,8 +55,8 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
 
   return (
     <div className={marginClasses[pageMargins]}>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      <Render config={dynamicConfig as any} data={data} />
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <Render config={dynamicConfig as any} data={localizedData as any} />
     </div>
   );
 }

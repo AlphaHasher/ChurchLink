@@ -11,6 +11,10 @@ import { MapBlock, type MapBlockProps } from "./components/MapBlock";
 import { GroupBlock, type GroupBlockProps } from "./components/GroupBlock";
 import { EventSectionBlock, type EventSectionBlockProps } from "./components/EventSectionBlock";
 
+// Import language utilities
+import { LANGUAGES } from "../utils/languageUtils";
+import { SupportedLanguagesField } from "../fields/SupportedLanguagesField";
+
 // Define all component props types
 type Props = {
   TextBlock: TextBlockProps;
@@ -28,6 +32,8 @@ type Props = {
 type RootProps = {
   title: string;
   pageMargins?: "none" | "small" | "medium" | "large" | "xl";
+  defaultLanguage?: string;
+  supportedLanguages?: string[];
 };
 
 // Puck configuration
@@ -49,10 +55,32 @@ export const config: Config<Props, RootProps> = {
           { label: "Extra Large", value: "xl" },
         ],
       },
+      defaultLanguage: {
+        type: "select",
+        label: "Default Language",
+        options: Object.entries(LANGUAGES).map(([code, name]) => ({
+          label: `${name} (${code})`,
+          value: code,
+        })),
+      },
+      supportedLanguages: {
+        type: "custom",
+        label: "Supported Languages",
+        render: ({ value, onChange }) => {
+          return (
+            <SupportedLanguagesField
+              value={value as string[]}
+              onChange={onChange}
+            />
+          );
+        },
+      },
     },
     defaultProps: {
       title: "New Page",
       pageMargins: "none",
+      defaultLanguage: "en",
+      supportedLanguages: ["en"],
     },
     render: ({ children }) => {
       return (
@@ -103,6 +131,8 @@ export const initialData: PuckData = {
     props: {
       title: "New Page",
       pageMargins: "none",
+      defaultLanguage: "en",
+      supportedLanguages: ["en"],
     },
   },
 };

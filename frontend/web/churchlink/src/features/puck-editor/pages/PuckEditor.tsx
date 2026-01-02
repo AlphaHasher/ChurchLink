@@ -7,15 +7,24 @@ import { buildConfigWithTemplates } from "../config/buildConfigWithTemplates";
 import { usePuckPage } from "../hooks/usePuckPage";
 import { useCustomTemplates } from "../hooks/useCustomTemplates";
 import { TemplateProvider } from "../context/TemplateContext";
+import { PuckLanguageProvider, usePuckLanguage } from "../context/PuckLanguageContext";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { ModeToggle } from "@/shared/components/ModeToggle";
 import { ManageGroupsDialog } from "../components/ManageGroupsDialog";
 import { UndoRedoButtons } from "../components/UndoRedoButtons";
 import { Button } from "@/shared/components/ui/button";
-import { LayoutGrid, ArrowLeft, Eye, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import { LayoutGrid, ArrowLeft, Eye, X, Globe } from "lucide-react";
 import { createPortal } from "react-dom";
 import Layout from "@/shared/layouts/Layout";
 import { PuckPageRenderer } from "../components/PuckPageRenderer";
+import { LANGUAGES } from "../utils/languageUtils";
 
 export default function PuckEditor() {
   const { slug } = useParams<{ slug: string }>();
@@ -98,23 +107,14 @@ export default function PuckEditor() {
 
   return (
     <TemplateProvider saveAsTemplate={handleSaveAsTemplate}>
-      {isPreviewMode ? (
-        // PREVIEW MODE - Show as live page with header/footer
-        <div className="relative min-h-screen">
-          <Layout>
-            <PuckPageRenderer data={data} />
-          </Layout>
-
-          {/* Floating X button - top-right */}
-          <button
-            onClick={() => setIsPreviewMode(false)}
-            className="fixed top-4 right-4 z-9999 p-2 bg-background border border-border rounded-md shadow-lg hover:bg-accent transition-colors"
-            aria-label="Exit Preview Mode"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      ) : (
+      <PuckLanguageProvider data={data}>
+        {isPreviewMode ? (
+          // PREVIEW MODE - Show as live page with header/footer
+          <PreviewModeContent
+            data={data}
+            setIsPreviewMode={setIsPreviewMode}
+          />
+        ) : (
         // EDIT MODE - Normal Puck editor
         <div className="h-screen flex flex-col bg-background">
           {/* Header - Outside Puck Layout */}
@@ -131,19 +131,24 @@ export default function PuckEditor() {
 
             <div className="h-6 w-px bg-border" />
 
-            {/* Center/Flex Section - Title with Status */}
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="font-semibold text-base truncate">{slug || "home"}</span>
-              {publishing && (
-                <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded font-medium whitespace-nowrap">
-                  Publishing...
-                </span>
-              )}
-              {isPublished && !publishing && (
-                <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded font-medium whitespace-nowrap">
-                  Live
-                </span>
-              )}
+            {/* Center/Flex Section - Title with Status and Language Selector */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-base truncate">{slug || "home"}</span>
+                {publishing && (
+                  <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded font-medium whitespace-nowrap">
+                    Publishing...
+                  </span>
+                )}
+                {isPublished && !publishing && (
+                  <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded font-medium whitespace-nowrap">
+                    Live
+                  </span>
+                )}
+              </div>
+
+              {/* Language Selector */}
+              <LanguageSelector />
             </div>
 
             <div className="h-6 w-px bg-border" />
@@ -209,7 +214,82 @@ export default function PuckEditor() {
             onOpenChange={setManageGroupsOpen}
           />
         </div>
-      )}
+        )}
+      </PuckLanguageProvider>
     </TemplateProvider>
+  );
+}
+
+// Language Selector Component
+function LanguageSelector() {
+  const { previewLanguage, setPreviewLanguage, availableLanguages } = usePuckLanguage();
+
+  if (availableLanguages.length <= 1) {
+    return null; // Don't show selector if only default language
+  }
+
+  return (
+    <Select value={previewLanguage} onValueChange={setPreviewLanguage}>
+      <SelectTrigger className="w-[180px] h-8">
+        <Globe className="h-4 w-4 mr-2" />
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {availableLanguages.map((lang) => (
+          <SelectItem key={lang} value={lang}>
+            {LANGUAGES[lang] || lang} ({lang})
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// Preview Mode Component
+function PreviewModeContent({
+  data,
+  setIsPreviewMode,
+}: {
+  data: unknown;
+  setIsPreviewMode: (value: boolean) => void;
+}) {
+  const { previewLanguage, setPreviewLanguage, availableLanguages } = usePuckLanguage();
+
+  return (
+    <div className="relative min-h-screen">
+      <Layout>
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        <PuckPageRenderer data={data as any} />
+      </Layout>
+
+      {/* Floating controls - top-right */}
+      <div className="fixed top-4 right-4 z-9999 flex gap-2">
+        {/* Language Selector in Preview */}
+        {availableLanguages.length > 1 && (
+          <Select value={previewLanguage} onValueChange={setPreviewLanguage}>
+            <SelectTrigger className="w-[180px] bg-background border shadow-lg">
+              <Globe className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableLanguages.map((lang) => (
+                <SelectItem key={lang} value={lang}>
+                  {LANGUAGES[lang] || lang} ({lang})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {/* Exit Preview Button */}
+        <button
+          onClick={() => setIsPreviewMode(false)}
+          className="p-2 bg-background border border-border rounded-md shadow-lg hover:bg-accent transition-colors"
+          aria-label="Exit Preview Mode"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
   );
 }

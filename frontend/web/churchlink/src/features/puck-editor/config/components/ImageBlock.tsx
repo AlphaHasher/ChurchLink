@@ -1,4 +1,7 @@
 import type { ComponentConfig } from "@measured/puck";
+import { TranslationsField } from "../../fields/TranslationsField";
+import { usePuckLanguage } from "../../context/PuckLanguageContext";
+import type { TranslationMap } from "../../utils/languageUtils";
 
 export type ImageBlockProps = {
   src: string;
@@ -6,6 +9,7 @@ export type ImageBlockProps = {
   objectFit: "contain" | "cover" | "fill" | "none";
   aspectRatio: "auto" | "1/1" | "4/3" | "16/9" | "21/9";
   rounded: "none" | "sm" | "md" | "lg" | "full";
+  translations?: TranslationMap;
 };
 
 export const ImageBlock: ComponentConfig<ImageBlockProps> = {
@@ -51,6 +55,17 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
         { label: "Full", value: "full" },
       ],
     },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[{ name: "alt", type: "text", label: "Alt Text" }]}
+        />
+      ),
+    },
   },
   defaultProps: {
     src: "https://placehold.co/800x400",
@@ -58,8 +73,21 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
     objectFit: "cover",
     aspectRatio: "16/9",
     rounded: "md",
+    translations: {},
   },
-  render: ({ src, alt, objectFit, aspectRatio, rounded }) => {
+  render: ({ src, alt, objectFit, aspectRatio, rounded, translations }) => {
+    // Try to use preview language context, but gracefully handle if not in editor
+    let previewLanguage = "en";
+    try {
+      const context = usePuckLanguage();
+      previewLanguage = context.previewLanguage;
+    } catch {
+      // Not in editor context (e.g., public page renderer) - will be handled by localizeComponentData
+    }
+
+    // Use translated alt text if available, otherwise use default
+    const displayAlt = translations?.[previewLanguage]?.alt || alt;
+
     const objectFitClasses: Record<string, string> = {
       contain: "object-contain",
       cover: "object-cover",
@@ -83,7 +111,7 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
       <div className="w-full" style={aspectRatioStyle}>
         <img
           src={src}
-          alt={alt}
+          alt={displayAlt}
           className={`w-full h-full ${objectFitClasses[objectFit]} ${roundedClasses[rounded]}`}
         />
       </div>
