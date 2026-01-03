@@ -10,6 +10,15 @@ import { DividerBlock, type DividerBlockProps } from "./components/DividerBlock"
 import { MapBlock, type MapBlockProps } from "./components/MapBlock";
 import { GroupBlock, type GroupBlockProps } from "./components/GroupBlock";
 import { EventSectionBlock, type EventSectionBlockProps } from "./components/EventSectionBlock";
+import { HeadingBlock, type HeadingBlockProps } from "./components/HeadingBlock";
+import { CardBlock, type CardBlockProps } from "./components/CardBlock";
+import { FlexBlock, type FlexBlockProps } from "./components/FlexBlock";
+import { GridBlock, type GridBlockProps } from "./components/GridBlock";
+import { LogosBlock, type LogosBlockProps } from "./components/LogosBlock";
+import { StatsBlock, type StatsBlockProps } from "./components/StatsBlock";
+import { BlankBlock, type BlankBlockProps } from "./components/BlankBlock";
+import { SpaceBlock, type SpaceBlockProps } from "./components/SpaceBlock";
+import { RichTextBlock, type RichTextBlockProps } from "./components/RichTextBlock";
 
 // Import language utilities
 import { LANGUAGES } from "../utils/languageUtils";
@@ -26,6 +35,15 @@ type Props = {
   MapBlock: MapBlockProps;
   GroupBlock: GroupBlockProps;
   EventSectionBlock: EventSectionBlockProps;
+  HeadingBlock: HeadingBlockProps;
+  CardBlock: CardBlockProps;
+  FlexBlock: FlexBlockProps;
+  GridBlock: GridBlockProps;
+  LogosBlock: LogosBlockProps;
+  StatsBlock: StatsBlockProps;
+  BlankBlock: BlankBlockProps;
+  SpaceBlock: SpaceBlockProps;
+  RichTextBlock: RichTextBlockProps;
 };
 
 // Root props for page-level settings
@@ -93,15 +111,19 @@ export const config: Config<Props, RootProps> = {
   categories: {
     layout: {
       title: "Layout",
-      components: ["GroupBlock", "SpacerBlock", "DividerBlock"],
+      components: ["GroupBlock", "FlexBlock", "GridBlock", "SpacerBlock", "SpaceBlock", "DividerBlock", "BlankBlock"],
+    },
+    typography: {
+      title: "Typography",
+      components: ["HeadingBlock", "TextBlock", "RichTextBlock"],
     },
     content: {
       title: "Content",
-      components: ["TextBlock", "ButtonBlock", "ImageBlock"],
+      components: ["ButtonBlock", "ImageBlock", "CardBlock"],
     },
     sections: {
       title: "Sections",
-      components: ["HeroBlock", "EventSectionBlock"],
+      components: ["HeroBlock", "EventSectionBlock", "LogosBlock", "StatsBlock"],
     },
     integrations: {
       title: "Integrations",
@@ -118,6 +140,15 @@ export const config: Config<Props, RootProps> = {
     MapBlock,
     GroupBlock,
     EventSectionBlock,
+    HeadingBlock,
+    CardBlock,
+    FlexBlock,
+    GridBlock,
+    LogosBlock,
+    StatsBlock,
+    BlankBlock,
+    SpaceBlock,
+    RichTextBlock,
   },
 };
 

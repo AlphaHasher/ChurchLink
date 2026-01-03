@@ -1,44 +1,68 @@
 import type { ComponentConfig } from "@measured/puck";
+import { Section } from "../shared/Section";
+import { withLayout } from "../shared/Layout";
+import styles from "../../styles/components/Text.module.css";
+import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
+import { ALargeSmall, AlignLeft } from "lucide-react";
 
-export type TextBlockProps = {
-  content: string;
-  variant: "h1" | "h2" | "h3" | "h4" | "p" | "lead" | "muted";
+const getClassName = getClassNameFactory("Text", styles);
+
+export type TextBlockPropsInner = {
+  text: string;
+  size: "s" | "m";
   align: "left" | "center" | "right";
+  color: "default" | "muted";
+  maxWidth?: number;
   translations?: TranslationMap;
 };
 
-export const TextBlock: ComponentConfig<TextBlockProps> = {
+export type TextBlockProps = TextBlockPropsInner & {
+  layout?: {
+    spanCol?: number;
+    spanRow?: number;
+    padding?: string;
+    grow?: boolean;
+  };
+};
+
+const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
   label: "Text",
   fields: {
-    content: {
+    text: {
       type: "textarea",
-      label: "Content",
+      label: "Text",
       contentEditable: true,
     },
-    variant: {
-      type: "select",
-      label: "Style",
+    size: {
+      type: "radio",
       options: [
-        { label: "Heading 1", value: "h1" },
-        { label: "Heading 2", value: "h2" },
-        { label: "Heading 3", value: "h3" },
-        { label: "Heading 4", value: "h4" },
-        { label: "Paragraph", value: "p" },
-        { label: "Lead Text", value: "lead" },
-        { label: "Muted Text", value: "muted" },
+        { label: "S", value: "s" },
+        { label: "M", value: "m" },
       ],
+      labelIcon: <ALargeSmall size={16} />,
     },
     align: {
       type: "radio",
-      label: "Alignment",
       options: [
         { label: "Left", value: "left" },
         { label: "Center", value: "center" },
         { label: "Right", value: "right" },
       ],
+      labelIcon: <AlignLeft size={16} />,
+    },
+    color: {
+      type: "radio",
+      options: [
+        { label: "Default", value: "default" },
+        { label: "Muted", value: "muted" },
+      ],
+    },
+    maxWidth: {
+      type: "number",
+      label: "Max Width",
     },
     translations: {
       type: "custom",
@@ -47,59 +71,49 @@ export const TextBlock: ComponentConfig<TextBlockProps> = {
         <TranslationsField
           value={value as TranslationMap}
           onChange={onChange}
-          translatableFields={[{ name: "content", type: "textarea", label: "Content" }]}
+          translatableFields={[{ name: "text", type: "textarea", label: "Text" }]}
         />
       ),
     },
   },
   defaultProps: {
-    content: "Enter your text here...",
-    variant: "p",
+    text: "Text",
+    size: "m",
     align: "left",
+    color: "default",
+    maxWidth: undefined,
     translations: {},
   },
-  render: ({ content, variant, align, translations }) => {
-    // Try to use preview language context, but gracefully handle if not in editor
+  render: ({ text, size, align, color, maxWidth, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
       previewLanguage = context.previewLanguage;
     } catch {
-      // Not in editor context (e.g., public page renderer) - will be handled by localizeComponentData
+      // Not in editor context
     }
 
-    // Use translated content if available, otherwise use default
-    const displayContent = translations?.[previewLanguage]?.content || content;
+    const displayText = translations?.[previewLanguage]?.text || text;
 
-    const alignClass = {
-      left: "text-left",
-      center: "text-center",
-      right: "text-right",
-    }[align];
+    const fontSize = size === "m" ? "20px" : "16px";
+    const colorValue = color === "muted" ? "var(--puck-color-grey-05)" : "inherit";
 
-    const variantClasses: Record<string, string> = {
-      h1: "text-4xl font-bold tracking-tight",
-      h2: "text-3xl font-semibold tracking-tight",
-      h3: "text-2xl font-semibold",
-      h4: "text-xl font-semibold",
-      p: "text-base",
-      lead: "text-xl text-muted-foreground",
-      muted: "text-sm text-muted-foreground",
-    };
-
-    // Render the appropriate element based on variant
-    if (variant === "h1") {
-      return <h1 className={`${alignClass} ${variantClasses[variant]}`}>{displayContent}</h1>;
-    }
-    if (variant === "h2") {
-      return <h2 className={`${alignClass} ${variantClasses[variant]}`}>{displayContent}</h2>;
-    }
-    if (variant === "h3") {
-      return <h3 className={`${alignClass} ${variantClasses[variant]}`}>{displayContent}</h3>;
-    }
-    if (variant === "h4") {
-      return <h4 className={`${alignClass} ${variantClasses[variant]}`}>{displayContent}</h4>;
-    }
-    return <p className={`${alignClass} ${variantClasses[variant]}`}>{displayContent}</p>;
+    return (
+      <Section>
+        <p
+          className={getClassName()}
+          style={{
+            fontSize,
+            textAlign: align,
+            color: colorValue,
+            maxWidth: maxWidth ? `${maxWidth}px` : undefined,
+          }}
+        >
+          {displayText}
+        </p>
+      </Section>
+    );
   },
 };
+
+export const TextBlock = withLayout(TextBlockInternal);

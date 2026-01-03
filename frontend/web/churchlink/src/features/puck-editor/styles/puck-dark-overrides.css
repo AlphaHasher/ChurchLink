@@ -159,7 +159,4 @@
   background: #2D333B;
 }
 
-/* Fix Puck layout to respect parent container height */
-[class*="_PuckLayout-inner"] {
-  height: 100% !important;
-}
+/* Removed custom height override - let Puck manage its own scroll areas */
