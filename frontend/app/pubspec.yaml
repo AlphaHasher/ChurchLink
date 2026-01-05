@@ -40,7 +40,7 @@ dependencies:
   firebase_analytics: ^12.0.4
   url_launcher: ^6.3.2
   provider: ^6.1.5
-  app_links: ^6.4.1
+  app_links: ^7.0.0
   
 
   #avatar
@@ -79,7 +79,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  patrol: ^3.10.0
+  patrol: ^4.1.0
   flutter_launcher_icons: "^0.14.4"
 
   # The "flutter_lints" package below contains a set of recommended lints to
