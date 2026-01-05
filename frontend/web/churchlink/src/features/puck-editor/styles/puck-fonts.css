@@ -1,0 +1,24 @@
+/**
+ * Puck Editor Font Configuration
+ *
+ * Puck is using no-external.css, so the editor font must be provided by the app.
+ * This uses the same font already loaded by the app shell (Montserrat).
+ */
+
+/* Set the Puck font family to match the app's loaded font */
+:root {
+  --puck-font-family: 'Montserrat', sans-serif;
+}
+
+.puck-font-scope {
+  font-family: var(--page-font-family, inherit);
+  font-weight: var(--page-font-weight, inherit);
+  font-style: var(--page-font-style, inherit);
+}
+
+/* Ensure the font is applied throughout Puck components */
+[class*="_Puck"],
+[data-puck-component],
+[data-puck-entry] {
+  font-family: var(--puck-font-family);
+}

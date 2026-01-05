@@ -10,11 +10,20 @@ import styles from "../../styles/components/Layout.module.css";
 
 const getClassName = getClassNameFactory("Layout", styles);
 
+const marginClasses: Record<string, string> = {
+  none: "",
+  small:  "md:mx-6   lg:mx-16  xl:mx-32  2xl:mx-48",
+  medium: "md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
+  large:  "md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
+  xl:     "md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
+};
+
 type LayoutFieldProps = {
   padding?: string;
   spanCol?: number;
   spanRow?: number;
   grow?: boolean;
+  marginOverride?: "none" | "small" | "medium" | "large" | "xl" | "page-default";
 };
 
 export type WithLayout<Props extends DefaultComponentProps> = Props & {
@@ -55,14 +64,31 @@ export const layoutField: ObjectField<LayoutFieldProps> = {
       label: "Vertical Padding",
       options: [{ label: "0px", value: "0px" }, ...spacingOptions],
     },
+    marginOverride: {
+      type: "select",
+      label: "Horizontal Margin",
+      options: [
+        { label: "Use Page Margin", value: "page-default" },
+        { label: "None (Full Width)", value: "none" },
+        { label: "Small", value: "small" },
+        { label: "Medium", value: "medium" },
+        { label: "Large", value: "large" },
+        { label: "Extra Large", value: "xl" },
+      ],
+    },
   },
 };
 
 const Layout = forwardRef<HTMLDivElement, LayoutProps>(
   ({ children, className, layout, style }, ref) => {
+    // Apply margin override if set (and not "page-default")
+    const marginClass = layout?.marginOverride && layout.marginOverride !== "page-default"
+      ? marginClasses[layout.marginOverride]
+      : "";
+
     return (
       <div
-        className={className}
+        className={`${className} ${marginClass}`.trim()}
         style={{
           gridColumn: layout?.spanCol
             ? `span ${Math.max(Math.min(layout.spanCol, 12), 1)}`
@@ -103,6 +129,7 @@ export function withLayout<
         spanRow: 1,
         padding: "0px",
         grow: false,
+        marginOverride: "page-default",
         ...componentConfig.defaultProps?.layout,
       },
     },
@@ -116,6 +143,7 @@ export function withLayout<
               spanCol: layoutField.objectFields.spanCol,
               spanRow: layoutField.objectFields.spanRow,
               padding: layoutField.objectFields.padding,
+              marginOverride: layoutField.objectFields.marginOverride,
             },
           },
         };
@@ -128,6 +156,7 @@ export function withLayout<
             objectFields: {
               grow: layoutField.objectFields.grow,
               padding: layoutField.objectFields.padding,
+              marginOverride: layoutField.objectFields.marginOverride,
             },
           },
         };
@@ -139,6 +168,7 @@ export function withLayout<
           ...layoutField,
           objectFields: {
             padding: layoutField.objectFields.padding,
+            marginOverride: layoutField.objectFields.marginOverride,
           },
         },
       };

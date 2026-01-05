@@ -7,6 +7,8 @@ import { withLayout, type WithLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
+import { fontFamilyField } from "../shared/fontField";
+import { getFontFamilyVariables } from "../../utils/fontLoader";
 
 const getClassName = getClassNameFactory("Heading", styles);
 
@@ -35,6 +37,7 @@ type HeadingBlockPropsInner = {
   size: "xxxl" | "xxl" | "xl" | "l" | "m" | "s" | "xs";
   level: "" | "1" | "2" | "3" | "4" | "5" | "6";
   align: "left" | "center" | "right";
+  fontFamily?: string;
   translations?: TranslationMap;
 };
 
@@ -67,6 +70,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
         { label: "Right", value: "right" },
       ],
     },
+    fontFamily: fontFamilyField,
     translations: {
       type: "custom",
       label: "Translations",
@@ -84,9 +88,10 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
     text: "Heading",
     size: "m",
     level: "",
+    fontFamily: "",
     translations: {},
   },
-  render: ({ align, text, size, level, translations }) => {
+  render: ({ align, text, size, level, fontFamily, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -110,17 +115,20 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
 
     const Tag = level ? (`h${level}` as const) : ("div" as const);
 
+    const fontVars = getFontFamilyVariables(fontFamily);
+
     return (
       <Section>
         {React.createElement(
           Tag,
           {
-            className: getClassName(),
+            className: `${getClassName()} puck-font-scope`,
             style: {
               display: "block",
               textAlign: align,
               width: "100%",
               ...sizeStyles[size],
+              ...fontVars,
             },
           },
           displayText

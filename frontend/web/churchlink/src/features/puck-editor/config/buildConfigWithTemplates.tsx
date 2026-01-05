@@ -1,7 +1,7 @@
 import type { ComponentConfig, Config } from "@measured/puck";
-import type { ReactNode } from "react";
 import type { CustomTemplate } from "../hooks/useCustomTemplates";
 import { config as baseConfig, type PuckData } from "./index";
+import { GroupBlock } from "./components/GroupBlock";
 
 // Deep clone utility to avoid reference sharing between template instances
 function deepClone<T>(obj: T): T {
@@ -15,6 +15,8 @@ function templateToComponentKey(name: string): string {
 }
 
 // Create a component config from a template
+// Template_* is a "ghost" component - when placed, it immediately transforms to GroupBlock
+// (transformation happens in PuckEditor onChange handler)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createTemplateComponent(template: CustomTemplate): ComponentConfig<any> {
   const templateData = template.puckData;
@@ -22,39 +24,17 @@ function createTemplateComponent(template: CustomTemplate): ComponentConfig<any>
   // Get the children from the template data (props.children for Puck 0.19+ Slots API)
   const templateChildren = templateData.props?.children || templateData.content || [];
 
+  // Use GroupBlock's structure but with template's children as defaultProps
+  // This ensures the component picker shows the template with correct structure
   return {
     label: template.name,
-    fields: {
-      // Define a slot field for the children
-      // This allows the template's children to be editable after placement
-      children: {
-        type: "slot" as const,
-      },
-    },
+    fields: GroupBlock.fields,
     defaultProps: {
-      // Pre-populate the children slot with the saved template children
-      // These will be instantiated when the template is placed on a page
+      name: template.name,
       // Deep clone to ensure each instance gets independent component objects
       children: deepClone(templateChildren),
     },
-    render: ({ puck, ...props }: { puck?: { isEditing?: boolean }; children?: ReactNode | (() => ReactNode) }) => {
-      // Render children - can be a function (slot render prop) or ReactNode
-      const renderChildren = () => {
-        if (typeof props.children === "function") {
-          return (props.children as () => ReactNode)();
-        }
-        return props.children;
-      };
-
-      // Render the group content - this will be a deep copy of the original
-      return (
-        <div className="template-block w-full" data-template-name={template.name}>
-          <div className="template-content">
-            {renderChildren()}
-          </div>
-        </div>
-      );
-    },
+    render: GroupBlock.render,
   };
 }
 

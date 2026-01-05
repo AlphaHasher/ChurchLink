@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Puck, Data as PuckData, type ComponentData } from "@measured/puck";
-import "@measured/puck/puck.css";
+import "@measured/puck/no-external.css";
 import "../styles/puck-dark-overrides.css";
+import "../styles/puck-fonts.css";
 import { X } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { ModeToggle } from "@/shared/components/ModeToggle";

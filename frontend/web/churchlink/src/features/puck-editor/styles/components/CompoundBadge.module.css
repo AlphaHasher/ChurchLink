@@ -1,0 +1,48 @@
+.CompoundBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.CompoundBadge--default {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.CompoundBadge--default:hover {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+.CompoundBadge--secondary {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.CompoundBadge--secondary:hover {
+  background-color: hsl(var(--secondary) / 0.8);
+}
+
+.CompoundBadge--destructive {
+  background-color: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.CompoundBadge--destructive:hover {
+  background-color: hsl(var(--destructive) / 0.9);
+}
+
+.CompoundBadge--outline {
+  background-color: transparent;
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.CompoundBadge--outline:hover {
+  background-color: hsl(var(--accent));
+}

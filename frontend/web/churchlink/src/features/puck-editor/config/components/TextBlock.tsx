@@ -7,6 +7,8 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { ALargeSmall, AlignLeft } from "lucide-react";
+import { fontFamilyField } from "../shared/fontField";
+import { getFontFamilyVariables } from "../../utils/fontLoader";
 
 const getClassName = getClassNameFactory("Text", styles);
 
@@ -16,6 +18,7 @@ export type TextBlockPropsInner = {
   align: "left" | "center" | "right";
   color: "default" | "muted";
   maxWidth?: number;
+  fontFamily?: string;
   translations?: TranslationMap;
 };
 
@@ -64,6 +67,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
       type: "number",
       label: "Max Width",
     },
+    fontFamily: fontFamilyField,
     translations: {
       type: "custom",
       label: "Translations",
@@ -82,9 +86,10 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     align: "left",
     color: "default",
     maxWidth: undefined,
+    fontFamily: "",
     translations: {},
   },
-  render: ({ text, size, align, color, maxWidth, translations }) => {
+  render: ({ text, size, align, color, maxWidth, fontFamily, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -98,15 +103,18 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     const fontSize = size === "m" ? "20px" : "16px";
     const colorValue = color === "muted" ? "var(--puck-color-grey-05)" : "inherit";
 
+    const fontVars = getFontFamilyVariables(fontFamily);
+
     return (
       <Section>
         <p
-          className={getClassName()}
+          className={`${getClassName()} puck-font-scope`}
           style={{
             fontSize,
             textAlign: align,
             color: colorValue,
             maxWidth: maxWidth ? `${maxWidth}px` : undefined,
+            ...fontVars,
           }}
         >
           {displayText}

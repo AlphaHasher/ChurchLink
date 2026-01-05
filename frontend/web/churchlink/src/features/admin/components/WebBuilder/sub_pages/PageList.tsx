@@ -201,7 +201,7 @@ const WebBuilderPageList = () => {
       flex: 1,
       cellRenderer: (params: any) => (
         <button
-          onClick={() => navigate(params.value === '/' ? '/' : `/${params.value}`)}
+          onClick={() => window.open(params.value === '/' ? '/' : `/${params.value}`, '_blank')}
           className="w-full h-full text-left text-blue-600 hover:text-blue-800 cursor-pointer bg-transparent border-none p-0"
           title={`Navigate to ${params.value}`}
         >

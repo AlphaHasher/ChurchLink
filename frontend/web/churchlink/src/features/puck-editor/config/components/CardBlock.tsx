@@ -7,6 +7,8 @@ import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
+import { fontFamilyField } from "../shared/fontField";
+import { getFontFamilyVariables } from "../../utils/fontLoader";
 import {
   Heart,
   Star,
@@ -66,6 +68,8 @@ export type CardBlockPropsInner = {
   description: string;
   icon?: string;
   mode: "flat" | "card";
+  titleFont?: string;
+  descriptionFont?: string;
   translations?: TranslationMap;
 };
 
@@ -85,10 +89,12 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
       type: "text",
       contentEditable: true,
     },
+    titleFont: fontFamilyField,
     description: {
       type: "textarea",
       contentEditable: true,
     },
+    descriptionFont: fontFamilyField,
     icon: {
       type: "select",
       options: iconOptions,
@@ -120,9 +126,11 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
     description: "Description",
     icon: "heart",
     mode: "flat",
+    titleFont: "",
+    descriptionFont: "",
     translations: {},
   },
-  render: ({ title, icon, description, mode, translations }) => {
+  render: ({ title, icon, description, mode, titleFont, descriptionFont, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -134,13 +142,26 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
     const displayTitle = translations?.[previewLanguage]?.title || title;
     const displayDescription = translations?.[previewLanguage]?.description || description;
 
+    const titleFontVars = getFontFamilyVariables(titleFont);
+    const descriptionFontVars = getFontFamilyVariables(descriptionFont);
+
     return (
       <Section>
         <div className={getClassName({ [mode]: true })}>
           <div className={getClassName("inner")}>
             <div className={getClassName("icon")}>{icon && icons[icon]}</div>
-            <div className={getClassName("title")}>{displayTitle}</div>
-            <div className={getClassName("description")}>{displayDescription}</div>
+            <div
+              className={`${getClassName("title")} puck-font-scope`}
+              style={titleFontVars}
+            >
+              {displayTitle}
+            </div>
+            <div
+              className={`${getClassName("description")} puck-font-scope`}
+              style={descriptionFontVars}
+            >
+              {displayDescription}
+            </div>
           </div>
         </div>
       </Section>

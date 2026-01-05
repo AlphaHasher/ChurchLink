@@ -44,7 +44,14 @@ const GridBlockInternal: ComponentConfig<GridBlockPropsInner> = {
     gap: 24,
     items: [],
   },
+  resolveData: async ({ props }) => ({
+    props: { ...props, items: props.items ?? [] },
+  }),
   render: ({ gap, numColumns, items: Items }) => {
+    // Defensive check for slot during deletion
+    if (!Items || typeof Items !== "function") {
+      return <Section><div className={getClassName()} /></Section>;
+    }
     return (
       <Section>
         <Items

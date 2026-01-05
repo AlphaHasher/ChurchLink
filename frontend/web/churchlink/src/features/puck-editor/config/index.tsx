@@ -14,11 +14,11 @@ import { HeadingBlock, type HeadingBlockProps } from "./components/HeadingBlock"
 import { CardBlock, type CardBlockProps } from "./components/CardBlock";
 import { FlexBlock, type FlexBlockProps } from "./components/FlexBlock";
 import { GridBlock, type GridBlockProps } from "./components/GridBlock";
-import { LogosBlock, type LogosBlockProps } from "./components/LogosBlock";
-import { StatsBlock, type StatsBlockProps } from "./components/StatsBlock";
 import { BlankBlock, type BlankBlockProps } from "./components/BlankBlock";
 import { SpaceBlock, type SpaceBlockProps } from "./components/SpaceBlock";
 import { RichTextBlock, type RichTextBlockProps } from "./components/RichTextBlock";
+import { FaqBlock, type FaqBlockProps } from "./components/FaqBlock";
+import { CtaBlock, type CtaBlockProps } from "./components/CtaBlock";
 
 // Import language utilities
 import { LANGUAGES } from "../utils/languageUtils";
@@ -39,11 +39,11 @@ type Props = {
   CardBlock: CardBlockProps;
   FlexBlock: FlexBlockProps;
   GridBlock: GridBlockProps;
-  LogosBlock: LogosBlockProps;
-  StatsBlock: StatsBlockProps;
   BlankBlock: BlankBlockProps;
   SpaceBlock: SpaceBlockProps;
   RichTextBlock: RichTextBlockProps;
+  FaqBlock: FaqBlockProps;
+  CtaBlock: CtaBlockProps;
 };
 
 // Root props for page-level settings
@@ -123,7 +123,7 @@ export const config: Config<Props, RootProps> = {
     },
     sections: {
       title: "Sections",
-      components: ["HeroBlock", "EventSectionBlock", "LogosBlock", "StatsBlock"],
+      components: ["HeroBlock", "EventSectionBlock", "FaqBlock", "CtaBlock"],
     },
     integrations: {
       title: "Integrations",
@@ -144,11 +144,11 @@ export const config: Config<Props, RootProps> = {
     CardBlock,
     FlexBlock,
     GridBlock,
-    LogosBlock,
-    StatsBlock,
     BlankBlock,
     SpaceBlock,
     RichTextBlock,
+    FaqBlock,
+    CtaBlock,
   },
 };
 

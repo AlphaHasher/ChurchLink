@@ -6,6 +6,8 @@ import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
+import { fontFamilyField } from "../shared/fontField";
+import { getFontFamilyVariables } from "../../utils/fontLoader";
 
 const getClassName = getClassNameFactory("Stats", styles);
 
@@ -16,6 +18,8 @@ type Stat = {
 
 export type StatsBlockPropsInner = {
   items: Stat[];
+  labelFont?: string;
+  valueFont?: string;
   translations?: TranslationMap;
 };
 
@@ -50,6 +54,8 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
         },
       },
     },
+    labelFont: fontFamilyField,
+    valueFont: fontFamilyField,
     translations: {
       type: "custom",
       label: "Translations",
@@ -85,9 +91,11 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
         description: "1,000",
       },
     ],
+    labelFont: "",
+    valueFont: "",
     translations: {},
   },
-  render: ({ items, translations }) => {
+  render: ({ items, labelFont, valueFont, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -95,6 +103,9 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
     } catch {
       // Not in editor context
     }
+
+    const labelFontVars = getFontFamilyVariables(labelFont);
+    const valueFontVars = getFontFamilyVariables(valueFont);
 
     return (
       <Section className={getClassName()} maxWidth={"916px"}>
@@ -108,8 +119,18 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
 
             return (
               <div key={i} className={getClassName("item")}>
-                <div className={getClassName("label")}>{displayTitle}</div>
-                <div className={getClassName("value")}>{displayDescription}</div>
+                <div
+                  className={`${getClassName("label")} puck-font-scope`}
+                  style={labelFontVars}
+                >
+                  {displayTitle}
+                </div>
+                <div
+                  className={`${getClassName("value")} puck-font-scope`}
+                  style={valueFontVars}
+                >
+                  {displayDescription}
+                </div>
               </div>
             );
           })}

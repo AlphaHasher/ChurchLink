@@ -1,0 +1,7 @@
+.CompoundButton--hasIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}

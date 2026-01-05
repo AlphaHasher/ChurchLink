@@ -5,11 +5,14 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { Button } from "@/shared/components/ui/button";
+import { fontFamilyField } from "../shared/fontField";
+import { getFontFamilyVariables } from "../../utils/fontLoader";
 
 export type ButtonBlockPropsInner = {
   label: string;
   href: string;
   variant: "default" | "secondary";
+  fontFamily?: string;
   translations?: TranslationMap;
 };
 
@@ -38,6 +41,7 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
         { label: "Secondary", value: "secondary" },
       ],
     },
+    fontFamily: fontFamilyField,
     translations: {
       type: "custom",
       label: "Translations",
@@ -54,9 +58,10 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
     label: "Button",
     href: "#",
     variant: "default",
+    fontFamily: "",
     translations: {},
   },
-  render: ({ href, variant, label, translations, puck }) => {
+  render: ({ href, variant, label, fontFamily, translations, puck }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -67,6 +72,8 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
 
     const displayLabel = translations?.[previewLanguage]?.label || label;
 
+    const fontVars = getFontFamilyVariables(fontFamily);
+
     return (
       <Section>
         <div>
@@ -76,7 +83,13 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
             size="lg"
             tabIndex={puck.isEditing ? -1 : undefined}
           >
-            <a href={puck.isEditing ? "#" : href}>{displayLabel}</a>
+            <a
+              href={puck.isEditing ? "#" : href}
+              className="puck-font-scope"
+              style={fontVars}
+            >
+              {displayLabel}
+            </a>
           </Button>
         </div>
       </Section>

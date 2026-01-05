@@ -14,10 +14,12 @@ import {
   DialogDescription,
 } from "@/shared/components/ui/Dialog";
 import { Save } from "lucide-react";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 
 export type GroupBlockProps = {
   name: string;
   id?: string;
+  backgroundColor?: string;
   // The slot for nested components - Puck handles this as a special field type
   children: ReactNode;
 };
@@ -218,6 +220,13 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
       type: "text",
       label: "Group Name",
     },
+    backgroundColor: {
+      type: "custom",
+      label: "Background Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     children: {
       type: "slot",
       // No allow/disallow restrictions - any component can be placed inside
@@ -238,20 +247,43 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
   },
   defaultProps: {
     name: "My Group",
-    children: undefined as unknown as ReactNode,
+    backgroundColor: "",
+    children: [] as unknown as ReactNode,
   },
-  render: ({ children }) => {
+  // Ensure children is always valid to prevent crashes during deletion
+  resolveData: async ({ props }) => {
+    return {
+      props: {
+        ...props,
+        children: props.children ?? [],
+      },
+    };
+  },
+  render: ({ children, backgroundColor }) => {
+    // Defensive: handle case where children is null/undefined during deletion
+    if (children === null || children === undefined) {
+      return <div className="group-block w-full"><div className="group-block-content min-h-12.5" /></div>;
+    }
+
     // Render children - can be a function (slot render prop) or ReactNode
     const renderChildren = () => {
-      if (typeof children === "function") {
-        return (children as () => ReactNode)();
+      try {
+        if (typeof children === "function") {
+          return (children as () => ReactNode)();
+        }
+        return children;
+      } catch {
+        // Catch errors during slot rendering (e.g., during deletion)
+        return null;
       }
-      return children;
     };
 
     return (
       <div
         className="group-block w-full"
+        style={{
+          backgroundColor: backgroundColor || "transparent",
+        }}
       >
         {/* Render the slot - children is a function that renders the DropZone */}
         <div className="group-block-content min-h-12.5">

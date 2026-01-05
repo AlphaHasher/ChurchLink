@@ -1,11 +1,55 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, Component, type ReactNode, type ErrorInfo } from "react";
 import { Puck } from "@measured/puck";
-import "@measured/puck/puck.css";
+import type { ComponentData } from "@measured/puck";
+
+// Error boundary to catch Puck internal errors (e.g., during deletion)
+class PuckErrorBoundary extends Component<
+  { children: ReactNode; onReset: () => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode; onReset: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Puck error caught:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-full flex items-center justify-center bg-background">
+          <div className="text-center space-y-4 p-8">
+            <p className="text-destructive text-lg">Editor encountered an error</p>
+            <p className="text-muted-foreground text-sm">{this.state.error?.message}</p>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                this.props.onReset();
+              }}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md"
+            >
+              Reload Editor
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+import "@measured/puck/no-external.css";
 import "../styles/puck-dark-overrides.css";
+import "../styles/puck-fonts.css";
 import { useParams, useNavigate } from "react-router-dom";
 import { buildConfigWithTemplates } from "../config/buildConfigWithTemplates";
 import { usePuckPage } from "../hooks/usePuckPage";
-import { useCustomTemplates } from "../hooks/useCustomTemplates";
+import { useCustomTemplates, type CustomTemplate } from "../hooks/useCustomTemplates";
 import { TemplateProvider } from "../context/TemplateContext";
 import { PuckLanguageProvider, usePuckLanguage } from "../context/PuckLanguageContext";
 import { Skeleton } from "@/shared/components/ui/skeleton";
@@ -25,6 +69,53 @@ import { createPortal } from "react-dom";
 import Layout from "@/shared/layouts/Layout";
 import { PuckPageRenderer } from "../components/PuckPageRenderer";
 import { LANGUAGES } from "../utils/languageUtils";
+
+// Transform Template_* components to GroupBlock
+// This allows custom groups to use GroupBlock's behavior (delete, save, etc.)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function transformTemplatesToGroups(data: any, templates: CustomTemplate[]): any {
+  // Build map of Template_* type names to template names
+  const templateNames = new Map(
+    templates.map(t => [
+      `Template_${t.name.replace(/[^a-zA-Z0-9]/g, "")}`,
+      t.name
+    ])
+  );
+
+  // Recursively transform a component and its children
+  const transformComponent = (comp: ComponentData): ComponentData => {
+    // Check if this is a Template_* component
+    if (comp.type.startsWith("Template_") && templateNames.has(comp.type)) {
+      // Convert to GroupBlock with same props
+      return {
+        type: "GroupBlock",
+        props: {
+          ...comp.props,
+          name: templateNames.get(comp.type) || "My Group",
+        }
+      };
+    }
+
+    // Recursively handle children slots
+    if (Array.isArray(comp.props?.children)) {
+      return {
+        ...comp,
+        props: {
+          ...comp.props,
+          children: (comp.props.children as ComponentData[]).map(transformComponent)
+        }
+      };
+    }
+
+    return comp;
+  };
+
+  // Transform all content components
+  return {
+    ...data,
+    content: data.content?.map(transformComponent) || [],
+  };
+}
 
 export default function PuckEditor() {
   const { slug } = useParams<{ slug: string }>();
@@ -191,23 +282,29 @@ export default function PuckEditor() {
 
           {/* Puck Editor - Takes remaining space */}
           <div className="flex-1 min-h-0">
-            <Puck
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              config={dynamicConfig as any}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              data={data as any}
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              onChange={(newData: any) => updateData(newData)}
-              overrides={{
-                header: () => {
-                  // Render UndoRedoButtons into portal if available
-                  if (undoRedoPortal) {
-                    return createPortal(<UndoRedoButtons />, undoRedoPortal);
-                  }
-                  return <></>;
-                },
-              }}
-            />
+            <PuckErrorBoundary onReset={() => window.location.reload()}>
+              <Puck
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                config={dynamicConfig as any}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                data={data as any}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onChange={(newData: any) => {
+                  // Transform Template_* to GroupBlock so they use GroupBlock's behavior
+                  const transformed = transformTemplatesToGroups(newData, templates);
+                  updateData(transformed);
+                }}
+                overrides={{
+                  header: () => {
+                    // Render UndoRedoButtons into portal if available
+                    if (undoRedoPortal) {
+                      return createPortal(<UndoRedoButtons />, undoRedoPortal);
+                    }
+                    return <></>;
+                  },
+                }}
+              />
+            </PuckErrorBoundary>
           </div>
           <ManageGroupsDialog
             open={manageGroupsOpen}

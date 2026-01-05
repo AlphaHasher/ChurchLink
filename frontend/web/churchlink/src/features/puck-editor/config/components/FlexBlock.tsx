@@ -67,7 +67,14 @@ const FlexBlockInternal: ComponentConfig<FlexBlockPropsInner> = {
     wrap: "wrap",
     items: [],
   },
+  resolveData: async ({ props }) => ({
+    props: { ...props, items: props.items ?? [] },
+  }),
   render: ({ justifyContent, direction, gap, wrap, items: Items }) => {
+    // Defensive check for slot during deletion
+    if (!Items || typeof Items !== "function") {
+      return <Section style={{ height: "100%" }}><div className={getClassName()} /></Section>;
+    }
     return (
       <Section style={{ height: "100%" }}>
         <Items

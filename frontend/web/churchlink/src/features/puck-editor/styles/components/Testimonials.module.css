@@ -1,0 +1,120 @@
+.Testimonials {
+  width: 100%;
+}
+
+.Testimonials-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.Testimonials-container h2 {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  text-align: left;
+  max-width: 36rem;
+}
+
+@media (min-width: 768px) {
+  .Testimonials-container h2 {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+.Testimonials-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .Testimonials-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .Testimonials-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.Testimonials-card {
+  background-color: hsl(var(--muted));
+  border-radius: 0.375rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 280px;
+}
+
+.Testimonials-icon {
+  stroke-width: 1;
+  color: hsl(var(--foreground));
+}
+
+.Testimonials-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.Testimonials-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.Testimonials-title {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+}
+
+.Testimonials-quote {
+  color: hsl(var(--muted-foreground));
+  font-size: 1rem;
+  line-height: 1.5;
+  max-width: 20rem;
+}
+
+.Testimonials-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.Testimonials-authorBy {
+  color: hsl(var(--muted-foreground));
+}
+
+.Testimonials-avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.Testimonials-avatarFallback {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.Testimonials-authorName {
+  font-weight: 500;
+}

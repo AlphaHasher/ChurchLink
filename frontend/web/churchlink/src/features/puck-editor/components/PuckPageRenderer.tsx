@@ -1,26 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Render } from "@measured/puck";
-import { config as baseConfig, type PuckData } from "../config";
-import { useCustomTemplates } from "../hooks/useCustomTemplates";
-import { buildConfigWithTemplates } from "../config/buildConfigWithTemplates";
+import { config, type PuckData } from "../config";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { localizeComponentData } from "../utils/languageUtils";
+import { loadGoogleFont } from "../utils/fontLoader";
 
 interface PuckPageRendererProps {
   data: PuckData;
 }
 
 export function PuckPageRenderer({ data }: PuckPageRendererProps) {
-  const { templates, loading } = useCustomTemplates();
   const { locale } = useLanguage(); // Get user's account language from LanguageProvider
-
-  // Build dynamic config with templates - memoized to avoid recreating on every render
-  const dynamicConfig = useMemo(() => {
-    if (loading || templates.length === 0) {
-      return baseConfig;
-    }
-    return buildConfigWithTemplates(templates);
-  }, [templates, loading]);
 
   // Get browser language as fallback
   const browserLang = navigator.language?.split("-")[0] || "en";
@@ -30,15 +20,6 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
   const localizedData = useMemo(() => {
     return localizeComponentData(data, locale || browserLang, browserLang, defaultLang);
   }, [data, locale, browserLang, defaultLang]);
-
-  // Show loading state while templates load
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
 
   // Get page margins from root props
   const pageMargins = ((localizedData.root.props as { pageMargins?: string })?.pageMargins) || "none";
@@ -52,11 +33,39 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
     xl:     "md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
   };
 
+  // Load all fonts used in page data
+  useEffect(() => {
+    // Font prop names to look for
+    const fontProps = ["fontFamily", "titleFont", "descriptionFont", "buttonFont", "labelFont", "valueFont"];
+
+    const loadPageFonts = (components: unknown[]) => {
+      components.forEach((comp: unknown) => {
+        const component = comp as { props?: Record<string, unknown> };
+        if (component.props) {
+          // Check all font-related props
+          for (const propName of fontProps) {
+            const fontValue = component.props[propName];
+            if (typeof fontValue === "string" && fontValue) {
+              loadGoogleFont(fontValue);
+            }
+          }
+          // Recursively handle nested children (GroupBlock, FlexBlock, GridBlock)
+          if (Array.isArray(component.props.children)) {
+            loadPageFonts(component.props.children as unknown[]);
+          }
+        }
+      });
+    };
+
+    if (localizedData.content) {
+      loadPageFonts(localizedData.content);
+    }
+  }, [localizedData]);
 
   return (
     <div className={marginClasses[pageMargins]}>
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <Render config={dynamicConfig as any} data={localizedData as any} />
+      <Render config={config as any} data={localizedData as any} />
     </div>
   );
 }
