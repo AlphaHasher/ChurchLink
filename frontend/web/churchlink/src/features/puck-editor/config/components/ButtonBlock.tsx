@@ -6,7 +6,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { Button } from "@/shared/components/ui/button";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 
 export type ButtonBlockPropsInner = {
@@ -82,7 +82,7 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
 
     const displayLabel = translations?.[previewLanguage]?.label || label;
 
-    const fontVars = getFontFamilyVariables(fontFamily);
+    const fontStyles = getFontFamilyStyle(fontFamily);
 
     return (
       <Section>
@@ -95,9 +95,8 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
           >
             <a
               href={puck.isEditing ? "#" : href}
-              className="puck-font-scope"
               style={{
-                ...fontVars,
+                ...fontStyles,
                 color: labelColor || undefined,
               }}
             >

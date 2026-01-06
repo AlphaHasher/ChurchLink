@@ -5,7 +5,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 
 export type EventSectionBlockProps = {
   title: string;
@@ -79,8 +79,8 @@ export const EventSectionBlock: ComponentConfig<EventSectionBlockProps> = {
 
     // Use translated title if available, otherwise use default
     const displayTitle = translations?.[previewLanguage]?.title || title;
-    const titleFontVars = getFontFamilyVariables(titleFont);
-    const titleFontFamily = titleFontVars?.fontFamily as string | undefined;
+    const titleFontStyles = getFontFamilyStyle(titleFont);
+    const titleFontFamily = titleFontStyles?.fontFamily as string | undefined;
 
     return (
       <EventSection

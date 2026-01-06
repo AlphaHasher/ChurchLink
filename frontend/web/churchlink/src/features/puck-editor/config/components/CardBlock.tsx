@@ -8,7 +8,7 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   Heart,
@@ -161,8 +161,8 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
     const displayTitle = translations?.[previewLanguage]?.title || title;
     const displayDescription = translations?.[previewLanguage]?.description || description;
 
-    const titleFontVars = getFontFamilyVariables(titleFont);
-    const descriptionFontVars = getFontFamilyVariables(descriptionFont);
+    const titleFontStyles = getFontFamilyStyle(titleFont);
+    const descriptionFontStyles = getFontFamilyStyle(descriptionFont);
 
     return (
       <Section>
@@ -170,14 +170,14 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
           <div className={getClassName("inner")}>
             <div className={getClassName("icon")}>{icon && icons[icon]}</div>
             <div
-              className={`${getClassName("title")} puck-font-scope`}
-              style={{ ...titleFontVars, color: titleColor || undefined }}
+              className={getClassName("title")}
+              style={{ ...titleFontStyles, color: titleColor || undefined }}
             >
               {displayTitle}
             </div>
             <div
-              className={`${getClassName("description")} puck-font-scope`}
-              style={{ ...descriptionFontVars, color: descriptionColor || undefined }}
+              className={getClassName("description")}
+              style={{ ...descriptionFontStyles, color: descriptionColor || undefined }}
             >
               {displayDescription}
             </div>

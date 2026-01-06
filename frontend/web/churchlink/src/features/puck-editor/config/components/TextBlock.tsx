@@ -8,7 +8,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { ALargeSmall, AlignLeft } from "lucide-react";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 
 const getClassName = getClassNameFactory("Text", styles);
@@ -113,18 +113,18 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     const fontSize = size === "m" ? "20px" : "16px";
     const colorValue = textColor || (color === "muted" ? "var(--puck-color-grey-05)" : "inherit");
 
-    const fontVars = getFontFamilyVariables(fontFamily);
+    const fontStyles = getFontFamilyStyle(fontFamily);
 
     return (
       <Section>
         <p
-          className={`${getClassName()} puck-font-scope`}
+          className={getClassName()}
           style={{
             fontSize,
             textAlign: align,
             color: colorValue,
             maxWidth: maxWidth ? `${maxWidth}px` : undefined,
-            ...fontVars,
+            ...fontStyles,
           }}
         >
           {displayText}

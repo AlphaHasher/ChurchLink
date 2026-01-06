@@ -7,7 +7,7 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
@@ -207,10 +207,10 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
     const displayHeading = translations?.[previewLanguage]?.heading || heading;
     const displayDescription = translations?.[previewLanguage]?.description || description;
 
-    const headingFontVars = getFontFamilyVariables(headingFont);
-    const descriptionFontVars = getFontFamilyVariables(descriptionFont);
-    const cardHeadingFontVars = getFontFamilyVariables(cardHeadingFont);
-    const cardDescriptionFontVars = getFontFamilyVariables(cardDescriptionFont);
+    const headingFontStyles = getFontFamilyStyle(headingFont);
+    const descriptionFontStyles = getFontFamilyStyle(descriptionFont);
+    const cardHeadingFontStyles = getFontFamilyStyle(cardHeadingFont);
+    const cardDescriptionFontStyles = getFontFamilyStyle(cardDescriptionFont);
 
     return (
       <Section
@@ -225,12 +225,12 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
           {(heading || description) && (
             <div className={getClassName("header")}>
               {heading && (
-                <h2 className="puck-font-scope" style={{ ...headingFontVars, color: headingColor || undefined }}>
+                <h2 style={{ ...headingFontStyles, color: headingColor || undefined }}>
                   {displayHeading}
                 </h2>
               )}
               {description && (
-                <p className="puck-font-scope" style={{ ...descriptionFontVars, color: descriptionColor || undefined }}>
+                <p style={{ ...descriptionFontStyles, color: descriptionColor || undefined }}>
                   {displayDescription}
                 </p>
               )}
@@ -263,8 +263,8 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
                 >
                   <CompoundIcon icon={card.icon} size={32} className={getClassName("cardIcon")} />
                   <div className={getClassName("cardContent")}>
-                    <h3 className={`${getClassName("cardHeading")} puck-font-scope`} style={{ ...cardHeadingFontVars, color: cardHeadingColor || undefined }}>{displayCardHeading}</h3>
-                    <p className={`${getClassName("cardDescription")} puck-font-scope`} style={{ ...cardDescriptionFontVars, color: cardDescriptionColor || undefined }}>{displayCardDesc}</p>
+                    <h3 className={getClassName("cardHeading")} style={{ ...cardHeadingFontStyles, color: cardHeadingColor || undefined }}>{displayCardHeading}</h3>
+                    <p className={getClassName("cardDescription")} style={{ ...cardDescriptionFontStyles, color: cardDescriptionColor || undefined }}>{displayCardDesc}</p>
                   </div>
                   {card.button.label && (
                     <CompoundButton

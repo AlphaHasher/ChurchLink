@@ -7,7 +7,7 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
@@ -220,9 +220,9 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
     const displayDescription = translations?.[previewLanguage]?.description || description;
     const displayBadgeLabel = translations?.[previewLanguage]?.["badge.label"] || badge?.label || "";
 
-    const headingFontVars = getFontFamilyVariables(headingFont);
-    const descriptionFontVars = getFontFamilyVariables(descriptionFont);
-    const buttonFontVars = getFontFamilyVariables(buttonFont);
+    const headingFontStyles = getFontFamilyStyle(headingFont);
+    const descriptionFontStyles = getFontFamilyStyle(descriptionFont);
+    const buttonFontStyles = getFontFamilyStyle(buttonFont);
 
     return (
       <Section
@@ -243,10 +243,10 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
                 isEditing={puck.isEditing}
               />
             )}
-            <h2 className="puck-font-scope" style={{ ...headingFontVars, color: headingColor || undefined }}>
+            <h2 style={{ ...headingFontStyles, color: headingColor || undefined }}>
               {displayHeading}
             </h2>
-            <p className="puck-font-scope" style={{ ...descriptionFontVars, color: descriptionColor || undefined }}>
+            <p style={{ ...descriptionFontStyles, color: descriptionColor || undefined }}>
               {displayDescription}
             </p>
 
@@ -294,7 +294,7 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
                       size={button.size}
                       icon={button.icon}
                       isEditing={puck.isEditing}
-                      fontVars={buttonFontVars}
+                      fontVars={buttonFontStyles}
                     />
                   );
                 })}

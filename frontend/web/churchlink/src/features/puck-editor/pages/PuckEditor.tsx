@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, Component, type ReactNode, type ErrorInfo } from "react";
+import { useMemo, useCallback, useState, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
 import { Puck } from "@measured/puck";
 import type { ComponentData } from "@measured/puck";
 
@@ -69,6 +69,7 @@ import { createPortal } from "react-dom";
 import Layout from "@/shared/layouts/Layout";
 import { PuckPageRenderer } from "../components/PuckPageRenderer";
 import { LANGUAGES } from "../utils/languageUtils";
+import { loadGoogleFont } from "../utils/fontLoader";
 
 // Transform Template_* components to GroupBlock
 // This allows custom groups to use GroupBlock's behavior (delete, save, etc.)
@@ -146,6 +147,31 @@ export default function PuckEditor() {
   const dynamicConfig = useMemo(() => {
     return buildConfigWithTemplates(templates);
   }, [templates]);
+
+  // Load fonts used in page components (injects into main doc + Puck iframe)
+  useEffect(() => {
+    const fontProps = ["fontFamily", "headingFont", "descriptionFont", "buttonFont", "titleFont", "labelFont", "valueFont"];
+
+    const loadPageFonts = (components: ComponentData[]) => {
+      components.forEach((comp) => {
+        if (comp.props) {
+          for (const propName of fontProps) {
+            const fontValue = comp.props[propName];
+            if (typeof fontValue === "string" && fontValue) {
+              loadGoogleFont(fontValue);
+            }
+          }
+          if (Array.isArray(comp.props.children)) {
+            loadPageFonts(comp.props.children as ComponentData[]);
+          }
+        }
+      });
+    };
+
+    if (data.content) {
+      loadPageFonts(data.content as ComponentData[]);
+    }
+  }, [data]);
 
   // Handler for saving a component as template
   const handleSaveAsTemplate = useCallback(

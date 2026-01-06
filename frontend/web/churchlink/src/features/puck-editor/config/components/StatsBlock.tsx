@@ -7,7 +7,7 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 
 const getClassName = getClassNameFactory("Stats", styles);
@@ -123,8 +123,8 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
       // Not in editor context
     }
 
-    const labelFontVars = getFontFamilyVariables(labelFont);
-    const valueFontVars = getFontFamilyVariables(valueFont);
+    const labelFontStyles = getFontFamilyStyle(labelFont);
+    const valueFontStyles = getFontFamilyStyle(valueFont);
 
     return (
       <Section className={getClassName()} maxWidth={"916px"}>
@@ -139,14 +139,14 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
             return (
               <div key={i} className={getClassName("item")}>
                 <div
-                  className={`${getClassName("label")} puck-font-scope`}
-                  style={{ ...labelFontVars, color: labelColor || undefined }}
+                  className={getClassName("label")}
+                  style={{ ...labelFontStyles, color: labelColor || undefined }}
                 >
                   {displayTitle}
                 </div>
                 <div
-                  className={`${getClassName("value")} puck-font-scope`}
-                  style={{ ...valueFontVars, color: valueColor || undefined }}
+                  className={getClassName("value")}
+                  style={{ ...valueFontStyles, color: valueColor || undefined }}
                 >
                   {displayDescription}
                 </div>

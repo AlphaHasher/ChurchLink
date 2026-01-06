@@ -7,7 +7,7 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
@@ -230,9 +230,9 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
     const displayDescription = translations?.[previewLanguage]?.description || description;
     const displayBadgeLabel = translations?.[previewLanguage]?.["badge.label"] || badge?.label || "";
 
-    const headingFontVars = getFontFamilyVariables(headingFont);
-    const descriptionFontVars = getFontFamilyVariables(descriptionFont);
-    const buttonFontVars = getFontFamilyVariables(buttonFont);
+    const headingFontStyles = getFontFamilyStyle(headingFont);
+    const descriptionFontStyles = getFontFamilyStyle(descriptionFont);
+    const buttonFontStyles = getFontFamilyStyle(buttonFont);
 
     const hasImages = Array.isArray(images) && images.length > 0 && imageLayout !== "none";
     const isTwoColumnLayout = imageLayout === "1x1" || imageLayout === "1x1-9x16-1x1";
@@ -270,13 +270,13 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
 
               <h1
                 className={cn(
-                  "text-5xl md:text-7xl tracking-tighter font-regular puck-font-scope",
+                  "text-5xl md:text-7xl tracking-tighter font-regular",
                   {
                     "max-w-2xl": isCentered,
                     "lg:max-w-lg": isTwoColumnLayout,
                   }
                 )}
-                style={{ ...headingFontVars, color: headingColor || undefined }}
+                style={{ ...headingFontStyles, color: headingColor || undefined }}
               >
                 {displayHeading}
               </h1>
@@ -284,13 +284,13 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
               {description && (
                 <p
                   className={cn(
-                    "text-lg md:text-xl leading-relaxed tracking-tight text-muted-foreground puck-font-scope",
+                    "text-lg md:text-xl leading-relaxed tracking-tight text-muted-foreground",
                     {
                       "max-w-2xl": isCentered,
                       "lg:max-w-md": isTwoColumnLayout,
                     }
                   )}
-                  style={{ ...descriptionFontVars, color: descriptionColor || undefined }}
+                  style={{ ...descriptionFontStyles, color: descriptionColor || undefined }}
                 >
                   {displayDescription}
                 </p>
@@ -343,7 +343,7 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
                           size={button.size}
                           icon={button.icon}
                           isEditing={puck.isEditing}
-                          fontVars={buttonFontVars}
+                          fontVars={buttonFontStyles}
                         />
                       </div>
                     );
@@ -380,7 +380,7 @@ const ImageSingle = ({
   return (
     <div className="w-full">
       <div
-        className={cn("bg-muted rounded-md", {
+        className={cn("bg-muted rounded-md overflow-hidden", {
           "aspect-video": aspectRatio === "16x9" || !aspectRatio,
           "aspect-square": aspectRatio === "1x1",
           "aspect-[9/16]": aspectRatio === "9x16",
@@ -401,17 +401,17 @@ const ImageCluster = ({ images }: { images: ImageItem[] }) => {
 
   return (
     <div className="grid grid-cols-2 gap-8">
-      <div className="bg-muted rounded-md aspect-square">
+      <div className="bg-muted rounded-md overflow-hidden aspect-square">
         {image1?.src ? (
           <CompoundImage src={image1.src} alt={image1.alt} className="h-full" />
         ) : null}
       </div>
-      <div className="bg-muted rounded-md row-span-2">
+      <div className="bg-muted rounded-md overflow-hidden row-span-2">
         {image2?.src ? (
           <CompoundImage src={image2.src} alt={image2.alt} className="h-full" />
         ) : null}
       </div>
-      <div className="bg-muted rounded-md aspect-square">
+      <div className="bg-muted rounded-md overflow-hidden aspect-square">
         {image3?.src ? (
           <CompoundImage src={image3.src} alt={image3.alt} className="h-full" />
         ) : null}

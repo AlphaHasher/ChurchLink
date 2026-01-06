@@ -1,9 +1,5 @@
 import { Button } from "@/shared/components/ui/button";
 import { CompoundIcon } from "./CompoundIcon";
-import styles from "../../styles/components/CompoundButton.module.css";
-import { getClassNameFactory } from "../../utils/classNames";
-
-const getClassName = getClassNameFactory("CompoundButton", styles);
 
 interface CompoundButtonProps {
   label: string;
@@ -25,27 +21,32 @@ export const CompoundButton = ({
   fontVars = {},
 }: CompoundButtonProps) => {
   const hasIcon = icon && icon !== "none";
+  const iconSize = size === "lg" ? 20 : size === "sm" ? 16 : 18;
 
   const buttonContent = (
-    <>
-      {hasIcon && <CompoundIcon icon={icon} size={size === "lg" ? 20 : size === "sm" ? 16 : 18} />}
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      whiteSpace: 'nowrap'
+    }}>
+      {hasIcon && <CompoundIcon icon={icon} size={iconSize} />}
       {label}
-    </>
+    </span>
   );
 
   return (
     <Button
-      asChild={!isEditing && !!url ? true : false}
+      asChild={!isEditing && !!url}
       variant={variant}
       size={size}
       tabIndex={isEditing ? -1 : undefined}
-      className={hasIcon ? getClassName("CompoundButton--hasIcon") : undefined}
       style={fontVars}
     >
       {!isEditing && url ? (
         <a href={url}>{buttonContent}</a>
       ) : (
-        <span>{buttonContent}</span>
+        buttonContent
       )}
     </Button>
   );

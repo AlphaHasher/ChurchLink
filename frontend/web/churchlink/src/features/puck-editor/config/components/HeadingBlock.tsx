@@ -8,7 +8,7 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 
 const getClassName = getClassNameFactory("Heading", styles);
@@ -125,21 +125,21 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
 
     const Tag = level ? (`h${level}` as const) : ("div" as const);
 
-    const fontVars = getFontFamilyVariables(fontFamily);
+    const fontStyles = getFontFamilyStyle(fontFamily);
 
     return (
       <Section>
         {React.createElement(
           Tag,
           {
-            className: `${getClassName()} puck-font-scope`,
+            className: getClassName(),
             style: {
               display: "block",
               textAlign: align,
               width: "100%",
               color: textColor || undefined,
               ...sizeStyles[size],
-              ...fontVars,
+              ...fontStyles,
             },
           },
           displayText

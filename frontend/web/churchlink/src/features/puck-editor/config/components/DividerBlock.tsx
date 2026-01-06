@@ -5,8 +5,7 @@ import { ColorPickerField } from "../../fields/ColorPickerField";
 export type DividerBlockPropsInner = {
   style: "solid" | "dashed" | "dotted";
   thickness: "thin" | "medium" | "thick";
-  color: "border" | "muted" | "primary" | "secondary" | "custom";
-  customColor?: string;
+  color: string;
   spacing: "sm" | "md" | "lg";
 };
 
@@ -41,19 +40,8 @@ const DividerBlockInternal: ComponentConfig<DividerBlockPropsInner> = {
       ],
     },
     color: {
-      type: "select",
-      label: "Color Preset",
-      options: [
-        { label: "Default", value: "border" },
-        { label: "Muted", value: "muted" },
-        { label: "Primary", value: "primary" },
-        { label: "Secondary", value: "secondary" },
-        { label: "Custom", value: "custom" },
-      ],
-    },
-    customColor: {
       type: "custom",
-      label: "Custom Color",
+      label: "Color",
       render: ({ value, onChange }) => (
         <ColorPickerField value={value || ""} onChange={onChange} />
       ),
@@ -71,23 +59,14 @@ const DividerBlockInternal: ComponentConfig<DividerBlockPropsInner> = {
   defaultProps: {
     style: "solid",
     thickness: "thin",
-    color: "border",
-    customColor: "",
+    color: "",
     spacing: "md",
   },
-  render: ({ style, thickness, color, customColor, spacing }) => {
+  render: ({ style, thickness, color, spacing }) => {
     const thicknessMap: Record<string, string> = {
       thin: "1px",
       medium: "2px",
       thick: "4px",
-    };
-
-    const colorClasses: Record<string, string> = {
-      border: "border-border",
-      muted: "border-muted-foreground/30",
-      primary: "border-primary",
-      secondary: "border-secondary",
-      custom: "border-black/20",
     };
 
     const spacingClasses: Record<string, string> = {
@@ -96,15 +75,13 @@ const DividerBlockInternal: ComponentConfig<DividerBlockPropsInner> = {
       lg: "my-12",
     };
 
-    const finalColor = color === "custom" && customColor ? customColor : undefined;
-
     return (
       <hr
-        className={`w-full border-t ${colorClasses[color]} ${spacingClasses[spacing]}`}
+        className={`w-full border-t ${spacingClasses[spacing]}`}
         style={{
           borderStyle: style,
           borderTopWidth: thicknessMap[thickness],
-          ...(finalColor ? { borderColor: finalColor } : {}),
+          borderColor: color || "hsl(var(--border))",
         }}
       />
     );

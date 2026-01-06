@@ -7,7 +7,7 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
-import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
@@ -211,10 +211,10 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
     }
 
     const displayHeading = translations?.[previewLanguage]?.heading || heading;
-    const headingFontVars = getFontFamilyVariables(headingFont);
-    const titleFontVars = getFontFamilyVariables(titleFont);
-    const quoteFontVars = getFontFamilyVariables(quoteFont);
-    const authorFontVars = getFontFamilyVariables(authorFont);
+    const headingFontStyles = getFontFamilyStyle(headingFont);
+    const titleFontStyles = getFontFamilyStyle(titleFont);
+    const quoteFontStyles = getFontFamilyStyle(quoteFont);
+    const authorFontStyles = getFontFamilyStyle(authorFont);
 
     return (
       <Section
@@ -225,7 +225,7 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
         }}
       >
         <div className={getClassName("container")}>
-          <h2 className="puck-font-scope" style={{ ...headingFontVars, color: headingColor || undefined }}>
+          <h2 style={{ ...headingFontStyles, color: headingColor || undefined }}>
             {displayHeading}
           </h2>
 
@@ -249,8 +249,8 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
 
                   <div className={getClassName("content")}>
                     <div className={getClassName("text")}>
-                      <h3 className={`${getClassName("title")} puck-font-scope`} style={{ ...titleFontVars, color: titleColor || undefined }}>{displayTitle}</h3>
-                      <p className={`${getClassName("quote")} puck-font-scope`} style={{ ...quoteFontVars, color: quoteColor || undefined }}>{displayQuote}</p>
+                      <h3 className={getClassName("title")} style={{ ...titleFontStyles, color: titleColor || undefined }}>{displayTitle}</h3>
+                      <p className={getClassName("quote")} style={{ ...quoteFontStyles, color: quoteColor || undefined }}>{displayQuote}</p>
                     </div>
 
                     <div className={getClassName("author")}>
@@ -266,7 +266,7 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
                           {getInitials(displayAuthorName)}
                         </div>
                       )}
-                      <span className={`${getClassName("authorName")} puck-font-scope`} style={{ ...authorFontVars, color: authorColor || undefined }}>
+                      <span className={getClassName("authorName")} style={{ ...authorFontStyles, color: authorColor || undefined }}>
                         {displayAuthorName}
                       </span>
                     </div>
