@@ -9,11 +9,13 @@ import type { TranslationMap } from "../../utils/languageUtils";
 import { ALargeSmall, AlignLeft } from "lucide-react";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 
 const getClassName = getClassNameFactory("Text", styles);
 
 export type TextBlockPropsInner = {
   text: string;
+  textColor?: string;
   size: "s" | "m";
   align: "left" | "center" | "right";
   color: "default" | "muted";
@@ -38,6 +40,14 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
       type: "textarea",
       label: "Text",
       contentEditable: true,
+    },
+    fontFamily: fontFamilyField,
+    textColor: {
+      type: "custom",
+      label: "Text Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
     },
     size: {
       type: "radio",
@@ -67,7 +77,6 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
       type: "number",
       label: "Max Width",
     },
-    fontFamily: fontFamilyField,
     translations: {
       type: "custom",
       label: "Translations",
@@ -82,6 +91,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
   },
   defaultProps: {
     text: "Text",
+    textColor: "#000000",
     size: "m",
     align: "left",
     color: "default",
@@ -89,7 +99,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     fontFamily: "",
     translations: {},
   },
-  render: ({ text, size, align, color, maxWidth, fontFamily, translations }) => {
+  render: ({ text, textColor, size, align, color, maxWidth, fontFamily, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -101,7 +111,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     const displayText = translations?.[previewLanguage]?.text || text;
 
     const fontSize = size === "m" ? "20px" : "16px";
-    const colorValue = color === "muted" ? "var(--puck-color-grey-05)" : "inherit";
+    const colorValue = textColor || (color === "muted" ? "var(--puck-color-grey-05)" : "inherit");
 
     const fontVars = getFontFamilyVariables(fontFamily);
 

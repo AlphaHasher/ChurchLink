@@ -5,6 +5,9 @@ import { withLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
+import { ColorPickerField } from "../../fields/ColorPickerField";
+import { fontFamilyField } from "../shared/fontField";
+import { getFontFamilyVariables } from "../../utils/fontLoader";
 import {
   paddingField,
   paddingDefaults,
@@ -20,6 +23,10 @@ type FaqItem = {
 
 export type FaqBlockPropsInner = {
   faqs: FaqItem[];
+  questionFont?: string;
+  questionColor?: string;
+  answerFont?: string;
+  answerColor?: string;
   columnLayout: "single-column" | "two-column";
   mode: "single-answer" | "multi-answer";
   padding: {
@@ -53,6 +60,22 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
         question: "Question?",
         answer: "Answer to the question.",
       },
+    },
+    questionFont: fontFamilyField,
+    questionColor: {
+      type: "custom",
+      label: "Question Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
+    answerFont: fontFamilyField,
+    answerColor: {
+      type: "custom",
+      label: "Answer Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
     },
     columnLayout: {
       type: "select",
@@ -114,6 +137,10 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
         answer: "It works by following a simple process that makes everything easy.",
       },
     ],
+    questionFont: "",
+    questionColor: "#000000",
+    answerFont: "",
+    answerColor: "#000000",
     columnLayout: "two-column",
     mode: "single-answer",
     padding: paddingDefaults,
@@ -121,6 +148,10 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
   },
   render: ({
     faqs,
+    questionFont,
+    questionColor,
+    answerFont,
+    answerColor,
     columnLayout,
     mode,
     padding,
@@ -133,6 +164,9 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
     } catch {
       // Not in editor context
     }
+
+    const questionFontVars = getFontFamilyVariables(questionFont);
+    const answerFontVars = getFontFamilyVariables(answerFont);
 
     return (
       <Section
@@ -164,12 +198,12 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
                 >
                   <Accordion.Header>
                     <Accordion.Trigger className="flex w-full items-center justify-between py-4 text-left font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180">
-                      <span>{displayQuestion}</span>
+                      <span className="puck-font-scope" style={{ ...questionFontVars, color: questionColor || undefined }}>{displayQuestion}</span>
                       <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200" />
                     </Accordion.Trigger>
                   </Accordion.Header>
                   <Accordion.Content className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                    <div className="pb-4 pt-0">{displayAnswer}</div>
+                    <div className="pb-4 pt-0 puck-font-scope" style={{ ...answerFontVars, color: answerColor || undefined }}>{displayAnswer}</div>
                   </Accordion.Content>
                 </Accordion.Item>
               );

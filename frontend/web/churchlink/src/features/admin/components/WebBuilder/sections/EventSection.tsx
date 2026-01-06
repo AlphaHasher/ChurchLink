@@ -43,6 +43,8 @@ export type EventSectionProps = {
     showFilters?: boolean;
     lockedFilters?: { ministry?: string; ageRange?: string };
     title?: string;
+    titleFont?: string;
+    titleColor?: string;
     showTitle?: boolean;
 };
 
@@ -64,6 +66,8 @@ const EventSection: React.FC<EventSectionProps> = ({
     showFilters = true,
     lockedFilters,
     title,
+    titleFont,
+    titleColor,
     showTitle = true,
 }) => {
     const localize = useLocalize();
@@ -377,7 +381,13 @@ const EventSection: React.FC<EventSectionProps> = ({
         <section className="w-full bg-white">
             <div className="w-full max-w-screen-xl mx-auto px-4 py-8">
                 {showTitle !== false && (
-                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4">
+                    <h2
+                        className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 mb-4"
+                        style={{
+                            fontFamily: titleFont || undefined,
+                            color: titleColor || undefined,
+                        }}
+                    >
                         {localize(title || "Upcoming Events")}
                     </h2>
                 )}

@@ -8,6 +8,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
   descriptionField,
@@ -35,8 +36,10 @@ type ButtonItem = {
 export type CtaBlockPropsInner = {
   heading: string;
   headingFont?: string;
+  headingColor?: string;
   description: string;
   descriptionFont?: string;
+  descriptionColor?: string;
   badge?: {
     label: string;
     url: string;
@@ -66,8 +69,22 @@ const CtaBlockInternal: ComponentConfig<CtaBlockPropsInner> = {
   fields: {
     heading: headingField,
     headingFont: fontFamilyField,
+    headingColor: {
+      type: "custom",
+      label: "Heading Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     description: descriptionField,
     descriptionFont: fontFamilyField,
+    descriptionColor: {
+      type: "custom",
+      label: "Description Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     badge: badgeField,
     buttons: buttonsField,
     buttonFont: fontFamilyField,
@@ -111,8 +128,10 @@ const CtaBlockInternal: ComponentConfig<CtaBlockPropsInner> = {
   defaultProps: {
     heading: "Ready to get started?",
     headingFont: "",
+    headingColor: "#000000",
     description: "Join thousands of users who are already using our platform.",
     descriptionFont: "",
+    descriptionColor: "#000000",
     badge: badgeDefaults,
     buttons: [
       { ...buttonDefaults, label: "Get Started" },
@@ -126,8 +145,10 @@ const CtaBlockInternal: ComponentConfig<CtaBlockPropsInner> = {
   render: ({
     heading,
     headingFont,
+    headingColor,
     description,
     descriptionFont,
+    descriptionColor,
     badge,
     buttons,
     buttonFont,
@@ -170,10 +191,10 @@ const CtaBlockInternal: ComponentConfig<CtaBlockPropsInner> = {
               )}
             </Badge>
           )}
-          <h2 className="puck-font-scope" style={headingFontVars}>
+          <h2 className="puck-font-scope" style={{ ...headingFontVars, color: headingColor || undefined }}>
             {displayHeading}
           </h2>
-          <p className="puck-font-scope" style={descriptionFontVars}>
+          <p className="puck-font-scope" style={{ ...descriptionFontVars, color: descriptionColor || undefined }}>
             {displayDescription}
           </p>
           {buttons && buttons.length > 0 && (

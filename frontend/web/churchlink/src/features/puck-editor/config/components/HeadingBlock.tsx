@@ -9,6 +9,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 
 const getClassName = getClassNameFactory("Heading", styles);
 
@@ -34,6 +35,7 @@ const levelOptions = [
 
 type HeadingBlockPropsInner = {
   text: string;
+  textColor?: string;
   size: "xxxl" | "xxl" | "xl" | "l" | "m" | "s" | "xs";
   level: "" | "1" | "2" | "3" | "4" | "5" | "6";
   align: "left" | "center" | "right";
@@ -50,6 +52,14 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
       type: "textarea",
       label: "Text",
       contentEditable: true,
+    },
+    fontFamily: fontFamilyField,
+    textColor: {
+      type: "custom",
+      label: "Text Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
     },
     size: {
       type: "select",
@@ -70,7 +80,6 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
         { label: "Right", value: "right" },
       ],
     },
-    fontFamily: fontFamilyField,
     translations: {
       type: "custom",
       label: "Translations",
@@ -86,12 +95,13 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
   defaultProps: {
     align: "left",
     text: "Heading",
+    textColor: "#000000",
     size: "m",
     level: "",
     fontFamily: "",
     translations: {},
   },
-  render: ({ align, text, size, level, fontFamily, translations }) => {
+  render: ({ align, text, textColor, size, level, fontFamily, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -127,6 +137,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
               display: "block",
               textAlign: align,
               width: "100%",
+              color: textColor || undefined,
               ...sizeStyles[size],
               ...fontVars,
             },

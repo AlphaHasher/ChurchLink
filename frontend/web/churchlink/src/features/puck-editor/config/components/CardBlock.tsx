@@ -9,6 +9,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   Heart,
   Star,
@@ -69,7 +70,9 @@ export type CardBlockPropsInner = {
   icon?: string;
   mode: "flat" | "card";
   titleFont?: string;
+  titleColor?: string;
   descriptionFont?: string;
+  descriptionColor?: string;
   translations?: TranslationMap;
 };
 
@@ -90,11 +93,25 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
       contentEditable: true,
     },
     titleFont: fontFamilyField,
+    titleColor: {
+      type: "custom",
+      label: "Title Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     description: {
       type: "textarea",
       contentEditable: true,
     },
     descriptionFont: fontFamilyField,
+    descriptionColor: {
+      type: "custom",
+      label: "Description Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     icon: {
       type: "select",
       options: iconOptions,
@@ -127,10 +144,12 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
     icon: "heart",
     mode: "flat",
     titleFont: "",
+    titleColor: "#000000",
     descriptionFont: "",
+    descriptionColor: "#000000",
     translations: {},
   },
-  render: ({ title, icon, description, mode, titleFont, descriptionFont, translations }) => {
+  render: ({ title, icon, description, mode, titleFont, titleColor, descriptionFont, descriptionColor, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -152,13 +171,13 @@ const CardBlockInternal: ComponentConfig<CardBlockPropsInner> = {
             <div className={getClassName("icon")}>{icon && icons[icon]}</div>
             <div
               className={`${getClassName("title")} puck-font-scope`}
-              style={titleFontVars}
+              style={{ ...titleFontVars, color: titleColor || undefined }}
             >
               {displayTitle}
             </div>
             <div
               className={`${getClassName("description")} puck-font-scope`}
-              style={descriptionFontVars}
+              style={{ ...descriptionFontVars, color: descriptionColor || undefined }}
             >
               {displayDescription}
             </div>

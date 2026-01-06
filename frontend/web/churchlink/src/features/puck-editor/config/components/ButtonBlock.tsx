@@ -7,9 +7,11 @@ import type { TranslationMap } from "../../utils/languageUtils";
 import { Button } from "@/shared/components/ui/button";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 
 export type ButtonBlockPropsInner = {
   label: string;
+  labelColor?: string;
   href: string;
   variant: "default" | "secondary";
   fontFamily?: string;
@@ -33,6 +35,14 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
       placeholder: "Button text...",
       contentEditable: true,
     },
+    fontFamily: fontFamilyField,
+    labelColor: {
+      type: "custom",
+      label: "Label Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     href: { type: "text", label: "Link URL" },
     variant: {
       type: "radio",
@@ -41,7 +51,6 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
         { label: "Secondary", value: "secondary" },
       ],
     },
-    fontFamily: fontFamilyField,
     translations: {
       type: "custom",
       label: "Translations",
@@ -56,12 +65,13 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
   },
   defaultProps: {
     label: "Button",
+    labelColor: "#000000",
     href: "#",
     variant: "default",
     fontFamily: "",
     translations: {},
   },
-  render: ({ href, variant, label, fontFamily, translations, puck }) => {
+  render: ({ href, variant, label, labelColor, fontFamily, translations, puck }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -86,7 +96,10 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
             <a
               href={puck.isEditing ? "#" : href}
               className="puck-font-scope"
-              style={fontVars}
+              style={{
+                ...fontVars,
+                color: labelColor || undefined,
+              }}
             >
               {displayLabel}
             </a>

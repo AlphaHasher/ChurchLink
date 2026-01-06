@@ -8,6 +8,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
   descriptionField,
@@ -51,8 +52,10 @@ type Form = {
 export type ContactUsBlockPropsInner = {
   heading: string;
   headingFont?: string;
+  headingColor?: string;
   description: string;
   descriptionFont?: string;
+  descriptionColor?: string;
   badge?: {
     label: string;
     url: string;
@@ -83,8 +86,22 @@ const ContactUsBlockInternal: ComponentConfig<ContactUsBlockPropsInner> = {
   fields: {
     heading: headingField,
     headingFont: fontFamilyField,
+    headingColor: {
+      type: "custom",
+      label: "Heading Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     description: descriptionField,
     descriptionFont: fontFamilyField,
+    descriptionColor: {
+      type: "custom",
+      label: "Description Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     badge: badgeField,
     features: featuresField,
     buttons: buttonsField,
@@ -197,8 +214,10 @@ const ContactUsBlockInternal: ComponentConfig<ContactUsBlockPropsInner> = {
   defaultProps: {
     heading: "Get in touch",
     headingFont: "",
+    headingColor: "#000000",
     description: "We'd love to hear from you. Fill out the form and we'll be in touch soon.",
     descriptionFont: "",
+    descriptionColor: "#000000",
     badge: badgeDefaults,
     features: [
       {
@@ -221,8 +240,10 @@ const ContactUsBlockInternal: ComponentConfig<ContactUsBlockPropsInner> = {
   render: ({
     heading,
     headingFont,
+    headingColor,
     description,
     descriptionFont,
+    descriptionColor,
     badge,
     features,
     buttons,
@@ -267,10 +288,10 @@ const ContactUsBlockInternal: ComponentConfig<ContactUsBlockPropsInner> = {
                 isEditing={puck.isEditing}
               />
             )}
-            <h2 className="puck-font-scope" style={headingFontVars}>
+            <h2 className="puck-font-scope" style={{ ...headingFontVars, color: headingColor || undefined }}>
               {displayHeading}
             </h2>
-            <p className="puck-font-scope" style={descriptionFontVars}>
+            <p className="puck-font-scope" style={{ ...descriptionFontVars, color: descriptionColor || undefined }}>
               {displayDescription}
             </p>
 

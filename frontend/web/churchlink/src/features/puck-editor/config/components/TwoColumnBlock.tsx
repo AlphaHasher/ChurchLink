@@ -8,6 +8,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
   descriptionField,
@@ -51,8 +52,10 @@ type ImageItem = {
 export type TwoColumnBlockPropsInner = {
   heading: string;
   headingFont?: string;
+  headingColor?: string;
   description: string;
   descriptionFont?: string;
+  descriptionColor?: string;
   badge?: {
     label: string;
     url: string;
@@ -85,8 +88,22 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
   fields: {
     heading: headingField,
     headingFont: fontFamilyField,
+    headingColor: {
+      type: "custom",
+      label: "Heading Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     description: descriptionField,
     descriptionFont: fontFamilyField,
+    descriptionColor: {
+      type: "custom",
+      label: "Description Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     badge: badgeField,
     features: featuresField,
     buttons: buttonsField,
@@ -153,8 +170,10 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
   defaultProps: {
     heading: "Powerful features for your workflow",
     headingFont: "",
+    headingColor: "#000000",
     description: "Everything you need to get your work done faster and better.",
     descriptionFont: "",
+    descriptionColor: "#000000",
     badge: badgeDefaults,
     features: [
       {
@@ -174,8 +193,10 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
   render: ({
     heading,
     headingFont,
+    headingColor,
     description,
     descriptionFont,
+    descriptionColor,
     badge,
     features,
     buttons,
@@ -222,10 +243,10 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
                 isEditing={puck.isEditing}
               />
             )}
-            <h2 className="puck-font-scope" style={headingFontVars}>
+            <h2 className="puck-font-scope" style={{ ...headingFontVars, color: headingColor || undefined }}>
               {displayHeading}
             </h2>
-            <p className="puck-font-scope" style={descriptionFontVars}>
+            <p className="puck-font-scope" style={{ ...descriptionFontVars, color: descriptionColor || undefined }}>
               {displayDescription}
             </p>
 

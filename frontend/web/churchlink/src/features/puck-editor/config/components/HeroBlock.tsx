@@ -8,6 +8,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 import {
   headingField,
   descriptionField,
@@ -55,8 +56,10 @@ export type HeroBlockPropsInner = {
   };
   heading: string;
   headingFont?: string;
+  headingColor?: string;
   description: string;
   descriptionFont?: string;
+  descriptionColor?: string;
   features: FeatureItem[];
   buttons: ButtonItem[];
   buttonFont?: string;
@@ -86,8 +89,22 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
     badge: badgeField,
     heading: headingField,
     headingFont: fontFamilyField,
+    headingColor: {
+      type: "custom",
+      label: "Heading Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     description: descriptionField,
     descriptionFont: fontFamilyField,
+    descriptionColor: {
+      type: "custom",
+      label: "Description Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     features: featuresField,
     buttons: buttonsField,
     buttonFont: fontFamilyField,
@@ -165,8 +182,10 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
     badge: badgeDefaults,
     heading: "Build something amazing",
     headingFont: "",
+    headingColor: "#000000",
     description: "Create beautiful websites with our powerful page builder",
     descriptionFont: "",
+    descriptionColor: "#000000",
     features: [],
     buttons: [
       { ...buttonDefaults, label: "Get Started" },
@@ -184,8 +203,10 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
     badge,
     heading,
     headingFont,
+    headingColor,
     description,
     descriptionFont,
+    descriptionColor,
     features,
     buttons,
     buttonFont,
@@ -255,7 +276,7 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
                     "lg:max-w-lg": isTwoColumnLayout,
                   }
                 )}
-                style={headingFontVars}
+                style={{ ...headingFontVars, color: headingColor || undefined }}
               >
                 {displayHeading}
               </h1>
@@ -269,7 +290,7 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
                       "lg:max-w-md": isTwoColumnLayout,
                     }
                   )}
-                  style={descriptionFontVars}
+                  style={{ ...descriptionFontVars, color: descriptionColor || undefined }}
                 >
                   {displayDescription}
                 </p>

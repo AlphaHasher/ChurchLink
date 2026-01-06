@@ -1,16 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import {
-  ColorPicker,
-  ColorPickerSelection,
-  ColorPickerHue,
-  ColorPickerAlpha,
-  ColorPickerFormat,
-  ColorPickerOutput
-} from "@/shared/components/ui/shadcn-io/color-picker";
+import { SketchPicker } from "react-color";
+import type { ColorResult } from "react-color";
 
 interface ColorPickerFieldProps {
   value: string;
   onChange: (value: string) => void;
+}
+
+function colorResultToString(color: ColorResult): string {
+  const { r, g, b, a = 1 } = color.rgb;
+  return a < 1 ? `rgba(${r}, ${g}, ${b}, ${a})` : color.hex;
 }
 
 export function ColorPickerField({ value, onChange }: ColorPickerFieldProps) {
@@ -23,49 +22,36 @@ export function ColorPickerField({ value, onChange }: ColorPickerFieldProps) {
   useEffect(() => {
     if (value !== lastExternalValue.current) {
       lastExternalValue.current = value;
-      setLocalColor(value || "#ffffff");
     }
   }, [value]);
 
   // Handle color changes from the picker
-  const handleColorChange = useCallback((color: unknown) => {
+  const handleColorChange = useCallback((color: ColorResult) => {
     // Skip the initial mount callback
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
 
-    if (typeof color === 'object' && color && 'rgb' in color) {
-      const colorObj = color as { rgb: () => { string: () => string } };
-      const newValue = colorObj.rgb().string();
-      setLocalColor(newValue);
+    const newValue = colorResultToString(color);
+    setLocalColor(newValue);
 
-      // Only call parent onChange if value actually changed
-      if (newValue !== lastExternalValue.current) {
-        lastExternalValue.current = newValue;
-        onChange(newValue);
-      }
+    // Only call parent onChange if value actually changed
+    if (newValue !== lastExternalValue.current) {
+      lastExternalValue.current = newValue;
+      onChange(newValue);
     }
   }, [onChange]);
 
   return (
     <div className="space-y-2">
-      <ColorPicker
-        value={localColor}
+      <SketchPicker
+        color={localColor}
         onChange={handleColorChange}
-      >
-        <div className="flex gap-2">
-          <div className="flex-1 space-y-2">
-            <ColorPickerSelection className="h-32" />
-            <ColorPickerHue />
-            <ColorPickerAlpha />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <ColorPickerOutput />
-          <ColorPickerFormat className="flex-1" />
-        </div>
-      </ColorPicker>
+        disableAlpha={false}
+        width="100%"
+      />
+
       <button
         type="button"
         onClick={() => {

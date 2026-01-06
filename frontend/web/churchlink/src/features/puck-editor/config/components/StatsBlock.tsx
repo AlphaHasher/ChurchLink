@@ -8,6 +8,7 @@ import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyVariables } from "../../utils/fontLoader";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 
 const getClassName = getClassNameFactory("Stats", styles);
 
@@ -19,7 +20,9 @@ type Stat = {
 export type StatsBlockPropsInner = {
   items: Stat[];
   labelFont?: string;
+  labelColor?: string;
   valueFont?: string;
+  valueColor?: string;
   translations?: TranslationMap;
 };
 
@@ -55,7 +58,21 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
       },
     },
     labelFont: fontFamilyField,
+    labelColor: {
+      type: "custom",
+      label: "Label Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     valueFont: fontFamilyField,
+    valueColor: {
+      type: "custom",
+      label: "Value Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
+    },
     translations: {
       type: "custom",
       label: "Translations",
@@ -92,10 +109,12 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
       },
     ],
     labelFont: "",
+    labelColor: "#000000",
     valueFont: "",
+    valueColor: "#000000",
     translations: {},
   },
-  render: ({ items, labelFont, valueFont, translations }) => {
+  render: ({ items, labelFont, labelColor, valueFont, valueColor, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -121,13 +140,13 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
               <div key={i} className={getClassName("item")}>
                 <div
                   className={`${getClassName("label")} puck-font-scope`}
-                  style={labelFontVars}
+                  style={{ ...labelFontVars, color: labelColor || undefined }}
                 >
                   {displayTitle}
                 </div>
                 <div
                   className={`${getClassName("value")} puck-font-scope`}
-                  style={valueFontVars}
+                  style={{ ...valueFontVars, color: valueColor || undefined }}
                 >
                   {displayDescription}
                 </div>

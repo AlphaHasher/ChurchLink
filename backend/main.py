@@ -50,6 +50,7 @@ from routes.common_routes.dashboard_app_config_routes import (
     dashboard_app_config_private_router,
     dashboard_app_config_public_router,
 )
+from routes.common_routes.fonts_routes import fonts_router
 from routes.common_routes.membership_routes import (
     member_mod_router,
     member_private_router,
@@ -370,6 +371,7 @@ public_router.include_router(public_bible_plan_router)
 public_router.include_router(public_assets_router)
 public_router.include_router(public_ministry_router)
 public_router.include_router(user_legal_router)
+public_router.include_router(fonts_router)
 public_router.include_router(public_event_router)
 public_router.include_router(public_forms_router)
 public_router.include_router(webbuilder_config_public_router)
