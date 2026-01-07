@@ -7,9 +7,8 @@ import { withLayout, type WithLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
-import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { ColorPickerField } from "../../fields/ColorPickerField";
+import { TypographyField } from "../../fields/TypographyField";
 
 const getClassName = getClassNameFactory("Heading", styles);
 
@@ -35,11 +34,10 @@ const levelOptions = [
 
 type HeadingBlockPropsInner = {
   text: string;
-  textColor?: string;
+  typography?: { fontFamily?: string; color?: string };
   size: "xxxl" | "xxl" | "xl" | "l" | "m" | "s" | "xs";
   level: "" | "1" | "2" | "3" | "4" | "5" | "6";
   align: "left" | "center" | "right";
-  fontFamily?: string;
   translations?: TranslationMap;
 };
 
@@ -53,12 +51,14 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
       label: "Text",
       contentEditable: true,
     },
-    fontFamily: fontFamilyField,
-    textColor: {
+    typography: {
       type: "custom",
-      label: "Text Color",
+      label: "Typography",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <TypographyField
+          value={value as { fontFamily?: string; color?: string } || {}}
+          onChange={onChange}
+        />
       ),
     },
     size: {
@@ -95,13 +95,12 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
   defaultProps: {
     align: "left",
     text: "Heading",
-    textColor: "#000000",
+    typography: { fontFamily: "", color: "#000000" },
     size: "m",
     level: "",
-    fontFamily: "",
     translations: {},
   },
-  render: ({ align, text, textColor, size, level, fontFamily, translations }) => {
+  render: ({ align, text, typography, size, level, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -125,7 +124,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
 
     const Tag = level ? (`h${level}` as const) : ("div" as const);
 
-    const fontStyles = getFontFamilyStyle(fontFamily);
+    const fontStyles = getFontFamilyStyle(typography?.fontFamily);
 
     return (
       <Section>
@@ -137,7 +136,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
               display: "block",
               textAlign: align,
               width: "100%",
-              color: textColor || undefined,
+              color: typography?.color || undefined,
               ...sizeStyles[size],
               ...fontStyles,
             },

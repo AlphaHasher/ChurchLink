@@ -19,6 +19,7 @@ import { SpaceBlock, type SpaceBlockProps } from "./components/SpaceBlock";
 import { RichTextBlock, type RichTextBlockProps } from "./components/RichTextBlock";
 import { FaqBlock, type FaqBlockProps } from "./components/FaqBlock";
 import { CtaBlock, type CtaBlockProps } from "./components/CtaBlock";
+import { PaypalBlock, type PaypalBlockProps } from "./components/PaypalBlock";
 
 // Import language utilities
 import { LANGUAGES } from "../utils/languageUtils";
@@ -44,6 +45,7 @@ type Props = {
   RichTextBlock: RichTextBlockProps;
   FaqBlock: FaqBlockProps;
   CtaBlock: CtaBlockProps;
+  PaypalBlock: PaypalBlockProps;
 };
 
 // Root props for page-level settings
@@ -132,7 +134,7 @@ export const config: Config<Props, RootProps> = {
     },
     integrations: {
       title: "Integrations",
-      components: ["MapBlock"],
+      components: ["MapBlock", "PaypalBlock"],
     },
   },
   components: {
@@ -154,6 +156,7 @@ export const config: Config<Props, RootProps> = {
     RichTextBlock,
     FaqBlock,
     CtaBlock,
+    PaypalBlock,
   },
 };
 

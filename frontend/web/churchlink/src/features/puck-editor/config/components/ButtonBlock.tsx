@@ -4,16 +4,26 @@ import { withLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
-import { Button } from "@/shared/components/ui/button";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
+import { buttonsField, buttonDefaults } from "../shared/fieldConfigs";
+import { CompoundButton } from "../../components/compound/CompoundButton";
+import { cn } from "@/lib/utils";
+
+type ButtonItem = {
+  label: string;
+  url: string;
+  variant: "default" | "secondary" | "outline" | "ghost" | "link" | "destructive";
+  size: "default" | "sm" | "lg" | "icon";
+  icon: string;
+};
 
 export type ButtonBlockPropsInner = {
-  label: string;
+  buttons: ButtonItem[];
+  align: "left" | "center" | "right";
   labelColor?: string;
-  href: string;
-  variant: "default" | "secondary";
+  backgroundColor?: string;
   fontFamily?: string;
   translations?: TranslationMap;
 };
@@ -30,10 +40,15 @@ export type ButtonBlockProps = ButtonBlockPropsInner & {
 const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
   label: "Button",
   fields: {
-    label: {
-      type: "text",
-      placeholder: "Button text...",
-      contentEditable: true,
+    buttons: buttonsField,
+    align: {
+      type: "radio",
+      label: "Alignment",
+      options: [
+        { label: "Left", value: "left" },
+        { label: "Center", value: "center" },
+        { label: "Right", value: "right" },
+      ],
     },
     fontFamily: fontFamilyField,
     labelColor: {
@@ -43,13 +58,12 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
         <ColorPickerField value={value || ""} onChange={onChange} />
       ),
     },
-    href: { type: "text", label: "Link URL" },
-    variant: {
-      type: "radio",
-      options: [
-        { label: "Primary", value: "default" },
-        { label: "Secondary", value: "secondary" },
-      ],
+    backgroundColor: {
+      type: "custom",
+      label: "Background Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value || ""} onChange={onChange} />
+      ),
     },
     translations: {
       type: "custom",
@@ -58,20 +72,24 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
         <TranslationsField
           value={value as TranslationMap}
           onChange={onChange}
-          translatableFields={[{ name: "label", type: "text", label: "Button Text" }]}
+          translatableFields={[
+            { name: "buttons.0.label", type: "text", label: "Button 1" },
+            { name: "buttons.1.label", type: "text", label: "Button 2" },
+            { name: "buttons.2.label", type: "text", label: "Button 3" },
+          ]}
         />
       ),
     },
   },
   defaultProps: {
-    label: "Button",
-    labelColor: "#000000",
-    href: "#",
-    variant: "default",
+    buttons: [{ ...buttonDefaults, label: "Button" }],
+    align: "left",
+    labelColor: "",
+    backgroundColor: "",
     fontFamily: "",
     translations: {},
   },
-  render: ({ href, variant, label, labelColor, fontFamily, translations, puck }) => {
+  render: ({ buttons, align, labelColor, backgroundColor, fontFamily, translations, puck }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -80,29 +98,37 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
       // Not in editor context
     }
 
-    const displayLabel = translations?.[previewLanguage]?.label || label;
-
     const fontStyles = getFontFamilyStyle(fontFamily);
 
     return (
       <Section>
-        <div>
-          <Button
-            asChild
-            variant={variant}
-            size="lg"
-            tabIndex={puck.isEditing ? -1 : undefined}
-          >
-            <a
-              href={puck.isEditing ? "#" : href}
-              style={{
-                ...fontStyles,
-                color: labelColor || undefined,
-              }}
-            >
-              {displayLabel}
-            </a>
-          </Button>
+        <div className={cn(
+          "flex flex-row gap-4 items-center flex-wrap",
+          { "justify-center": align === "center" },
+          { "justify-end": align === "right" }
+        )}>
+          {buttons
+            ?.filter((button) => !!button.label)
+            .map((button, i) => {
+              const labelKey = `buttons.${i}.label`;
+              const displayLabel =
+                translations?.[previewLanguage]?.[labelKey] || button.label;
+
+              return (
+                <CompoundButton
+                  key={i}
+                  label={displayLabel}
+                  url={button.url}
+                  variant={button.variant}
+                  size={button.size}
+                  icon={button.icon}
+                  isEditing={puck.isEditing}
+                  fontVars={fontStyles}
+                  labelColor={labelColor}
+                  backgroundColor={backgroundColor}
+                />
+              );
+            })}
         </div>
       </Section>
     );

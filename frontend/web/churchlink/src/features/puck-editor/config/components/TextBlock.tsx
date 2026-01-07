@@ -7,20 +7,18 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import type { TranslationMap } from "../../utils/languageUtils";
 import { ALargeSmall, AlignLeft } from "lucide-react";
-import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { ColorPickerField } from "../../fields/ColorPickerField";
+import { TypographyField } from "../../fields/TypographyField";
 
 const getClassName = getClassNameFactory("Text", styles);
 
 export type TextBlockPropsInner = {
   text: string;
-  textColor?: string;
+  typography?: { fontFamily?: string; color?: string };
   size: "s" | "m";
   align: "left" | "center" | "right";
   color: "default" | "muted";
   maxWidth?: number;
-  fontFamily?: string;
   translations?: TranslationMap;
 };
 
@@ -41,12 +39,14 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
       label: "Text",
       contentEditable: true,
     },
-    fontFamily: fontFamilyField,
-    textColor: {
+    typography: {
       type: "custom",
-      label: "Text Color",
+      label: "Typography",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <TypographyField
+          value={value as { fontFamily?: string; color?: string } || {}}
+          onChange={onChange}
+        />
       ),
     },
     size: {
@@ -91,15 +91,14 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
   },
   defaultProps: {
     text: "Text",
-    textColor: "#000000",
+    typography: { fontFamily: "", color: "#000000" },
     size: "m",
     align: "left",
     color: "default",
     maxWidth: undefined,
-    fontFamily: "",
     translations: {},
   },
-  render: ({ text, textColor, size, align, color, maxWidth, fontFamily, translations }) => {
+  render: ({ text, typography, size, align, color, maxWidth, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -111,9 +110,9 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     const displayText = translations?.[previewLanguage]?.text || text;
 
     const fontSize = size === "m" ? "20px" : "16px";
-    const colorValue = textColor || (color === "muted" ? "var(--puck-color-grey-05)" : "inherit");
+    const colorValue = typography?.color || (color === "muted" ? "var(--puck-color-grey-05)" : "inherit");
 
-    const fontStyles = getFontFamilyStyle(fontFamily);
+    const fontStyles = getFontFamilyStyle(typography?.fontFamily);
 
     return (
       <Section>

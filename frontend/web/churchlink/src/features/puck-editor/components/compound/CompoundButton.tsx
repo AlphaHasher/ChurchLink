@@ -9,6 +9,8 @@ interface CompoundButtonProps {
   icon?: string;
   isEditing?: boolean;
   fontVars?: React.CSSProperties;
+  labelColor?: string;
+  backgroundColor?: string;
 }
 
 export const CompoundButton = ({
@@ -19,6 +21,8 @@ export const CompoundButton = ({
   icon,
   isEditing = false,
   fontVars = {},
+  labelColor,
+  backgroundColor,
 }: CompoundButtonProps) => {
   const hasIcon = icon && icon !== "none";
   const iconSize = size === "lg" ? 20 : size === "sm" ? 16 : 18;
@@ -28,12 +32,18 @@ export const CompoundButton = ({
       display: 'inline-flex',
       alignItems: 'center',
       gap: '0.5rem',
-      whiteSpace: 'nowrap'
+      whiteSpace: 'nowrap',
+      color: labelColor || undefined,
     }}>
       {hasIcon && <CompoundIcon icon={icon} size={iconSize} />}
       {label}
     </span>
   );
+
+  const buttonStyle = {
+    ...fontVars,
+    ...(backgroundColor ? { backgroundColor } : {}),
+  };
 
   return (
     <Button
@@ -41,7 +51,7 @@ export const CompoundButton = ({
       variant={variant}
       size={size}
       tabIndex={isEditing ? -1 : undefined}
-      style={fontVars}
+      style={buttonStyle}
     >
       {!isEditing && url ? (
         <a href={url}>{buttonContent}</a>
