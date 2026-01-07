@@ -22,3 +22,11 @@
 [data-puck-entry] {
   font-family: var(--puck-font-family);
 }
+
+/* Make Puck's inline text field inherit font from the component it's editing */
+[class*="_InlineTextField"] {
+  font-family: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+  color: inherit !important;
+}
