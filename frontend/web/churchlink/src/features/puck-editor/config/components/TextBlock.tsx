@@ -5,7 +5,7 @@ import styles from "../../styles/components/Text.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { ALargeSmall, AlignLeft } from "lucide-react";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { TypographyField } from "../../fields/TypographyField";
@@ -107,7 +107,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
       // Not in editor context
     }
 
-    const displayText = translations?.[previewLanguage]?.text || text;
+    const displayText = getTranslation(translations, previewLanguage, "text") || text;
 
     const fontSize = size === "m" ? "20px" : "16px";
     const colorValue = typography?.color || (color === "muted" ? "var(--puck-color-grey-05)" : "inherit");

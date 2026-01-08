@@ -147,6 +147,37 @@ export type TranslationMap = {
 };
 
 /**
+ * Get translation value supporting both flat keys ("badge.label") and nested objects ({ badge: { label: "..." } })
+ * Some storage mechanisms convert dot notation to nested objects, so we handle both.
+ */
+export function getTranslation(
+  translations: TranslationMap | undefined,
+  lang: string,
+  path: string
+): string | undefined {
+  if (!translations?.[lang]) return undefined;
+
+  // Cast to unknown to handle both string values and nested objects
+  const langData = translations[lang] as unknown as Record<string, unknown>;
+
+  // 1. Try flat key first (e.g., "badge.label" as literal key)
+  const flatValue = langData[path];
+  if (typeof flatValue === "string") return flatValue;
+
+  // 2. Try nested path (e.g., path "badge.label" -> langData.badge.label)
+  const parts = path.split(".");
+  let current: unknown = langData;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[part];
+  }
+
+  return typeof current === "string" ? current : undefined;
+}
+
+/**
  * Get display value for a field with smart fallback logic:
  * 1. User's account language
  * 2. Browser language (if different)

@@ -245,7 +245,7 @@ export default function PuckEditor() {
           />
         ) : (
         // EDIT MODE - Normal Puck editor
-        <div className="h-screen flex flex-col bg-background">
+        <div className="h-screen flex flex-col bg-background overflow-hidden">
           {/* Header - Outside Puck Layout */}
           <header className="flex items-center gap-3 px-6 py-3 bg-background border-b shrink-0">
             {/* Left Section - Back Button */}

@@ -22,7 +22,7 @@ import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
@@ -78,7 +78,7 @@ const PaypalBlockInternal: ComponentConfig<PaypalBlockPropsInner> = {
       type: "custom",
       label: "Heading Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Heading Color" />
       ),
     },
     description: {
@@ -91,7 +91,7 @@ const PaypalBlockInternal: ComponentConfig<PaypalBlockPropsInner> = {
       type: "custom",
       label: "Description Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Description Color" />
       ),
     },
     defaultAmount: {
@@ -175,8 +175,8 @@ const PaypalBlockInternal: ComponentConfig<PaypalBlockPropsInner> = {
     const headingFontStyles = getFontFamilyStyle(headingFont);
     const descriptionFontStyles = getFontFamilyStyle(descriptionFont);
 
-    const displayHeading = translations?.[previewLanguage]?.heading || heading;
-    const displayDescription = translations?.[previewLanguage]?.description || description;
+    const displayHeading = getTranslation(translations, previewLanguage, "heading") || heading;
+    const displayDescription = getTranslation(translations, previewLanguage, "description") || description;
 
     // Internal form state
     const [mode, setMode] = useState<Mode>("one_time");

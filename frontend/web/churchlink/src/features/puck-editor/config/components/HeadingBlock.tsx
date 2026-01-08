@@ -6,7 +6,7 @@ import { Section } from "../shared/Section";
 import { withLayout, type WithLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { TypographyField } from "../../fields/TypographyField";
 
@@ -109,7 +109,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
       // Not in editor context
     }
 
-    const displayText = translations?.[previewLanguage]?.text || text;
+    const displayText = getTranslation(translations, previewLanguage, "text") || text;
 
     // Size mapping to actual CSS values
     const sizeStyles: Record<string, React.CSSProperties> = {

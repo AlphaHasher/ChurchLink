@@ -1,11 +1,12 @@
 import type { ComponentConfig } from "@measured/puck";
+import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import styles from "../../styles/components/Bento.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
@@ -21,6 +22,7 @@ import {
 } from "../shared/fieldConfigs";
 import { CompoundIcon } from "../../components/compound/CompoundIcon";
 import { CompoundButton } from "../../components/compound/CompoundButton";
+import { extractComponentId } from "../../utils/puckFieldUtils";
 
 const getClassName = getClassNameFactory("Bento", styles);
 
@@ -74,7 +76,7 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
       type: "custom",
       label: "Heading Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Heading Color" />
       ),
     },
     description: descriptionField,
@@ -83,7 +85,7 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
       type: "custom",
       label: "Description Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Description Color" />
       ),
     },
     cards: {
@@ -109,7 +111,7 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
       type: "custom",
       label: "Card Heading Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Card Heading Color" />
       ),
     },
     cardDescriptionFont: fontFamilyField,
@@ -117,15 +119,19 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
       type: "custom",
       label: "Card Description Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Card Desc Color" />
       ),
     },
     padding: paddingField,
     translations: {
       type: "custom",
       label: "Translations",
-      render: ({ value, onChange, field }) => {
-        const cards = (field as unknown as { value?: CardItem[] })?.value || [];
+      render: ({ value, onChange, id }) => {
+        const componentId = extractComponentId(id);
+        const { appState } = usePuck();
+        const comp = appState.data.content.find((item) => item.props.id === componentId);
+        const props = comp?.props as BentoBlockPropsInner;
+        const cards = props?.cards || [];
         const translatableFields = [
           { name: "heading", type: "text" as const, label: "Heading" },
           { name: "description", type: "textarea" as const, label: "Description" },
@@ -204,8 +210,8 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
       // Not in editor context
     }
 
-    const displayHeading = translations?.[previewLanguage]?.heading || heading;
-    const displayDescription = translations?.[previewLanguage]?.description || description;
+    const displayHeading = getTranslation(translations, previewLanguage, "heading") || heading;
+    const displayDescription = getTranslation(translations, previewLanguage, "description") || description;
 
     const headingFontStyles = getFontFamilyStyle(headingFont);
     const descriptionFontStyles = getFontFamilyStyle(descriptionFont);
@@ -245,11 +251,11 @@ const BentoBlockInternal: ComponentConfig<BentoBlockPropsInner> = {
               const buttonLabelKey = `cards.${index}.button.label`;
 
               const displayCardHeading =
-                translations?.[previewLanguage]?.[headingKey] || card.heading;
+                getTranslation(translations, previewLanguage, headingKey) || card.heading;
               const displayCardDesc =
-                translations?.[previewLanguage]?.[descKey] || card.description;
+                getTranslation(translations, previewLanguage, descKey) || card.description;
               const displayButtonLabel =
-                translations?.[previewLanguage]?.[buttonLabelKey] || card.button.label;
+                getTranslation(translations, previewLanguage, buttonLabelKey) || card.button.label;
 
               return (
                 <div

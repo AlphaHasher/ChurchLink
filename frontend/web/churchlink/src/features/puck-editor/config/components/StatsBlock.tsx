@@ -5,7 +5,7 @@ import styles from "../../styles/components/Stats.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
@@ -62,7 +62,7 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
       type: "custom",
       label: "Label Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Label Color" />
       ),
     },
     valueFont: fontFamilyField,
@@ -70,7 +70,7 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
       type: "custom",
       label: "Value Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Value Color" />
       ),
     },
     translations: {
@@ -132,9 +132,9 @@ const StatsBlockInternal: ComponentConfig<StatsBlockPropsInner> = {
           {items.map((item, i) => {
             const titleKey = `items.${i}.title`;
             const descriptionKey = `items.${i}.description`;
-            const displayTitle = translations?.[previewLanguage]?.[titleKey] || item.title;
+            const displayTitle = getTranslation(translations, previewLanguage, titleKey) || item.title;
             const displayDescription =
-              translations?.[previewLanguage]?.[descriptionKey] || item.description;
+              getTranslation(translations, previewLanguage, descriptionKey) || item.description;
 
             return (
               <div key={i} className={getClassName("item")}>

@@ -224,7 +224,7 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
       type: "custom",
       label: "Background Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Background Color" />
       ),
     },
     children: {

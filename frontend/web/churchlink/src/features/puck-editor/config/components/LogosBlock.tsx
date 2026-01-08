@@ -5,7 +5,7 @@ import styles from "../../styles/components/Logos.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 
 const getClassName = getClassNameFactory("Logos", styles);
 
@@ -108,7 +108,7 @@ const LogosBlockInternal: ComponentConfig<LogosBlockPropsInner> = {
         <div className={getClassName("items")}>
           {logos.map((item, i) => {
             const altKey = `logos.${i}.alt`;
-            const displayAlt = translations?.[previewLanguage]?.[altKey] || item.alt;
+            const displayAlt = getTranslation(translations, previewLanguage, altKey) || item.alt;
 
             return (
               <div key={i} className={getClassName("item")}>

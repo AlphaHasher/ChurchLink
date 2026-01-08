@@ -4,6 +4,7 @@ import { RgbaColorPicker, RgbaColor } from "react-colorful";
 interface ColorPickerFieldProps {
   value: string;
   onChange: (value: string) => void;
+  label?: string;
 }
 
 // Parse color string to RgbaColor
@@ -44,7 +45,7 @@ function colorToString(color: RgbaColor): string {
   return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`;
 }
 
-export function ColorPickerField({ value, onChange }: ColorPickerFieldProps) {
+export function ColorPickerField({ value, onChange, label }: ColorPickerFieldProps) {
   const [localColor, setLocalColor] = useState<RgbaColor>(() => parseColor(value));
   const [isOpen, setIsOpen] = useState(false);
 
@@ -108,59 +109,62 @@ export function ColorPickerField({ value, onChange }: ColorPickerFieldProps) {
   const hasColor = value && value !== "";
 
   return (
-    <div className="relative" ref={popoverRef}>
-      {/* Compact inline color input */}
-      <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm">
-        <button
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="h-7 w-7 m-1 rounded border border-border shrink-0 cursor-pointer"
-          style={{
-            backgroundColor: hasColor ? hexDisplay : "#ffffff",
-            backgroundImage: !hasColor
-              ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
-              : undefined,
-            backgroundSize: "6px 6px",
-            backgroundPosition: "0 0, 0 3px, 3px -3px, -3px 0px",
-          }}
-          title="Pick color"
-        />
-        <input
-          type="text"
-          value={hasColor ? hexDisplay : ""}
-          placeholder="None"
-          onChange={(e) => {
-            if (!e.target.value) {
-              handleClear();
-              return;
-            }
-            const parsed = parseColor(e.target.value);
-            setLocalColor(parsed);
-            onChangeRef.current(colorToString(parsed));
-          }}
-          className="flex-1 h-full bg-transparent text-xs font-mono px-2 outline-none"
-        />
-        {hasColor && (
+    <div className="space-y-1">
+      {label && <label className="text-sm font-medium">{label}</label>}
+      <div className="relative" ref={popoverRef}>
+        {/* Compact inline color input */}
+        <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm">
           <button
             type="button"
-            onClick={handleClear}
-            className="px-2 text-xs text-muted-foreground hover:text-foreground"
-          >
-            ×
-          </button>
+            onClick={() => setIsOpen(!isOpen)}
+            className="h-7 w-7 m-1 rounded border border-border shrink-0 cursor-pointer"
+            style={{
+              backgroundColor: hasColor ? hexDisplay : "#ffffff",
+              backgroundImage: !hasColor
+                ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)"
+                : undefined,
+              backgroundSize: "6px 6px",
+              backgroundPosition: "0 0, 0 3px, 3px -3px, -3px 0px",
+            }}
+            title="Pick color"
+          />
+          <input
+            type="text"
+            value={hasColor ? hexDisplay : ""}
+            placeholder="None"
+            onChange={(e) => {
+              if (!e.target.value) {
+                handleClear();
+                return;
+              }
+              const parsed = parseColor(e.target.value);
+              setLocalColor(parsed);
+              onChangeRef.current(colorToString(parsed));
+            }}
+            className="flex-1 h-full bg-transparent text-xs font-mono px-2 outline-none"
+          />
+          {hasColor && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="px-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {/* Popover picker */}
+        {isOpen && (
+          <div className="absolute z-50 mt-1 p-3 bg-popover border border-border rounded-lg shadow-lg">
+            <RgbaColorPicker
+              color={localColor}
+              onChange={handleChange}
+              style={{ width: "200px" }}
+            />
+          </div>
         )}
       </div>
-
-      {/* Popover picker */}
-      {isOpen && (
-        <div className="absolute z-50 mt-1 p-3 bg-popover border border-border rounded-lg shadow-lg">
-          <RgbaColorPicker
-            color={localColor}
-            onChange={handleChange}
-            style={{ width: "200px" }}
-          />
-        </div>
-      )}
     </div>
   );
 }

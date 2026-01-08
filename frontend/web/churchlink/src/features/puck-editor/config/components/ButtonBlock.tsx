@@ -1,15 +1,17 @@
 import type { ComponentConfig } from "@measured/puck";
+import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import { buttonsField, buttonDefaults } from "../shared/fieldConfigs";
 import { CompoundButton } from "../../components/compound/CompoundButton";
 import { cn } from "@/lib/utils";
+import { extractComponentId } from "../../utils/puckFieldUtils";
 
 type ButtonItem = {
   label: string;
@@ -55,30 +57,38 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
       type: "custom",
       label: "Label Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Label Color" />
       ),
     },
     backgroundColor: {
       type: "custom",
       label: "Background Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Background Color" />
       ),
     },
     translations: {
       type: "custom",
       label: "Translations",
-      render: ({ value, onChange }) => (
-        <TranslationsField
-          value={value as TranslationMap}
-          onChange={onChange}
-          translatableFields={[
-            { name: "buttons.0.label", type: "text", label: "Button 1" },
-            { name: "buttons.1.label", type: "text", label: "Button 2" },
-            { name: "buttons.2.label", type: "text", label: "Button 3" },
-          ]}
-        />
-      ),
+      render: ({ value, onChange, id }) => {
+        const componentId = extractComponentId(id);
+        const { appState } = usePuck();
+        const comp = appState.data.content.find((item) => item.props.id === componentId);
+        const props = comp?.props as ButtonBlockPropsInner;
+        const buttons = props?.buttons || [];
+        const translatableFields = buttons.map((_, index) => ({
+          name: `buttons.${index}.label`,
+          type: "text" as const,
+          label: `Button ${index + 1}`,
+        }));
+        return (
+          <TranslationsField
+            value={value as TranslationMap}
+            onChange={onChange}
+            translatableFields={translatableFields}
+          />
+        );
+      },
     },
   },
   defaultProps: {
@@ -112,7 +122,7 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
             .map((button, i) => {
               const labelKey = `buttons.${i}.label`;
               const displayLabel =
-                translations?.[previewLanguage]?.[labelKey] || button.label;
+                getTranslation(translations, previewLanguage, labelKey) || button.label;
 
               return (
                 <CompoundButton

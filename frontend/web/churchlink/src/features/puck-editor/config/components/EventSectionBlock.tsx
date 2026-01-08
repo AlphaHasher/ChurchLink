@@ -2,7 +2,7 @@ import type { ComponentConfig } from "@measured/puck";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
@@ -28,7 +28,7 @@ export const EventSectionBlock: ComponentConfig<EventSectionBlockProps> = {
       type: "custom",
       label: "Title Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Title Color" />
       ),
     },
     showTitle: {
@@ -78,7 +78,7 @@ export const EventSectionBlock: ComponentConfig<EventSectionBlockProps> = {
     }
 
     // Use translated title if available, otherwise use default
-    const displayTitle = translations?.[previewLanguage]?.title || title;
+    const displayTitle = getTranslation(translations, previewLanguage, "title") || title;
     const titleFontStyles = getFontFamilyStyle(titleFont);
     const titleFontFamily = titleFontStyles?.fontFamily as string | undefined;
 

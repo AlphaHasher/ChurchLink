@@ -1,11 +1,12 @@
 import type { ComponentConfig } from "@measured/puck";
+import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import styles from "../../styles/components/TwoColumn.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
@@ -27,6 +28,7 @@ import { CompoundBadge } from "../../components/compound/CompoundBadge";
 import { CompoundButton } from "../../components/compound/CompoundButton";
 import { CompoundIcon } from "../../components/compound/CompoundIcon";
 import { CompoundImage } from "../../components/compound/CompoundImage";
+import { extractComponentId } from "../../utils/puckFieldUtils";
 
 const getClassName = getClassNameFactory("TwoColumn", styles);
 
@@ -92,7 +94,7 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
       type: "custom",
       label: "Heading Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Heading Color" />
       ),
     },
     description: descriptionField,
@@ -101,7 +103,7 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
       type: "custom",
       label: "Description Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Description Color" />
       ),
     },
     badge: badgeField,
@@ -129,9 +131,13 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
     translations: {
       type: "custom",
       label: "Translations",
-      render: ({ value, onChange, field }) => {
-        const buttons = (field as unknown as { value?: ButtonItem[] })?.value || [];
-        const features = (field as unknown as { value?: FeatureItem[] })?.value || [];
+      render: ({ value, onChange, id }) => {
+        const componentId = extractComponentId(id);
+        const { appState } = usePuck();
+        const comp = appState.data.content.find((item) => item.props.id === componentId);
+        const props = comp?.props as TwoColumnBlockPropsInner;
+        const buttons = props?.buttons || [];
+        const features = props?.features || [];
         const translatableFields = [
           { name: "heading", type: "text" as const, label: "Heading" },
           { name: "description", type: "textarea" as const, label: "Description" },
@@ -216,9 +222,9 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
       // Not in editor context
     }
 
-    const displayHeading = translations?.[previewLanguage]?.heading || heading;
-    const displayDescription = translations?.[previewLanguage]?.description || description;
-    const displayBadgeLabel = translations?.[previewLanguage]?.["badge.label"] || badge?.label || "";
+    const displayHeading = getTranslation(translations, previewLanguage, "heading") || heading;
+    const displayDescription = getTranslation(translations, previewLanguage, "description") || description;
+    const displayBadgeLabel = getTranslation(translations, previewLanguage, "badge.label") || badge?.label || "";
 
     const headingFontStyles = getFontFamilyStyle(headingFont);
     const descriptionFontStyles = getFontFamilyStyle(descriptionFont);
@@ -257,9 +263,9 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
                   const descKey = `features.${index}.description`;
 
                   const displayName =
-                    translations?.[previewLanguage]?.[nameKey] || feature.name;
+                    getTranslation(translations, previewLanguage, nameKey) || feature.name;
                   const displayDesc =
-                    translations?.[previewLanguage]?.[descKey] || feature.description;
+                    getTranslation(translations, previewLanguage, descKey) || feature.description;
 
                   return (
                     <div key={index} className={getClassName("feature")}>
@@ -283,7 +289,7 @@ const TwoColumnBlockInternal: ComponentConfig<TwoColumnBlockPropsInner> = {
                 {buttons.map((button, i) => {
                   const labelKey = `buttons.${i}.label`;
                   const displayLabel =
-                    translations?.[previewLanguage]?.[labelKey] || button.label;
+                    getTranslation(translations, previewLanguage, labelKey) || button.label;
 
                   return (
                     <CompoundButton

@@ -1,7 +1,7 @@
 import type { ComponentConfig } from "@measured/puck";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 
 export type ImageBlockProps = {
   src: string;
@@ -86,7 +86,7 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
     }
 
     // Use translated alt text if available, otherwise use default
-    const displayAlt = translations?.[previewLanguage]?.alt || alt;
+    const displayAlt = getTranslation(translations, previewLanguage, "alt") || alt;
 
     const objectFitClasses: Record<string, string> = {
       contain: "object-contain",

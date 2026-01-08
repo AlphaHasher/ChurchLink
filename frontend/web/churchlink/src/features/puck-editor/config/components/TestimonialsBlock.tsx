@@ -1,11 +1,12 @@
 import type { ComponentConfig } from "@measured/puck";
+import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import styles from "../../styles/components/Testimonials.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { ColorPickerField } from "../../fields/ColorPickerField";
@@ -16,6 +17,7 @@ import {
   getPaddingValue,
 } from "../shared/fieldConfigs";
 import { User } from "lucide-react";
+import { extractComponentId } from "../../utils/puckFieldUtils";
 
 const getClassName = getClassNameFactory("Testimonials", styles);
 
@@ -78,7 +80,7 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
       type: "custom",
       label: "Heading Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Heading Color" />
       ),
     },
     testimonials: {
@@ -121,7 +123,7 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
       type: "custom",
       label: "Title Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Title Color" />
       ),
     },
     quoteFont: fontFamilyField,
@@ -129,7 +131,7 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
       type: "custom",
       label: "Quote Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Quote Color" />
       ),
     },
     authorFont: fontFamilyField,
@@ -137,15 +139,19 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
       type: "custom",
       label: "Author Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Author Color" />
       ),
     },
     padding: paddingField,
     translations: {
       type: "custom",
       label: "Translations",
-      render: ({ value, onChange, field }) => {
-        const testimonials = (field as unknown as { value?: TestimonialItem[] })?.value || [];
+      render: ({ value, onChange, id }) => {
+        const componentId = extractComponentId(id);
+        const { appState } = usePuck();
+        const comp = appState.data.content.find((item) => item.props.id === componentId);
+        const props = comp?.props as TestimonialsBlockPropsInner;
+        const testimonials = props?.testimonials || [];
         const translatableFields = [
           { name: "heading", type: "text" as const, label: "Heading" },
           ...testimonials.flatMap((_, index) => [
@@ -210,7 +216,7 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
       // Not in editor context
     }
 
-    const displayHeading = translations?.[previewLanguage]?.heading || heading;
+    const displayHeading = getTranslation(translations, previewLanguage, "heading") || heading;
     const headingFontStyles = getFontFamilyStyle(headingFont);
     const titleFontStyles = getFontFamilyStyle(titleFont);
     const quoteFontStyles = getFontFamilyStyle(quoteFont);
@@ -236,11 +242,11 @@ const TestimonialsBlockInternal: ComponentConfig<TestimonialsBlockPropsInner> = 
               const authorKey = `testimonials.${index}.author.name`;
 
               const displayTitle =
-                translations?.[previewLanguage]?.[titleKey] || testimonial.title;
+                getTranslation(translations, previewLanguage, titleKey) || testimonial.title;
               const displayQuote =
-                translations?.[previewLanguage]?.[quoteKey] || testimonial.quote;
+                getTranslation(translations, previewLanguage, quoteKey) || testimonial.quote;
               const displayAuthorName =
-                translations?.[previewLanguage]?.[authorKey] ||
+                getTranslation(translations, previewLanguage, authorKey) ||
                 testimonial.author.name;
 
               return (

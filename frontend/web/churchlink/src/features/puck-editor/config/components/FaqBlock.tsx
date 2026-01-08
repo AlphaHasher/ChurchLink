@@ -4,7 +4,7 @@ import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { ColorPickerField } from "../../fields/ColorPickerField";
 import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
@@ -13,6 +13,7 @@ import {
   paddingDefaults,
   getPaddingValue,
 } from "../shared/fieldConfigs";
+import { extractComponentId } from "../../utils/puckFieldUtils";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";
 
@@ -66,7 +67,7 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
       type: "custom",
       label: "Question Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Question Color" />
       ),
     },
     answerFont: fontFamilyField,
@@ -74,7 +75,7 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
       type: "custom",
       label: "Answer Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Answer Color" />
       ),
     },
     columnLayout: {
@@ -98,11 +99,12 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
       type: "custom",
       label: "Translations",
       render: ({ value, onChange, id }) => {
+        const componentId = extractComponentId(id);
         const { appState } = usePuck();
 
         // Find the current component in the content array
         const currentComponent = appState.data.content.find(
-          (item) => item.props.id === id
+          (item) => item.props.id === componentId
         );
 
         const faqs = (currentComponent?.props as FaqBlockPropsInner)?.faqs || [];
@@ -186,9 +188,9 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
               const answerKey = `faqs.${index}.answer`;
 
               const displayQuestion =
-                translations?.[previewLanguage]?.[questionKey] || faq.question;
+                getTranslation(translations, previewLanguage, questionKey) || faq.question;
               const displayAnswer =
-                translations?.[previewLanguage]?.[answerKey] || faq.answer;
+                getTranslation(translations, previewLanguage, answerKey) || faq.answer;
 
               return (
                 <Accordion.Item

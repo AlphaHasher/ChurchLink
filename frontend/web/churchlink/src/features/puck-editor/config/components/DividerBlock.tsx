@@ -43,7 +43,7 @@ const DividerBlockInternal: ComponentConfig<DividerBlockPropsInner> = {
       type: "custom",
       label: "Color",
       render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} />
+        <ColorPickerField value={value || ""} onChange={onChange} label="Color" />
       ),
     },
     spacing: {

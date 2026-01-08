@@ -11,14 +11,12 @@ import { MapBlock, type MapBlockProps } from "./components/MapBlock";
 import { GroupBlock, type GroupBlockProps } from "./components/GroupBlock";
 import { EventSectionBlock, type EventSectionBlockProps } from "./components/EventSectionBlock";
 import { HeadingBlock, type HeadingBlockProps } from "./components/HeadingBlock";
-import { CardBlock, type CardBlockProps } from "./components/CardBlock";
 import { FlexBlock, type FlexBlockProps } from "./components/FlexBlock";
 import { GridBlock, type GridBlockProps } from "./components/GridBlock";
 import { BlankBlock, type BlankBlockProps } from "./components/BlankBlock";
 import { SpaceBlock, type SpaceBlockProps } from "./components/SpaceBlock";
 import { RichTextBlock, type RichTextBlockProps } from "./components/RichTextBlock";
 import { FaqBlock, type FaqBlockProps } from "./components/FaqBlock";
-import { CtaBlock, type CtaBlockProps } from "./components/CtaBlock";
 import { PaypalBlock, type PaypalBlockProps } from "./components/PaypalBlock";
 
 // Import language utilities
@@ -37,14 +35,12 @@ type Props = {
   GroupBlock: GroupBlockProps;
   EventSectionBlock: EventSectionBlockProps;
   HeadingBlock: HeadingBlockProps;
-  CardBlock: CardBlockProps;
   FlexBlock: FlexBlockProps;
   GridBlock: GridBlockProps;
   BlankBlock: BlankBlockProps;
   SpaceBlock: SpaceBlockProps;
   RichTextBlock: RichTextBlockProps;
   FaqBlock: FaqBlockProps;
-  CtaBlock: CtaBlockProps;
   PaypalBlock: PaypalBlockProps;
 };
 
@@ -126,11 +122,11 @@ export const config: Config<Props, RootProps> = {
     },
     content: {
       title: "Content",
-      components: ["ButtonBlock", "ImageBlock", "CardBlock"],
+      components: ["ButtonBlock", "ImageBlock"],
     },
     sections: {
       title: "Sections",
-      components: ["HeroBlock", "EventSectionBlock", "FaqBlock", "CtaBlock"],
+      components: ["HeroBlock", "EventSectionBlock", "FaqBlock"],
     },
     integrations: {
       title: "Integrations",
@@ -148,14 +144,12 @@ export const config: Config<Props, RootProps> = {
     GroupBlock,
     EventSectionBlock,
     HeadingBlock,
-    CardBlock,
     FlexBlock,
     GridBlock,
     BlankBlock,
     SpaceBlock,
     RichTextBlock,
     FaqBlock,
-    CtaBlock,
     PaypalBlock,
   },
 };

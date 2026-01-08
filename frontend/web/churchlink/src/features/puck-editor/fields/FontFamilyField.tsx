@@ -1,4 +1,9 @@
 import { useEffect, useState } from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/shared/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/shared/components/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import api from "@/api/api";
 
@@ -83,7 +88,7 @@ const weightLabels: Record<string, string> = {
 export function FontFamilyField({ value, onChange }: FontFamilyFieldProps) {
   const [fonts, setFonts] = useState<GoogleFont[]>(cachedFonts || []);
   const [loading, setLoading] = useState(!cachedFonts);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [open, setOpen] = useState(false);
 
   const { family, weight, style } = parseFontValue(value);
 
@@ -110,12 +115,6 @@ export function FontFamilyField({ value, onChange }: FontFamilyFieldProps) {
     }
   }, []);
 
-  const filteredFonts = searchQuery
-    ? fonts.filter(font =>
-        font.family.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : fonts;
-
   const selectedFont = fonts.find(f => f.family === family);
   const availableWeights = getAvailableWeights(selectedFont);
   const canBeItalic = hasItalic(selectedFont, weight);
@@ -141,27 +140,53 @@ export function FontFamilyField({ value, onChange }: FontFamilyFieldProps) {
 
   return (
     <div className="space-y-2">
-      <input
-        type="text"
-        placeholder="Search fonts..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-3 py-2 text-sm border rounded-md"
-        disabled={loading}
-      />
-      <Select value={family || "default"} onValueChange={handleFamilyChange} disabled={loading}>
-        <SelectTrigger>
-          <SelectValue placeholder={loading ? "Loading fonts..." : "Select font"} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="default">Default (System)</SelectItem>
-          {filteredFonts.map(font => (
-            <SelectItem key={font.family} value={font.family}>
-              {font.family}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+            disabled={loading}
+          >
+            {loading ? "Loading fonts..." : family || "Select font..."}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+          <Command>
+            <CommandInput placeholder="Search fonts..." />
+            <CommandList>
+              <CommandEmpty>No fonts found.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="default"
+                  onSelect={() => {
+                    handleFamilyChange("default");
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", !family ? "opacity-100" : "opacity-0")} />
+                  Default (System)
+                </CommandItem>
+                {fonts.map(font => (
+                  <CommandItem
+                    key={font.family}
+                    value={font.family}
+                    onSelect={() => {
+                      handleFamilyChange(font.family);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", family === font.family ? "opacity-100" : "opacity-0")} />
+                    {font.family}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
 
       {family && (
         <div className="flex gap-2">
