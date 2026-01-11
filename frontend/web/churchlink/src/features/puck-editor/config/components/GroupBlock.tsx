@@ -15,11 +15,23 @@ import {
 } from "@/shared/components/ui/Dialog";
 import { Save } from "lucide-react";
 import { ColorPickerField } from "../../fields/ColorPickerField";
+import { extractComponentId } from "../../utils/puckFieldUtils";
 
 export type GroupBlockProps = {
   name: string;
   id?: string;
+  backgroundType: "color" | "image";
   backgroundColor?: string;
+  backgroundImage?: {
+    url: string;
+    brightness: number;
+    size: "cover" | "contain" | "auto";
+    position: "center" | "top" | "bottom" | "left" | "right";
+    maxHeight?: number;
+    fixed: boolean;
+    overlay?: string;
+  };
+  verticalAlign: "top" | "center" | "bottom";
   // The slot for nested components - Puck handles this as a special field type
   children: ReactNode;
 };
@@ -220,12 +232,79 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
       type: "text",
       label: "Group Name",
     },
+    backgroundType: {
+      type: "radio",
+      label: "Background Type",
+      options: [
+        { label: "Color", value: "color" },
+        { label: "Image", value: "image" },
+      ],
+    },
     backgroundColor: {
       type: "custom",
       label: "Background Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Background Color" />
-      ),
+      render: ({ value, onChange, id }) => {
+        const { appState } = usePuck();
+        const componentId = extractComponentId(id);
+        const comp = appState.data.content.find((item) => item.props.id === componentId);
+        const backgroundType = comp?.props.backgroundType;
+
+        if (backgroundType !== "color") return null;
+
+        return <ColorPickerField value={value || ""} onChange={onChange} label="Background Color" />;
+      },
+    },
+    backgroundImage: {
+      type: "object",
+      objectFields: {
+        url: { type: "text", label: "Image URL" },
+        brightness: { type: "number", label: "Brightness (%)", min: 0, max: 200 },
+        size: {
+          type: "radio",
+          label: "Scaling",
+          options: [
+            { label: "Cover", value: "cover" },
+            { label: "Contain", value: "contain" },
+            { label: "Auto", value: "auto" },
+          ],
+        },
+        position: {
+          type: "radio",
+          label: "Position",
+          options: [
+            { label: "Center", value: "center" },
+            { label: "Top", value: "top" },
+            { label: "Bottom", value: "bottom" },
+            { label: "Left", value: "left" },
+            { label: "Right", value: "right" },
+          ],
+        },
+        maxHeight: { type: "number", label: "Max Height (px)", min: 0 },
+        fixed: {
+          type: "radio",
+          label: "Parallax Effect",
+          options: [
+            { label: "Yes", value: true },
+            { label: "No", value: false },
+          ],
+        },
+        overlay: {
+          type: "custom",
+          label: "Color Overlay",
+          render: ({ value, onChange }) => (
+            <ColorPickerField value={value || ""} onChange={onChange} label="Overlay Color" />
+          ),
+        },
+      },
+    },
+    verticalAlign: {
+      type: "radio",
+      label: "Vertical Alignment",
+      options: [
+        { label: "Top", value: "top" },
+        { label: "Center", value: "center" },
+        { label: "Bottom", value: "bottom" },
+      ],
     },
     children: {
       type: "slot",
@@ -247,7 +326,18 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
   },
   defaultProps: {
     name: "My Group",
+    backgroundType: "color",
     backgroundColor: "",
+    backgroundImage: {
+      url: "",
+      brightness: 100,
+      size: "cover",
+      position: "center",
+      maxHeight: undefined,
+      fixed: false,
+      overlay: "",
+    },
+    verticalAlign: "center",
     children: [] as unknown as ReactNode,
   },
   // Ensure children is always valid to prevent crashes during deletion
@@ -259,7 +349,7 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
       },
     };
   },
-  render: ({ children, backgroundColor }) => {
+  render: ({ children, backgroundType, backgroundColor, backgroundImage, verticalAlign }) => {
     // Defensive: handle case where children is null/undefined during deletion
     if (children === null || children === undefined) {
       return <div className="group-block w-full"><div className="group-block-content min-h-12.5" /></div>;
@@ -278,15 +368,60 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
       }
     };
 
+    // Build styles
+    const wrapperStyles: React.CSSProperties = {
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent:
+        verticalAlign === "top" ? "flex-start" :
+        verticalAlign === "bottom" ? "flex-end" :
+        "center",  // default center
+    };
+
+    const backgroundLayerStyles: React.CSSProperties = {};
+    const overlayStyles: React.CSSProperties = {};
+
+    // Apply min height to wrapper if specified (expands group but allows content to grow)
+    if (backgroundType === "image" && backgroundImage?.maxHeight) {
+      wrapperStyles.minHeight = `${backgroundImage.maxHeight}px`;
+    }
+
+    if (backgroundType === "color") {
+      wrapperStyles.backgroundColor = backgroundColor || "transparent";
+    } else if (backgroundType === "image" && backgroundImage?.url) {
+      // Background layer - separate from content so filter doesn't affect children
+      backgroundLayerStyles.position = "absolute";
+      backgroundLayerStyles.inset = "0";
+      backgroundLayerStyles.backgroundImage = `url(${backgroundImage.url})`;
+      backgroundLayerStyles.backgroundSize = backgroundImage.size || "cover";
+      backgroundLayerStyles.backgroundPosition = backgroundImage.position || "center";
+      backgroundLayerStyles.backgroundRepeat = "no-repeat";
+      backgroundLayerStyles.backgroundAttachment = backgroundImage.fixed ? "fixed" : "scroll";
+      backgroundLayerStyles.filter = `brightness(${(backgroundImage.brightness || 100) / 100})`;
+      backgroundLayerStyles.zIndex = 0;
+
+      // Overlay (if specified) - goes on top of background, below content
+      if (backgroundImage.overlay) {
+        overlayStyles.position = "absolute";
+        overlayStyles.inset = "0";
+        overlayStyles.backgroundColor = backgroundImage.overlay;
+        overlayStyles.zIndex = 1;
+      }
+    }
+
     return (
-      <div
-        className="group-block w-full"
-        style={{
-          backgroundColor: backgroundColor || "transparent",
-        }}
-      >
-        {/* Render the slot - children is a function that renders the DropZone */}
-        <div className="group-block-content min-h-12.5">
+      <div className="group-block w-full" style={wrapperStyles}>
+        {/* Background image layer (only shown for image type) */}
+        {backgroundType === "image" && backgroundImage?.url && (
+          <div style={backgroundLayerStyles} />
+        )}
+        {/* Color overlay layer (only shown when overlay is specified) */}
+        {backgroundType === "image" && backgroundImage?.overlay && (
+          <div style={overlayStyles} />
+        )}
+        {/* Content layer - z-index higher than background/overlay */}
+        <div className="group-block-content min-h-12.5 relative" style={{ zIndex: 10 }}>
           {renderChildren()}
         </div>
       </div>
