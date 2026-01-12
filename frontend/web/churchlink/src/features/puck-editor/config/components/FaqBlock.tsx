@@ -2,18 +2,17 @@ import type { ComponentConfig } from "@measured/puck";
 import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
-import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
-import { ColorPickerField } from "../../fields/ColorPickerField";
-import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import {
-  paddingField,
   paddingDefaults,
   getPaddingValue,
 } from "../shared/fieldConfigs";
 import { extractComponentId } from "../../utils/puckFieldUtils";
+import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
+import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
+import { faqBlockGroups } from "../../fields/grouped/componentConfigs/faqBlock";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";
 
@@ -50,88 +49,35 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
   label: "FAQ",
   fields: {
     faqs: {
-      type: "array",
-      max: 15,
-      getItemSummary: (item, index = 0) => item.question || `FAQ ${index + 1}`,
-      arrayFields: {
-        question: { type: "text", contentEditable: true },
-        answer: { type: "textarea", contentEditable: true },
-      },
-      defaultItemProps: {
-        question: "Question?",
-        answer: "Answer to the question.",
-      },
-    },
-    questionFont: fontFamilyField,
-    questionColor: {
       type: "custom",
-      label: "Question Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Question Color" />
-      ),
-    },
-    answerFont: fontFamilyField,
-    answerColor: {
-      type: "custom",
-      label: "Answer Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Answer Color" />
-      ),
-    },
-    columnLayout: {
-      type: "select",
-      label: "Column Layout",
-      options: [
-        { label: "Single Column", value: "single-column" },
-        { label: "Two Column", value: "two-column" },
-      ],
-    },
-    mode: {
-      type: "select",
-      label: "Mode",
-      options: [
-        { label: "Single Answer (one open at a time)", value: "single-answer" },
-        { label: "Multi Answer (multiple can be open)", value: "multi-answer" },
-      ],
-    },
-    padding: paddingField,
-    translations: {
-      type: "custom",
-      label: "Translations",
-      render: ({ value, onChange, id }) => {
+      label: "Settings",
+      render: ({ id }: { id: string }) => {
         const componentId = extractComponentId(id);
-        const { appState } = usePuck();
+        const { appState, dispatch } = usePuck();
+        const componentResult = findComponentRecursive(appState.data, componentId);
+        const component = componentResult?.component;
 
-        // Find the current component in the content array
-        const currentComponent = appState.data.content.find(
-          (item) => item.props.id === componentId
-        );
+        const handleChange = (newProps: Record<string, unknown>) => {
+          if (!component) return;
 
-        const faqs = (currentComponent?.props as FaqBlockPropsInner)?.faqs || [];
+          const newData = updateComponentRecursive(appState.data, componentId, newProps);
 
-        const translatableFields = faqs.flatMap((_, index) => [
-          {
-            name: `faqs.${index}.question`,
-            type: "text" as const,
-            label: `FAQ ${index + 1} Question`,
-          },
-          {
-            name: `faqs.${index}.answer`,
-            type: "textarea" as const,
-            label: `FAQ ${index + 1} Answer`,
-          },
-        ]);
+          dispatch({
+            type: "setData",
+            data: newData,
+          });
+        };
 
         return (
-          <TranslationsField
-            value={value as TranslationMap}
-            onChange={onChange}
-            translatableFields={translatableFields}
+          <GroupedFieldsPanel
+            value={(component?.props as Record<string, unknown>) || {}}
+            onChange={handleChange}
+            config={faqBlockGroups}
           />
         );
       },
-    },
-  },
+    } as any,
+  } as any,
   defaultProps: {
     faqs: [
       {

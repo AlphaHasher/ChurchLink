@@ -41,7 +41,9 @@ export const CompoundButton = ({
   );
 
   const buttonStyle = {
-    ...fontVars,
+    fontFamily: fontVars?.fontFamily ? `${fontVars.fontFamily} !important` : undefined,
+    fontWeight: fontVars?.fontWeight,
+    fontStyle: fontVars?.fontStyle,
     ...(backgroundColor ? { backgroundColor } : {}),
   };
 

@@ -4,23 +4,17 @@ import type { ComponentConfig } from "@measured/puck";
 import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
-import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
-import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { ColorPickerField } from "../../fields/ColorPickerField";
+import { extractComponentId } from "../../utils/puckFieldUtils";
+import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
+import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
+import { heroBlockGroups } from "../../fields/grouped/componentConfigs/heroBlock";
 import {
-  headingField,
-  descriptionField,
-  badgeField,
   badgeDefaults,
-  buttonsField,
   buttonDefaults,
-  featuresField,
-  imagesField,
   imageDefaults,
-  paddingField,
   paddingDefaults,
   getPaddingValue,
 } from "../shared/fieldConfigs";
@@ -29,7 +23,6 @@ import { CompoundButton } from "../../components/compound/CompoundButton";
 import { CompoundIcon } from "../../components/compound/CompoundIcon";
 import { CompoundImage } from "../../components/compound/CompoundImage";
 import { cn } from "@/lib/utils";
-import { extractComponentId } from "../../utils/puckFieldUtils";
 
 type ButtonItem = {
   label: string;
@@ -88,102 +81,36 @@ export type HeroBlockProps = HeroBlockPropsInner & {
 const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
   label: "Hero",
   fields: {
-    badge: badgeField,
-    heading: headingField,
-    headingFont: fontFamilyField,
-    headingColor: {
+    heading: {
       type: "custom",
-      label: "Heading Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Heading Color" />
-      ),
-    },
-    description: descriptionField,
-    descriptionFont: fontFamilyField,
-    descriptionColor: {
-      type: "custom",
-      label: "Description Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Description Color" />
-      ),
-    },
-    features: featuresField,
-    buttons: buttonsField,
-    buttonFont: fontFamilyField,
-    images: imagesField,
-    imageLayout: {
-      type: "select",
-      label: "Image Layout",
-      options: [
-        { label: "None", value: "none" },
-        { label: "Single Square (1x1)", value: "1x1" },
-        { label: "Three Image Cluster (1x1-9x16-1x1)", value: "1x1-9x16-1x1" },
-        { label: "Wide Banner (16x9)", value: "16x9" },
-      ],
-    },
-    imageAspectRatio: {
-      type: "select",
-      label: "Image Aspect Ratio",
-      options: [
-        { label: "16:9 (Landscape)", value: "16x9" },
-        { label: "1:1 (Square)", value: "1x1" },
-        { label: "9:16 (Portrait)", value: "9x16" },
-      ],
-    },
-    contentAlign: {
-      type: "select",
-      label: "Content Alignment",
-      options: [
-        { label: "Center", value: "center" },
-        { label: "Left", value: "left" },
-      ],
-    },
-    padding: paddingField,
-    translations: {
-      type: "custom",
-      label: "Translations",
-      render: ({ value, onChange, id }) => {
+      label: "Settings",
+      render: ({ id }: { id: string }) => {
         const componentId = extractComponentId(id);
-        const { appState } = usePuck();
-        const comp = appState.data.content.find((item) => item.props.id === componentId);
-        const props = comp?.props as HeroBlockPropsInner;
-        const buttons = props?.buttons || [];
-        const features = props?.features || [];
-        const translatableFields = [
-          { name: "heading", type: "text" as const, label: "Heading" },
-          { name: "description", type: "textarea" as const, label: "Description" },
-          { name: "badge.label", type: "text" as const, label: "Badge Label" },
-          ...features.flatMap((_, index) => [
-            {
-              name: `features.${index}.name`,
-              type: "text" as const,
-              label: `Feature ${index + 1} Name`,
-            },
-            {
-              name: `features.${index}.description`,
-              type: "textarea" as const,
-              label: `Feature ${index + 1} Description`,
-            },
-          ]),
-          ...buttons.flatMap((_, index) => [
-            {
-              name: `buttons.${index}.label`,
-              type: "text" as const,
-              label: `Button ${index + 1} Label`,
-            },
-          ]),
-        ];
+        const { appState, dispatch } = usePuck();
+        const componentResult = findComponentRecursive(appState.data, componentId);
+        const component = componentResult?.component;
+
+        const handleChange = (newProps: Record<string, unknown>) => {
+          if (!component) return;
+
+          const newData = updateComponentRecursive(appState.data, componentId, newProps);
+
+          dispatch({
+            type: "setData",
+            data: newData,
+          });
+        };
 
         return (
-          <TranslationsField
-            value={value as TranslationMap}
-            onChange={onChange}
-            translatableFields={translatableFields}
+          <GroupedFieldsPanel
+            value={(component?.props as Record<string, unknown>) || {}}
+            onChange={handleChange}
+            config={heroBlockGroups}
           />
         );
       },
-    },
-  },
+    } as any,
+  } as any,
   defaultProps: {
     badge: badgeDefaults,
     heading: "Build something amazing",

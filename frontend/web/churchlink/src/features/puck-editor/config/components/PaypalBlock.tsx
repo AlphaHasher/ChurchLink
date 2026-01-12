@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ComponentConfig } from "@measured/puck";
+import { usePuck } from "@measured/puck";
 import { Loader2, ArrowRight, Repeat2, DollarSign, Sparkles } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -20,17 +21,17 @@ import type { DonationInterval, DonationCurrency } from "@/shared/types/Donation
 
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
-import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
-import { ColorPickerField } from "../../fields/ColorPickerField";
-import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import {
-  paddingField,
   paddingDefaults,
   getPaddingValue,
 } from "../shared/fieldConfigs";
+import { extractComponentId } from "../../utils/puckFieldUtils";
+import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
+import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
+import { paypalBlockGroups } from "../../fields/grouped/componentConfigs/paypalBlock";
 
 type Mode = "one_time" | "recurring";
 
@@ -69,72 +70,35 @@ const PaypalBlockInternal: ComponentConfig<PaypalBlockPropsInner> = {
   label: "PayPal Donations",
   fields: {
     heading: {
-      type: "text",
-      label: "Heading",
-      contentEditable: true,
-    },
-    headingFont: fontFamilyField,
-    headingColor: {
       type: "custom",
-      label: "Heading Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Heading Color" />
-      ),
-    },
-    description: {
-      type: "textarea",
-      label: "Description",
-      contentEditable: true,
-    },
-    descriptionFont: fontFamilyField,
-    descriptionColor: {
-      type: "custom",
-      label: "Description Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Description Color" />
-      ),
-    },
-    defaultAmount: {
-      type: "number",
-      label: "Default Amount",
-      min: 1,
-    },
-    defaultCurrency: {
-      type: "select",
-      label: "Currency",
-      options: [
-        { label: "USD", value: "USD" },
-      ],
-    },
-    defaultInterval: {
-      type: "select",
-      label: "Default Recurring Interval",
-      options: [
-        { label: "Weekly", value: "WEEK" },
-        { label: "Monthly", value: "MONTH" },
-        { label: "Yearly", value: "YEAR" },
-      ],
-    },
-    padding: paddingField,
-    translations: {
-      type: "custom",
-      label: "Translations",
-      render: ({ value, onChange }) => {
-        const translatableFields = [
-          { name: "heading", type: "text" as const, label: "Heading" },
-          { name: "description", type: "textarea" as const, label: "Description" },
-        ];
+      label: "Settings",
+      render: ({ id }: { id: string }) => {
+        const componentId = extractComponentId(id);
+        const { appState, dispatch } = usePuck();
+        const componentResult = findComponentRecursive(appState.data, componentId);
+        const component = componentResult?.component;
+
+        const handleChange = (newProps: Record<string, unknown>) => {
+          if (!component) return;
+
+          const newData = updateComponentRecursive(appState.data, componentId, newProps);
+
+          dispatch({
+            type: "setData",
+            data: newData,
+          });
+        };
 
         return (
-          <TranslationsField
-            value={value as TranslationMap}
-            onChange={onChange}
-            translatableFields={translatableFields}
+          <GroupedFieldsPanel
+            value={(component?.props as Record<string, unknown>) || {}}
+            onChange={handleChange}
+            config={paypalBlockGroups}
           />
         );
       },
-    },
-  },
+    } as any,
+  } as any,
   defaultProps: {
     heading: "Support with PayPal",
     description: "Give securely through PayPal. You can make a one-time gift or set up an automatic recurring donation.",

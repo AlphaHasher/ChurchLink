@@ -1,7 +1,11 @@
 import type { ComponentConfig } from "@measured/puck";
-import { TranslationsField } from "../../fields/TranslationsField";
+import { usePuck } from "@measured/puck";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
+import { extractComponentId } from "../../utils/puckFieldUtils";
+import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
+import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
+import { imageBlockGroups } from "../../fields/grouped/componentConfigs/imageBlock";
 
 export type ImageBlockProps = {
   src: string;
@@ -16,57 +20,35 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
   label: "Image",
   fields: {
     src: {
-      type: "text",
-      label: "Image URL",
-    },
-    alt: {
-      type: "text",
-      label: "Alt Text",
-    },
-    objectFit: {
-      type: "select",
-      label: "Object Fit",
-      options: [
-        { label: "Contain", value: "contain" },
-        { label: "Cover", value: "cover" },
-        { label: "Fill", value: "fill" },
-        { label: "None", value: "none" },
-      ],
-    },
-    aspectRatio: {
-      type: "select",
-      label: "Aspect Ratio",
-      options: [
-        { label: "Auto", value: "auto" },
-        { label: "Square (1:1)", value: "1/1" },
-        { label: "Standard (4:3)", value: "4/3" },
-        { label: "Widescreen (16:9)", value: "16/9" },
-        { label: "Ultra-wide (21:9)", value: "21/9" },
-      ],
-    },
-    rounded: {
-      type: "select",
-      label: "Border Radius",
-      options: [
-        { label: "None", value: "none" },
-        { label: "Small", value: "sm" },
-        { label: "Medium", value: "md" },
-        { label: "Large", value: "lg" },
-        { label: "Full", value: "full" },
-      ],
-    },
-    translations: {
       type: "custom",
-      label: "Translations",
-      render: ({ value, onChange }) => (
-        <TranslationsField
-          value={value as TranslationMap}
-          onChange={onChange}
-          translatableFields={[{ name: "alt", type: "text", label: "Alt Text" }]}
-        />
-      ),
-    },
-  },
+      label: "Settings",
+      render: ({ id }: { id: string }) => {
+        const componentId = extractComponentId(id);
+        const { appState, dispatch } = usePuck();
+        const componentResult = findComponentRecursive(appState.data, componentId);
+        const component = componentResult?.component;
+
+        const handleChange = (newProps: Record<string, unknown>) => {
+          if (!component) return;
+
+          const newData = updateComponentRecursive(appState.data, componentId, newProps);
+
+          dispatch({
+            type: "setData",
+            data: newData,
+          });
+        };
+
+        return (
+          <GroupedFieldsPanel
+            value={(component?.props as Record<string, unknown>) || {}}
+            onChange={handleChange}
+            config={imageBlockGroups}
+          />
+        );
+      },
+    } as any,
+  } as any,
   defaultProps: {
     src: "https://placehold.co/800x400",
     alt: "Image description",

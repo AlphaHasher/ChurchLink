@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { RgbaColorPicker, RgbaColor } from "react-colorful";
 
 interface ColorPickerFieldProps {
@@ -48,12 +49,14 @@ function colorToString(color: RgbaColor): string {
 export function ColorPickerField({ value, onChange, label }: ColorPickerFieldProps) {
   const [localColor, setLocalColor] = useState<RgbaColor>(() => parseColor(value));
   const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
 
   // Refs
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Sync external value changes (undo/redo)
   useEffect(() => {
@@ -74,6 +77,17 @@ export function ColorPickerField({ value, onChange, label }: ColorPickerFieldPro
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
+  }, []);
+
+  // Update position when opening popover
+  const updatePosition = useCallback(() => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    }
   }, []);
 
   // Click outside to close
@@ -111,12 +125,18 @@ export function ColorPickerField({ value, onChange, label }: ColorPickerFieldPro
   return (
     <div className="space-y-1">
       {label && <label className="text-sm font-medium">{label}</label>}
-      <div className="relative" ref={popoverRef}>
+      <div className="relative">
         {/* Compact inline color input */}
         <div className="flex items-center h-9 w-full rounded-md border border-input bg-background text-sm">
           <button
+            ref={triggerRef}
             type="button"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => {
+              if (!isOpen) {
+                updatePosition();
+              }
+              setIsOpen(!isOpen);
+            }}
             className="h-7 w-7 m-1 rounded border border-border shrink-0 cursor-pointer"
             style={{
               backgroundColor: hasColor ? hexDisplay : "#ffffff",
@@ -154,17 +174,28 @@ export function ColorPickerField({ value, onChange, label }: ColorPickerFieldPro
           )}
         </div>
 
-        {/* Popover picker */}
-        {isOpen && (
-          <div className="absolute z-50 mt-1 p-3 bg-popover border border-border rounded-lg shadow-lg">
-            <RgbaColorPicker
-              color={localColor}
-              onChange={handleChange}
-              style={{ width: "200px" }}
-            />
-          </div>
-        )}
       </div>
+
+      {/* Popover picker using portal */}
+      {isOpen && createPortal(
+        <div
+          ref={popoverRef}
+          className="p-3 bg-popover border border-border rounded-lg shadow-lg"
+          style={{
+            position: "fixed",
+            top: `${position.top}px`,
+            left: `${position.left}px`,
+            zIndex: 9999,
+          }}
+        >
+          <RgbaColorPicker
+            color={localColor}
+            onChange={handleChange}
+            style={{ width: "200px" }}
+          />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

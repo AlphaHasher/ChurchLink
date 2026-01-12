@@ -2,16 +2,16 @@ import type { ComponentConfig } from "@measured/puck";
 import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
-import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
-import { fontFamilyField } from "../shared/fontField";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { ColorPickerField } from "../../fields/ColorPickerField";
-import { buttonsField, buttonDefaults } from "../shared/fieldConfigs";
+import { buttonDefaults } from "../shared/fieldConfigs";
 import { CompoundButton } from "../../components/compound/CompoundButton";
 import { cn } from "@/lib/utils";
 import { extractComponentId } from "../../utils/puckFieldUtils";
+import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
+import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
+import { buttonBlockGroups } from "../../fields/grouped/componentConfigs/buttonBlock";
 
 type ButtonItem = {
   label: string;
@@ -19,14 +19,14 @@ type ButtonItem = {
   variant: "default" | "secondary" | "outline" | "ghost" | "link" | "destructive";
   size: "default" | "sm" | "lg" | "icon";
   icon: string;
+  fontFamily?: string;
+  labelColor?: string;
+  backgroundColor?: string;
 };
 
 export type ButtonBlockPropsInner = {
   buttons: ButtonItem[];
   align: "left" | "center" | "right";
-  labelColor?: string;
-  backgroundColor?: string;
-  fontFamily?: string;
   translations?: TranslationMap;
 };
 
@@ -42,64 +42,42 @@ export type ButtonBlockProps = ButtonBlockPropsInner & {
 const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
   label: "Button",
   fields: {
-    buttons: buttonsField,
-    align: {
-      type: "radio",
-      label: "Alignment",
-      options: [
-        { label: "Left", value: "left" },
-        { label: "Center", value: "center" },
-        { label: "Right", value: "right" },
-      ],
-    },
-    fontFamily: fontFamilyField,
-    labelColor: {
+    buttons: {
       type: "custom",
-      label: "Label Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Label Color" />
-      ),
-    },
-    backgroundColor: {
-      type: "custom",
-      label: "Background Color",
-      render: ({ value, onChange }) => (
-        <ColorPickerField value={value || ""} onChange={onChange} label="Background Color" />
-      ),
-    },
-    translations: {
-      type: "custom",
-      label: "Translations",
-      render: ({ value, onChange, id }) => {
+      label: "Settings",
+      render: ({ id }: { id: string }) => {
         const componentId = extractComponentId(id);
-        const { appState } = usePuck();
-        const comp = appState.data.content.find((item) => item.props.id === componentId);
-        const props = comp?.props as ButtonBlockPropsInner;
-        const buttons = props?.buttons || [];
-        const translatableFields = buttons.map((_, index) => ({
-          name: `buttons.${index}.label`,
-          type: "text" as const,
-          label: `Button ${index + 1}`,
-        }));
+        const { appState, dispatch } = usePuck();
+        const componentResult = findComponentRecursive(appState.data, componentId);
+        const component = componentResult?.component;
+
+        const handleChange = (newProps: Record<string, unknown>) => {
+          if (!component) return;
+
+          const newData = updateComponentRecursive(appState.data, componentId, newProps);
+
+          dispatch({
+            type: "setData",
+            data: newData,
+          });
+        };
+
         return (
-          <TranslationsField
-            value={value as TranslationMap}
-            onChange={onChange}
-            translatableFields={translatableFields}
+          <GroupedFieldsPanel
+            value={(component?.props as Record<string, unknown>) || {}}
+            onChange={handleChange}
+            config={buttonBlockGroups}
           />
         );
       },
-    },
-  },
+    } as any,
+  } as any,
   defaultProps: {
-    buttons: [{ ...buttonDefaults, label: "Button" }],
+    buttons: [{ ...buttonDefaults, label: "Button", fontFamily: "", labelColor: "", backgroundColor: "" }],
     align: "left",
-    labelColor: "",
-    backgroundColor: "",
-    fontFamily: "",
     translations: {},
   },
-  render: ({ buttons, align, labelColor, backgroundColor, fontFamily, translations, puck }) => {
+  render: ({ buttons, align, translations, puck }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -107,8 +85,6 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
     } catch {
       // Not in editor context
     }
-
-    const fontStyles = getFontFamilyStyle(fontFamily);
 
     return (
       <Section>
@@ -124,6 +100,8 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
               const displayLabel =
                 getTranslation(translations, previewLanguage, labelKey) || button.label;
 
+              const fontStyles = getFontFamilyStyle(button.fontFamily);
+
               return (
                 <CompoundButton
                   key={i}
@@ -134,8 +112,8 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
                   icon={button.icon}
                   isEditing={puck.isEditing}
                   fontVars={fontStyles}
-                  labelColor={labelColor}
-                  backgroundColor={backgroundColor}
+                  labelColor={button.labelColor}
+                  backgroundColor={button.backgroundColor}
                 />
               );
             })}

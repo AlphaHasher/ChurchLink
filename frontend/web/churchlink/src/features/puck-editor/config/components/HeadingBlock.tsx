@@ -1,42 +1,25 @@
 import React from "react";
 import type { ComponentConfig } from "@measured/puck";
+import { usePuck } from "@measured/puck";
 import styles from "../../styles/components/Heading.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { Section } from "../shared/Section";
 import { withLayout, type WithLayout } from "../shared/Layout";
-import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { TypographyField } from "../../fields/TypographyField";
+import { extractComponentId } from "../../utils/puckFieldUtils";
+import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
+import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
+import { headingBlockGroups } from "../../fields/grouped/componentConfigs/headingBlock";
 
 const getClassName = getClassNameFactory("Heading", styles);
-
-const sizeOptions = [
-  { value: "xxxl", label: "XXXL" },
-  { value: "xxl", label: "XXL" },
-  { value: "xl", label: "XL" },
-  { value: "l", label: "L" },
-  { value: "m", label: "M" },
-  { value: "s", label: "S" },
-  { value: "xs", label: "XS" },
-];
-
-const levelOptions = [
-  { label: "", value: "" },
-  { label: "1", value: "1" },
-  { label: "2", value: "2" },
-  { label: "3", value: "3" },
-  { label: "4", value: "4" },
-  { label: "5", value: "5" },
-  { label: "6", value: "6" },
-];
 
 type HeadingBlockPropsInner = {
   text: string;
   typography?: { fontFamily?: string; color?: string };
   size: "xxxl" | "xxl" | "xl" | "l" | "m" | "s" | "xs";
-  level: "" | "1" | "2" | "3" | "4" | "5" | "6";
+  level: "none" | "" | "1" | "2" | "3" | "4" | "5" | "6";
   align: "left" | "center" | "right";
   translations?: TranslationMap;
 };
@@ -47,51 +30,35 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
   label: "Heading",
   fields: {
     text: {
-      type: "textarea",
-      label: "Text",
-      contentEditable: true,
-    },
-    typography: {
       type: "custom",
-      label: "Typography",
-      render: ({ value, onChange }) => (
-        <TypographyField
-          value={value as { fontFamily?: string; color?: string } || {}}
-          onChange={onChange}
-        />
-      ),
-    },
-    size: {
-      type: "select",
-      label: "Size",
-      options: sizeOptions,
-    },
-    level: {
-      type: "select",
-      label: "Level",
-      options: levelOptions,
-    },
-    align: {
-      type: "radio",
-      label: "Alignment",
-      options: [
-        { label: "Left", value: "left" },
-        { label: "Center", value: "center" },
-        { label: "Right", value: "right" },
-      ],
-    },
-    translations: {
-      type: "custom",
-      label: "Translations",
-      render: ({ value, onChange }) => (
-        <TranslationsField
-          value={value as TranslationMap}
-          onChange={onChange}
-          translatableFields={[{ name: "text", type: "textarea", label: "Text" }]}
-        />
-      ),
-    },
-  },
+      label: "Settings",
+      render: ({ id }: { id: string }) => {
+        const componentId = extractComponentId(id);
+        const { appState, dispatch } = usePuck();
+        const componentResult = findComponentRecursive(appState.data, componentId);
+        const component = componentResult?.component;
+
+        const handleChange = (newProps: Record<string, unknown>) => {
+          if (!component) return;
+
+          const newData = updateComponentRecursive(appState.data, componentId, newProps);
+
+          dispatch({
+            type: "setData",
+            data: newData,
+          });
+        };
+
+        return (
+          <GroupedFieldsPanel
+            value={(component?.props as Record<string, unknown>) || {}}
+            onChange={handleChange}
+            config={headingBlockGroups}
+          />
+        );
+      },
+    } as any,
+  } as any,
   defaultProps: {
     align: "left",
     text: "Heading",
@@ -122,7 +89,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
       xs: { fontSize: "1rem", lineHeight: 1.5 },
     };
 
-    const Tag = level ? (`h${level}` as const) : ("div" as const);
+    const Tag = level && level !== "none" ? (`h${level}` as const) : ("div" as const);
 
     const fontStyles = getFontFamilyStyle(typography?.fontFamily);
 

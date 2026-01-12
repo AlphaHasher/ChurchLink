@@ -17,6 +17,7 @@ interface GoogleFont {
 interface FontFamilyFieldProps {
   value: string;
   onChange: (value: string) => void;
+  label?: string;
 }
 
 // Global cache to avoid re-fetching
@@ -85,7 +86,7 @@ const weightLabels: Record<string, string> = {
   "900": "Black",
 };
 
-export function FontFamilyField({ value, onChange }: FontFamilyFieldProps) {
+export function FontFamilyField({ value, onChange, label }: FontFamilyFieldProps) {
   const [fonts, setFonts] = useState<GoogleFont[]>(cachedFonts || []);
   const [loading, setLoading] = useState(!cachedFonts);
   const [open, setOpen] = useState(false);
@@ -140,6 +141,7 @@ export function FontFamilyField({ value, onChange }: FontFamilyFieldProps) {
 
   return (
     <div className="space-y-2">
+      {label && <label className="text-sm font-medium">{label}</label>}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button

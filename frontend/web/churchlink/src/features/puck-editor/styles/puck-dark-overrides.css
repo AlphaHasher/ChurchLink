@@ -158,5 +158,3 @@
 .dark [class*="_Puck"] ::-webkit-scrollbar-thumb:hover {
   background: #2D333B;
 }
-
-/* Removed custom height override - let Puck manage its own scroll areas */

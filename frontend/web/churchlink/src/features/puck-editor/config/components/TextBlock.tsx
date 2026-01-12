@@ -1,14 +1,16 @@
 import type { ComponentConfig } from "@measured/puck";
+import { usePuck } from "@measured/puck";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import styles from "../../styles/components/Text.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
-import { TranslationsField } from "../../fields/TranslationsField";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
-import { ALargeSmall, AlignLeft } from "lucide-react";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { TypographyField } from "../../fields/TypographyField";
+import { extractComponentId } from "../../utils/puckFieldUtils";
+import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
+import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
+import { textBlockGroups } from "../../fields/grouped/componentConfigs/textBlock";
 
 const getClassName = getClassNameFactory("Text", styles);
 
@@ -35,60 +37,35 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
   label: "Text",
   fields: {
     text: {
-      type: "textarea",
-      label: "Text",
-      contentEditable: true,
-    },
-    typography: {
       type: "custom",
-      label: "Typography",
-      render: ({ value, onChange }) => (
-        <TypographyField
-          value={value as { fontFamily?: string; color?: string } || {}}
-          onChange={onChange}
-        />
-      ),
-    },
-    size: {
-      type: "radio",
-      options: [
-        { label: "S", value: "s" },
-        { label: "M", value: "m" },
-      ],
-      labelIcon: <ALargeSmall size={16} />,
-    },
-    align: {
-      type: "radio",
-      options: [
-        { label: "Left", value: "left" },
-        { label: "Center", value: "center" },
-        { label: "Right", value: "right" },
-      ],
-      labelIcon: <AlignLeft size={16} />,
-    },
-    color: {
-      type: "radio",
-      options: [
-        { label: "Default", value: "default" },
-        { label: "Muted", value: "muted" },
-      ],
-    },
-    maxWidth: {
-      type: "number",
-      label: "Max Width",
-    },
-    translations: {
-      type: "custom",
-      label: "Translations",
-      render: ({ value, onChange }) => (
-        <TranslationsField
-          value={value as TranslationMap}
-          onChange={onChange}
-          translatableFields={[{ name: "text", type: "textarea", label: "Text" }]}
-        />
-      ),
-    },
-  },
+      label: "Settings",
+      render: ({ id }: { id: string }) => {
+        const componentId = extractComponentId(id);
+        const { appState, dispatch } = usePuck();
+        const componentResult = findComponentRecursive(appState.data, componentId);
+        const component = componentResult?.component;
+
+        const handleChange = (newProps: Record<string, unknown>) => {
+          if (!component) return;
+
+          const newData = updateComponentRecursive(appState.data, componentId, newProps);
+
+          dispatch({
+            type: "setData",
+            data: newData,
+          });
+        };
+
+        return (
+          <GroupedFieldsPanel
+            value={(component?.props as Record<string, unknown>) || {}}
+            onChange={handleChange}
+            config={textBlockGroups}
+          />
+        );
+      },
+    } as any,
+  } as any,
   defaultProps: {
     text: "Text",
     typography: { fontFamily: "", color: "#000000" },
