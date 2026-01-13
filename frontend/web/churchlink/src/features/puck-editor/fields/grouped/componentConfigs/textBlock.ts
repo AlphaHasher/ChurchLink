@@ -1,3 +1,4 @@
+import { shadowPresetLabels } from "../../../utils/shadowPresets";
 import type { ComponentGroupConfig } from "../types";
 
 export const textBlockGroups: ComponentGroupConfig = {
@@ -28,12 +29,6 @@ export const textBlockGroups: ComponentGroupConfig = {
           label: "Color",
           type: "color",
         },
-      ],
-    },
-    {
-      name: "Sizing & Spacing",
-      icon: "layout-grid",
-      fields: [
         {
           name: "size",
           label: "Size",
@@ -44,17 +39,6 @@ export const textBlockGroups: ComponentGroupConfig = {
           ],
         },
         {
-          name: "maxWidth",
-          label: "Max Width (px)",
-          type: "number",
-        },
-      ],
-    },
-    {
-      name: "Alignment & Color",
-      icon: "palette",
-      fields: [
-        {
           name: "align",
           label: "Alignment",
           type: "radio",
@@ -63,6 +47,26 @@ export const textBlockGroups: ComponentGroupConfig = {
             { label: "Center", value: "center" },
             { label: "Right", value: "right" },
           ],
+        },
+        {
+          name: "shadow",
+          label: "Drop Shadow",
+          type: "select",
+          options: Object.entries(shadowPresetLabels).map(([value, label]) => ({
+            label,
+            value,
+          })),
+        },
+      ],
+    },
+    {
+      name: "Sizing & Spacing",
+      icon: "layout-grid",
+      fields: [
+        {
+          name: "maxWidth",
+          label: "Max Width (px)",
+          type: "number",
         },
         {
           name: "color",

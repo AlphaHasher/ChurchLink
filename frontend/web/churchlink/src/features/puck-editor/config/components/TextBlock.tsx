@@ -11,6 +11,7 @@ import { extractComponentId } from "../../utils/puckFieldUtils";
 import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
 import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
 import { textBlockGroups } from "../../fields/grouped/componentConfigs/textBlock";
+import { getShadowStyle, type ShadowPreset } from "../../utils/shadowPresets";
 
 const getClassName = getClassNameFactory("Text", styles);
 
@@ -21,6 +22,7 @@ export type TextBlockPropsInner = {
   align: "left" | "center" | "right";
   color: "default" | "muted";
   maxWidth?: number;
+  shadow?: ShadowPreset;
   translations?: TranslationMap;
 };
 
@@ -73,9 +75,10 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     align: "left",
     color: "default",
     maxWidth: undefined,
+    shadow: "none",
     translations: {},
   },
-  render: ({ text, typography, size, align, color, maxWidth, translations }) => {
+  render: ({ text, typography, size, align, color, maxWidth, shadow, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -101,6 +104,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
             color: colorValue,
             maxWidth: maxWidth ? `${maxWidth}px` : undefined,
             ...fontStyles,
+            ...(shadow && getShadowStyle(shadow as ShadowPreset)),
           }}
         >
           {displayText}

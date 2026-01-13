@@ -12,6 +12,7 @@ import { extractComponentId } from "../../utils/puckFieldUtils";
 import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
 import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
 import { headingBlockGroups } from "../../fields/grouped/componentConfigs/headingBlock";
+import { getShadowStyle, type ShadowPreset } from "../../utils/shadowPresets";
 
 const getClassName = getClassNameFactory("Heading", styles);
 
@@ -21,6 +22,7 @@ type HeadingBlockPropsInner = {
   size: "xxxl" | "xxl" | "xl" | "l" | "m" | "s" | "xs";
   level: "none" | "" | "1" | "2" | "3" | "4" | "5" | "6";
   align: "left" | "center" | "right";
+  shadow?: ShadowPreset;
   translations?: TranslationMap;
 };
 
@@ -65,9 +67,10 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
     typography: { fontFamily: "", color: "#000000" },
     size: "m",
     level: "",
+    shadow: "none",
     translations: {},
   },
-  render: ({ align, text, typography, size, level, translations }) => {
+  render: ({ align, text, typography, size, level, shadow, translations }) => {
     let previewLanguage = "en";
     try {
       const context = usePuckLanguage();
@@ -106,6 +109,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
               color: typography?.color || undefined,
               ...sizeStyles[size],
               ...fontStyles,
+              ...(shadow && getShadowStyle(shadow as ShadowPreset)),
             },
           },
           displayText

@@ -1,3 +1,4 @@
+import { shadowPresetLabels } from "../../../utils/shadowPresets";
 import type { ComponentGroupConfig } from "../types";
 
 export const headingBlockGroups: ComponentGroupConfig = {
@@ -28,12 +29,6 @@ export const headingBlockGroups: ComponentGroupConfig = {
           label: "Color",
           type: "color",
         },
-      ],
-    },
-    {
-      name: "Styling",
-      icon: "palette",
-      fields: [
         {
           name: "size",
           label: "Size",
@@ -71,6 +66,15 @@ export const headingBlockGroups: ComponentGroupConfig = {
             { label: "Center", value: "center" },
             { label: "Right", value: "right" },
           ],
+        },
+        {
+          name: "shadow",
+          label: "Drop Shadow",
+          type: "select",
+          options: Object.entries(shadowPresetLabels).map(([value, label]) => ({
+            label,
+            value,
+          })),
         },
       ],
     },
