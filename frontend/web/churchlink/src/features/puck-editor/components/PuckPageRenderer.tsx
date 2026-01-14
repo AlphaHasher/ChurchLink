@@ -22,7 +22,9 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
   }, [data, locale, browserLang, defaultLang]);
 
   // Get page margins from root props
-  const pageMargins = ((localizedData.root.props as { pageMargins?: string })?.pageMargins) || "none";
+  const rootProps = localizedData.root.props as { pageMargins?: string; customPageMarginPx?: number };
+  const pageMargins = rootProps?.pageMargins || "none";
+  const customPageMarginPx = rootProps?.customPageMarginPx ?? 0;
 
   // Margin classes - only applied in preview/live mode
   const marginClasses: Record<string, string> = {
@@ -31,13 +33,13 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
     medium: "md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
     large:  "md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
     xl:     "md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
-    // Max-width options (content width, centered)
-    "500px":  "max-w-[500px] mx-auto",
-    "600px":  "max-w-[600px] mx-auto",
-    "700px": "max-w-[700px] mx-auto",
-    "800px": "max-w-[800px] mx-auto",
-    separator: "", // Fallback
   };
+
+  // Apply custom margin if needed (use padding since margin doesn't work with full-width containers)
+  const pageStyle = pageMargins === "custom" ? {
+    paddingLeft: `${customPageMarginPx}px`,
+    paddingRight: `${customPageMarginPx}px`,
+  } : {};
 
   // Load all fonts used in page data
   useEffect(() => {
@@ -68,8 +70,10 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
     }
   }, [localizedData]);
 
+  const marginClass = pageMargins !== "custom" ? marginClasses[pageMargins] : "";
+
   return (
-    <div className={marginClasses[pageMargins]}>
+    <div className={marginClass} style={pageStyle}>
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <Render config={config as any} data={localizedData as any} />
     </div>

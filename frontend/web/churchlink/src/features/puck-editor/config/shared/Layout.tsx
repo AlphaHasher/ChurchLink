@@ -16,11 +16,6 @@ const marginClasses: Record<string, string> = {
   medium: "md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
   large:  "md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
   xl:     "md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
-  // Max-width options (content width, centered)
-  "500px":  "max-w-[500px] mx-auto",
-  "600px":  "max-w-[600px] mx-auto",
-  "700px": "max-w-[700px] mx-auto",
-  "800px": "max-w-[800px] mx-auto",
 };
 
 type LayoutFieldProps = {
@@ -28,7 +23,8 @@ type LayoutFieldProps = {
   spanCol?: number;
   spanRow?: number;
   grow?: boolean;
-  marginOverride?: "none" | "small" | "medium" | "large" | "xl" | "500px" | "600px" | "700px" | "800px" | "page-default";
+  marginOverride?: "none" | "small" | "medium" | "large" | "xl" | "custom" | "page-default";
+  customMarginPx?: number;
 };
 
 export type WithLayout<Props extends DefaultComponentProps> = Props & {
@@ -79,12 +75,13 @@ export const layoutField: ObjectField<LayoutFieldProps> = {
         { label: "Medium", value: "medium" },
         { label: "Large", value: "large" },
         { label: "Extra Large", value: "xl" },
-        { label: "───── Max Width ─────", value: "separator" },
-        { label: "500px", value: "500px" },
-        { label: "600px", value: "600px" },
-        { label: "700px", value: "700px" },
-        { label: "800px", value: "800px" },
+        { label: "Custom", value: "custom" },
       ],
+    },
+    customMarginPx: {
+      type: "number",
+      label: "Custom Margin (px)",
+      min: 0,
     },
   },
 };
@@ -92,9 +89,20 @@ export const layoutField: ObjectField<LayoutFieldProps> = {
 const Layout = forwardRef<HTMLDivElement, LayoutProps>(
   ({ children, className, layout, style }, ref) => {
     // Apply margin override if set (and not "page-default")
-    const marginClass = layout?.marginOverride && layout.marginOverride !== "page-default"
-      ? marginClasses[layout.marginOverride]
-      : "";
+    let marginClass = "";
+    let customMarginStyle: CSSProperties = {};
+
+    if (layout?.marginOverride && layout.marginOverride !== "page-default") {
+      if (layout.marginOverride === "custom") {
+        const marginPx = layout.customMarginPx ?? 0;
+        customMarginStyle = {
+          paddingLeft: `${marginPx}px`,
+          paddingRight: `${marginPx}px`,
+        };
+      } else {
+        marginClass = marginClasses[layout.marginOverride] || "";
+      }
+    }
 
     return (
       <div
@@ -109,6 +117,7 @@ const Layout = forwardRef<HTMLDivElement, LayoutProps>(
           paddingTop: layout?.padding,
           paddingBottom: layout?.padding,
           flex: layout?.grow ? "1 1 0" : undefined,
+          ...customMarginStyle,
           ...style,
         }}
         ref={ref}
@@ -154,6 +163,7 @@ export function withLayout<
               spanRow: layoutField.objectFields.spanRow,
               padding: layoutField.objectFields.padding,
               marginOverride: layoutField.objectFields.marginOverride,
+              customMarginPx: layoutField.objectFields.customMarginPx,
             },
           },
         };
@@ -167,6 +177,7 @@ export function withLayout<
               grow: layoutField.objectFields.grow,
               padding: layoutField.objectFields.padding,
               marginOverride: layoutField.objectFields.marginOverride,
+              customMarginPx: layoutField.objectFields.customMarginPx,
             },
           },
         };
@@ -179,6 +190,7 @@ export function withLayout<
           objectFields: {
             padding: layoutField.objectFields.padding,
             marginOverride: layoutField.objectFields.marginOverride,
+            customMarginPx: layoutField.objectFields.customMarginPx,
           },
         },
       };

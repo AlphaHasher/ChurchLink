@@ -1,12 +1,14 @@
 .Section:not(.Section .Section) {
   padding-inline-start: 16px;
   padding-inline-end: 16px;
+  width: 100%;
 }
 
 @media (min-width: 768px) {
   .Section:not(.Section .Section) {
     padding-inline-start: 24px;
     padding-inline-end: 24px;
+    width: 100%;
   }
 }
 

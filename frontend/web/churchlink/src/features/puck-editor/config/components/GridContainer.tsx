@@ -76,6 +76,7 @@ const GridContainerInternal: ComponentConfig<GridContainerPropsInner> = {
       gap: `${gap}px`,
       flexWrap: isRow ? "nowrap" : "wrap", // Row: strict fit, Column: allow wrap
       width: "100%",
+      alignItems: "flex-start", // Prevent items from stretching to match tallest
     };
 
     // Child styles: auto-scale to fill, allow shrink in row mode

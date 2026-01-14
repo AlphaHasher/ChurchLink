@@ -330,6 +330,7 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
         verticalAlign === "top" ? "flex-start" :
         verticalAlign === "bottom" ? "flex-end" :
         "center",  // default center
+      alignItems: "stretch", // Allow children to take full width for text alignment
     };
 
     const backgroundLayerStyles: React.CSSProperties = {};
@@ -374,7 +375,7 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
           <div style={overlayStyles} />
         )}
         {/* Content layer - z-index higher than background/overlay */}
-        <div className="group-block-content min-h-12.5 relative" style={{ zIndex: 10 }}>
+        <div className="group-block-content min-h-12.5 relative" style={{ zIndex: 10, width: "100%" }}>
           {renderChildren()}
         </div>
       </div>

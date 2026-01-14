@@ -45,7 +45,8 @@ type Props = {
 // Root props for page-level settings
 type RootProps = {
   title: string;
-  pageMargins?: "none" | "small" | "medium" | "large" | "xl" | "500px" | "600px" | "700px" | "800px";
+  pageMargins?: "none" | "small" | "medium" | "large" | "xl" | "custom";
+  customPageMarginPx?: number;
   defaultLanguage?: string;
   supportedLanguages?: string[];
 };
@@ -67,12 +68,13 @@ export const config: Config<Props, RootProps> = {
           { label: "Medium", value: "medium" },
           { label: "Large", value: "large" },
           { label: "Extra Large", value: "xl" },
-          { label: "───── Max Width ─────", value: "separator" },
-          { label: "500px", value: "500px" },
-          { label: "600px", value: "600px" },
-          { label: "700px", value: "700px" },
-          { label: "800px", value: "800px" },
+          { label: "Custom", value: "custom" },
         ],
+      },
+      customPageMarginPx: {
+        type: "number",
+        label: "Custom Page Margin (px)",
+        min: 0,
       },
       defaultLanguage: {
         type: "select",
@@ -98,6 +100,7 @@ export const config: Config<Props, RootProps> = {
     defaultProps: {
       title: "New Page",
       pageMargins: "none",
+      customPageMarginPx: 0,
       defaultLanguage: "en",
       supportedLanguages: ["en"],
     },
@@ -161,6 +164,7 @@ export const initialData: PuckData = {
     props: {
       title: "New Page",
       pageMargins: "none",
+      customPageMarginPx: 0,
       defaultLanguage: "en",
       supportedLanguages: ["en"],
     },
