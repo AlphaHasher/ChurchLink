@@ -58,6 +58,35 @@ export const imageBlockGroups: ComponentGroupConfig = {
             { label: "Full", value: "full" },
           ],
         },
+        {
+          name: "maxHeight",
+          label: "Max Height (px)",
+          type: "number",
+          min: 0,
+        },
+        {
+          name: "align",
+          label: "Alignment",
+          type: "radio",
+          options: [
+            { label: "Left", value: "left" },
+            { label: "Center", value: "center" },
+            { label: "Right", value: "right" },
+          ],
+        },
+        {
+          name: "dropShadow",
+          label: "Drop Shadow",
+          type: "select",
+          options: [
+            { label: "None", value: "none" },
+            { label: "Extra Small", value: "xs" },
+            { label: "Small", value: "sm" },
+            { label: "Medium", value: "md" },
+            { label: "Large", value: "lg" },
+            { label: "Extra Large", value: "xl" },
+          ],
+        },
       ],
     },
     {

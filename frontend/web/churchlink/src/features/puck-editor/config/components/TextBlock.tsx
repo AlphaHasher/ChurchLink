@@ -103,6 +103,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
             textAlign: align,
             color: colorValue,
             maxWidth: maxWidth ? `${maxWidth}px` : undefined,
+            whiteSpace: "pre-wrap",
             ...fontStyles,
             ...(shadow && getShadowStyle(shadow as ShadowPreset)),
           }}

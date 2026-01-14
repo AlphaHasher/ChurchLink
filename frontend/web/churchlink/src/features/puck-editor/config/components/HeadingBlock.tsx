@@ -107,6 +107,7 @@ const HeadingBlockInternal: ComponentConfig<HeadingBlockPropsInner> = {
               textAlign: align,
               width: "100%",
               color: typography?.color || undefined,
+              whiteSpace: "pre-wrap",
               ...sizeStyles[size],
               ...fontStyles,
               ...(shadow && getShadowStyle(shadow as ShadowPreset)),

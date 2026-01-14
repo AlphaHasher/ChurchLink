@@ -146,12 +146,12 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
                 >
                   <Accordion.Header>
                     <Accordion.Trigger className="flex w-full items-center justify-between py-4 text-left font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180">
-                      <span style={{ ...questionFontStyles, color: questionColor || undefined }}>{displayQuestion}</span>
+                      <span style={{ ...questionFontStyles, color: questionColor || undefined, whiteSpace: "pre-wrap" }}>{displayQuestion}</span>
                       <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200" />
                     </Accordion.Trigger>
                   </Accordion.Header>
                   <Accordion.Content className="overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                    <div className="pb-4 pt-0" style={{ ...answerFontStyles, color: answerColor || undefined }}>{displayAnswer}</div>
+                    <div className="pb-4 pt-0" style={{ ...answerFontStyles, color: answerColor || undefined, whiteSpace: "pre-wrap" }}>{displayAnswer}</div>
                   </Accordion.Content>
                 </Accordion.Item>
               );

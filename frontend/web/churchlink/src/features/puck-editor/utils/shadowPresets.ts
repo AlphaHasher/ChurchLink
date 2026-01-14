@@ -36,3 +36,15 @@ export function getShadowStyle(preset: ShadowPreset): React.CSSProperties {
     textShadow: shadowPresets[preset],
   };
 }
+
+/**
+ * Get drop-shadow filter CSS value for images/elements
+ */
+export function getDropShadowStyle(preset: ShadowPreset): React.CSSProperties {
+  if (preset === "none") {
+    return {};
+  }
+  return {
+    filter: `drop-shadow(${shadowPresets[preset]})`,
+  };
+}

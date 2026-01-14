@@ -209,7 +209,7 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
                     "lg:max-w-lg": isTwoColumnLayout,
                   }
                 )}
-                style={{ ...headingFontStyles, color: headingColor || undefined }}
+                style={{ ...headingFontStyles, color: headingColor || undefined, whiteSpace: "pre-wrap" }}
               >
                 {displayHeading}
               </h1>
@@ -223,7 +223,7 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
                       "lg:max-w-md": isTwoColumnLayout,
                     }
                   )}
-                  style={{ ...descriptionFontStyles, color: descriptionColor || undefined }}
+                  style={{ ...descriptionFontStyles, color: descriptionColor || undefined, whiteSpace: "pre-wrap" }}
                 >
                   {displayDescription}
                 </p>
@@ -248,8 +248,8 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
                           className="text-primary mt-0.5 shrink-0"
                         />
                         <div>
-                          <div className="font-semibold text-base">{displayName}</div>
-                          <div className="text-muted-foreground text-sm">{displayDesc}</div>
+                          <div className="font-semibold text-base" style={{ whiteSpace: "pre-wrap" }}>{displayName}</div>
+                          <div className="text-muted-foreground text-sm" style={{ whiteSpace: "pre-wrap" }}>{displayDesc}</div>
                         </div>
                       </div>
                     );

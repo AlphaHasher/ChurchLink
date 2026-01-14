@@ -11,8 +11,7 @@ import { MapBlock, type MapBlockProps } from "./components/MapBlock";
 import { GroupBlock, type GroupBlockProps } from "./components/GroupBlock";
 import { EventSectionBlock, type EventSectionBlockProps } from "./components/EventSectionBlock";
 import { HeadingBlock, type HeadingBlockProps } from "./components/HeadingBlock";
-import { FlexBlock, type FlexBlockProps } from "./components/FlexBlock";
-import { GridBlock, type GridBlockProps } from "./components/GridBlock";
+import { GridContainer, type GridContainerProps } from "./components/GridContainer";
 import { BlankBlock, type BlankBlockProps } from "./components/BlankBlock";
 import { SpaceBlock, type SpaceBlockProps } from "./components/SpaceBlock";
 import { RichTextBlock, type RichTextBlockProps } from "./components/RichTextBlock";
@@ -35,8 +34,7 @@ type Props = {
   GroupBlock: GroupBlockProps;
   EventSectionBlock: EventSectionBlockProps;
   HeadingBlock: HeadingBlockProps;
-  FlexBlock: FlexBlockProps;
-  GridBlock: GridBlockProps;
+  GridContainer: GridContainerProps;
   BlankBlock: BlankBlockProps;
   SpaceBlock: SpaceBlockProps;
   RichTextBlock: RichTextBlockProps;
@@ -114,7 +112,7 @@ export const config: Config<Props, RootProps> = {
   categories: {
     layout: {
       title: "Layout",
-      components: ["GroupBlock", "FlexBlock", "GridBlock", "SpacerBlock", "SpaceBlock", "DividerBlock", "BlankBlock"],
+      components: ["GroupBlock", "GridContainer", "SpacerBlock", "SpaceBlock", "DividerBlock", "BlankBlock"],
     },
     typography: {
       title: "Typography",
@@ -144,8 +142,7 @@ export const config: Config<Props, RootProps> = {
     GroupBlock,
     EventSectionBlock,
     HeadingBlock,
-    FlexBlock,
-    GridBlock,
+    GridContainer,
     BlankBlock,
     SpaceBlock,
     RichTextBlock,

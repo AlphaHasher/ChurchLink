@@ -6,6 +6,7 @@ import { extractComponentId } from "../../utils/puckFieldUtils";
 import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
 import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
 import { imageBlockGroups } from "../../fields/grouped/componentConfigs/imageBlock";
+import { getDropShadowStyle, type ShadowPreset } from "../../utils/shadowPresets";
 
 export type ImageBlockProps = {
   src: string;
@@ -13,6 +14,9 @@ export type ImageBlockProps = {
   objectFit: "contain" | "cover" | "fill" | "none";
   aspectRatio: "auto" | "1/1" | "4/3" | "16/9" | "21/9";
   rounded: "none" | "sm" | "md" | "lg" | "full";
+  maxHeight?: number;
+  align: "left" | "center" | "right";
+  dropShadow?: ShadowPreset;
   translations?: TranslationMap;
 };
 
@@ -55,9 +59,12 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
     objectFit: "cover",
     aspectRatio: "16/9",
     rounded: "md",
+    maxHeight: undefined,
+    align: "center",
+    dropShadow: "none",
     translations: {},
   },
-  render: ({ src, alt, objectFit, aspectRatio, rounded, translations }) => {
+  render: ({ src, alt, objectFit, aspectRatio, rounded, maxHeight, align, dropShadow, translations }) => {
     // Try to use preview language context, but gracefully handle if not in editor
     let previewLanguage = "en";
     try {
@@ -85,16 +92,34 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
       full: "rounded-full",
     };
 
-    const aspectRatioStyle = aspectRatio !== "auto"
-      ? { aspectRatio: aspectRatio.replace("/", " / ") }
-      : {};
+    const containerStyle: React.CSSProperties = {
+      display: "flex",
+      justifyContent: align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center",
+    };
+    const imageStyle: React.CSSProperties = {
+      ...getDropShadowStyle(dropShadow || "none"),
+    };
+
+    // Apply aspect ratio if specified (only when no maxHeight)
+    if (aspectRatio !== "auto" && !maxHeight) {
+      containerStyle.aspectRatio = aspectRatio.replace("/", " / ");
+    }
+
+    // Apply max height if specified - scale to fit
+    if (maxHeight) {
+      imageStyle.maxHeight = `${maxHeight}px`;
+      imageStyle.width = "auto";
+      imageStyle.height = "auto";
+      imageStyle.objectFit = "contain";
+    }
 
     return (
-      <div className="w-full" style={aspectRatioStyle}>
+      <div className="w-full" style={containerStyle}>
         <img
           src={src}
           alt={displayAlt}
-          className={`w-full h-full ${objectFitClasses[objectFit]} ${roundedClasses[rounded]}`}
+          className={maxHeight ? roundedClasses[rounded] : `w-full h-full ${objectFitClasses[objectFit]} ${roundedClasses[rounded]}`}
+          style={imageStyle}
         />
       </div>
     );
