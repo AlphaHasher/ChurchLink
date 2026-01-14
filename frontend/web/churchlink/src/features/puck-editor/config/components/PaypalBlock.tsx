@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import type { ComponentConfig } from "@measured/puck";
-import { usePuck } from "@measured/puck";
+import type { ComponentConfig } from "@puckeditor/core";
+import { usePuck } from "@puckeditor/core";
 import { Loader2, ArrowRight, Repeat2, DollarSign, Sparkles } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";

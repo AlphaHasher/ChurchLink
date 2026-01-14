@@ -1,6 +1,6 @@
 import React from "react";
-import type { ComponentConfig } from "@measured/puck";
-import { usePuck } from "@measured/puck";
+import type { ComponentConfig } from "@puckeditor/core";
+import { usePuck } from "@puckeditor/core";
 import styles from "../../styles/components/Heading.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { Section } from "../shared/Section";

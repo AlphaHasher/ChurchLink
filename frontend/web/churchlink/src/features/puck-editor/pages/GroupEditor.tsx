@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { Puck, Data as PuckData, type ComponentData } from "@measured/puck";
-import "@measured/puck/no-external.css";
+import { Puck, Data as PuckData, type ComponentData } from "@puckeditor/core";
+import "@puckeditor/core/no-external.css";
 import "../styles/puck-dark-overrides.css";
 import "../styles/puck-fonts.css";
 import { X } from "lucide-react";
@@ -246,7 +246,7 @@ export default function GroupEditor() {
       {/* Puck Editor - Takes remaining space */}
       <div className="flex-1 overflow-hidden">
         <Puck
-          config={config}
+          config={config as any}
           data={puckData}
           onChange={handleSave}
           overrides={{

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo, type ReactNode } from "react";
-import type { Data as PuckData, ComponentData } from "@measured/puck";
+import type { Data as PuckData, ComponentData } from "@puckeditor/core";
 
 interface PuckLanguageContextType {
   previewLanguage: string;

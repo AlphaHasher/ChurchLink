@@ -1,7 +1,7 @@
 "use client";
 
-import type { ComponentConfig } from "@measured/puck";
-import { usePuck } from "@measured/puck";
+import type { ComponentConfig } from "@puckeditor/core";
+import { usePuck } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";

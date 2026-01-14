@@ -1,4 +1,4 @@
-import type { ComponentConfig } from "@measured/puck";
+import type { ComponentConfig } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 

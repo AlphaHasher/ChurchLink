@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useState, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
-import { Puck } from "@measured/puck";
-import type { ComponentData, Data } from "@measured/puck";
+import { Puck } from "@puckeditor/core";
+import type { ComponentData, Data } from "@puckeditor/core";
 
 // Error boundary to catch Puck internal errors (e.g., during deletion)
 class PuckErrorBoundary extends Component<
@@ -43,7 +43,7 @@ class PuckErrorBoundary extends Component<
     return this.props.children;
   }
 }
-import "@measured/puck/no-external.css";
+import "@puckeditor/core/no-external.css";
 import "../styles/puck-dark-overrides.css";
 import "../styles/puck-fonts.css";
 import { useParams, useNavigate } from "react-router-dom";

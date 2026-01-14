@@ -1,5 +1,5 @@
 import { FontFamilyField } from "../../fields/FontFamilyField";
-import type { CustomField } from "@measured/puck";
+import type { CustomField } from "@puckeditor/core";
 
 export const fontFamilyField: CustomField<string | undefined> = {
   type: "custom",

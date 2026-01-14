@@ -1,7 +1,7 @@
-import type { ComponentConfig, Data } from "@measured/puck";
+import type { ComponentConfig, Data } from "@puckeditor/core";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { usePuck } from "@measured/puck";
+import { usePuck } from "@puckeditor/core";
 import { useTemplateContext } from "../../context/TemplateContext";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";

@@ -1,4 +1,4 @@
-import type { ComponentConfig } from "@measured/puck";
+import type { ComponentConfig } from "@puckeditor/core";
 import styles from "../../styles/components/Space.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
 import { spacingOptions } from "../shared/options";

@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from "react";
-import { Render } from "@measured/puck";
+import { Render } from "@puckeditor/core";
 import { config, type PuckData } from "../config";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { localizeComponentData } from "../utils/languageUtils";

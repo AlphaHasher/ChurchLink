@@ -1,4 +1,4 @@
-import type { ComponentConfig, Config } from "@measured/puck";
+import type { ComponentConfig, Config } from "@puckeditor/core";
 import type { CustomTemplate } from "../hooks/useCustomTemplates";
 import { config as baseConfig, type PuckData } from "./index";
 import { GroupBlock } from "./components/GroupBlock";
@@ -42,7 +42,7 @@ function createTemplateComponent(template: CustomTemplate): ComponentConfig<any>
 export function buildConfigWithTemplates(templates: CustomTemplate[]): Config<any> {
   // Start with a shallow copy of the base config
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const enhancedConfig: Config<any> = {
+  const enhancedConfig: any = {
     ...baseConfig,
     categories: { ...baseConfig.categories },
     components: { ...baseConfig.components },

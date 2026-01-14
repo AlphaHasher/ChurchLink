@@ -1,4 +1,4 @@
-import type { Config, Data } from "@measured/puck";
+import type { Config, Data } from "@puckeditor/core";
 
 // Import all component configs
 import { TextBlock, type TextBlockProps } from "./components/TextBlock";

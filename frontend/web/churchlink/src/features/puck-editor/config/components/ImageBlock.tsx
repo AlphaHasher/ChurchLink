@@ -1,5 +1,5 @@
-import type { ComponentConfig } from "@measured/puck";
-import { usePuck } from "@measured/puck";
+import type { ComponentConfig } from "@puckeditor/core";
+import { usePuck } from "@puckeditor/core";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { extractComponentId } from "../../utils/puckFieldUtils";

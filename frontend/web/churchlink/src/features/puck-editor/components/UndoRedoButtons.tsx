@@ -5,7 +5,7 @@ import {
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
 import { Redo2, Undo2 } from "lucide-react";
-import { createUsePuck } from "@measured/puck";
+import { createUsePuck } from "@puckeditor/core";
 
 // Create a selector-based hook for better performance (avoids unnecessary re-renders)
 const usePuck = createUsePuck();

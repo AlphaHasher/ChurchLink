@@ -1,6 +1,6 @@
-import type { ComponentConfig } from "@measured/puck";
+import type { ComponentConfig } from "@puckeditor/core";
 import type { ReactNode } from "react";
-import { usePuck } from "@measured/puck";
+import { usePuck } from "@puckeditor/core";
 import { withLayout } from "../shared/Layout";
 import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
 import { gridContainerGroups } from "../../fields/grouped/componentConfigs/gridContainer";

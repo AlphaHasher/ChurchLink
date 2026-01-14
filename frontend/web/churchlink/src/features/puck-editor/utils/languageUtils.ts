@@ -1,4 +1,4 @@
-import type { Data as PuckData, ComponentData } from "@measured/puck";
+import type { Data as PuckData, ComponentData } from "@puckeditor/core";
 
 // Language codes and names from backend constants.py
 export const LANGUAGES: Record<string, string> = {

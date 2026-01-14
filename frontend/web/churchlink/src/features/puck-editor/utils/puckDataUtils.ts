@@ -1,4 +1,4 @@
-import type { Data, ComponentData } from "@measured/puck";
+import type { Data, ComponentData } from "@puckeditor/core";
 
 /**
  * Recursively find a component by ID in the Puck data tree
