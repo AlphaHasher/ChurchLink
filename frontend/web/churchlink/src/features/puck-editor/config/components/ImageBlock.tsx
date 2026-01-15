@@ -1,14 +1,12 @@
 import type { ComponentConfig } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
+import { Section } from "../shared/Section";
+import { withLayout } from "../shared/Layout";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { imageBlockGroups } from "../../fields/grouped/componentConfigs/imageBlock";
 import { getDropShadowStyle, type ShadowPreset } from "../../utils/shadowPresets";
+import { TranslationsField } from "../../fields/TranslationsField";
 
-export type ImageBlockProps = {
+export type ImageBlockPropsInner = {
   src: string;
   alt: string;
   objectFit: "contain" | "cover" | "fill" | "none";
@@ -20,39 +18,98 @@ export type ImageBlockProps = {
   translations?: TranslationMap;
 };
 
-export const ImageBlock: ComponentConfig<ImageBlockProps> = {
+export type ImageBlockProps = ImageBlockPropsInner & {
+  layout?: {
+    spanCol?: number;
+    spanRow?: number;
+    padding?: string;
+    grow?: boolean;
+  };
+};
+
+const ImageBlockInternal: ComponentConfig<ImageBlockPropsInner> = {
   label: "Image",
   fields: {
     src: {
+      type: "text",
+      label: "Image URL",
+    },
+    alt: {
+      type: "text",
+      label: "Alt Text",
+    },
+    objectFit: {
+      type: "select",
+      label: "Object Fit",
+      options: [
+        { label: "Contain", value: "contain" },
+        { label: "Cover", value: "cover" },
+        { label: "Fill", value: "fill" },
+        { label: "None", value: "none" },
+      ],
+    },
+    aspectRatio: {
+      type: "select",
+      label: "Aspect Ratio",
+      options: [
+        { label: "Auto", value: "auto" },
+        { label: "Square (1:1)", value: "1/1" },
+        { label: "Standard (4:3)", value: "4/3" },
+        { label: "Widescreen (16:9)", value: "16/9" },
+        { label: "Ultra-wide (21:9)", value: "21/9" },
+      ],
+    },
+    rounded: {
+      type: "select",
+      label: "Border Radius",
+      options: [
+        { label: "None", value: "none" },
+        { label: "Small", value: "sm" },
+        { label: "Medium", value: "md" },
+        { label: "Large", value: "lg" },
+        { label: "Full", value: "full" },
+      ],
+    },
+    maxHeight: {
+      type: "number",
+      label: "Max Height (px)",
+      min: 0,
+    },
+    align: {
+      type: "radio",
+      label: "Alignment",
+      options: [
+        { label: "Left", value: "left" },
+        { label: "Center", value: "center" },
+        { label: "Right", value: "right" },
+      ],
+    },
+    dropShadow: {
+      type: "select",
+      label: "Drop Shadow",
+      options: [
+        { label: "None", value: "none" },
+        { label: "Extra Small", value: "xs" },
+        { label: "Small", value: "sm" },
+        { label: "Medium", value: "md" },
+        { label: "Large", value: "lg" },
+        { label: "Extra Large", value: "xl" },
+      ],
+    },
+    translations: {
       type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={imageBlockGroups}
-          />
-        );
-      },
-    } as any,
-  } as any,
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "alt", type: "text", label: "Alt Text" },
+          ]}
+        />
+      ),
+    },
+  },
   defaultProps: {
     src: "https://placehold.co/800x400",
     alt: "Image description",
@@ -114,14 +171,18 @@ export const ImageBlock: ComponentConfig<ImageBlockProps> = {
     }
 
     return (
-      <div className="w-full" style={containerStyle}>
-        <img
-          src={src}
-          alt={displayAlt}
-          className={maxHeight ? roundedClasses[rounded] : `w-full h-full ${objectFitClasses[objectFit]} ${roundedClasses[rounded]}`}
-          style={imageStyle}
-        />
-      </div>
+      <Section>
+        <div className="w-full" style={containerStyle}>
+          <img
+            src={src}
+            alt={displayAlt}
+            className={maxHeight ? roundedClasses[rounded] : `w-full h-full ${objectFitClasses[objectFit]} ${roundedClasses[rounded]}`}
+            style={imageStyle}
+          />
+        </div>
+      </Section>
     );
   },
 };
+
+export const ImageBlock = withLayout(ImageBlockInternal);

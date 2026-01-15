@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import type { ComponentConfig } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
 import { Loader2, ArrowRight, Repeat2, DollarSign, Sparkles } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
@@ -28,10 +27,9 @@ import {
   paddingDefaults,
   getPaddingValue,
 } from "../shared/fieldConfigs";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { paypalBlockGroups } from "../../fields/grouped/componentConfigs/paypalBlock";
+import { FontFamilyField } from "../../fields/FontFamilyField";
+import { ColorPickerField } from "../../fields/ColorPickerField";
+import { TranslationsField } from "../../fields/TranslationsField";
 
 type Mode = "one_time" | "recurring";
 
@@ -69,36 +67,95 @@ export type PaypalBlockProps = PaypalBlockPropsInner & {
 const PaypalBlockInternal: ComponentConfig<PaypalBlockPropsInner> = {
   label: "PayPal Donations",
   fields: {
-    heading: {
+    heading: { type: "text", label: "Heading" },
+    headingFont: {
       type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={paypalBlockGroups}
-          />
-        );
+      label: "Heading Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    headingColor: {
+      type: "custom",
+      label: "Heading Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    description: { type: "textarea", label: "Description" },
+    descriptionFont: {
+      type: "custom",
+      label: "Description Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    descriptionColor: {
+      type: "custom",
+      label: "Description Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    defaultAmount: {
+      type: "number",
+      label: "Default Amount",
+      min: 1,
+    },
+    defaultCurrency: {
+      type: "select",
+      label: "Currency",
+      options: [{ label: "USD", value: "USD" }],
+    },
+    defaultInterval: {
+      type: "select",
+      label: "Default Recurring Interval",
+      options: [
+        { label: "Weekly", value: "WEEK" },
+        { label: "Monthly", value: "MONTH" },
+        { label: "Yearly", value: "YEAR" },
+      ],
+    },
+    padding: {
+      type: "object",
+      objectFields: {
+        top: {
+          type: "select",
+          label: "Top Padding",
+          options: [
+            { label: "None", value: "none" },
+            { label: "Small", value: "small" },
+            { label: "Medium", value: "medium" },
+            { label: "Large", value: "large" },
+          ],
+        },
+        bottom: {
+          type: "select",
+          label: "Bottom Padding",
+          options: [
+            { label: "None", value: "none" },
+            { label: "Small", value: "small" },
+            { label: "Medium", value: "medium" },
+            { label: "Large", value: "large" },
+          ],
+        },
       },
-    } as any,
-  } as any,
+    },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "heading", type: "text", label: "Heading" },
+            { name: "description", type: "textarea", label: "Description" },
+          ]}
+        />
+      ),
+    },
+  },
   defaultProps: {
     heading: "Support with PayPal",
     description: "Give securely through PayPal. You can make a one-time gift or set up an automatic recurring donation.",

@@ -1,13 +1,11 @@
 import type { ComponentConfig } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { eventSectionBlockGroups } from "../../fields/grouped/componentConfigs/eventSectionBlock";
+import { FontFamilyField } from "../../fields/FontFamilyField";
+import { ColorPickerField } from "../../fields/ColorPickerField";
+import { TranslationsField } from "../../fields/TranslationsField";
 
 export type EventSectionBlockProps = {
   title: string;
@@ -22,35 +20,53 @@ export const EventSectionBlock: ComponentConfig<EventSectionBlockProps> = {
   label: "Events",
   fields: {
     title: {
+      type: "text",
+      label: "Section Title",
+    },
+    titleFont: {
       type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={eventSectionBlockGroups}
-          />
-        );
-      },
-    } as any,
-  } as any,
+      label: "Title Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    titleColor: {
+      type: "custom",
+      label: "Title Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    showTitle: {
+      type: "radio",
+      label: "Show Title",
+      options: [
+        { label: "Yes", value: true as any },
+        { label: "No", value: false as any },
+      ],
+    },
+    showFilters: {
+      type: "radio",
+      label: "Show Filters",
+      options: [
+        { label: "Yes", value: true as any },
+        { label: "No", value: false as any },
+      ],
+    },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "title", type: "text", label: "Section Title" },
+          ]}
+        />
+      ),
+    },
+  },
   defaultProps: {
     title: "Upcoming Events",
     titleFont: "",

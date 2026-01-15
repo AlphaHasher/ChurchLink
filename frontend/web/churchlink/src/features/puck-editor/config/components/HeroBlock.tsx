@@ -1,16 +1,11 @@
 "use client";
 
 import type { ComponentConfig } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { heroBlockGroups } from "../../fields/grouped/componentConfigs/heroBlock";
 import {
   badgeDefaults,
   buttonDefaults,
@@ -22,6 +17,10 @@ import { Badge } from "@/shared/components/ui/badge";
 import { CompoundButton } from "../../components/compound/CompoundButton";
 import { CompoundIcon } from "../../components/compound/CompoundIcon";
 import { CompoundImage } from "../../components/compound/CompoundImage";
+import { FontFamilyField } from "../../fields/FontFamilyField";
+import { ColorPickerField } from "../../fields/ColorPickerField";
+import { IconPickerField } from "../../fields/IconPickerField";
+import { TranslationsField } from "../../fields/TranslationsField";
 import { cn } from "@/lib/utils";
 
 type ButtonItem = {
@@ -81,36 +80,211 @@ export type HeroBlockProps = HeroBlockPropsInner & {
 const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
   label: "Hero",
   fields: {
-    heading: {
-      type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={heroBlockGroups}
-          />
-        );
+    badge: {
+      type: "object",
+      objectFields: {
+        label: { type: "text", label: "Label" },
+        url: { type: "text", label: "URL" },
+        variant: {
+          type: "select",
+          label: "Variant",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Secondary", value: "secondary" },
+            { label: "Destructive", value: "destructive" },
+            { label: "Outline", value: "outline" },
+          ],
+        },
       },
-    } as any,
-  } as any,
+    },
+    heading: { type: "text", label: "Heading" },
+    headingFont: {
+      type: "custom",
+      label: "Heading Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    headingColor: {
+      type: "custom",
+      label: "Heading Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    description: { type: "textarea", label: "Description" },
+    descriptionFont: {
+      type: "custom",
+      label: "Description Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    descriptionColor: {
+      type: "custom",
+      label: "Description Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    features: {
+      type: "array",
+      label: "Features",
+      max: 5,
+      arrayFields: {
+        icon: {
+          type: "custom",
+          label: "Icon",
+          render: ({ value, onChange }) => (
+            <IconPickerField value={value as string} onChange={onChange} />
+          ),
+        },
+        name: { type: "text", label: "Title" },
+        description: { type: "textarea", label: "Description" },
+      },
+      getItemSummary: (item) => (item as FeatureItem).name || "Feature",
+      defaultItemProps: {
+        icon: "check",
+        name: "Feature name",
+        description: "Description of the feature",
+      },
+    },
+    buttons: {
+      type: "array",
+      label: "Buttons",
+      max: 3,
+      arrayFields: {
+        label: { type: "text", label: "Label" },
+        url: { type: "text", label: "URL" },
+        variant: {
+          type: "select",
+          label: "Variant",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Secondary", value: "secondary" },
+            { label: "Outline", value: "outline" },
+            { label: "Ghost", value: "ghost" },
+          ],
+        },
+        size: {
+          type: "select",
+          label: "Size",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Small", value: "sm" },
+            { label: "Large", value: "lg" },
+          ],
+        },
+        icon: {
+          type: "custom",
+          label: "Icon",
+          render: ({ value, onChange }) => (
+            <IconPickerField value={value as string} onChange={onChange} />
+          ),
+        },
+      },
+      getItemSummary: (item) => (item as ButtonItem).label || "Button",
+      defaultItemProps: {
+        label: "Button",
+        url: "",
+        variant: "default" as const,
+        size: "default" as const,
+        icon: "none",
+      },
+    },
+    buttonFont: {
+      type: "custom",
+      label: "Button Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    images: {
+      type: "array",
+      label: "Images",
+      max: 10,
+      arrayFields: {
+        src: { type: "text", label: "Image URL" },
+        alt: { type: "text", label: "Alt Text" },
+      },
+      getItemSummary: (item) => (item as ImageItem).alt || "Image",
+      defaultItemProps: {
+        src: "",
+        alt: "Image description",
+      },
+    },
+    imageLayout: {
+      type: "select",
+      label: "Image Layout",
+      options: [
+        { label: "None", value: "none" },
+        { label: "Single Square (1x1)", value: "1x1" },
+        { label: "Three Image Cluster", value: "1x1-9x16-1x1" },
+        { label: "Wide Banner (16x9)", value: "16x9" },
+      ],
+    },
+    imageAspectRatio: {
+      type: "select",
+      label: "Aspect Ratio",
+      options: [
+        { label: "16:9 (Landscape)", value: "16x9" },
+        { label: "1:1 (Square)", value: "1x1" },
+        { label: "9:16 (Portrait)", value: "9x16" },
+      ],
+    },
+    contentAlign: {
+      type: "select",
+      label: "Content Alignment",
+      options: [
+        { label: "Center", value: "center" },
+        { label: "Left", value: "left" },
+      ],
+    },
+    padding: {
+      type: "object",
+      objectFields: {
+        top: {
+          type: "select",
+          label: "Top Padding",
+          options: [
+            { label: "None", value: "none" },
+            { label: "Small", value: "small" },
+            { label: "Medium", value: "medium" },
+            { label: "Large", value: "large" },
+          ],
+        },
+        bottom: {
+          type: "select",
+          label: "Bottom Padding",
+          options: [
+            { label: "None", value: "none" },
+            { label: "Small", value: "small" },
+            { label: "Medium", value: "medium" },
+            { label: "Large", value: "large" },
+          ],
+        },
+      },
+    },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "badge.label", type: "text", label: "Badge Label" },
+            { name: "heading", type: "text", label: "Heading" },
+            { name: "description", type: "textarea", label: "Description" },
+            { name: "features.0.name", type: "text", label: "Feature 1 Name" },
+            { name: "features.0.description", type: "textarea", label: "Feature 1 Description" },
+            { name: "buttons.0.label", type: "text", label: "Button 1 Label" },
+            { name: "buttons.1.label", type: "text", label: "Button 2 Label" },
+          ]}
+        />
+      ),
+    },
+  },
   defaultProps: {
     badge: badgeDefaults,
     heading: "Build something amazing",

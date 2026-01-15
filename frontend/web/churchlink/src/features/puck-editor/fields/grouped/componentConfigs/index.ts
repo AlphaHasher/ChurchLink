@@ -1,9 +1,0 @@
-export { heroBlockGroups } from './heroBlock';
-export { faqBlockGroups } from './faqBlock';
-export { paypalBlockGroups } from './paypalBlock';
-export { buttonBlockGroups } from './buttonBlock';
-export { textBlockGroups } from './textBlock';
-export { headingBlockGroups } from './headingBlock';
-export { eventSectionBlockGroups } from './eventSectionBlock';
-export { groupBlockGroups } from './groupBlock';
-export { imageBlockGroups } from './imageBlock';

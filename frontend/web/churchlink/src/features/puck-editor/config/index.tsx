@@ -10,11 +10,9 @@ import { DividerBlock, type DividerBlockProps } from "./components/DividerBlock"
 import { MapBlock, type MapBlockProps } from "./components/MapBlock";
 import { GroupBlock, type GroupBlockProps } from "./components/GroupBlock";
 import { EventSectionBlock, type EventSectionBlockProps } from "./components/EventSectionBlock";
-import { HeadingBlock, type HeadingBlockProps } from "./components/HeadingBlock";
 import { GridContainer, type GridContainerProps } from "./components/GridContainer";
 import { BlankBlock, type BlankBlockProps } from "./components/BlankBlock";
 import { SpaceBlock, type SpaceBlockProps } from "./components/SpaceBlock";
-import { RichTextBlock, type RichTextBlockProps } from "./components/RichTextBlock";
 import { FaqBlock, type FaqBlockProps } from "./components/FaqBlock";
 import { PaypalBlock, type PaypalBlockProps } from "./components/PaypalBlock";
 
@@ -33,11 +31,9 @@ type Props = {
   MapBlock: MapBlockProps;
   GroupBlock: GroupBlockProps;
   EventSectionBlock: EventSectionBlockProps;
-  HeadingBlock: HeadingBlockProps;
   GridContainer: GridContainerProps;
   BlankBlock: BlankBlockProps;
   SpaceBlock: SpaceBlockProps;
-  RichTextBlock: RichTextBlockProps;
   FaqBlock: FaqBlockProps;
   PaypalBlock: PaypalBlockProps;
 };
@@ -119,7 +115,7 @@ export const config: Config<Props, RootProps> = {
     },
     typography: {
       title: "Typography",
-      components: ["HeadingBlock", "TextBlock", "RichTextBlock"],
+      components: ["TextBlock"],
     },
     content: {
       title: "Content",
@@ -144,11 +140,9 @@ export const config: Config<Props, RootProps> = {
     MapBlock,
     GroupBlock,
     EventSectionBlock,
-    HeadingBlock,
     GridContainer,
     BlankBlock,
     SpaceBlock,
-    RichTextBlock,
     FaqBlock,
     PaypalBlock,
   },

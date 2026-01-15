@@ -1,11 +1,6 @@
 import type { ComponentConfig } from "@puckeditor/core";
 import type { ReactNode } from "react";
-import { usePuck } from "@puckeditor/core";
 import { withLayout } from "../shared/Layout";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { gridContainerGroups } from "../../fields/grouped/componentConfigs/gridContainer";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
 
 export type GridContainerProps = {
   name: string;
@@ -26,33 +21,26 @@ const GridContainerInternal: ComponentConfig<GridContainerPropsInner> = {
   label: "Grid Container",
   fields: {
     name: {
-      type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-          dispatch({ type: "setData", data: newData });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={gridContainerGroups}
-          />
-        );
-      },
-    } as any,
+      type: "text",
+      label: "Container Name",
+    },
+    layoutMode: {
+      type: "radio",
+      label: "Layout Mode",
+      options: [
+        { label: "Row", value: "row" },
+        { label: "Column", value: "column" },
+      ],
+    },
+    gap: {
+      type: "number",
+      label: "Gap (px)",
+      min: 0,
+    },
     children: {
       type: "slot",
     },
-  } as any,
+  },
   defaultProps: {
     name: "Container",
     layoutMode: "row",

@@ -1,5 +1,4 @@
 import type { ComponentConfig } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
@@ -9,10 +8,9 @@ import {
   paddingDefaults,
   getPaddingValue,
 } from "../shared/fieldConfigs";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { faqBlockGroups } from "../../fields/grouped/componentConfigs/faqBlock";
+import { FontFamilyField } from "../../fields/FontFamilyField";
+import { ColorPickerField } from "../../fields/ColorPickerField";
+import { TranslationsField } from "../../fields/TranslationsField";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ChevronDown } from "lucide-react";
 
@@ -49,35 +47,103 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
   label: "FAQ",
   fields: {
     faqs: {
-      type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={faqBlockGroups}
-          />
-        );
+      type: "array",
+      label: "FAQs",
+      max: 15,
+      arrayFields: {
+        question: { type: "text", label: "Question" },
+        answer: { type: "textarea", label: "Answer" },
       },
-    } as any,
-  } as any,
+      getItemSummary: (item) => (item as FaqItem).question || "Question",
+      defaultItemProps: {
+        question: "Question?",
+        answer: "Answer to the question.",
+      },
+    },
+    questionFont: {
+      type: "custom",
+      label: "Question Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    questionColor: {
+      type: "custom",
+      label: "Question Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    answerFont: {
+      type: "custom",
+      label: "Answer Font",
+      render: ({ value, onChange }) => (
+        <FontFamilyField value={value as string} onChange={onChange} />
+      ),
+    },
+    answerColor: {
+      type: "custom",
+      label: "Answer Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    columnLayout: {
+      type: "select",
+      label: "Column Layout",
+      options: [
+        { label: "Single Column", value: "single-column" },
+        { label: "Two Column", value: "two-column" },
+      ],
+    },
+    mode: {
+      type: "select",
+      label: "Mode",
+      options: [
+        { label: "Single Answer (one open at a time)", value: "single-answer" },
+        { label: "Multi Answer (multiple can be open)", value: "multi-answer" },
+      ],
+    },
+    padding: {
+      type: "object",
+      objectFields: {
+        top: {
+          type: "select",
+          label: "Top Padding",
+          options: [
+            { label: "None", value: "none" },
+            { label: "Small", value: "small" },
+            { label: "Medium", value: "medium" },
+            { label: "Large", value: "large" },
+          ],
+        },
+        bottom: {
+          type: "select",
+          label: "Bottom Padding",
+          options: [
+            { label: "None", value: "none" },
+            { label: "Small", value: "small" },
+            { label: "Medium", value: "medium" },
+            { label: "Large", value: "large" },
+          ],
+        },
+      },
+    },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "faqs.0.question", type: "text", label: "FAQ 1 Question" },
+            { name: "faqs.0.answer", type: "textarea", label: "FAQ 1 Answer" },
+          ]}
+        />
+      ),
+    },
+  },
   defaultProps: {
     faqs: [
       {

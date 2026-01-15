@@ -14,10 +14,7 @@ import {
   DialogDescription,
 } from "@/shared/components/ui/Dialog";
 import { Save } from "lucide-react";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { groupBlockGroups } from "../../fields/grouped/componentConfigs/groupBlock";
+import { ColorPickerField } from "../../fields/ColorPickerField";
 
 export type GroupBlockProps = {
   name: string;
@@ -231,34 +228,76 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
   label: "Group",
   fields: {
     name: {
+      type: "text",
+      label: "Group Name",
+    },
+    backgroundType: {
+      type: "radio",
+      label: "Background Type",
+      options: [
+        { label: "Color", value: "color" },
+        { label: "Image", value: "image" },
+      ],
+    },
+    backgroundColor: {
       type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={groupBlockGroups}
-          />
-        );
+      label: "Background Color",
+      render: ({ value, onChange }) => (
+        <ColorPickerField value={value as string} onChange={onChange} />
+      ),
+    },
+    backgroundImage: {
+      type: "object",
+      objectFields: {
+        url: { type: "text", label: "Image URL" },
+        brightness: { type: "number", label: "Brightness (%)", min: 0, max: 200 },
+        size: {
+          type: "radio",
+          label: "Scaling",
+          options: [
+            { label: "Cover", value: "cover" },
+            { label: "Contain", value: "contain" },
+            { label: "Auto", value: "auto" },
+          ],
+        },
+        position: {
+          type: "radio",
+          label: "Position",
+          options: [
+            { label: "Center", value: "center" },
+            { label: "Top", value: "top" },
+            { label: "Bottom", value: "bottom" },
+            { label: "Left", value: "left" },
+            { label: "Right", value: "right" },
+          ],
+        },
+        maxHeight: { type: "number", label: "Max Height (px)", min: 0 },
+        fixed: {
+          type: "radio",
+          label: "Parallax Effect",
+          options: [
+            { label: "Yes", value: true as any },
+            { label: "No", value: false as any },
+          ],
+        },
+        overlay: {
+          type: "custom",
+          label: "Color Overlay",
+          render: ({ value, onChange }) => (
+            <ColorPickerField value={value as string} onChange={onChange} />
+          ),
+        },
       },
-    } as any,
+    },
+    verticalAlign: {
+      type: "radio",
+      label: "Vertical Alignment",
+      options: [
+        { label: "Top", value: "top" },
+        { label: "Center", value: "center" },
+        { label: "Bottom", value: "bottom" },
+      ],
+    },
     children: {
       type: "slot",
       // No allow/disallow restrictions - any component can be placed inside

@@ -1,17 +1,15 @@
 import type { ComponentConfig } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import { usePuckLanguage } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { buttonDefaults } from "../shared/fieldConfigs";
 import { CompoundButton } from "../../components/compound/CompoundButton";
+import { IconPickerField } from "../../fields/IconPickerField";
+import { FontFamilyField } from "../../fields/FontFamilyField";
+import { ColorPickerField } from "../../fields/ColorPickerField";
+import { TranslationsField } from "../../fields/TranslationsField";
 import { cn } from "@/lib/utils";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { buttonBlockGroups } from "../../fields/grouped/componentConfigs/buttonBlock";
 
 type ButtonItem = {
   label: string;
@@ -43,37 +41,118 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
   label: "Button",
   fields: {
     buttons: {
-      type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={buttonBlockGroups}
-          />
-        );
+      type: "array",
+      label: "Buttons",
+      arrayFields: {
+        label: {
+          type: "text",
+          label: "Label",
+        },
+        url: {
+          type: "text",
+          label: "URL",
+        },
+        variant: {
+          type: "select",
+          label: "Variant",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Secondary", value: "secondary" },
+            { label: "Outline", value: "outline" },
+            { label: "Ghost", value: "ghost" },
+            { label: "Link", value: "link" },
+            { label: "Destructive", value: "destructive" },
+          ],
+        },
+        size: {
+          type: "select",
+          label: "Size",
+          options: [
+            { label: "Default", value: "default" },
+            { label: "Small", value: "sm" },
+            { label: "Large", value: "lg" },
+            { label: "Icon", value: "icon" },
+          ],
+        },
+        icon: {
+          type: "custom",
+          label: "Icon",
+          render: ({ value, onChange }) => (
+            <IconPickerField value={value as string} onChange={onChange} />
+          ),
+        },
+        fontFamily: {
+          type: "custom",
+          label: "Font Family",
+          render: ({ value, onChange }) => (
+            <FontFamilyField value={value as string} onChange={onChange} />
+          ),
+        },
+        labelColor: {
+          type: "custom",
+          label: "Label Color",
+          render: ({ value, onChange }) => (
+            <ColorPickerField value={value as string} onChange={onChange} />
+          ),
+        },
+        backgroundColor: {
+          type: "custom",
+          label: "Background Color",
+          render: ({ value, onChange }) => (
+            <ColorPickerField value={value as string} onChange={onChange} />
+          ),
+        },
       },
-    } as any,
-  } as any,
+      getItemSummary: (item) => (item as ButtonItem).label || "Button",
+      defaultItemProps: {
+        label: "Button",
+        url: "",
+        variant: "default" as const,
+        size: "default" as const,
+        icon: "none",
+        fontFamily: "",
+        labelColor: "",
+        backgroundColor: "",
+      },
+    },
+    align: {
+      type: "radio",
+      label: "Alignment",
+      options: [
+        { label: "Left", value: "left" },
+        { label: "Center", value: "center" },
+        { label: "Right", value: "right" },
+      ],
+    },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "buttons.0.label", type: "text", label: "Button 1 Label" },
+            { name: "buttons.1.label", type: "text", label: "Button 2 Label" },
+            { name: "buttons.2.label", type: "text", label: "Button 3 Label" },
+          ]}
+        />
+      ),
+    },
+  },
   defaultProps: {
-    buttons: [{ ...buttonDefaults, label: "Button", fontFamily: "", labelColor: "", backgroundColor: "" }],
+    buttons: [
+      {
+        label: "Button",
+        url: "",
+        variant: "default",
+        size: "default",
+        icon: "none",
+        fontFamily: "",
+        labelColor: "",
+        backgroundColor: "",
+      },
+    ],
     align: "left",
     translations: {},
   },

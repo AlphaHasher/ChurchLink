@@ -1,28 +1,28 @@
+import React from "react";
 import type { ComponentConfig } from "@puckeditor/core";
-import { usePuck } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import styles from "../../styles/components/Text.module.css";
 import { getClassNameFactory } from "../../utils/classNames";
-import { usePuckLanguage } from "../../context/PuckLanguageContext";
-import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
-import { extractComponentId } from "../../utils/puckFieldUtils";
-import { findComponentRecursive, updateComponentRecursive } from "../../utils/puckDataUtils";
-import { GroupedFieldsPanel } from "../../fields/grouped/GroupedFieldsPanel";
-import { textBlockGroups } from "../../fields/grouped/componentConfigs/textBlock";
-import { getShadowStyle, type ShadowPreset } from "../../utils/shadowPresets";
+import { getShadowStyle, shadowPresetLabels, type ShadowPreset } from "../../utils/shadowPresets";
+import { FontFamilyField } from "../../fields/FontFamilyField";
+import { ColorPickerField } from "../../fields/ColorPickerField";
+import { TranslationsField } from "../../fields/TranslationsField";
+import type { TranslationMap } from "../../utils/languageUtils";
 
 const getClassName = getClassNameFactory("Text", styles);
 
 export type TextBlockPropsInner = {
-  text: string;
-  typography?: { fontFamily?: string; color?: string };
-  size: "s" | "m";
+  content: string;           // HTML from richtext field
+  level: "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+  typography?: {
+    fontFamily?: string;
+    color?: string
+  };
   align: "left" | "center" | "right";
-  color: "default" | "muted";
-  maxWidth?: number;
   shadow?: ShadowPreset;
+  maxWidth?: number;
   translations?: TranslationMap;
 };
 
@@ -38,78 +38,115 @@ export type TextBlockProps = TextBlockPropsInner & {
 const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
   label: "Text",
   fields: {
-    text: {
-      type: "custom",
-      label: "Settings",
-      render: ({ id }: { id: string }) => {
-        const componentId = extractComponentId(id);
-        const { appState, dispatch } = usePuck();
-        const componentResult = findComponentRecursive(appState.data, componentId);
-        const component = componentResult?.component;
-
-        const handleChange = (newProps: Record<string, unknown>) => {
-          if (!component) return;
-
-          const newData = updateComponentRecursive(appState.data, componentId, newProps);
-
-          dispatch({
-            type: "setData",
-            data: newData,
-          });
-        };
-
-        return (
-          <GroupedFieldsPanel
-            value={(component?.props as Record<string, unknown>) || {}}
-            onChange={handleChange}
-            config={textBlockGroups}
-          />
-        );
+    content: {
+      type: "richtext",
+      label: "Content",
+    },
+    level: {
+      type: "select",
+      label: "Element Type",
+      options: [
+        { label: "Paragraph", value: "p" },
+        { label: "Heading 1 (H1)", value: "h1" },
+        { label: "Heading 2 (H2)", value: "h2" },
+        { label: "Heading 3 (H3)", value: "h3" },
+        { label: "Heading 4 (H4)", value: "h4" },
+        { label: "Heading 5 (H5)", value: "h5" },
+        { label: "Heading 6 (H6)", value: "h6" },
+      ],
+    },
+    typography: {
+      type: "object",
+      objectFields: {
+        fontFamily: {
+          type: "custom",
+          label: "Font Family",
+          render: ({ value, onChange }) => (
+            <FontFamilyField value={value as string} onChange={onChange} />
+          ),
+        },
+        color: {
+          type: "custom",
+          label: "Color",
+          render: ({ value, onChange }) => (
+            <ColorPickerField value={value as string} onChange={onChange} />
+          ),
+        },
       },
-    } as any,
-  } as any,
+    },
+    align: {
+      type: "radio",
+      label: "Alignment",
+      options: [
+        { label: "Left", value: "left" },
+        { label: "Center", value: "center" },
+        { label: "Right", value: "right" },
+      ],
+    },
+    shadow: {
+      type: "select",
+      label: "Drop Shadow",
+      options: Object.entries(shadowPresetLabels).map(([value, label]) => ({
+        label,
+        value,
+      })),
+    },
+    maxWidth: {
+      type: "number",
+      label: "Max Width (px)",
+      min: 0,
+    },
+    translations: {
+      type: "custom",
+      label: "Translations",
+      render: ({ value, onChange }) => (
+        <TranslationsField
+          value={value as TranslationMap}
+          onChange={onChange}
+          translatableFields={[
+            { name: "content", type: "textarea", label: "Content" },
+          ]}
+        />
+      ),
+    },
+  },
   defaultProps: {
-    text: "Text",
-    typography: { fontFamily: "", color: "#000000" },
-    size: "m",
+    content: "Enter your text here...",
+    level: "p",
+    typography: { fontFamily: "", color: "" },
     align: "left",
-    color: "default",
-    maxWidth: undefined,
     shadow: "none",
+    maxWidth: undefined,
     translations: {},
   },
-  render: ({ text, typography, size, align, color, maxWidth, shadow, translations }) => {
-    let previewLanguage = "en";
-    try {
-      const context = usePuckLanguage();
-      previewLanguage = context.previewLanguage;
-    } catch {
-      // Not in editor context
-    }
-
-    const displayText = getTranslation(translations, previewLanguage, "text") || text;
-
-    const fontSize = size === "m" ? "20px" : "16px";
-    const colorValue = typography?.color || (color === "muted" ? "var(--puck-color-grey-05)" : "inherit");
-
+  render: ({ content, level, typography, align, shadow, maxWidth }) => {
     const fontStyles = getFontFamilyStyle(typography?.fontFamily);
+
+    // Dynamic font sizes based on level
+    const fontSizeMap = {
+      h1: "3rem",      // 48px
+      h2: "2.5rem",    // 40px
+      h3: "2rem",      // 32px
+      h4: "1.5rem",    // 24px
+      h5: "1.25rem",   // 20px
+      h6: "1rem",      // 16px
+      p: "1rem",       // 16px
+    };
 
     return (
       <Section>
-        <p
-          className={getClassName()}
-          style={{
-            fontSize,
+        {React.createElement(level, {
+          className: getClassName(),
+          style: {
             textAlign: align,
-            color: colorValue,
+            fontSize: fontSizeMap[level],
+            color: typography?.color || "inherit",
             maxWidth: maxWidth ? `${maxWidth}px` : undefined,
-            whiteSpace: "pre-wrap",
             ...fontStyles,
-            ...(shadow && getShadowStyle(shadow as ShadowPreset)),
-          }}
-        >
-          {displayText}
-        </p>
+            ...(shadow && shadow !== "none" ? getShadowStyle(shadow) : {}),
+          },
+          children: content,
+        })}
       </Section>
     );
   },

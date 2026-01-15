@@ -332,7 +332,6 @@ export default function PuckEditor() {
                   const transformed = transformTemplatesToGroups(newData, templates);
                   updateData(transformed);
                 }}
-                iframe={{ enabled: false }}
                 overrides={{
                   header: () => {
                     // Render UndoRedoButtons into portal if available
