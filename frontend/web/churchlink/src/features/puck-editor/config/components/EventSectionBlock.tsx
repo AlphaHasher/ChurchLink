@@ -1,6 +1,6 @@
 import type { ComponentConfig } from "@puckeditor/core";
 import EventSection from "@/features/admin/components/WebBuilder/sections/EventSection";
-import { usePuckLanguage } from "../../context/PuckLanguageContext";
+import { usePreviewLanguageSafe } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { FontFamilyField } from "../../fields/FontFamilyField";
@@ -76,16 +76,7 @@ export const EventSectionBlock: ComponentConfig<EventSectionBlockProps> = {
     translations: {},
   },
   render: ({ title, titleFont, titleColor, showTitle, showFilters, translations }) => {
-    // Try to use preview language context, but gracefully handle if not in editor
-    let previewLanguage = "en";
-    try {
-      const context = usePuckLanguage();
-      previewLanguage = context.previewLanguage;
-    } catch {
-      // Not in editor context (e.g., public page renderer) - will be handled by localizeComponentData
-    }
-
-    // Use translated title if available, otherwise use default
+    const previewLanguage = usePreviewLanguageSafe();
     const displayTitle = getTranslation(translations, previewLanguage, "title") || title;
     const titleFontStyles = getFontFamilyStyle(titleFont);
     const titleFontFamily = titleFontStyles?.fontFamily as string | undefined;

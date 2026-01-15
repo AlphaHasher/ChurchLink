@@ -3,11 +3,6 @@ import type { CustomTemplate } from "../hooks/useCustomTemplates";
 import { config as baseConfig, type PuckData } from "./index";
 import { GroupBlock } from "./components/GroupBlock";
 
-// Deep clone utility to avoid reference sharing between template instances
-function deepClone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
-}
-
 // Helper to generate a unique component key from template name
 function templateToComponentKey(name: string): string {
   // Convert "My Template Name" to "Template_MyTemplateName"
@@ -25,14 +20,13 @@ function createTemplateComponent(template: CustomTemplate): ComponentConfig<any>
   const templateChildren = templateData.props?.children || templateData.content || [];
 
   // Use GroupBlock's structure but with template's children as defaultProps
-  // This ensures the component picker shows the template with correct structure
   return {
     label: template.name,
     fields: GroupBlock.fields,
     defaultProps: {
       name: template.name,
       // Deep clone to ensure each instance gets independent component objects
-      children: deepClone(templateChildren),
+      children: JSON.parse(JSON.stringify(templateChildren)),
     },
     render: GroupBlock.render,
   };

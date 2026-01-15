@@ -1,4 +1,12 @@
 import type { CSSProperties } from "react";
+import type { ComponentData, Data } from "@puckeditor/core";
+
+// Font property names to scan for in components
+const FONT_PROPS = [
+  "fontFamily", "headingFont", "descriptionFont", "buttonFont",
+  "titleFont", "labelFont", "valueFont", "cardHeadingFont", "cardDescriptionFont",
+  "questionFont", "answerFont"
+];
 
 // Track loaded fonts to avoid duplicate <link> tags
 const loadedFonts = new Set<string>();
@@ -148,4 +156,34 @@ function initIframeObserver(): void {
   if (document.body) {
     observer.observe(document.body, { childList: true, subtree: true });
   }
+}
+
+// Extract all font values from page data - shared across PuckEditor and PuckPageRenderer
+export function extractFontsFromData(data: Data): Set<string> {
+  const fonts = new Set<string>();
+
+  function scanComponent(comp: ComponentData) {
+    if (!comp.props) return;
+
+    for (const propName of FONT_PROPS) {
+      const fontValue = comp.props[propName];
+      if (typeof fontValue === "string" && fontValue) {
+        fonts.add(fontValue);
+      }
+    }
+
+    // Check nested typography object
+    const typography = comp.props.typography as Record<string, unknown> | undefined;
+    if (typography?.fontFamily && typeof typography.fontFamily === "string") {
+      fonts.add(typography.fontFamily);
+    }
+
+    // Recursively handle children (GroupBlock, GridContainer slots)
+    if (Array.isArray(comp.props.children)) {
+      (comp.props.children as ComponentData[]).forEach(scanComponent);
+    }
+  }
+
+  data.content?.forEach(scanComponent);
+  return fonts;
 }

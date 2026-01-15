@@ -3,7 +3,7 @@
 import type { ComponentConfig } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
-import { usePuckLanguage } from "../../context/PuckLanguageContext";
+import { usePreviewLanguageSafe } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import {
@@ -325,14 +325,7 @@ const HeroBlockInternal: ComponentConfig<HeroBlockPropsInner> = {
     translations,
     puck,
   }) => {
-    let previewLanguage = "en";
-    try {
-      const context = usePuckLanguage();
-      previewLanguage = context.previewLanguage;
-    } catch {
-      // Not in editor context
-    }
-
+    const previewLanguage = usePreviewLanguageSafe();
     const displayHeading = getTranslation(translations, previewLanguage, "heading") || heading;
     const displayDescription = getTranslation(translations, previewLanguage, "description") || description;
     const displayBadgeLabel = getTranslation(translations, previewLanguage, "badge.label") || badge?.label || "";

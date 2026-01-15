@@ -53,3 +53,13 @@ export function usePuckLanguage() {
   }
   return context;
 }
+
+// Safe hook for components that may render outside PuckLanguageProvider (e.g., public pages)
+export function usePreviewLanguageSafe(): string {
+  try {
+    const { previewLanguage } = usePuckLanguage();
+    return previewLanguage;
+  } catch {
+    return "en";
+  }
+}

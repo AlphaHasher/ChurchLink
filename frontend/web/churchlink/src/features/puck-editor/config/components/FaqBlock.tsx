@@ -1,7 +1,7 @@
 import type { ComponentConfig } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
-import { usePuckLanguage } from "../../context/PuckLanguageContext";
+import { usePreviewLanguageSafe } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getFontFamilyStyle } from "../../utils/fontLoader";
 import {
@@ -171,13 +171,7 @@ const FaqBlockInternal: ComponentConfig<FaqBlockPropsInner> = {
     padding,
     translations,
   }) => {
-    let previewLanguage = "en";
-    try {
-      const context = usePuckLanguage();
-      previewLanguage = context.previewLanguage;
-    } catch {
-      // Not in editor context
-    }
+    const previewLanguage = usePreviewLanguageSafe();
 
     const questionFontStyles = getFontFamilyStyle(questionFont);
     const answerFontStyles = getFontFamilyStyle(answerFont);

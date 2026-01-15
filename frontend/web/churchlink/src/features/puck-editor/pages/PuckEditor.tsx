@@ -1,6 +1,30 @@
 import { useMemo, useCallback, useState, useEffect, Component, type ReactNode, type ErrorInfo } from "react";
 import { Puck } from "@puckeditor/core";
-import type { ComponentData, Data } from "@puckeditor/core";
+import type { ComponentData } from "@puckeditor/core";
+import "@puckeditor/core/no-external.css";
+import "../styles/puck-dark-overrides.css";
+import "../styles/puck-fonts.css";
+import { useParams, useNavigate } from "react-router-dom";
+import { buildConfigWithTemplates } from "../config/buildConfigWithTemplates";
+import { usePuckPage } from "../hooks/usePuckPage";
+import { useCustomTemplates, type CustomTemplate } from "../hooks/useCustomTemplates";
+import { TemplateProvider } from "../context/TemplateContext";
+import { PuckLanguageProvider, usePuckLanguage } from "../context/PuckLanguageContext";
+import { Skeleton } from "@/shared/components/ui/skeleton";
+import { ManageGroupsDialog } from "../components/ManageGroupsDialog";
+import { PuckHeaderOverride } from "../components/PuckHeaderOverride";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import { Globe, X } from "lucide-react";
+import Layout from "@/shared/layouts/Layout";
+import { PuckPageRenderer } from "../components/PuckPageRenderer";
+import { LANGUAGES } from "../utils/languageUtils";
+import { loadGoogleFont, extractFontsFromData } from "../utils/fontLoader";
 
 // Error boundary to catch Puck internal errors (e.g., during deletion)
 class PuckErrorBoundary extends Component<
@@ -43,54 +67,18 @@ class PuckErrorBoundary extends Component<
     return this.props.children;
   }
 }
-import "@puckeditor/core/no-external.css";
-import "../styles/puck-dark-overrides.css";
-import "../styles/puck-fonts.css";
-import { useParams, useNavigate } from "react-router-dom";
-import { buildConfigWithTemplates } from "../config/buildConfigWithTemplates";
-import { usePuckPage } from "../hooks/usePuckPage";
-import { useCustomTemplates, type CustomTemplate } from "../hooks/useCustomTemplates";
-import { TemplateProvider } from "../context/TemplateContext";
-import { PuckLanguageProvider, usePuckLanguage } from "../context/PuckLanguageContext";
-import { Skeleton } from "@/shared/components/ui/skeleton";
-import { ManageGroupsDialog } from "../components/ManageGroupsDialog";
-import { PuckHeaderOverride } from "../components/PuckHeaderOverride";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
-import { Globe, X } from "lucide-react";
-import Layout from "@/shared/layouts/Layout";
-import { PuckPageRenderer } from "../components/PuckPageRenderer";
-import { LANGUAGES } from "../utils/languageUtils";
-import { loadGoogleFont } from "../utils/fontLoader";
 
-// Font property names to scan for in components
-const FONT_PROPS = ["fontFamily", "headingFont", "descriptionFont", "buttonFont", "titleFont", "labelFont", "valueFont", "cardHeadingFont", "cardDescriptionFont"];
-
-// Extract all font values from page data
-function extractFontsFromData(data: Data): Set<string> {
-  const fonts = new Set<string>();
-
-  const scanComponent = (comp: ComponentData) => {
-    if (comp.props) {
-      for (const propName of FONT_PROPS) {
-        const fontValue = comp.props[propName];
-        if (typeof fontValue === "string" && fontValue) {
-          fonts.add(fontValue);
-        }
-      }
-      if (Array.isArray(comp.props.children)) {
-        (comp.props.children as ComponentData[]).forEach(scanComponent);
-      }
-    }
-  };
-
-  data.content?.forEach(scanComponent);
-  return fonts;
+// Loading skeleton for editor loading states
+function LoadingSkeleton() {
+  return (
+    <div className="h-screen flex items-center justify-center">
+      <div className="space-y-4 w-full max-w-md">
+        <Skeleton className="h-8 w-1/2" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+      </div>
+    </div>
+  );
 }
 
 // Transform Template_* components to GroupBlock
@@ -170,9 +158,7 @@ export default function PuckEditor() {
   }, [templates]);
 
   // Extract fonts from page data for iframe injection
-  const pageFonts = useMemo(() => {
-    return extractFontsFromData(data as Data);
-  }, [data]);
+  const pageFonts = useMemo(() => extractFontsFromData(data), [data]);
 
   // Also load fonts in main document (for preview mode)
   useEffect(() => {
@@ -189,29 +175,9 @@ export default function PuckEditor() {
     [saveTemplate]
   );
 
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-md">
-          <Skeleton className="h-8 w-1/2" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      </div>
-    );
-  }
-
-  // Wait for templates to load to avoid race condition with template component registration
-  if (templatesLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-md">
-          <Skeleton className="h-8 w-1/2" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-3/4" />
-        </div>
-      </div>
-    );
+  // Wait for page data and templates to load
+  if (loading || templatesLoading) {
+    return <LoadingSkeleton />;
   }
 
   if (error) {

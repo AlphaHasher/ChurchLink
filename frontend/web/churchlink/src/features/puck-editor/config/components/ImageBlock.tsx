@@ -1,7 +1,7 @@
 import type { ComponentConfig } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
-import { usePuckLanguage } from "../../context/PuckLanguageContext";
+import { usePreviewLanguageSafe } from "../../context/PuckLanguageContext";
 import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
 import { getDropShadowStyle, type ShadowPreset } from "../../utils/shadowPresets";
 import { TranslationsField } from "../../fields/TranslationsField";
@@ -122,16 +122,7 @@ const ImageBlockInternal: ComponentConfig<ImageBlockPropsInner> = {
     translations: {},
   },
   render: ({ src, alt, objectFit, aspectRatio, rounded, maxHeight, align, dropShadow, translations }) => {
-    // Try to use preview language context, but gracefully handle if not in editor
-    let previewLanguage = "en";
-    try {
-      const context = usePuckLanguage();
-      previewLanguage = context.previewLanguage;
-    } catch {
-      // Not in editor context (e.g., public page renderer) - will be handled by localizeComponentData
-    }
-
-    // Use translated alt text if available, otherwise use default
+    const previewLanguage = usePreviewLanguageSafe();
     const displayAlt = getTranslation(translations, previewLanguage, "alt") || alt;
 
     const objectFitClasses: Record<string, string> = {

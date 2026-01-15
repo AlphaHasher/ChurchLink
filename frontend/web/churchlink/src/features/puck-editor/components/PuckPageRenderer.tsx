@@ -3,7 +3,7 @@ import { Render } from "@puckeditor/core";
 import { config, type PuckData } from "../config";
 import { useLanguage } from "@/provider/LanguageProvider";
 import { localizeComponentData } from "../utils/languageUtils";
-import { loadGoogleFont } from "../utils/fontLoader";
+import { loadGoogleFont, extractFontsFromData } from "../utils/fontLoader";
 
 interface PuckPageRendererProps {
   data: PuckData;
@@ -43,31 +43,8 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
 
   // Load all fonts used in page data
   useEffect(() => {
-    // Font prop names to look for
-    const fontProps = ["fontFamily", "titleFont", "descriptionFont", "buttonFont", "labelFont", "valueFont"];
-
-    const loadPageFonts = (components: unknown[]) => {
-      components.forEach((comp: unknown) => {
-        const component = comp as { props?: Record<string, unknown> };
-        if (component.props) {
-          // Check all font-related props
-          for (const propName of fontProps) {
-            const fontValue = component.props[propName];
-            if (typeof fontValue === "string" && fontValue) {
-              loadGoogleFont(fontValue);
-            }
-          }
-          // Recursively handle nested children (GroupBlock, FlexBlock, GridBlock)
-          if (Array.isArray(component.props.children)) {
-            loadPageFonts(component.props.children as unknown[]);
-          }
-        }
-      });
-    };
-
-    if (localizedData.content) {
-      loadPageFonts(localizedData.content);
-    }
+    const fonts = extractFontsFromData(localizedData);
+    fonts.forEach(loadGoogleFont);
   }, [localizedData]);
 
   const marginClass = pageMargins !== "custom" ? marginClasses[pageMargins] : "";

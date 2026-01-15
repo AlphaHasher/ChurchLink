@@ -276,7 +276,9 @@ export const GroupBlock: ComponentConfig<GroupBlockProps> = {
           type: "radio",
           label: "Parallax Effect",
           options: [
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: "Yes", value: true as any },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { label: "No", value: false as any },
           ],
         },
