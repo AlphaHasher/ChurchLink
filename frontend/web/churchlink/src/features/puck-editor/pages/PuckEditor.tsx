@@ -53,10 +53,8 @@ import { useCustomTemplates, type CustomTemplate } from "../hooks/useCustomTempl
 import { TemplateProvider } from "../context/TemplateContext";
 import { PuckLanguageProvider, usePuckLanguage } from "../context/PuckLanguageContext";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { ModeToggle } from "@/shared/components/ModeToggle";
 import { ManageGroupsDialog } from "../components/ManageGroupsDialog";
-import { UndoRedoButtons } from "../components/UndoRedoButtons";
-import { Button } from "@/shared/components/ui/button";
+import { PuckHeaderOverride } from "../components/PuckHeaderOverride";
 import {
   Select,
   SelectContent,
@@ -64,8 +62,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { LayoutGrid, ArrowLeft, Eye, X, Globe } from "lucide-react";
-import { createPortal } from "react-dom";
+import { Globe, X } from "lucide-react";
 import Layout from "@/shared/layouts/Layout";
 import { PuckPageRenderer } from "../components/PuckPageRenderer";
 import { LANGUAGES } from "../utils/languageUtils";
@@ -147,7 +144,6 @@ export default function PuckEditor() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [manageGroupsOpen, setManageGroupsOpen] = useState(false);
-  const [undoRedoPortal, setUndoRedoPortal] = useState<HTMLElement | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   const {
@@ -244,82 +240,8 @@ export default function PuckEditor() {
             setIsPreviewMode={setIsPreviewMode}
           />
         ) : (
-        // EDIT MODE - Normal Puck editor
-        <div className="h-screen flex flex-col bg-background overflow-hidden">
-          {/* Header - Outside Puck Layout */}
-          <header className="flex items-center gap-3 px-6 py-3 bg-background border-b shrink-0">
-            {/* Left Section - Back Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/admin/webbuilder")}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-
-            <div className="h-6 w-px bg-border" />
-
-            {/* Center/Flex Section - Title with Status and Language Selector */}
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-base truncate">{slug || "home"}</span>
-                {publishing && (
-                  <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded font-medium whitespace-nowrap">
-                    Publishing...
-                  </span>
-                )}
-                {isPublished && !publishing && (
-                  <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded font-medium whitespace-nowrap">
-                    Live
-                  </span>
-                )}
-              </div>
-
-              {/* Language Selector */}
-              <LanguageSelector />
-            </div>
-
-            <div className="h-6 w-px bg-border" />
-
-            {/* Undo/Redo buttons portal target */}
-            <div ref={setUndoRedoPortal} />
-
-            <div className="h-6 w-px bg-border" />
-
-            {/* Right Section - Tools and Controls */}
-            <div className="flex items-center gap-2 shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setManageGroupsOpen(true)}
-              >
-                <LayoutGrid className="h-4 w-4 mr-2" />
-                Manage Groups
-              </Button>
-              <div className="h-6 w-px bg-border" />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsPreviewMode(true)}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Preview
-              </Button>
-              <div className="h-6 w-px bg-border" />
-              <ModeToggle />
-              <Button
-                size="sm"
-                onClick={publish}
-                disabled={publishing}
-              >
-                {publishing ? "Publishing..." : "Publish"}
-              </Button>
-            </div>
-          </header>
-
-          {/* Puck Editor - Takes remaining space */}
-          <div className="flex-1 min-h-0">
+          // EDIT MODE - Puck with header override
+          <div className="h-screen flex flex-col">
             <PuckErrorBoundary onReset={() => window.location.reload()}>
               <Puck
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -333,50 +255,28 @@ export default function PuckEditor() {
                   updateData(transformed);
                 }}
                 overrides={{
-                  header: () => {
-                    // Render UndoRedoButtons into portal if available
-                    if (undoRedoPortal) {
-                      return createPortal(<UndoRedoButtons />, undoRedoPortal);
-                    }
-                    return <></>;
-                  },
+                  header: () => (
+                    <PuckHeaderOverride
+                      slug={slug || "home"}
+                      onBack={() => navigate("/admin/webbuilder")}
+                      onPreview={() => setIsPreviewMode(true)}
+                      onManageGroups={() => setManageGroupsOpen(true)}
+                      onPublish={publish}
+                      publishing={publishing}
+                      isPublished={isPublished}
+                    />
+                  ),
                 }}
               />
             </PuckErrorBoundary>
+            <ManageGroupsDialog
+              open={manageGroupsOpen}
+              onOpenChange={setManageGroupsOpen}
+            />
           </div>
-          <ManageGroupsDialog
-            open={manageGroupsOpen}
-            onOpenChange={setManageGroupsOpen}
-          />
-        </div>
         )}
       </PuckLanguageProvider>
     </TemplateProvider>
-  );
-}
-
-// Language Selector Component
-function LanguageSelector() {
-  const { previewLanguage, setPreviewLanguage, availableLanguages } = usePuckLanguage();
-
-  if (availableLanguages.length <= 1) {
-    return null; // Don't show selector if only default language
-  }
-
-  return (
-    <Select value={previewLanguage} onValueChange={setPreviewLanguage}>
-      <SelectTrigger className="w-[180px] h-8">
-        <Globe className="h-4 w-4 mr-2" />
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {availableLanguages.map((lang) => (
-          <SelectItem key={lang} value={lang}>
-            {LANGUAGES[lang] || lang} ({lang})
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }
 
