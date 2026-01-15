@@ -20,7 +20,6 @@ export type TextBlockPropsInner = {
     fontFamily?: string;
     color?: string
   };
-  align: "left" | "center" | "right";
   shadow?: ShadowPreset;
   maxWidth?: number;
   translations?: TranslationMap;
@@ -74,15 +73,6 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
         },
       },
     },
-    align: {
-      type: "radio",
-      label: "Alignment",
-      options: [
-        { label: "Left", value: "left" },
-        { label: "Center", value: "center" },
-        { label: "Right", value: "right" },
-      ],
-    },
     shadow: {
       type: "select",
       label: "Drop Shadow",
@@ -114,12 +104,11 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     content: "Enter your text here...",
     level: "p",
     typography: { fontFamily: "", color: "" },
-    align: "left",
     shadow: "none",
     maxWidth: undefined,
     translations: {},
   },
-  render: ({ content, level, typography, align, shadow, maxWidth }) => {
+  render: ({ content, level, typography, shadow, maxWidth }) => {
     const fontStyles = getFontFamilyStyle(typography?.fontFamily);
 
     // Dynamic font sizes based on level
@@ -138,7 +127,6 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
         {React.createElement(level, {
           className: getClassName(),
           style: {
-            textAlign: align,
             fontSize: fontSizeMap[level],
             color: typography?.color || "inherit",
             maxWidth: maxWidth ? `${maxWidth}px` : undefined,
