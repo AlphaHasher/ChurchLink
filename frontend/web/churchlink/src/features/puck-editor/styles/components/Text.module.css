@@ -2,3 +2,9 @@
   line-height: 1.5;
   padding: 0px;
 }
+
+.Text * {
+  font-family: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+}

@@ -1,4 +1,3 @@
-import React from "react";
 import type { ComponentConfig } from "@puckeditor/core";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
@@ -12,6 +11,16 @@ import { TranslationsField } from "../../fields/TranslationsField";
 import type { TranslationMap } from "../../utils/languageUtils";
 
 const getClassName = getClassNameFactory("Text", styles);
+
+const FONT_SIZE_MAP: Record<string, string> = {
+  h1: "3rem",
+  h2: "2.5rem",
+  h3: "2rem",
+  h4: "1.5rem",
+  h5: "1.25rem",
+  h6: "1rem",
+  p: "1rem",
+};
 
 export type TextBlockPropsInner = {
   content: string;           // HTML from richtext field
@@ -109,32 +118,25 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     translations: {},
   },
   render: ({ content, level, typography, shadow, maxWidth }) => {
-    const fontStyles = getFontFamilyStyle(typography?.fontFamily);
-
-    // Dynamic font sizes based on level
-    const fontSizeMap = {
-      h1: "3rem",      // 48px
-      h2: "2.5rem",    // 40px
-      h3: "2rem",      // 32px
-      h4: "1.5rem",    // 24px
-      h5: "1.25rem",   // 20px
-      h6: "1rem",      // 16px
-      p: "1rem",       // 16px
-    };
+    const isHeading = level !== "p";
 
     return (
       <Section>
-        {React.createElement(level, {
-          className: getClassName(),
-          style: {
-            fontSize: fontSizeMap[level],
+        <div
+          className={getClassName()}
+          role={isHeading ? "heading" : undefined}
+          aria-level={isHeading ? parseInt(level.charAt(1)) : undefined}
+          style={{
+            fontSize: FONT_SIZE_MAP[level],
             color: typography?.color || "inherit",
             maxWidth: maxWidth ? `${maxWidth}px` : undefined,
-            ...fontStyles,
+            fontWeight: isHeading ? "bold" : undefined,
+            ...getFontFamilyStyle(typography?.fontFamily),
             ...(shadow && shadow !== "none" ? getShadowStyle(shadow) : {}),
-          },
-          children: content,
-        })}
+          }}
+        >
+          {content}
+        </div>
       </Section>
     );
   },

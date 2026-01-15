@@ -14,21 +14,18 @@ const loadedFontLinks = new Map<string, string>();
 const injectedByDocument = new WeakMap<Document, Set<string>>();
 let iframeObserverInitialized = false;
 
+type ParsedFont = { family: string; weight: string; style: string };
+
 // Parse font value format: "FontFamily:weight:style" e.g. "Roboto:700:italic" or just "Roboto"
-function parseFontValue(value: string): { family: string; weight: string; style: string } {
+function parseFontValue(value: string): ParsedFont {
   if (!value) return { family: "", weight: "400", style: "normal" };
-  const parts = value.split(":");
-  return {
-    family: parts[0] || "",
-    weight: parts[1] || "400",
-    style: parts[2] || "normal",
-  };
+  const [family = "", weight = "400", style = "normal"] = value.split(":");
+  return { family, weight, style };
 }
 
 export function loadGoogleFont(fontValue: string): void {
   const { family, weight, style } = parseFontValue(fontValue);
-
-  if (!family || family === "") return;
+  if (!family) return;
 
   // Create a unique key for this specific font+weight+style combo
   const fontKey = `${family}:${weight}:${style}`;
@@ -58,7 +55,7 @@ export type FontStyle = {
 };
 
 export function getFontFamilyVariables(fontValue: string | undefined): CSSProperties | undefined {
-  if (!fontValue || fontValue === "") return undefined;
+  if (!fontValue) return undefined;
 
   const { family, weight, style } = parseFontValue(fontValue);
   if (!family) return undefined;
@@ -73,7 +70,7 @@ export function getFontFamilyVariables(fontValue: string | undefined): CSSProper
 }
 
 export function getFontFamilyStyle(fontValue: string | undefined): FontStyle | undefined {
-  if (!fontValue || fontValue === "") return undefined;
+  if (!fontValue) return undefined;
 
   const { family, weight, style } = parseFontValue(fontValue);
   if (!family) return undefined;
