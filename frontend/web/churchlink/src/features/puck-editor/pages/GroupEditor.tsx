@@ -10,6 +10,7 @@ import { ModeToggle } from "@/shared/components/ModeToggle";
 import { UndoRedoButtons } from "../components/UndoRedoButtons";
 import { config } from "../config";
 import api from "@/api/api";
+import { initIframeBackgroundFix } from "../utils/fontLoader";
 import { createPortal } from "react-dom";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -179,6 +180,11 @@ export default function GroupEditor() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
+  }, []);
+
+  // Fix iframe white background
+  useEffect(() => {
+    return initIframeBackgroundFix();
   }, []);
 
   const handleClose = () => {

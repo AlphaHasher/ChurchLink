@@ -24,7 +24,7 @@ import { Globe, X } from "lucide-react";
 import Layout from "@/shared/layouts/Layout";
 import { PuckPageRenderer } from "../components/PuckPageRenderer";
 import { LANGUAGES } from "../utils/languageUtils";
-import { loadGoogleFont, extractFontsFromData } from "../utils/fontLoader";
+import { loadGoogleFont, extractFontsFromData, initIframeBackgroundFix } from "../utils/fontLoader";
 
 // Error boundary to catch Puck internal errors (e.g., during deletion)
 class PuckErrorBoundary extends Component<
@@ -166,6 +166,14 @@ export default function PuckEditor() {
       loadGoogleFont(fontValue);
     });
   }, [pageFonts]);
+
+  // Fix iframe white background (prevent dark :root bg from showing)
+  // Re-run when exiting preview mode (new iframe is created)
+  useEffect(() => {
+    if (!isPreviewMode) {
+      return initIframeBackgroundFix();
+    }
+  }, [isPreviewMode]);
 
   // Handler for saving a component as template
   const handleSaveAsTemplate = useCallback(

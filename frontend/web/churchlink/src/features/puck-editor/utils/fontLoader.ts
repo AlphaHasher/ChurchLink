@@ -121,6 +121,45 @@ function injectAllFontsIntoIframe(iframe: HTMLIFrameElement): void {
   loadedFontLinks.forEach((href, fontKey) => {
     ensureFontLoadedInDocument(doc, fontKey, href);
   });
+  // Ensure iframe has white background (fix dark background from :root styles)
+  injectIframeBackgroundFix(doc);
+}
+
+const IFRAME_BG_FIX_ID = "puck-iframe-bg-fix";
+function injectIframeBackgroundFix(doc: Document): void {
+  if (doc.getElementById(IFRAME_BG_FIX_ID)) return;
+  const style = doc.createElement("style");
+  style.id = IFRAME_BG_FIX_ID;
+  style.textContent = "html { background-color: #ffffff !important; }";
+  doc.head?.appendChild(style);
+}
+
+// Ensure all iframes have white background (call from PuckEditor on mount)
+export function initIframeBackgroundFix(): () => void {
+  if (typeof document === "undefined") return () => {};
+
+  const applyFixToAllIframes = () => {
+    document.querySelectorAll("iframe").forEach((iframe) => {
+      const doc = iframe.contentDocument;
+      if (doc?.head) injectIframeBackgroundFix(doc);
+    });
+  };
+
+  // Apply immediately
+  applyFixToAllIframes();
+
+  // Watch for new iframes (e.g., when returning from preview mode)
+  const observer = new MutationObserver(() => applyFixToAllIframes());
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // Also poll briefly for iframes that load async
+  const interval = setInterval(applyFixToAllIframes, 200);
+  setTimeout(() => clearInterval(interval), 2000);
+
+  return () => {
+    observer.disconnect();
+    clearInterval(interval);
+  };
 }
 
 function initIframeObserver(): void {
