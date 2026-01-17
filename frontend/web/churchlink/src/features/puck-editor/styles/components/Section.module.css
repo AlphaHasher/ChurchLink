@@ -1,9 +1,16 @@
 .Section:not(.Section .Section) {
-  padding-inline-start: 16px;
-  padding-inline-end: 16px;
   width: 100%;
 }
 
+/* Small screens up to 400px */
+@media (min-width: 340px) {
+  .Section:not(.Section .Section) {
+    padding-inline-start: 14px;
+    padding-inline-end: 14px;
+  }
+}
+
+/* Tablets and above */
 @media (min-width: 768px) {
   .Section:not(.Section .Section) {
     padding-inline-start: 24px;

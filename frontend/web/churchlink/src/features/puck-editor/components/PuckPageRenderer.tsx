@@ -29,10 +29,10 @@ export function PuckPageRenderer({ data }: PuckPageRendererProps) {
   // Margin classes - only applied in preview/live mode
   const marginClasses: Record<string, string> = {
     none: "",
-    small:  "md:mx-6   lg:mx-16  xl:mx-32  2xl:mx-48",
-    medium: "md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
-    large:  "md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
-    xl:     "md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
+    small:  "mx-1   sm:mx-3   md:mx-6   lg:mx-16  xl:mx-32  2xl:mx-48",
+    medium: "mx-2   sm:mx-4   md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
+    large:  "mx-3   sm:mx-6   md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
+    xl:     "mx-4   sm:mx-8   md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
   };
 
   // Apply custom margin if needed (use padding since margin doesn't work with full-width containers)

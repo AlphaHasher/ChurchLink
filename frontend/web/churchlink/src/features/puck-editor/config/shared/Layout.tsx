@@ -12,10 +12,10 @@ const getClassName = getClassNameFactory("Layout", styles);
 
 const marginClasses: Record<string, string> = {
   none: "",
-  small:  "md:mx-6   lg:mx-16  xl:mx-32  2xl:mx-48",
-  medium: "md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
-  large:  "md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
-  xl:     "md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
+  small:  "mx-1   sm:mx-3   md:mx-6   lg:mx-16  xl:mx-32  2xl:mx-48",
+  medium: "mx-2   sm:mx-4   md:mx-12  lg:mx-32  xl:mx-48  2xl:mx-64",
+  large:  "mx-3   sm:mx-6   md:mx-20  lg:mx-48  xl:mx-64  2xl:mx-80",
+  xl:     "mx-4   sm:mx-8   md:mx-32  lg:mx-64  xl:mx-80  2xl:mx-96",
 };
 
 type LayoutFieldProps = {
@@ -93,11 +93,12 @@ const Layout = forwardRef<HTMLDivElement, LayoutProps>(
     let customMarginStyle: CSSProperties = {};
 
     if (layout?.marginOverride && layout.marginOverride !== "page-default") {
-      if (layout.marginOverride === "custom") {
+      if (layout.marginOverride === "custom" && (layout.customMarginPx ?? 0) > 0) {
         const marginPx = layout.customMarginPx ?? 0;
+        // clamp(min, preferred, max)
         customMarginStyle = {
-          paddingLeft: `${marginPx}px`,
-          paddingRight: `${marginPx}px`,
+          paddingLeft: `clamp(0px, 2vw, ${marginPx}px)`,
+          paddingRight: `clamp(0px, 2vw, ${marginPx}px)`,
         };
       } else {
         marginClass = marginClasses[layout.marginOverride] || "";

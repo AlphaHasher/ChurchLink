@@ -70,11 +70,14 @@ const GridContainerInternal: ComponentConfig<GridContainerPropsInner> = {
 
     const isRow = layoutMode === "row";
 
+    // clamp(min, preferred, max)
+    const responsiveGap = `clamp(4px, 2vw, ${gap}px)`;
+
     const containerStyles: React.CSSProperties = {
       display: isRow ? "grid" : "flex",
       flexDirection: !isRow ? "column" : undefined,
       gridTemplateColumns: isRow ? `repeat(auto-fit, minmax(${itemMinWidth}px, 1fr))` : undefined,
-      gap: `${gap}px`,
+      gap: responsiveGap,
       alignItems: "flex-start",
       width: "100%",
     };
