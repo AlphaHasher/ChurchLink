@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck, type Data } from "@puckeditor/core";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -18,6 +18,10 @@ import {
   TooltipTrigger,
 } from "@/shared/components/ui/tooltip";
 
+// Selector-based hooks - separate for stable comparison
+const useDefaultLang = createUsePuck();
+const usePuckDataForLanguages = createUsePuck();
+
 interface SupportedLanguagesFieldProps {
   value: string[];
   onChange: (value: string[]) => void;
@@ -27,15 +31,18 @@ export function SupportedLanguagesField({
   value = ["en"],
   onChange,
 }: SupportedLanguagesFieldProps) {
-  const { appState } = usePuck();
-  const defaultLanguage = (appState.data.root.props?.defaultLanguage as string) || "en";
+  // Separate hooks for stable comparison
+  const defaultLanguage = useDefaultLang(
+    (s) => (s.appState.data.root.props?.defaultLanguage as string) || "en"
+  );
+  const data = usePuckDataForLanguages((s) => s.appState.data as Data);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   // Get languages that are actually being used in translations
   const languagesInUse = useMemo(() => {
-    return getLanguagesInUse(appState.data);
-  }, [appState.data]);
+    return getLanguagesInUse(data);
+  }, [data]);
 
   // Filter languages based on search
   const filteredLanguages = Object.entries(LANGUAGES).filter(

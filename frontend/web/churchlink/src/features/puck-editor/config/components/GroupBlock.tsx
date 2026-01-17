@@ -1,7 +1,7 @@
 import type { ComponentConfig, Data } from "@puckeditor/core";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck } from "@puckeditor/core";
 import { useTemplateContext } from "../../context/TemplateContext";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -15,6 +15,9 @@ import {
 } from "@/shared/components/ui/Dialog";
 import { Save } from "lucide-react";
 import { ColorPickerField } from "../../fields/ColorPickerField";
+
+// Selector-based hook - returns full data for saving group
+const usePuckDataForSave = createUsePuck();
 
 export type GroupBlockProps = {
   name: string;
@@ -45,7 +48,8 @@ type PuckComponent = {
 // eslint-disable-next-line react-refresh/only-export-components
 function SaveGroupDialog({ groupName, componentId }: { groupName: string; componentId: string }) {
   const templateContext = useTemplateContext();
-  const { appState } = usePuck();
+  // Only select the data we need - returns stable reference to data object
+  const puckData = usePuckDataForSave((s) => s.appState.data as Data);
   const [open, setOpen] = useState(false);
   const [groupTemplateName, setGroupTemplateName] = useState("");
   const [description, setDescription] = useState("");
@@ -66,9 +70,6 @@ function SaveGroupDialog({ groupName, componentId }: { groupName: string; compon
     setError(null);
 
     try {
-      // Get the full Puck data structure
-      const puckData = appState.data as Data;
-
       // Find this GroupBlock component in the data
       // In Puck, each component has props.id as the unique identifier
       let groupComponent: PuckComponent | undefined = puckData.content?.find(

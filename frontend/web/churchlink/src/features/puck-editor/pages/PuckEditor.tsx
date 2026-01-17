@@ -9,21 +9,15 @@ import { buildConfigWithTemplates } from "../config/buildConfigWithTemplates";
 import { usePuckPage } from "../hooks/usePuckPage";
 import { useCustomTemplates, type CustomTemplate } from "../hooks/useCustomTemplates";
 import { TemplateProvider } from "../context/TemplateContext";
-import { PuckLanguageProvider, usePuckLanguage } from "../context/PuckLanguageContext";
+import { PuckLanguageProvider } from "../context/PuckLanguageContext";
+import type { PuckData } from "../config/index";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { ManageGroupsDialog } from "../components/ManageGroupsDialog";
 import { PuckHeaderOverride } from "../components/PuckHeaderOverride";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
-import { Globe, X } from "lucide-react";
+import { X } from "lucide-react";
+import { LanguageSelector } from "../components/LanguageSelector";
 import Layout from "@/shared/layouts/Layout";
 import { PuckPageRenderer } from "../components/PuckPageRenderer";
-import { LANGUAGES } from "../utils/languageUtils";
 import { loadGoogleFont, extractFontsFromData, initIframeBackgroundFix } from "../utils/fontLoader";
 
 // Error boundary to catch Puck internal errors (e.g., during deletion)
@@ -262,43 +256,51 @@ function PreviewModeContent({
   data: unknown;
   setIsPreviewMode: (value: boolean) => void;
 }) {
-  const { previewLanguage, setPreviewLanguage, availableLanguages } = usePuckLanguage();
+  // Compute languages directly from data prop to ensure freshness
+  const rootProps = (data as { root?: { props?: Record<string, unknown> } })?.root?.props || {};
+  const defaultLanguage = (rootProps.defaultLanguage as string) || "en";
+  const supportedLanguages = (rootProps.supportedLanguages as string[]) || ["en"];
+  const initialPreviewLang = (rootProps._previewLanguage as string) || defaultLanguage;
+
+  const [previewLanguage, setPreviewLanguage] = useState(initialPreviewLang);
+  const availableLanguages = useMemo(
+    () => (supportedLanguages.length > 0 ? [...supportedLanguages].sort() : [defaultLanguage]),
+    [supportedLanguages, defaultLanguage]
+  );
 
   return (
     <div className="relative min-h-screen">
-      <Layout>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <PuckPageRenderer data={data as any} />
-      </Layout>
+      {/* Wrap renderer with controlled provider so components get correct language */}
+      <PuckLanguageProvider
+        data={data as PuckData}
+        previewLanguageOverride={previewLanguage}
+        onPreviewLanguageChange={setPreviewLanguage}
+      >
+        <Layout>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <PuckPageRenderer data={data as any} />
+        </Layout>
 
-      {/* Floating controls - top-right */}
-      <div className="fixed top-4 right-4 z-9999 flex gap-2">
-        {/* Language Selector in Preview */}
-        {availableLanguages.length > 1 && (
-          <Select value={previewLanguage} onValueChange={setPreviewLanguage}>
-            <SelectTrigger className="w-[180px] bg-background border shadow-lg">
-              <Globe className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableLanguages.map((lang) => (
-                <SelectItem key={lang} value={lang}>
-                  {LANGUAGES[lang] || lang} ({lang})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        {/* Floating controls - top-right */}
+        <div className="fixed top-4 right-4 z-9999 flex gap-2">
+          {/* Language Selector in Preview */}
+          <LanguageSelector
+            value={previewLanguage}
+            onChange={setPreviewLanguage}
+            availableLanguages={availableLanguages}
+            className="w-[180px] bg-background border shadow-lg"
+          />
 
-        {/* Exit Preview Button */}
-        <button
-          onClick={() => setIsPreviewMode(false)}
-          className="p-2 bg-background border border-border rounded-md shadow-lg hover:bg-accent transition-colors"
-          aria-label="Exit Preview Mode"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+          {/* Exit Preview Button */}
+          <button
+            onClick={() => setIsPreviewMode(false)}
+            className="p-2 bg-background border border-border rounded-md shadow-lg hover:bg-accent transition-colors"
+            aria-label="Exit Preview Mode"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </PuckLanguageProvider>
     </div>
   );
 }

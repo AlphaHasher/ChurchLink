@@ -1,4 +1,5 @@
 import type { ComponentConfig } from "@puckeditor/core";
+import parse from "html-react-parser";
 import { Section } from "../shared/Section";
 import { withLayout } from "../shared/Layout";
 import styles from "../../styles/components/Text.module.css";
@@ -7,8 +8,11 @@ import { getFontFamilyStyle } from "../../utils/fontLoader";
 import { getShadowStyle, shadowPresetLabels, type ShadowPreset } from "../../utils/shadowPresets";
 import { FontFamilyField } from "../../fields/FontFamilyField";
 import { ColorPickerField } from "../../fields/ColorPickerField";
+import { RichtextField } from "../../fields/RichtextField";
 import { TranslationsField } from "../../fields/TranslationsField";
-import type { TranslationMap } from "../../utils/languageUtils";
+import { usePreviewLanguageSafe } from "../../context/PuckLanguageContext";
+import { getTranslation, type TranslationMap } from "../../utils/languageUtils";
+import { sanitizeHtml } from "../../utils/sanitize";
 
 const getClassName = getClassNameFactory("Text", styles);
 
@@ -47,8 +51,11 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
   label: "Text",
   fields: {
     content: {
-      type: "richtext",
+      type: "custom",
       label: "Content",
+      render: ({ value, onChange }) => (
+        <RichtextField value={value as string} onChange={onChange} />
+      ),
     },
     level: {
       type: "select",
@@ -103,7 +110,7 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
           value={value as TranslationMap}
           onChange={onChange}
           translatableFields={[
-            { name: "content", type: "textarea", label: "Content" },
+            { name: "content", type: "richtext", label: "Content" },
           ]}
         />
       ),
@@ -117,26 +124,34 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
     maxWidth: undefined,
     translations: {},
   },
-  render: ({ content, level, typography, shadow, maxWidth }) => {
+  render: ({ content, level, typography, shadow, maxWidth, translations }) => {
+    const previewLanguage = usePreviewLanguageSafe();
+    const translatedContent = getTranslation(translations, previewLanguage, "content");
+    // Use translation if available, otherwise use original content
+    const displayContent = translatedContent || content;
     const isHeading = level !== "p";
+
+    const sharedStyle = {
+      fontSize: FONT_SIZE_MAP[level],
+      color: typography?.color || "inherit",
+      maxWidth: maxWidth ? `${maxWidth}px` : undefined,
+      fontWeight: isHeading ? "bold" : undefined,
+      ...getFontFamilyStyle(typography?.fontFamily),
+      ...(shadow && shadow !== "none" ? getShadowStyle(shadow) : {}),
+    };
+
+    const sharedProps = {
+      className: getClassName(),
+      role: isHeading ? ("heading" as const) : undefined,
+      "aria-level": isHeading ? parseInt(level.charAt(1)) : undefined,
+      style: sharedStyle,
+    };
+
+    const renderContent = () => parse(sanitizeHtml(displayContent));
 
     return (
       <Section>
-        <div
-          className={getClassName()}
-          role={isHeading ? "heading" : undefined}
-          aria-level={isHeading ? parseInt(level.charAt(1)) : undefined}
-          style={{
-            fontSize: FONT_SIZE_MAP[level],
-            color: typography?.color || "inherit",
-            maxWidth: maxWidth ? `${maxWidth}px` : undefined,
-            fontWeight: isHeading ? "bold" : undefined,
-            ...getFontFamilyStyle(typography?.fontFamily),
-            ...(shadow && shadow !== "none" ? getShadowStyle(shadow) : {}),
-          }}
-        >
-          {content}
-        </div>
+        <div {...sharedProps}>{renderContent()}</div>
       </Section>
     );
   },

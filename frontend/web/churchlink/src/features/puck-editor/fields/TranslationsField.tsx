@@ -1,4 +1,4 @@
-import { usePuck } from "@puckeditor/core";
+import { createUsePuck } from "@puckeditor/core";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -9,11 +9,19 @@ import {
 } from "@/shared/components/ui/collapsible";
 import { ChevronDown, X } from "lucide-react";
 import { LANGUAGES, type TranslationMap } from "../utils/languageUtils";
+import { RichtextField } from "./RichtextField";
+
+// Separate selectors for each value - returns primitives for stable comparison
+const useSupportedLanguages = createUsePuck();
+const useDefaultLanguage = createUsePuck();
+
+// Default constant to avoid new array references
+const DEFAULT_LANGUAGES = ["en"];
 
 interface TranslationsFieldProps {
   value: TranslationMap;
   onChange: (value: TranslationMap) => void;
-  translatableFields: Array<{ name: string; type?: "text" | "textarea"; label: string }>;
+  translatableFields: Array<{ name: string; type?: "text" | "textarea" | "richtext"; label: string }>;
 }
 
 export function TranslationsField({
@@ -21,9 +29,15 @@ export function TranslationsField({
   onChange,
   translatableFields,
 }: TranslationsFieldProps) {
-  const { appState } = usePuck();
-  const supportedLanguages = (appState.data.root.props?.supportedLanguages as string[]) || ["en"];
-  const defaultLanguage = (appState.data.root.props?.defaultLanguage as string) || "en";
+  // Use separate hooks with primitive/array returns for stable comparison
+  // Returns null if not set to maintain stable reference, then use constant default
+  const supportedLanguagesOrNull = useSupportedLanguages(
+    (s) => (s.appState.data.root.props?.supportedLanguages as string[]) || null
+  );
+  const supportedLanguages = supportedLanguagesOrNull || DEFAULT_LANGUAGES;
+  const defaultLanguage = useDefaultLanguage(
+    (s) => (s.appState.data.root.props?.defaultLanguage as string) || "en"
+  );
 
   // Filter out default language (translations are for non-default languages only)
   const translatableLanguages = supportedLanguages.filter((lang) => lang !== defaultLanguage);
@@ -92,17 +106,30 @@ export function TranslationsField({
             <CollapsibleContent className="px-3 pb-3 space-y-3">
               {translatableFields.map((field) => {
                 const fieldValue = value[locale]?.[field.name] || "";
-                const InputComponent = field.type === "textarea" ? Textarea : Input;
 
                 return (
                   <div key={field.name} className="space-y-1">
                     <label className="text-sm font-medium">{field.label}</label>
-                    <InputComponent
-                      value={fieldValue}
-                      onChange={(e) => handleFieldChange(locale, field.name, e.target.value)}
-                      placeholder={`Enter ${field.label.toLowerCase()} in ${languageName}`}
-                      className="w-full"
-                    />
+                    {field.type === "richtext" ? (
+                      <RichtextField
+                        value={fieldValue}
+                        onChange={(val) => handleFieldChange(locale, field.name, val)}
+                      />
+                    ) : field.type === "textarea" ? (
+                      <Textarea
+                        value={fieldValue}
+                        onChange={(e) => handleFieldChange(locale, field.name, e.target.value)}
+                        placeholder={`Enter ${field.label.toLowerCase()} in ${languageName}`}
+                        className="w-full"
+                      />
+                    ) : (
+                      <Input
+                        value={fieldValue}
+                        onChange={(e) => handleFieldChange(locale, field.name, e.target.value)}
+                        placeholder={`Enter ${field.label.toLowerCase()} in ${languageName}`}
+                        className="w-full"
+                      />
+                    )}
                   </div>
                 );
               })}

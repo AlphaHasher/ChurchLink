@@ -1,16 +1,9 @@
 import { Button } from "@/shared/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
 import { ModeToggle } from "@/shared/components/ModeToggle";
-import { ArrowLeft, Globe, LayoutGrid, Eye } from "lucide-react";
+import { ArrowLeft, LayoutGrid, Eye } from "lucide-react";
 import { UndoRedoButtons } from "./UndoRedoButtons";
-import { usePuckLanguage } from "../context/PuckLanguageContext";
-import { LANGUAGES } from "../utils/languageUtils";
+import { LanguageSelector } from "./LanguageSelector";
+import { usePuckLanguageFromPuck } from "../context/PuckLanguageContext";
 
 interface PuckHeaderOverrideProps {
   slug: string;
@@ -31,7 +24,7 @@ export function PuckHeaderOverride({
   publishing,
   isPublished,
 }: PuckHeaderOverrideProps) {
-  const { previewLanguage, setPreviewLanguage, availableLanguages } = usePuckLanguage();
+  const { previewLanguage, setPreviewLanguage, availableLanguages } = usePuckLanguageFromPuck();
 
   return (
     <header className="flex items-center gap-3 px-6 py-3 bg-background border-b">
@@ -60,30 +53,22 @@ export function PuckHeaderOverride({
         )}
       </div>
 
-      {/* Language Selector */}
-      {availableLanguages.length > 1 && (
-        <>
-          <div className="h-6 w-px bg-border" />
-          <Select value={previewLanguage} onValueChange={setPreviewLanguage}>
-            <SelectTrigger className="w-[180px] h-8">
-              <Globe className="h-4 w-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {availableLanguages.map((lang) => (
-                <SelectItem key={lang} value={lang}>
-                  {LANGUAGES[lang] || lang} ({lang})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </>
-      )}
-
       <div className="h-6 w-px bg-border" />
 
       {/* Undo/Redo Buttons */}
       <UndoRedoButtons />
+
+      {/* Language Selector */}
+      {availableLanguages.length > 1 && (
+        <>
+          <div className="h-6 w-px bg-border" />
+          <LanguageSelector
+            value={previewLanguage}
+            onChange={setPreviewLanguage}
+            availableLanguages={availableLanguages}
+          />
+        </>
+      )}
 
       <div className="h-6 w-px bg-border" />
 

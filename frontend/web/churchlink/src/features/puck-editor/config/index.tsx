@@ -45,6 +45,7 @@ type RootProps = {
   customPageMarginPx?: number;
   defaultLanguage?: string;
   supportedLanguages?: string[];
+  _previewLanguage?: string; // Internal: current preview language in editor
 };
 
 // Puck configuration

@@ -8,7 +8,7 @@ import { CompoundButton } from "../../components/compound/CompoundButton";
 import { IconPickerField } from "../../fields/IconPickerField";
 import { FontFamilyField } from "../../fields/FontFamilyField";
 import { ColorPickerField } from "../../fields/ColorPickerField";
-import { TranslationsField } from "../../fields/TranslationsField";
+import { ButtonTranslationsField } from "../../fields/ButtonTranslationsField";
 import { cn } from "@/lib/utils";
 
 type ButtonItem = {
@@ -127,15 +127,11 @@ const ButtonBlockInternal: ComponentConfig<ButtonBlockPropsInner> = {
     translations: {
       type: "custom",
       label: "Translations",
-      render: ({ value, onChange }) => (
-        <TranslationsField
+      render: ({ value, onChange, id }) => (
+        <ButtonTranslationsField
           value={value as TranslationMap}
           onChange={onChange}
-          translatableFields={[
-            { name: "buttons.0.label", type: "text", label: "Button 1 Label" },
-            { name: "buttons.1.label", type: "text", label: "Button 2 Label" },
-            { name: "buttons.2.label", type: "text", label: "Button 3 Label" },
-          ]}
+          id={id}
         />
       ),
     },
