@@ -6,6 +6,7 @@ export type GridContainerProps = {
   name: string;
   layoutMode: "row" | "column";
   gap: number;
+  itemMinWidth?: number;
   children: ReactNode;
   layout?: {
     spanCol?: number;
@@ -37,6 +38,11 @@ const GridContainerInternal: ComponentConfig<GridContainerPropsInner> = {
       label: "Gap (px)",
       min: 0,
     },
+    itemMinWidth: {
+      type: "number",
+      label: "Item Min Width (px)",
+      min: 50,
+    },
     children: {
       type: "slot",
     },
@@ -45,47 +51,42 @@ const GridContainerInternal: ComponentConfig<GridContainerPropsInner> = {
     name: "Container",
     layoutMode: "row",
     gap: 24,
+    itemMinWidth: 300,
     children: [] as unknown as ReactNode,
   },
   resolveData: async ({ props }) => ({
     props: { ...props, children: props.children ?? [] },
   }),
-  render: ({ layoutMode, children: ChildrenSlot, gap }) => {
+  render: ({
+    layoutMode,
+    children: ChildrenSlot,
+    gap,
+    itemMinWidth = 300,
+  }) => {
     // Defensive check for slot during deletion
     if (!ChildrenSlot || typeof ChildrenSlot !== "function") {
-      return <div className="grid-container w-full" />;
+      return <div className="w-full" />;
     }
 
     const isRow = layoutMode === "row";
 
     const containerStyles: React.CSSProperties = {
-      display: "flex",
-      flexDirection: isRow ? "row" : "column",
+      display: isRow ? "grid" : "flex",
+      flexDirection: !isRow ? "column" : undefined,
+      gridTemplateColumns: isRow ? `repeat(auto-fit, minmax(${itemMinWidth}px, 1fr))` : undefined,
       gap: `${gap}px`,
-      flexWrap: isRow ? "nowrap" : "wrap", // Row: strict fit, Column: allow wrap
+      alignItems: "flex-start",
       width: "100%",
-      alignItems: "flex-start", // Prevent items from stretching to match tallest
     };
-
-    // Child styles: auto-scale to fill, allow shrink in row mode
-    const childStyles = `
-      .grid-container > * {
-        flex: 1 1 0;
-        min-width: 0;
-      }
-    `;
 
     // Cast to any to allow JSX invocation with props
     const SlotComponent = ChildrenSlot as any;
 
     return (
-      <>
-        <style>{childStyles}</style>
-        <SlotComponent
-          className="grid-container"
-          style={containerStyles}
-        />
-      </>
+      <SlotComponent
+        className="w-full"
+        style={containerStyles}
+      />
     );
   },
 };
