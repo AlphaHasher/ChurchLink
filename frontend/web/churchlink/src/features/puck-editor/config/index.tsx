@@ -114,13 +114,9 @@ export const config: Config<Props, RootProps> = {
       title: "Layout",
       components: ["GroupBlock", "GridContainer", "SpacerBlock", "SpaceBlock", "DividerBlock", "BlankBlock"],
     },
-    typography: {
-      title: "Typography",
-      components: ["TextBlock"],
-    },
     content: {
       title: "Content",
-      components: ["ButtonBlock", "ImageBlock"],
+      components: ["TextBlock", "ButtonBlock", "ImageBlock"],
     },
     sections: {
       title: "Sections",

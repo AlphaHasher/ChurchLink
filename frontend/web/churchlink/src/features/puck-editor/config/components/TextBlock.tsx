@@ -16,19 +16,8 @@ import { sanitizeHtml } from "../../utils/sanitize";
 
 const getClassName = getClassNameFactory("Text", styles);
 
-const FONT_SIZE_MAP: Record<string, string> = {
-  h1: "3rem",
-  h2: "2.5rem",
-  h3: "2rem",
-  h4: "1.5rem",
-  h5: "1.25rem",
-  h6: "1rem",
-  p: "1rem",
-};
-
 export type TextBlockPropsInner = {
   content: string;           // HTML from richtext field
-  level: "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   typography?: {
     fontFamily?: string;
     color?: string
@@ -56,19 +45,6 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
       render: ({ value, onChange }) => (
         <RichtextField value={value as string} onChange={onChange} />
       ),
-    },
-    level: {
-      type: "select",
-      label: "Element Type",
-      options: [
-        { label: "Paragraph", value: "p" },
-        { label: "Heading 1 (H1)", value: "h1" },
-        { label: "Heading 2 (H2)", value: "h2" },
-        { label: "Heading 3 (H3)", value: "h3" },
-        { label: "Heading 4 (H4)", value: "h4" },
-        { label: "Heading 5 (H5)", value: "h5" },
-        { label: "Heading 6 (H6)", value: "h6" },
-      ],
     },
     typography: {
       type: "object",
@@ -118,32 +94,26 @@ const TextBlockInternal: ComponentConfig<TextBlockPropsInner> = {
   },
   defaultProps: {
     content: "Enter your text here...",
-    level: "p",
     typography: { fontFamily: "", color: "" },
     shadow: "none",
     maxWidth: undefined,
     translations: {},
   },
-  render: ({ content, level, typography, shadow, maxWidth, translations }) => {
+  render: ({ content, typography, shadow, maxWidth, translations }) => {
     const previewLanguage = usePreviewLanguageSafe();
     const translatedContent = getTranslation(translations, previewLanguage, "content");
     // Use translation if available, otherwise use original content
     const displayContent = translatedContent || content;
-    const isHeading = level !== "p";
 
     const sharedStyle = {
-      fontSize: FONT_SIZE_MAP[level],
       color: typography?.color || "inherit",
       maxWidth: maxWidth ? `${maxWidth}px` : undefined,
-      fontWeight: isHeading ? "bold" : undefined,
       ...getFontFamilyStyle(typography?.fontFamily),
       ...(shadow && shadow !== "none" ? getShadowStyle(shadow) : {}),
     };
 
     const sharedProps = {
       className: getClassName(),
-      role: isHeading ? ("heading" as const) : undefined,
-      "aria-level": isHeading ? parseInt(level.charAt(1)) : undefined,
       style: sharedStyle,
     };
 

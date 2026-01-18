@@ -11,14 +11,19 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Heading1,
-  Heading2,
-  Heading3,
   Pilcrow,
   Copy,
   Clipboard,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/shared/components/ui/dropdown-menu";
 import {
   copyStyle,
   getPastedStyle,
@@ -30,6 +35,7 @@ import {
 interface RichtextFieldProps {
   value: string;
   onChange: (value: string) => void;
+  contentEditable?: boolean;
 }
 
 // Toolbar button component
@@ -70,7 +76,7 @@ export function RichtextField({ value, onChange }: RichtextFieldProps) {
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2, 3],
+          levels: [1, 2, 3, 4, 5, 6],
         },
       }),
       TextAlign.configure({
@@ -101,7 +107,7 @@ export function RichtextField({ value, onChange }: RichtextFieldProps) {
   }, [value, editor]);
 
   const setHeading = useCallback(
-    (level: 1 | 2 | 3) => {
+    (level: 1 | 2 | 3 | 4 | 5 | 6) => {
       editor?.chain().focus().toggleHeading({ level }).run();
     },
     [editor]
@@ -109,6 +115,16 @@ export function RichtextField({ value, onChange }: RichtextFieldProps) {
 
   const setParagraph = useCallback(() => {
     editor?.chain().focus().setParagraph().run();
+  }, [editor]);
+
+  const getCurrentHeadingLevel = useCallback((): string => {
+    if (!editor) return "p";
+    for (let i = 1; i <= 6; i++) {
+      if (editor.isActive("heading", { level: i as 1 | 2 | 3 | 4 | 5 | 6 })) {
+        return `h${i}`;
+      }
+    }
+    return "p";
   }, [editor]);
 
   const handleCopyStyle = useCallback(() => {
@@ -131,39 +147,47 @@ export function RichtextField({ value, onChange }: RichtextFieldProps) {
     return null;
   }
 
+  const currentLevel = getCurrentHeadingLevel();
+
   return (
     <div className="border rounded-md overflow-hidden bg-background">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 p-1 border-b bg-muted/30">
-        {/* Text type */}
-        <ToolbarButton
-          onClick={setParagraph}
-          isActive={editor.isActive("paragraph") && !editor.isActive("heading")}
-          title="Paragraph"
-        >
-          <Pilcrow className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => setHeading(1)}
-          isActive={editor.isActive("heading", { level: 1 })}
-          title="Heading 1"
-        >
-          <Heading1 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => setHeading(2)}
-          isActive={editor.isActive("heading", { level: 2 })}
-          title="Heading 2"
-        >
-          <Heading2 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => setHeading(3)}
-          isActive={editor.isActive("heading", { level: 3 })}
-          title="Heading 3"
-        >
-          <Heading3 className="h-4 w-4" />
-        </ToolbarButton>
+        {/* Text type - Paragraph/Heading dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title="Paragraph/Heading"
+              className={cn(
+                "p-1.5 rounded hover:bg-accent transition-colors flex items-center gap-1",
+                (currentLevel !== "p" || editor.isActive("paragraph")) && "bg-accent text-accent-foreground"
+              )}
+            >
+              <Pilcrow className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuRadioGroup value={currentLevel}>
+              <DropdownMenuRadioItem
+                value="p"
+                onClick={setParagraph}
+              >
+                Paragraph
+              </DropdownMenuRadioItem>
+              {[1, 2, 3, 4, 5, 6].map((level) => (
+                <DropdownMenuRadioItem
+                  key={`h${level}`}
+                  value={`h${level}`}
+                  onClick={() => setHeading(level as 1 | 2 | 3 | 4 | 5 | 6)}
+                >
+                  Heading {level}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="w-px h-5 bg-border mx-1" />
 
