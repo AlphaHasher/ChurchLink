@@ -212,6 +212,7 @@ export default function PuckEditor() {
           <div className="h-screen flex flex-col">
             <PuckErrorBoundary onReset={() => window.location.reload()}>
               <Puck
+                _experimentalFullScreenCanvas
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 config={dynamicConfig as any}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
