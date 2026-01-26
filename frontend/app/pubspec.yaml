@@ -40,7 +40,7 @@ dependencies:
   firebase_analytics: ^12.0.4
   url_launcher: ^6.3.2
   provider: ^6.1.5
-  app_links: ^6.4.1
+  app_links: ^7.0.0
   
 
   #avatar
@@ -50,7 +50,7 @@ dependencies:
   http: ^1.6.0 #for backend call
   flutter_dotenv: ^6.0.0
   intl: ^0.20.2
-  flutter_local_notifications: ^19.5.0
+  flutter_local_notifications: ^20.0.0
   flutter_paypal_payment: ^1.0.8
   webview_flutter: ^4.13.0
   connectivity_plus: ^7.0.0
@@ -79,7 +79,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  patrol: ^3.10.0
+  patrol: ^4.1.0
   flutter_launcher_icons: "^0.14.4"
 
   # The "flutter_lints" package below contains a set of recommended lints to
